@@ -1,0 +1,7 @@
+/.settings/
+/.project
+/.pydevproject
+/.sconsign.dblite
+.vscode/
+*.pyc
+*.pyo
