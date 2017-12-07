@@ -93,9 +93,9 @@ However, one might want to use a development version executed directly from
 the source tree.
 
 A possible solution is to use file-system junction. Run the following command
-from the current user config's `addons` directory:
+from the current user config `addons` directory:
 
-`mklink /J WebAccess <path to the addon folder in the source tree>
+`mklink /J WebAccess <path to the addon folder in the source tree>`
 
 Note: Local administrator privileges are required.
 
