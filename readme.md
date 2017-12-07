@@ -1,6 +1,6 @@
 # Web Access for NVDA
 
-Web application modules support for modern or complex web sites.
+[Web application modules](http://webmodules.org/) support for modern or complex web sites.
 
 Copyright (C) 2015-2017 Accessolutions (http://accessolutions.fr)
 
