@@ -49,7 +49,7 @@ Overridden NVDA functions:
 
 from __future__ import absolute_import
 
-__version__ = "2017.07.10"
+__version__ = "2017.12.13"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -401,7 +401,12 @@ def findScript(gesture, searchWebApp=True):
 	if globalMap:
 		globalMaps.append(globalMap)
 	for globalMap in globalMaps:
-		for identifier in gesture.identifiers:
+		# Changed from `identifiers` to `normalizedIdentifier in NVDA 2017.4
+		# (new member introduced in NVDA 2017.2)
+		for identifier in \
+				gesture.normalizedIdentifiers \
+				if hasattr(gesture, "normalizedIdentifiers") \
+				else gesture.identifiers:
 			globalMapScripts.extend(globalMap.getScriptsForGesture(identifier))
 			
 	# Gesture specific scriptable object.
