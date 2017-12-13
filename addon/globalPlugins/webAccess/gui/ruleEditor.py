@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2017.10.17"
+__version__ = "2017.12.13"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
@@ -272,6 +272,7 @@ class Dialog(wx.Dialog):
 						self.formModeCheckBox.Value = formModeControl
 						self.sayNameCheckBox.Value = True
 						self.indexText.Set([""])
+						self.comment.Value = ""
 				else:
 						self.Title = _("Edit rule")
 						self.markerName.Value = rule.name
