@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2017.10.17"
+__version__ = "2018.01.02"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
@@ -143,7 +143,7 @@ class Dialog(wx.Dialog):
 				checkBox = self.multipleCheckBox = wx.CheckBox(staticBoxRuleDef, label=_(u"&Multiple results available"))
 				gridSizer.Add(checkBox, pos=(8, 0), flag=wx.EXPAND)
 
-				gridSizer.Add(wx.StaticText(staticBoxRuleDef, label=_(u"&Index to keep")), pos=(9, 0))
+				gridSizer.Add(wx.StaticText(staticBoxRuleDef, label=_(u"&Index")), pos=(9, 0))
 				inputCtrl = self.indexText = wx.ComboBox(staticBoxRuleDef)
 				gridSizer.Add(inputCtrl, pos=(9, 1), flag=wx.EXPAND)
 
@@ -186,7 +186,7 @@ class Dialog(wx.Dialog):
 
 				checkMode = self.formModeCheckBox = wx.CheckBox(staticBoxKeyboard, label=_("Activate &form mode"))
 				checkSayName = self.sayNameCheckBox = wx.CheckBox(staticBoxKeyboard, label=_("Speak r&ule name"))
-				checkSkip = self.skipCheckBox = wx.CheckBox(staticBoxKeyboard, label=_("S&kip"))
+				checkSkip = self.skipCheckBox = wx.CheckBox(staticBoxKeyboard, label=_("S&kip with Page Down"))
 				checkIsPageTitle = self.isPageTitleCheckBox = wx.CheckBox(staticBoxKeyboard, label=_("&Page title"))
 				checkCreateWidget = self.createWidgetCheckBox = wx.CheckBox(staticBoxKeyboard, label=_("Create a &list of items"))
 				checkCreateWidget.Enabled = False
@@ -269,9 +269,13 @@ class Dialog(wx.Dialog):
 						self.Title = _(u"New rule")
 						self.gestureMapValue = {}
 						self.autoActionList.SetSelection(0)
+						self.multipleCheckBox.Value = False
+						self.indexText.Set([""])
 						self.formModeCheckBox.Value = formModeControl
 						self.sayNameCheckBox.Value = True
-						self.indexText.Set([""])
+						self.skipCheckBox.Value = False
+						self.isPageTitleCheckBox.Value = False
+						self.comment.Value = ""
 				else:
 						self.Title = _("Edit rule")
 						self.markerName.Value = rule.name
