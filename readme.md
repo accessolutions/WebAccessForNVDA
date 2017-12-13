@@ -2,7 +2,7 @@
 
 [Web application modules](http://webmodules.org/) support for modern or complex web sites.
 
-Copyright (C) 2015-2017 Accessolutions (http://accessolutions.fr)
+Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
 
 ## License
 
