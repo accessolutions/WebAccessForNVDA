@@ -147,8 +147,8 @@ msgid "&Multiple results available"
 msgstr "Résultats &multiples"
 
 #: addon\globalPlugins\webAccess\gui\ruleEditor.py:146
-msgid "&Index to keep"
-msgstr "&Index à garder"
+msgid "&Index"
+msgstr "&Index"
 
 #: addon\globalPlugins\webAccess\gui\ruleEditor.py:159
 msgid "Define shortcuts"
@@ -179,8 +179,8 @@ msgid "Speak r&ule name"
 msgstr "&Lire le nom de la règle"
 
 #: addon\globalPlugins\webAccess\gui\ruleEditor.py:189
-msgid "S&kip"
-msgstr "Passer"
+msgid "S&kip with Page Down"
+msgstr "I&gnorer avec Page Down"
 
 #: addon\globalPlugins\webAccess\gui\ruleEditor.py:190
 msgid "&Page title"
