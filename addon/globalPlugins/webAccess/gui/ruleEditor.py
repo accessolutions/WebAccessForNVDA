@@ -269,9 +269,12 @@ class Dialog(wx.Dialog):
 						self.Title = _(u"New rule")
 						self.gestureMapValue = {}
 						self.autoActionList.SetSelection(0)
+						self.multipleCheckBox.Value = False
+						self.indexText.Set([""])
 						self.formModeCheckBox.Value = formModeControl
 						self.sayNameCheckBox.Value = True
-						self.indexText.Set([""])
+						self.skipCheckBox.Value = False
+						self.isPageTitleCheckBox.Value = False
 						self.comment.Value = ""
 				else:
 						self.Title = _("Edit rule")
