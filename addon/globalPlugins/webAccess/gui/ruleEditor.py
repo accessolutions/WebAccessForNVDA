@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2016 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2017.12.13"
+__version__ = "2017.10.17"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
@@ -143,7 +143,7 @@ class Dialog(wx.Dialog):
 				checkBox = self.multipleCheckBox = wx.CheckBox(staticBoxRuleDef, label=_(u"&Multiple results available"))
 				gridSizer.Add(checkBox, pos=(8, 0), flag=wx.EXPAND)
 
-				gridSizer.Add(wx.StaticText(staticBoxRuleDef, label=_(u"&Index")), pos=(9, 0))
+				gridSizer.Add(wx.StaticText(staticBoxRuleDef, label=_(u"&Index to keep")), pos=(9, 0))
 				inputCtrl = self.indexText = wx.ComboBox(staticBoxRuleDef)
 				gridSizer.Add(inputCtrl, pos=(9, 1), flag=wx.EXPAND)
 
@@ -186,7 +186,7 @@ class Dialog(wx.Dialog):
 
 				checkMode = self.formModeCheckBox = wx.CheckBox(staticBoxKeyboard, label=_("Activate &form mode"))
 				checkSayName = self.sayNameCheckBox = wx.CheckBox(staticBoxKeyboard, label=_("Speak r&ule name"))
-				checkSkip = self.skipCheckBox = wx.CheckBox(staticBoxKeyboard, label=_("S&kip with Page Down"))
+				checkSkip = self.skipCheckBox = wx.CheckBox(staticBoxKeyboard, label=_("S&kip"))
 				checkIsPageTitle = self.isPageTitleCheckBox = wx.CheckBox(staticBoxKeyboard, label=_("&Page title"))
 				checkCreateWidget = self.createWidgetCheckBox = wx.CheckBox(staticBoxKeyboard, label=_("Create a &list of items"))
 				checkCreateWidget.Enabled = False
@@ -269,13 +269,9 @@ class Dialog(wx.Dialog):
 						self.Title = _(u"New rule")
 						self.gestureMapValue = {}
 						self.autoActionList.SetSelection(0)
-						self.multipleCheckBox.Value = False
-						self.indexText.Set([""])
 						self.formModeCheckBox.Value = formModeControl
 						self.sayNameCheckBox.Value = True
-						self.skipCheckBox.Value = False
-						self.isPageTitleCheckBox.Value = False
-						self.comment.Value = ""
+						self.indexText.Set([""])
 				else:
 						self.Title = _("Edit rule")
 						self.markerName.Value = rule.name
@@ -319,8 +315,7 @@ class Dialog(wx.Dialog):
 				for gestureIdentifier in self.gestureMapValue:
 						gestureSource, gestureMain = inputCore.getDisplayTextForGestureIdentifier(
 								gestureIdentifier)
-						actionStr = self.markerManager.getActions(
-						)[self.gestureMapValue[gestureIdentifier]]
+						actionStr = self.markerManager.getActions()[self.gestureMapValue[gestureIdentifier]]
 						self.gesturesList.Append("%s = %s" % (
 								gestureMain, actionStr), gestureIdentifier)
 						if gestureIdentifier == newGestureIdentifier:
@@ -345,44 +340,12 @@ class Dialog(wx.Dialog):
 				self.updateGesturesList()
 
 		def onAddGesture(self, evt):
-				self.gesturesList.InsertItems([_(u"(Type shortcut)")], 0)
+			from ..gui import shortcutDialog
+			if shortcutDialog.show():
+				self.AddGestureAction(shortcutDialog.resultShortcut, shortcutDialog.resultActionData)
 
-				if inputCore.manager._captureFunc:
-						return
 
-				def gestureCaptor(gesture):
-						if gesture.isModifier:
-								return False
-						inputCore.manager._captureFunc = None
-						wx.CallAfter(self.selectGestureAction, gesture)
-						return False
-				speech.cancelSpeech()
-				ui.message(u"appuyez sur le raccourci clavier que vous voulez ajouter")
-				inputCore.manager._captureFunc = gestureCaptor
-
-		def selectGestureAction(self, gesture):
-				self.gesturesList.Delete(0)
-				speechOn()
-				gestureIdentifier = None
-				# search the shortest gesture identifier(without source)
-				for identifier in gesture.identifiers:
-						if gestureIdentifier is None:
-								gestureIdentifier = identifier
-						elif len(identifier) < len(gestureIdentifier):
-								gestureIdentifier = identifier
-
-				source, main = inputCore.getDisplayTextForGestureIdentifier(identifier)
-				menuTitle = u"Choisir l'action associee au raccourci %s" % main
-
-				# popup menu
-				menu = wx.Menu(menuTitle, style=0)
-				for action, description in self.markerManager.getActions().items():
-						item = menu.Append(wx.ID_ANY, description)
-						self.Bind(wx.EVT_MENU,
-											lambda evt, gestureIdentifier=gestureIdentifier, action=action: self.addGestureAction(gestureIdentifier, action), item)
-				self.PopupMenu(menu)
-
-		def addGestureAction(self, gestureIdentifier, action):
+		def AddGestureAction(self, gestureIdentifier, action):
 				self.gestureMapValue[gestureIdentifier] = action
 				self.updateGesturesList(newGestureIdentifier=gestureIdentifier)
 				self.gesturesList.SetFocus()
