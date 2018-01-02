@@ -21,7 +21,7 @@
 
 """Web Module data store."""
 
-__version__ = "2017.12.06"
+__version__ = "2018.01.02"
 
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
@@ -176,7 +176,6 @@ class WebModuleJsonFileStore(Store):
 			ref = self.getRef(item)
 		path = self.getCheckedPath(ref)
 		newRef = self.getNewRef(item)
-		log.info (u"ref : %s  newRef: %s" % (repr(ref), repr(newRef)))
 		if ref != newRef:
 			newPath = self.getCheckedPath(newRef, new=True, force=force)
 			os.rename(path, newPath)

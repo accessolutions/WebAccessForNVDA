@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2016.11.29"
+__version__ = "2018.01.02"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>"
@@ -215,7 +215,6 @@ class Dialog(wx.Dialog):
 					urls.append(url_)
 		if "focusObject" in context:
 			urlFromObject = getUrlFromObject(context["focusObject"])
-			log.info("urlFromObject: %s" % urlFromObject)
 			if urlFromObject is None:
 				if webModule is None:
 					ui.message(_("URL not found"))
@@ -281,7 +280,6 @@ class Dialog(wx.Dialog):
 			if obj.windowText not in windowTitleChoices:
 				windowTitleChoices.append(obj.windowText)
 		item = self.webModuleWindowTitle
-		log.info("windowTitleChoices: %s" % windowTitleChoices)
 		item.SetItems(windowTitleChoices)
 		if windowTitleIsFilled:
 			item.Selection = 0
@@ -302,7 +300,7 @@ class Dialog(wx.Dialog):
 
 		url = self.webModuleUrl.Value.strip()
 		windowTitle = self.webModuleWindowTitle.Value.strip()
-		if len(url) < 1 and len(title) < 1:
+		if len(url) < 1 and len(windowTitle) < 1:
 			gui.messageBox(
 				_("You must specify an URL or window name"),
 				_("Error"),
