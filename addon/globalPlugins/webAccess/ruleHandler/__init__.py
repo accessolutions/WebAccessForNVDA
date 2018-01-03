@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2017.11.27"
+__version__ = "2018.01.03"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
@@ -43,21 +43,21 @@ from .. import nodeHandler
 from .. import webAppScheduler
 from ..widgets import genericCollection
 from ..webAppLib import *
+from collections import OrderedDict
 
-markerActions = ["moveto", "sayall", "speak", "activate", "mouseMove"]
-markerActionsDic = {
-				# Translators: Action name
-				"moveto" : pgettext("webAccess.action", "Move to"),
-				# Translators: Action name
-				"sayall" : pgettext("webAccess.action", "Say all"), 
-				# Translators: Action name
-				"speak" : pgettext("webAccess.action", "Speak"),
-				# Translators: Action name
-				"activate" : pgettext("webAccess.action", "Activate"),
-				# Translators: Action name
-				"mouseMove" : pgettext("webAccess.action", "Mouse move"),
-				}
-
+builtinRuleActions = OrderedDict ()
+# Translators: Action name
+builtinRuleActions ["moveto"] = pgettext("webAccess.action", "Move to")
+# Translators: Action name
+builtinRuleActions ["sayall"] = pgettext("webAccess.action", "Say all") 
+# Translators: Action name
+builtinRuleActions ["speak"] = pgettext("webAccess.action", "Speak")
+# Translators: Action name
+builtinRuleActions ["activate"] = pgettext("webAccess.action", "Activate")
+# Translators: Action name
+builtinRuleActions ["mouseMove"] = pgettext("webAccess.action", "Mouse move")
+# Translators: Action name
+builtinRuleActions ["noAction"] = pgettext("webAccess.action", "No action")
 
 def showCreator(context):
 	return showEditor(context, new=True)
@@ -201,18 +201,7 @@ class MarkerManager(baseObject.ScriptableObject):
 				del self.markerResults[i-1]
 
 	def getActions(self):
-		dic = {
-			# Translators: Action name
-			"moveto" : pgettext("webAccess.action", "Move to"),
-			# Translators: Action name
-			"sayall" : pgettext("webAccess.action", "Say all"), 
-			# Translators: Action name
-			"speak" : pgettext("webAccess.action", "Speak"),
-			# Translators: Action name
-			"activate" : pgettext("webAccess.action", "Activate"),
-			# Translators: Action name
-			"mouseMove" : pgettext("webAccess.action", "Mouse move"),
-			}
+		dic = builtinRuleActions.copy ()
 		prefix = "action_"
 		for key in dir(self.webApp):
 			if key[:len(prefix)] == prefix:
@@ -466,6 +455,10 @@ class MarkerResult(baseObject.ScriptableObject):
 
 	def script_mouseMove(self, gesture):
 		raise NotImplementedError
+	
+	def script_noAction(self, gesture):
+		playWebAppSound("keyError")
+		ui.message (_("No action assigned to this key"))
 	
 	def __lt__(self, other):
 		raise NotImplementedError

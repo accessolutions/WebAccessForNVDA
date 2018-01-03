@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.01.02"
+__version__ = "2018.01.03"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
@@ -176,9 +176,6 @@ class Dialog(wx.Dialog):
 
 				keyboardGridSizer.Add(wx.StaticText(staticBoxKeyboard, label=_("&Automatic action at rule detection")), pos=(2, 0))
 				inputAutoAction = self.autoActionList = wx.ListBox(staticBoxKeyboard)
-				inputAutoAction.Append("", "")
-				for action in ruleHandler.markerActions:
-						inputAutoAction.Append(ruleHandler.markerActionsDic[action], action)
 				keyboardGridSizer.Add(inputAutoAction, pos=(2, 1), flag=wx.EXPAND)
 
 				line = wx.StaticLine(staticBoxKeyboard)
@@ -254,6 +251,11 @@ class Dialog(wx.Dialog):
 						srcChoices.append(node.src)
 						node = node.parent
 
+				actionsDict = self.markerManager.getActions ()
+				self.autoActionList.Append("", "")
+				for action in actionsDict:
+						self.autoActionList.Append(actionsDict[action], action)
+
 				if len(self.getQueriesNames()) == 0:
 						self.markerName.Set([""])
 				else:
@@ -288,7 +290,7 @@ class Dialog(wx.Dialog):
 						self.srcCombo.Value = rule.dic.get("src", "")
 						self.gestureMapValue = rule.gestures.copy()
 						self.autoActionList.SetSelection(
-								ruleHandler.markerActions.index(
+								markerManager.getActions().keys().index(
 										rule.dic.get("autoAction", "")
 								) + 1  # Empty entry at index 0
 								if "autoAction" in rule.dic else 0
@@ -345,6 +347,7 @@ class Dialog(wx.Dialog):
 
 		def onAddGesture(self, evt):
 			from ..gui import shortcutDialog
+			shortcutDialog.markerManager = self.markerManager
 			if shortcutDialog.show():
 				self.AddGestureAction(shortcutDialog.resultShortcut, shortcutDialog.resultActionData)
 
