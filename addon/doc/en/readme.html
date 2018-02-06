@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+<link rel="stylesheet" type="text/css" href="../style.css" media="screen"/>
+<title>Web Access for NVDA 2017.12.06-dev</title>
+</head>
+<body>
+<h1>Web Access for NVDA</h1>
+<p><a href="http://webmodules.org/">Web application modules</a> support for modern or complex web sites.</p>
+<p>Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)</p>
+<h2>License</h2>
+<p>This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.</p>
+<p>This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.</p>
+<p>You should have received a copy of the GNU General Public License
+along with this program.  If not, see <a href="http://www.gnu.org/licenses/">http://www.gnu.org/licenses/</a>.</p>
+<p>See the file COPYING.txt at the root of this distribution for more details.</p>
+<h2>Requirements</h2>
+<p>This is an add-on targeting the NVDA screen reader version 2016.2 or greater. </p>
+<p>Additionally, the following software is required in order to build this add-on:</p>
+<ul>
+<li>a Python distribution (2.7 or greater 32 bits is recommended). Check the <a href="http://www.python.org">Python Website</a> for Windows Installers.</li>
+<li>SCons - <a href="http://www.scons.org/">Website</a> - version 2.1.0 or greater. Install it using <strong>pip</strong> or grab an windows installer from the website.</li>
+<li>GNU Gettext tools. You can find windows builds <a href="http://gnuwin32.sourceforge.net/downlinks/gettext.php">here</a>.</li>
+<li>Markdown-2.0.1 or greater, to convert documentation files to HTML documents. You can <a href="https://pypi.python.org/pypi/Markdown/2.0.1">Download Markdown-2.0.1 installer for Windows</a> or get it using <code>pip install markdown</code>.</li>
+</ul>
+<h2>Virtual environment</h2>
+<p>The recommended way to setup a Python build environment is to use <code>virtualenv</code>.</p>
+<p>It is especially true when using different versions and flavours of the Python
+interpreter or working on projects that might have conflicting dependencies. </p>
+<p>In this section, we will assume your Python 2.7 32 bits interpreter is <em>not</em>
+in the <code>PATH</code> environment variable. In later sections, we will assume it
+either is or you activated (as we recommend) the dedicated virtual environment.</p>
+<p>The following commands use our dev team installation paths, amend according to
+your needs.</p>
+<ul>
+<li>
+<p>First, install <code>virtualenv</code>:</p>
+<p><code>D:\dev\Python27-32\Scripts\pip install virtualenv</code></p>
+</li>
+<li>
+<p>Then, create a home folder for your virtual environments:</p>
+<p><code>md D:\dev\venv</code></p>
+</li>
+<li>
+<p>Create a new virtual environment:</p>
+<p><code>D:\dev\Python27-32\Scripts\virtualenv.exe D:\dev\venv\nvda-addon</code></p>
+<p>We will then need to inject in this virtual environment the Python dependencies
+for the targeted release of NVDA.</p>
+</li>
+<li>
+<p>Download the NVDA misc deps package:
+<a href="https://github.com/nvaccess/nvda-misc-deps/archive/3707b8e4052670c454343e32d8de3f0b8beab642.zip">Link for release 2017.4</a></p>
+<p>And uncompress it in a directory of your choice.</p>
+<p>You might of course as well clone the NVDA git repo (with submodules) to obtain these.</p>
+</li>
+<li>
+<p>Then, create a <code>.pth</code> file in the <code>site-packages</code> of your virtual environment with
+a single line containing the path to the <code>python</code> directory contained in NVDA misc deps.</p>
+<p>From the <code>python</code> directory of the uncompressed NVDA misc deps archive, run:</p>
+<p><code>cd &gt; D:\dev\venv\nvda-addon\Lib\site-packages\nvda-misc-deps.pth</code></p>
+<p>Note that, even if you invoke a Windows Python from Git Bash (as we do), this path
+<em>must</em> be in Windows format. That is, from the same <code>python</code> directory:</p>
+<p><code>cygpath -w $(pwd) &gt; /d/dev/venv/nvda-addon/Lib/site-packages/nvda-misc-deps.pth</code></p>
+</li>
+<li>
+<p>Copy the file <code>scons.py</code> from the root of this project to the <code>Scripts</code>
+ directory of the virtual environment:</p>
+<p>This is only a convenience script allowing easier invocation of the SCons found
+in NVDA misc deps. </p>
+</li>
+<li>
+<p>Then, activate the virtual environment.</p>
+<p><code>D:\dev\venv\nvda-addon\Script\activate.bat</code></p>
+<p>or from Git Bash:</p>
+<p><code>. /d/dev/venv/nvda-addon/Scripts/activate</code></p>
+<p>Note the leading period, meaning the script is sourced, not run.</p>
+<p>Your command prompt should now be prefixed with the name of the virtual
+environment in parenthesis.</p>
+<p>Any subsequent command will be run in the context of this virtual
+environment.
+The corresponding <code>python.exe</code> is now the first in your <code>PATH</code> environment
+variable, whether another one was already present or not.
+Furthermore, packages installed via <code>pip</code> will land in this virtual
+environment instead of the base Python installation.</p>
+<p>You can later run <code>deactivate</code> to leave this virtual environment, but let's
+first finish to set it up.</p>
+</li>
+<li>
+<p>Install the remaining build dependencies:</p>
+<p><code>pip install Markdown&gt;=2.0.1</code></p>
+</li>
+</ul>
+<p>The new <code>nvda-addon</code> virtual environment is now ready to build our addon.</p>
+<p>Note that it can also be used by many IDEs, such as PyDev for Eclipse, as
+the interpreter for the project. </p>
+<h2>Build</h2>
+<p>This add-on is based upon the
+<a href="https://bitbucket.org/nvdaaddonteam/addontemplate">addonTemplate</a>
+from the NVDA Add-ons Team and, as such, is built using SCons.</p>
+<p>Depending on your environment, your SCons command might be either <code>scons.py</code>
+or <code>scons.bat</code>. As a convention, <code>scons</code> will be used within this document.</p>
+<p>The following commands are to be run from the project root folder. </p>
+<h3>Generate Gettext POT translation file</h3>
+<p><code>scons pot</code></p>
+<p>The resulting <code>WebAccess.pot</code> file will be created (or updated) in the project
+root folder.</p>
+<h3>Build the installation package</h3>
+<p><code>scons</code></p>
+<p>The resulting <code>WebAccess-&lt;version&gt;.nvda-addon</code> file will be created (or
+updated) in the project root folder.</p>
+<h3>Cleaning</h3>
+<p>In order to ease in place execution during development, the manifest
+and documentation files generated by the build process are stored within the
+source tree, instead of a separate <code>build</code> folder.</p>
+<p>To get rid of them:</p>
+<p><code>scons -c</code></p>
+<p>To also get rid of the generated Gettext POT translation file:</p>
+<p><code>scons -c pot</code></p>
+<h2>Install</h2>
+<p>This project follows NVDA standards regarding installation of <code>.nvda-addon</code>
+files.</p>
+<p>However, one might want to use a development version executed directly from
+the source tree.</p>
+<p>A possible solution is to use file-system junction. Run the following command
+from the current user config <code>addons</code> directory:</p>
+<p><code>mklink /J WebAccess &lt;path to the addon folder in the source tree&gt;</code></p>
+<p>Note: Local administrator privileges are required.</p>
+<p>In this configuration, run the following command from the same
+directory to remove the junction, uninstalling the development version:</p>
+<p><code>rd WebAccess</code></p>
+</body>
+</html>

@@ -23,11 +23,9 @@ __version__ = "2018.01.03"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
-
 import wx
 
 import addonHandler
-addonHandler.initTranslation()
 import api
 import controlTypes
 import gui
@@ -36,9 +34,10 @@ from logHandler import log
 import ui
 
 from .. import ruleHandler
-from ..webAppLib import *
 from .. import webAppScheduler
+from ..webAppLib import *
 
+addonHandler.initTranslation()
 
 formModeRoles = [
 		controlTypes.ROLE_EDITABLETEXT,
@@ -96,11 +95,13 @@ class Dialog(wx.Dialog):
 				mainSizer.AddStretchSpacer(prop=1)  # vertical centering
 				mainSizer.AddSpacer(mainPadding)
 
-
 				# Dialog title
 				labelMainTitle = wx.StaticText(self, label=_("Add rule"))
 				labelMainTitle.SetFont(fontTitle)
 				mainSizer.Add(labelMainTitle, flag=wx.LEFT, border=mainPadding)
+				
+				# Form part
+				columnSizer = wx.GridBagSizer() 
 
 				# Static box grouping input elements for rule properties
 				staticBoxRuleDef = wx.StaticBox(self, label=_("Define rule properties"))
@@ -152,8 +153,7 @@ class Dialog(wx.Dialog):
 					gridSizer.AddGrowableCol(i)
 
 				staticBoxSizer.Add(gridSizer, flag=wx.EXPAND | wx.ALL, border=mainPadding)
-				mainSizer.Add(staticBoxSizer, flag=wx.EXPAND | wx.ALL, border=mainPadding)
-
+				columnSizer.Add(staticBoxSizer, pos=(0, 0), flag=wx.EXPAND | wx.ALL, border=mainPadding)
 
 				# Static box grouping input elements for keyboard shortcuts
 				staticBoxKeyboard = wx.StaticBox(self, label=_("Define shortcuts"))
@@ -193,17 +193,23 @@ class Dialog(wx.Dialog):
 				for i in range(len(checkBoxTab)):
 					keyboardGridSizer.Add(checkBoxTab[i], pos=(i + 4, 0), flag=wx.TOP, border=-3)
 
-				keyboardGridSizer.Add(wx.StaticText(staticBoxKeyboard, label=_("&Comment")), pos=(4, 1), flag=wx.TOP, border=-3)
-				inputComment = self.comment = wx.TextCtrl(staticBoxKeyboard, style=wx.TE_MULTILINE)
-				keyboardGridSizer.Add(inputComment, pos=(5, 1), span=(len(checkBoxTab) - 1, 2), flag=wx.EXPAND)
-
 				# Make inputs resizable with the window
 				for i in range(3):
 					keyboardGridSizer.AddGrowableCol(i)
+					
+				# Comment section
+				commentBox = wx.StaticBox(self, label=_("&Comment"))
+				commentBoxSizer = wx.StaticBoxSizer(commentBox, orient=wx.VERTICAL)
+				inputComment = self.comment = wx.TextCtrl(commentBox, size=(500, 300), style=wx.TE_MULTILINE)
+				commentBoxSizer.Add(inputComment, proportion=1, flag=wx.EXPAND | wx.ALL, border=mainPadding)
+				columnSizer.Add(commentBoxSizer, pos=(0, 1), span=(3, 3), flag=wx.EXPAND | wx.ALL, border=mainPadding)
 
 				staticBoxSizer.Add(keyboardGridSizer, flag=wx.EXPAND | wx.ALL, border=mainPadding)
-				mainSizer.Add(staticBoxSizer, flag=wx.EXPAND | wx.ALL, border=mainPadding)
+				columnSizer.Add(staticBoxSizer, pos=(1, 0), flag=wx.EXPAND | wx.ALL, border=mainPadding)
+				columnSizer.AddGrowableCol(0)
+				columnSizer.AddGrowableCol(1)
 
+				mainSizer.Add(columnSizer, flag=wx.EXPAND)
 				mainSizer.Add(self.CreateButtonSizer(wx.OK | wx.CANCEL), flag=wx.BOTTOM | wx.LEFT, border=mainPadding)
 				self.Bind(wx.EVT_BUTTON, self.onOk, id=wx.ID_OK)
 				self.Bind(wx.EVT_BUTTON, self.onCancel, id=wx.ID_CANCEL)
@@ -251,7 +257,7 @@ class Dialog(wx.Dialog):
 						srcChoices.append(node.src)
 						node = node.parent
 
-				actionsDict = self.markerManager.getActions ()
+				actionsDict = self.markerManager.getActions()
 				self.autoActionList.Append("", "")
 				for action in actionsDict:
 						self.autoActionList.Append(actionsDict[action], action)
@@ -350,7 +356,6 @@ class Dialog(wx.Dialog):
 			shortcutDialog.markerManager = self.markerManager
 			if shortcutDialog.show():
 				self.AddGestureAction(shortcutDialog.resultShortcut, shortcutDialog.resultActionData)
-
 
 		def AddGestureAction(self, gestureIdentifier, action):
 				self.gestureMapValue[gestureIdentifier] = action
