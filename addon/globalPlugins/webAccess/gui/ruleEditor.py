@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.01.03"
+__version__ = "2018.03.15"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
@@ -137,16 +137,20 @@ class Dialog(wx.Dialog):
 				inputCtrl = self.srcCombo = wx.ComboBox(staticBoxRuleDef)
 				gridSizer.Add(inputCtrl, pos=(6, 1), flag=wx.EXPAND)
 
+				gridSizer.Add(wx.StaticText(staticBoxRuleDef, label=_(u"Conte&xt")), pos=(7, 0))
+				inputCtrl = self.ruleContextCombo = wx.ComboBox(staticBoxRuleDef)
+				gridSizer.Add(inputCtrl, pos=(7, 1), flag=wx.EXPAND)
+
 				# Separation with options related to multiple results
 				line = wx.StaticLine(staticBoxRuleDef)
-				gridSizer.Add(line, pos=(7, 0), span=(1, 2), flag=wx.EXPAND | wx.BOTTOM | wx.TOP, border=padding)
+				gridSizer.Add(line, pos=(8, 0), span=(1, 2), flag=wx.EXPAND | wx.BOTTOM | wx.TOP, border=padding)
 
 				checkBox = self.multipleCheckBox = wx.CheckBox(staticBoxRuleDef, label=_(u"&Multiple results available"))
-				gridSizer.Add(checkBox, pos=(8, 0), flag=wx.EXPAND)
+				gridSizer.Add(checkBox, pos=(9, 0), flag=wx.EXPAND)
 
-				gridSizer.Add(wx.StaticText(staticBoxRuleDef, label=_(u"&Index")), pos=(9, 0))
+				gridSizer.Add(wx.StaticText(staticBoxRuleDef, label=_(u"&Index")), pos=(10, 0))
 				inputCtrl = self.indexText = wx.ComboBox(staticBoxRuleDef)
-				gridSizer.Add(inputCtrl, pos=(9, 1), flag=wx.EXPAND)
+				gridSizer.Add(inputCtrl, pos=(10, 1), flag=wx.EXPAND)
 
 				# Make inputs resizable with the window
 				for i in range(2):
@@ -185,10 +189,11 @@ class Dialog(wx.Dialog):
 				checkSayName = self.sayNameCheckBox = wx.CheckBox(staticBoxKeyboard, label=_("Speak r&ule name"))
 				checkSkip = self.skipCheckBox = wx.CheckBox(staticBoxKeyboard, label=_("S&kip with Page Down"))
 				checkIsPageTitle = self.isPageTitleCheckBox = wx.CheckBox(staticBoxKeyboard, label=_("&Page title"))
+				checkIsContext = self.isContextCheckBox = wx.CheckBox(staticBoxKeyboard, label=_("&Is a context"))
 				checkCreateWidget = self.createWidgetCheckBox = wx.CheckBox(staticBoxKeyboard, label=_("Create a &list of items"))
 				checkCreateWidget.Enabled = False
 
-				checkBoxTab = [checkMode, checkSayName, checkSkip, checkIsPageTitle, checkCreateWidget]
+				checkBoxTab = [checkMode, checkSayName, checkSkip, checkIsPageTitle, checkIsContext, checkCreateWidget]
 
 				for i in range(len(checkBoxTab)):
 					keyboardGridSizer.Add(checkBoxTab[i], pos=(i + 4, 0), flag=wx.TOP, border=-3)
@@ -246,6 +251,7 @@ class Dialog(wx.Dialog):
 				idChoices = []
 				classChoices = []
 				srcChoices = []
+				ruleContextChoices = self.getContextList () 
 				formModeControl = False
 				while node:
 						roleChoices.append(convRoleIntegerToString(node.role))
@@ -272,6 +278,7 @@ class Dialog(wx.Dialog):
 				self.idCombo.Set(idChoices)
 				self.classCombo.Set(classChoices)
 				self.initArray(self.srcCombo, srcChoices)
+				self.ruleContextCombo.Set(ruleContextChoices)
 
 				if self.rule is None:
 						self.Title = _(u"New rule")
@@ -283,6 +290,7 @@ class Dialog(wx.Dialog):
 						self.sayNameCheckBox.Value = True
 						self.skipCheckBox.Value = False
 						self.isPageTitleCheckBox.Value = False
+						self.isContextCheckBox.Value = False
 						self.comment.Value = ""
 				else:
 						self.Title = _("Edit rule")
@@ -294,6 +302,7 @@ class Dialog(wx.Dialog):
 						self.idCombo.Value = rule.dic.get("id", "")
 						self.classCombo.Value = rule.dic.get("className", "")
 						self.srcCombo.Value = rule.dic.get("src", "")
+						self.ruleContextCombo.Value = rule.dic.get("context", "")
 						self.gestureMapValue = rule.gestures.copy()
 						self.autoActionList.SetSelection(
 								markerManager.getActions().keys().index(
@@ -307,6 +316,7 @@ class Dialog(wx.Dialog):
 						self.sayNameCheckBox.Value = rule.dic.get("sayName", True)
 						self.skipCheckBox.Value = rule.dic.get("skip", False)
 						self.isPageTitleCheckBox.Value = rule.dic.get("isPageTitle", False)
+						self.isContextCheckBox.Value = rule.dic.get("isContext", False)
 						self.createWidgetCheckBox.Value = rule.dic.get(
 								"createWidget", False)
 						self.comment.Value = rule.dic.get("comment", "")
@@ -320,6 +330,13 @@ class Dialog(wx.Dialog):
 								nameList.append(rule.name)
 				return nameList
 
+		def getContextList (self):
+				contextList = []
+				for rule in self.markerManager.getQueries():
+						if rule.isContext and rule.name not in contextList:
+								contextList.append(rule.name)
+				return contextList
+		
 		def updateGesturesList(self, newGestureIdentifier=None):
 				self.gesturesList.Clear()
 				i = 0
@@ -394,6 +411,9 @@ class Dialog(wx.Dialog):
 				src = self.srcCombo.Value
 				if src.strip() != "":
 						dic["src"] = src
+				ruleContext = self.ruleContextCombo.Value
+				if ruleContext.strip() != "":
+						dic["context"] = ruleContext
 				dic["gestures"] = self.gestureMapValue
 
 				sel = self.autoActionList.Selection
@@ -413,6 +433,7 @@ class Dialog(wx.Dialog):
 				dic["sayName"] = self.sayNameCheckBox.Value
 				dic["skip"] = self.skipCheckBox.Value
 				dic["isPageTitle"] = self.isPageTitleCheckBox.Value
+				dic["isContext"] = self.isContextCheckBox.Value
 				dic["createWidget"] = self.createWidgetCheckBox.Value
 				dic["comment"] = self.comment.Value
 

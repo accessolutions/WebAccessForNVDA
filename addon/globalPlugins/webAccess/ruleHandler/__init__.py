@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.01.03"
+__version__ = "2018.03.14"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
@@ -174,6 +174,12 @@ class MarkerManager(baseObject.ScriptableObject):
 			if self.markerQueries[i-1] == query:
 				del self.markerQueries[i-1]
 
+	def getQueryByName (self, name):
+		for q in self.markerQueries:
+			if q.name == name:
+				return q
+		return None
+
 	def getQueries(self, onlyUser=False):
 		queries = []
 		for q in self.markerQueries:
@@ -242,9 +248,12 @@ class MarkerManager(baseObject.ScriptableObject):
 			t = logTimeStart()
 			self.markerResults = []
 			for query in self.markerQueries:
-				results = query.getResults()
+				query.resetResults ()
+				
+			for query in self.markerQueries:
+				results = query.getResults(self)
 				self.markerResults += results
-			self.markerResults.sort()
+				self.markerResults.sort()
 			self.nodeManagerIdentifier = self.nodeManager.identifier
 			self._ready = True
 			#logTime("update marker", t)
@@ -589,7 +598,11 @@ class MarkerQuery(baseObject.ScriptableObject):
 		self.pageIdentifier = None
 		self.user = False
 		self.skip = False
+		self.results = None
 
+	def resetResults (self):
+		self.results = None
+		
 	def getResults(self):
 		return []
 	
@@ -626,6 +639,7 @@ class VirtualMarkerQuery(MarkerQuery):
 		self.sayName = dic.get("sayName", True)
 		self.skip = dic.get("skip", False)
 		self.isPageTitle = dic.get("isPageTitle", False)
+		self.isContext = dic.get("isContext", False)
 		self.index = dic.get("index", 0)
 		self.multiple = dic.get("multiple", True)
 		self.createWidget = dic.get("createWidget", False)
@@ -669,8 +683,11 @@ class VirtualMarkerQuery(MarkerQuery):
 		if notIn != []:
 			dic["notIn_"+argName] = notIn
 
+		
 	def getResults(self, widget=False):
 		t = logTimeStart()
+		if self.results is not None:
+			return self.results
 		dic = self.dic
 		kwargs = {}
 		text = dic.get("text", None)
@@ -682,6 +699,23 @@ class VirtualMarkerQuery(MarkerQuery):
 				if func is not None:
 					return func(self)
 				raise
+
+		contextResults = None
+		context = dic.get("context", None)
+		if context is not None:
+			if context[1] == "!":
+				context = context[2:]
+				exclude = True
+			else:
+				exclude = False
+			contextQuery = self.markerManager.getQueryByName (context)
+			if contextQuery is None:
+				log.info (_("Rule context \"%s\" not found") % context)
+				return []
+			contextResult = contextQuery.getResults ()
+			if contextResult == []:
+				log.info ("Context %s with no result" % context)
+				return []
 		self.addSearchKwargs(kwargs, "text", text)
 		role = dic.get("role", None)
 		if role:
@@ -709,5 +743,6 @@ class VirtualMarkerQuery(MarkerQuery):
 			results.append(r)
 			if not widget and not self.multiple:
 				break
+		self.results = results
 		return results
 
