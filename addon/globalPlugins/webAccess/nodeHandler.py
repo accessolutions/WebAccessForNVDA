@@ -50,7 +50,7 @@ _count = 0
 
 class NodeManager(baseObject.ScriptableObject):
 	
-	def __init__(self, treeInterceptor, callbackNodeMoveto=None):
+	def __init__(self, treeInterceptor, callbackNodeMoveto=None, inSeparateThread=False):
 		super(NodeManager, self).__init__()
 		#log.info (u"nodeManager created")
 		self._ready = False
@@ -64,15 +64,18 @@ class NodeManager(baseObject.ScriptableObject):
 		self.devNode = None
 		self.callbackNodeMoveto = callbackNodeMoveto
 		self.updating = False
-		wx.CallLater (10, self.tickUpdate)
+                self.inSeparateThread = inSeparateThread
+		if not inSeparateThread:
+                        wx.CallLater (10, self.tickUpdate)
 		self.update ()
 		
 	def __del__ (self):
 		log.info (u"nodeManager deleted")
 	def tickUpdate (self):
-		wx.CallLater (10, self.tickUpdate)
-		if self.updating:
-			pass
+		if not self.inSeparateThread:
+                        wx.CallLater (10, self.tickUpdate)
+		        if self.updating:
+			        pass
 		
 	def update(self):
 		t = logTimeStart ()
