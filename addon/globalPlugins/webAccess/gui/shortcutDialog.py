@@ -1,4 +1,3 @@
-# globalPlugins/webAccess/gui/webModuleEditor.py
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
@@ -19,7 +18,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2017.11.28"
+__version__ = "2018.01.03"
 
 __author__ = (
 		"Shirley Noel <shirley.noel@pole-emploi.fr>"
@@ -30,13 +29,9 @@ import wx
 
 import addonHandler
 addonHandler.initTranslation()
-from .. import ruleHandler
 import inputCore
-import api
 from logHandler import log
-import controlTypes
 import gui
-from NVDAObjects import NVDAObject, IAccessible
 import ui
 
 
@@ -47,6 +42,7 @@ def show():
 	return result == wx.ID_OK
 
 
+markerManager = None
 resultShortcut = ""
 resultActionData = ""
 
@@ -81,11 +77,15 @@ class Dialog(wx.Dialog):
 
 		gridSizer.Add(inputShortcut, pos=(0, 1), flag=wx.EXPAND)
 
-		gridSizer.Add(wx.StaticText(self, label=_("&Automatic action at rule detection")), pos=(1, 0), flag=wx.EXPAND)
+		gridSizer.Add(wx.StaticText(self, label=_("&Action to execute")), pos=(1, 0), flag=wx.EXPAND)
 
+		global markerManager
 		choiceAction = self.action = wx.Choice(self)
-		for action in ruleHandler.markerActions:
-			choiceAction.Append(ruleHandler.markerActionsDic[action], action)
+		actionsDict = markerManager.getActions ()
+		choiceAction.Append("", "")
+		for action in actionsDict:
+			choiceAction.Append(actionsDict[action], action)
+			
 		gridSizer.Add(choiceAction, pos=(1, 1), flag=wx.EXPAND)
 
 		gridSizer.AddGrowableCol(0)
@@ -142,9 +142,9 @@ class Dialog(wx.Dialog):
 				if oldValue != main:
 					ui.message(_(u"Shortcut set to %s" % main))
 			elif gestureIdentifier == "kb:tab":
-				self.action.setFocus()
+				return True
 			elif gestureIdentifier == "kb:shift+tab":
-				self.cmdOk.SetFocus()
+				return True
 			elif gestureIdentifier == "kb:escape":
 				self.OnCancel(None)
 			elif gestureIdentifier == "kb:enter":
