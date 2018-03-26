@@ -64,18 +64,18 @@ class NodeManager(baseObject.ScriptableObject):
 		self.devNode = None
 		self.callbackNodeMoveto = callbackNodeMoveto
 		self.updating = False
-                self.inSeparateThread = inSeparateThread
+		self.inSeparateThread = inSeparateThread
 		if not inSeparateThread:
-                        wx.CallLater (10, self.tickUpdate)
+			wx.CallLater (10, self.tickUpdate)
 		self.update ()
 		
 	def __del__ (self):
 		log.info (u"nodeManager deleted")
 	def tickUpdate (self):
 		if not self.inSeparateThread:
-                        wx.CallLater (10, self.tickUpdate)
-		        if self.updating:
-			        pass
+			wx.CallLater (10, self.tickUpdate)
+			if self.updating:
+				pass
 		
 	def update(self):
 		t = logTimeStart ()
