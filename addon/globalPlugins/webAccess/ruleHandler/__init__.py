@@ -706,12 +706,11 @@ class VirtualMarkerQuery(MarkerQuery):
 			if context[0] == "!":
 				context = context[1:]
 				exclude = True
-				log.info ("exclude context : '%s'" % context)
 			else:
 				exclude = False
 			contextQuery = self.markerManager.getQueryByName (context)
 			if contextQuery is None:
-				log.info (_("Rule context \"%s\" not found") % context)
+				log.warn(_("Rule context \"%s\" not found") % context)
 				return []
 			contextResult = contextQuery.getResults ()
 			if not exclude and contextResult == []:
