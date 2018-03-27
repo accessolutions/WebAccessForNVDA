@@ -703,9 +703,10 @@ class VirtualMarkerQuery(MarkerQuery):
 		contextResults = None
 		context = dic.get("context", None)
 		if context is not None:
-			if context[1] == "!":
-				context = context[2:]
+			if context[0] == "!":
+				context = context[1:]
 				exclude = True
+				log.info ("exclude context : '%s'" % context)
 			else:
 				exclude = False
 			contextQuery = self.markerManager.getQueryByName (context)
@@ -713,8 +714,9 @@ class VirtualMarkerQuery(MarkerQuery):
 				log.info (_("Rule context \"%s\" not found") % context)
 				return []
 			contextResult = contextQuery.getResults ()
-			if contextResult == []:
-				log.info ("Context %s with no result" % context)
+			if not exclude and contextResult == []:
+				return []
+			if exclude and contextResult != []:
 				return []
 		self.addSearchKwargs(kwargs, "text", text)
 		role = dic.get("role", None)
