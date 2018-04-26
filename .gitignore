@@ -9,6 +9,5 @@
 *.mo
 manifest.ini
 /addon/doc/*/*.html
-/addon/doc/en
 /addon/doc/style.css
 *.nvda-addon
