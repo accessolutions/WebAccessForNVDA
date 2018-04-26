@@ -98,6 +98,20 @@ a single line containing the path to the `python` directory contained in NVDA mi
  	This is only a convenience script allowing easier invocation of the SCons found
  	in NVDA misc deps. 
 
+ - If using Git Bash, the `activate` might need to be fixed.
+ 	
+ 	The `VIRTUAL_ENV` variable it defines holds a path in Windows format.
+ 	
+ 	This has no impact if calling Python commands from the same hard disk unit
+ 	but would prevent ie. calling a `python.exe` on drive `D:` from your home
+ 	folder on drive `C:`.
+ 	
+ 	The script can be patched in-place with the following command:
+ 	
+ 	```
+ 	sed -E -i 's/^(VIRTUAL_ENV=)(.+)$/echo \1\\""$(cygpath \2)"\\"/e' /d/dev/venv/nvda-addon/Scripts/activate
+ 	```
+
  - Then, activate the virtual environment.
  	
 	```
