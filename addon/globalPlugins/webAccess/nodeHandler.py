@@ -394,8 +394,8 @@ class NodeField (baseObject.AutoPropertyObject):
 
 	def searchNode (self, **kwargs):
 		global _count
-		_count += 1
 		nodeList = []
+		_count += 1
 		if hasattr (self, "control"):
 			found = True
 			for key in kwargs.keys(): 

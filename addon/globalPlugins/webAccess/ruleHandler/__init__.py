@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.03.14"
+__version__ = "2018.06.08"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
@@ -251,7 +251,7 @@ class MarkerManager(baseObject.ScriptableObject):
 				query.resetResults ()
 				
 			for query in self.markerQueries:
-				results = query.getResults(self)
+				results = query.getResults()
 				self.markerResults += results
 				self.markerResults.sort()
 			self.nodeManagerIdentifier = self.nodeManager.identifier
@@ -441,15 +441,21 @@ class MarkerResult(baseObject.ScriptableObject):
 	
 	def __init__(self, markerQuery):
 		super(MarkerResult,self).__init__()
+		prefix = "action_"
+		for key in dir(markerQuery.markerManager.webApp):
+			if key[:len(prefix)] == prefix:
+				actionName = key[len(prefix):]
+				func = lambda self, gesture, actionName=actionName: getattr(self.markerQuery.markerManager.webApp, "action_%s" % actionName)(self)
+				setattr(self.__class__, "script_%s" % actionName, func)
 		self.markerQuery = markerQuery
 		self.bindGestures(markerQuery.gestures)
-		
+
 	def check(self):
 		raise NotImplementedError
 
 	def _get_name(self):
-		return self.markerQuery.name 
-
+		return self.markerQuery.name
+	 
 	def script_moveto(self, gesture):
 		raise NotImplementedError
 
@@ -466,8 +472,8 @@ class MarkerResult(baseObject.ScriptableObject):
 		raise NotImplementedError
 	
 	def script_noAction(self, gesture):
-		playWebAppSound("keyError")
-		ui.message (_("No action assigned to this key"))
+		if self.markerQuery.sayName:
+			speech.speakMessage(self.markerQuery.name)
 	
 	def __lt__(self, other):
 		raise NotImplementedError
@@ -483,8 +489,6 @@ class MarkerResult(baseObject.ScriptableObject):
 class VirtualMarkerResult(MarkerResult):
 	
 	def __init__(self, markerQuery, node):
-		func = lambda self, gesture: getattr(self.markerQuery.markerManager.webApp, "action_clickMenu")(self)
-		setattr(self.__class__, "script_clickMenu", func)
 		super(VirtualMarkerResult ,self).__init__(markerQuery)
 		self.node = node
 	
@@ -567,18 +571,6 @@ class VirtualMarkerResult(MarkerResult):
 		treeInterceptor.passThrough = self.markerQuery.formMode
 		browseMode.reportPassThrough.last = treeInterceptor.passThrough 
 		self.node.mouseMove()
-
-	def script_custom(self, gesture):
-		webApp = self.markerQuery.markerManager.webApp
-		if not hasattr(self.markerQuery, "customActionName"):
-			ui.message(_("customAction not found"))
-			return
-		action = "action_%s" % self.markerQuery.customActionName
-		log.info("custom webapp : %s" % webApp)
-		if hasattr(webApp, action):
-			getattr(webApp, action)(self)
-		else:
-			ui.message(u"%s introuvable" % action)
 
 	def getTextInfo(self):
 		return self.node.getTextInfo.copy()
