@@ -98,7 +98,7 @@ a single line containing the path to the `python` directory contained in NVDA mi
  	This is only a convenience script allowing easier invocation of the SCons found
  	in NVDA misc deps. 
 
- - If using Git Bash, the `activate` might need to be fixed.
+ - If using Git Bash, the `activate` script might need to be fixed.
  	
  	The `VIRTUAL_ENV` variable it defines holds a path in Windows format.
  	
@@ -142,7 +142,7 @@ a single line containing the path to the `python` directory contained in NVDA mi
  - Install the remaining build dependencies:
  	
 	```
-	pip install Markdown>=2.0.1
+	pip install "Markdown>=2.0.1"
 	```
 	
 The new `nvda-addon` virtual environment is now ready to build our addon.
