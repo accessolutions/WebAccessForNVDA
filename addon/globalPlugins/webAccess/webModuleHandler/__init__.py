@@ -23,7 +23,7 @@
 
 from __future__ import absolute_import
 
-__version__ = "2016.12.20"
+__version__ = "2018.07.07"
 
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
@@ -53,10 +53,6 @@ def delete(webModule, prompt=True):
 	store.getInstance().delete(webModule)
 	getWebModules(refresh=True)
 	return True
-
-def getCurrentWebModule():
-	#api.getFocusObject().getWebApp()
-	pass	
 
 def getWebModules(refresh=False):
 	global _webModuleCache

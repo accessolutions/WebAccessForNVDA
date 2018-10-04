@@ -236,7 +236,6 @@ class Dialog(wx.Dialog):
 				markerManager = self.markerManager = context["webModule"].markerManager
 				rule = self.rule = context["rule"] if "rule" in context else None
 
-				# node = markerManager.currentNode
 				node = markerManager.nodeManager.getCaretNode()
 				textNode = node
 				node = node.parent
@@ -253,7 +252,7 @@ class Dialog(wx.Dialog):
 				srcChoices = []
 				ruleContextChoices = self.getContextList () 
 				formModeControl = False
-				while node:
+				while node is not None:
 						roleChoices.append(convRoleIntegerToString(node.role))
 						if node.role in formModeRoles:
 								formModeControl = True

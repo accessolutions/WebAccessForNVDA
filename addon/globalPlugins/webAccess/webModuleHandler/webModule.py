@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2017.09.17"
+__version__ = "2018.07.07"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -53,7 +53,6 @@ class WebModule(baseObject.ScriptableObject):
 	name = None
 	windowTitle = None
 	markerManager = None
-	treeInterceptor = None
 	widgetManager = None
 	activeWidget = None
 	presenter = None
@@ -74,7 +73,6 @@ class WebModule(baseObject.ScriptableObject):
 		if self.name is None:
 			log.error("No web module defined in the configuration data: %s" % data)
 			raise Exception("No web module defined in the configuration data.")
-		# log.info("Loaded %s: url = %s, windowTitle = %s" %(self.name, self.url, self.windowTitle))
 	
 	def __str__(self):
 		return "webApp %s" % (self.name) if self.name is not None else "<noName>"
@@ -136,7 +134,7 @@ class WebModule(baseObject.ScriptableObject):
 	def _get_pageTitle(self):
 		title = self.markerManager.getPageTitle ()
 		if title is None:
-			title = api.getFocusObject().windowText
+			title = api.getForegroundObject().windowText
 		return title
 
 	def getPresentationConfig(self):
@@ -165,12 +163,6 @@ class WebModule(baseObject.ScriptableObject):
 			nextHandler()
 
 	def event_gainFocus(self, obj, nextHandler):
-		global activeWebApp
-		global sheduler
-		if False and activeWebApp is not None:
-			speech.speakMessage (u"trace")
-			scheduler.send (eventName="gainFocus",  obj=obj)
-			return
 		nextHandler()
 
 	def event_webApp_loseFocus(self, obj, nextHandler):
@@ -184,14 +176,8 @@ class WebModule(baseObject.ScriptableObject):
 	def claimForJABObject(self, obj):
 		return False
 
-	def script_essai (self, gesture):
-		obj = api.getNavigatorObject ()
-		html = obj.HTMLNode
-		c = html.attributes.item ("class").nodeValue
-		ui.message (u"class:%s" % c)
-
 	def script_sayTitle(self, gesture):
-		titleObj = api.getFocusObject()
+		titleObj = api.getForegroundObject()
 		windowTitle = titleObj.windowText
 		try:
 			webAppTitle = self.pageTitle
@@ -208,7 +194,6 @@ class WebModule(baseObject.ScriptableObject):
 
 	__gestures = {
 		"kb:nvda+t": "sayTitle",
-		"kb:nvda+e" : "essai",
 		"kb:nvda+shift+t": "sayWebAppName",
 	}
 	

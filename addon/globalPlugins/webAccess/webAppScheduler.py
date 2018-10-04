@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2016.11.30"
+__version__ = "2018.07.06"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
@@ -45,13 +45,13 @@ def displayTraceBack (msg):
 class WebAppScheduler(threading.Thread):
 	
 	lastTreeInterceptor = None
-	def __init__(self, onNodeManagerUpdated):
+	
+	def __init__(self):
 		super(WebAppScheduler,self).__init__()
 		self.daemon = True
 		self.queue = Queue.Queue()
 		global scheduler
 		scheduler = self
-		self.onNodeManagerUpdated = onNodeManagerUpdated
 		
 	def run(self):
 		self.stop = False
@@ -84,7 +84,6 @@ class WebAppScheduler(threading.Thread):
 		
 	def event_timeout (self):
 		self.send (eventName="updateNodeManager", treeInterceptor=api.getFocusObject().treeInterceptor )
-		self.send (eventName="checkWebAppManager")
 				 
 	def fakeNext(self = None):
 		return True
@@ -141,11 +140,7 @@ class WebAppScheduler(threading.Thread):
 			webApp.treeInterceptor = treeInterceptor
 
 	def event_nodeManagerUpdated (self, nodeManager):
-		self.onNodeManagerUpdated (nodeManager)
-
-	def event_updateAfterNode(self, webApp):
-		webApp.markerManager.update()
-		webApp.widgetManager.update()
+		self.send (eventName="checkWebAppManager")
 
 	def event_markerManagerUpdated(self, markerManager):
 		markerManager.checkPageTitle ()

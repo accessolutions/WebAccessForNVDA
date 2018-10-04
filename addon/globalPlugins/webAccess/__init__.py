@@ -49,7 +49,7 @@ Overridden NVDA functions:
 
 from __future__ import absolute_import
 
-__version__ = "2017.12.13"
+__version__ = "2018.07.06"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -85,6 +85,7 @@ import speech
 import tones
 import ui
 import virtualBuffers
+import queueHandler
 
 from . import json
 from . import nodeHandler
@@ -111,25 +112,6 @@ activeWebApp = None
 useInternalBrowser = False
 webAccessEnabled = True
 scheduler = None
-
-def getEssai ():
-	obj = api.getFocusObject ()
-	focus = obj.treeInterceptor
-	info = obj.treeInterceptor.makeTextInfo(textInfos.POSITION_FIRST)
-	#info = focus.nodeManager.info
-	obj = info.obj
-	try:
-		doc = info.obj.rootNVDAObject.HTMLNode.document
-	except:
-		return
-	lst = ["lundi"]
-	for ID in range (1, 200):
-		HTMLNode = NVDAObjects.IAccessible.MSHTML.locateHTMLElementByID(doc,'ms__id%d'%ID)
-		if HTMLNode is not None:
-			className = HTMLNode.attributes.item ("class").nodeValue
-			lst.append (className)
-	return lst
-
 
 class DefaultBrowserScripts(baseObject.ScriptableObject):
 	
@@ -171,13 +153,18 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def __init__(self):
 		super(globalPluginHandler.GlobalPlugin, self).__init__()
 		global scheduler
-		scheduler = WebAppScheduler(onNodeManagerUpdated)
+		scheduler = WebAppScheduler()
 		scheduler.start ()
 		
 		baseObject.ScriptableObject.getWebApp = getWebApp
-		scriptHandler.findScript = findScript
-		eventHandler._EventExecuter.gen = eventGen
-		virtualBuffers.VirtualBuffer._loadBufferDone = _loadBufferDone
+		scriptHandler.findScript = hook_findScript
+		eventHandler._EventExecuter.gen = hook_eventGen
+		virtualBuffers.VirtualBuffer.save_changeNotify = virtualBuffers.VirtualBuffer.changeNotify
+		virtualBuffers.VirtualBuffer.changeNotify = hook_changeNotify
+		virtualBuffers.VirtualBuffer.save_loadBufferDone = virtualBuffers.VirtualBuffer._loadBufferDone  
+		virtualBuffers.VirtualBuffer._loadBufferDone = hook_loadBufferDone
+		virtualBuffers.VirtualBuffer.save_terminate = virtualBuffers.VirtualBuffer.terminate 
+		virtualBuffers.VirtualBuffer.terminate = hook_terminate
 		
 		global mainFrame_prePopup_stock
 		mainFrame_prePopup_stock = gui.mainFrame.prePopup
@@ -197,8 +184,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def terminate(self):
 		scheduler.send(eventName="stop")
-	
-	
+		
 	def chooseNVDAObjectOverlayClasses(self, obj, clsList):
 		if activeWebApp is None:
 			return
@@ -233,7 +219,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			webModule = obj.getWebApp()
 			if webModule is not None:
 				context["webModule"] = webModule
-		menu.show(context)		
+		menu.show(context)
 
 	def script_debugWebApp (self, gesture):
 		global activeWebApp
@@ -246,8 +232,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		allMsg += msg + "\r\n"
 		
 		treeInterceptor = html.getTreeInterceptor ()
-		if treeInterceptor != activeWebApp.treeInterceptor:
-			ui.message (u"treeInterceptor différents")
 		msg = u"nodeManager %d caractères, %s, %s" % (treeInterceptor.nodeManager.treeInterceptorSize, treeInterceptor.nodeManager.isReady, treeInterceptor.nodeManager.mainNode is not None)
 		speech.speakMessage (msg)
 		allMsg += msg + "\r\n"
@@ -313,7 +297,7 @@ def getWebApp(self, eventName=None):
 				break
 
 	i = 0
-	while webApp is None and obj is not None and i < 30:
+	while webApp is None and obj is not None and i < 50:
 		i += 1
 		if hasattr(obj, '_webApp'):
 			webApp = obj._webApp
@@ -328,12 +312,14 @@ def getWebApp(self, eventName=None):
 			break
 		
 		# On HTML webApps, we extract the URL from the document IAccessible value.
-		try:
-			url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
-		except: 
-			url = None
-		if url:
-			webApp = getWebAppFromUrl(url)
+		if obj.role == controlTypes.ROLE_DOCUMENT:
+			try:
+				#log.info (u"obj.IAccessibleChildID : %s" % obj.IAccessibleChildID)
+				url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
+			except: 
+				url = None
+			if url:
+				webApp = getWebAppFromUrl(url)
 
 		obj= obj.parent
 
@@ -350,17 +336,20 @@ def getWebApp(self, eventName=None):
 	# sendWebAppEvent('webApp_checkPendingActions', self, webApp)
 	# sendWebAppEvent('webApp_pageChanged', wPageTitle, activeWebApp)
 
-def onNodeManagerUpdated (nodeManager):
-	global activeWebApp
+@classmethod
+def hook_changeNotify(cls, rootDocHandle, rootID):
+	#log.info (u"change notify")
+	virtualBuffers.VirtualBuffer.save_changeNotify (rootDocHandle, rootID)
 
-	webApp = activeWebApp
-	if webApp and webApp.treeInterceptor is not None and hasattr(webApp.treeInterceptor, 'nodeManager') and activeWebApp.treeInterceptor.nodeManager == nodeManager:
-		webApp.markerManager.update (nodeManager)
-		webApp.widgetManager.update ()
-
-def _loadBufferDone(self, success=True):
+def hook_terminate (self):
+	if hasattr (self, "nodeManager"):
+		self.nodeManager.terminate ()
+		del self.nodeManager  
+	virtualBuffers.VirtualBuffer.save_terminate (self)
+	
+def hook_loadBufferDone(self, success=True):
+	#log.info (u"load buffer done")
 	self._loadProgressCallLater.Stop()
-	#self.essai2 = getEssai ()
 	del self._loadProgressCallLater
 	self.isLoading = False
 	if not success:
@@ -380,7 +369,7 @@ def _loadBufferDone(self, success=True):
 			self.event_treeInterceptor_gainFocus()
 
 
-def findScript(gesture, searchWebApp=True):
+def hook_findScript(gesture, searchWebApp=True):
 	global activeWebApp
 	global useInternalBrowser
 	global webAccessEnabled
@@ -442,8 +431,8 @@ def findScript(gesture, searchWebApp=True):
 		func = scriptHandler._getObjScript(webApp, gesture, globalMapScripts)
 		if func:
 			return func
-		ti = webApp.treeInterceptor
-		if hasattr(ti, 'nodeManager') and (useInternalBrowser is True or activeWidget is not None):
+		#ti = webApp.treeInterceptor
+		if False and hasattr(ti, 'nodeManager') and (useInternalBrowser is True or activeWidget is not None):
 			func = scriptHandler._getObjScript(webApp.presenter, gesture, globalMapScripts)
 			if func:
 				return func
@@ -493,7 +482,7 @@ def sendWebAppEvent(eventName, obj, webApp=None):
 		return
 	scheduler.send (eventName="webApp", name=eventName, obj=obj, webApp=webApp)
 
-def eventGen(self, eventName, obj):
+def hook_eventGen(self, eventName, obj):
 	#log.info("Event %s : %s : %s" % (eventName, obj.name, obj.value))
 	global useInternalBrowser
 

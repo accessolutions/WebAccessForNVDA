@@ -28,6 +28,7 @@ import wx
 import addonHandler
 addonHandler.initTranslation()
 import api
+import time
 import baseObject
 import browseMode
 import controlTypes
@@ -234,13 +235,23 @@ class MarkerManager(baseObject.ScriptableObject):
 			return False
 		return True
 
+	def event_nodeManagerTerminated (self, nodeManager):
+		if self.nodeManager != nodeManager:
+			log.warn (u"nodeManager different than self.nodeManager")
+			return
+		self.nodeManager = None
+		del self.markerResults[:]
+		for q in self.markerQueries:
+			q.resetResults () 
+
 	def update(self, nodeManager=None, force=False):
 		with self.lock:
 			self._ready = False
 			if nodeManager is not None:
 				self.nodeManager = nodeManager
-			if not self.nodeManager.isReady:
+			if self.nodeManager is None or not self.nodeManager.isReady:
 				return False
+			self.nodeManager.addBackend (self)
 			if not force and self.nodeManagerIdentifier == self.nodeManager.identifier:
 				# already updated
 				self._ready = True
@@ -316,7 +327,7 @@ class MarkerManager(baseObject.ScriptableObject):
 				return None
 			for result in self.markerResults:
 				if result.markerQuery.isPageTitle:
-					return result.text
+					return result.node.getTreeInterceptorText()
 			return ""
 
 	def getNextResult(self, name=None):
@@ -550,14 +561,19 @@ class VirtualMarkerResult(MarkerResult):
 		sayAllHandler.readText(sayAllHandler.CURSOR_CARET)
 
 	def script_activate(self, gesture):
+		if not self.markerQuery.markerManager.isReady :
+			log.info (u"not ready")
+			return
+		treeInterceptor = self.node.nodeManager.treeInterceptor
 		if self.markerQuery.sayName:
 			speech.speakMessage(self.markerQuery.name)
-		treeInterceptor = html.getTreeInterceptor()
+		self.node.activate()
+		time.sleep(0.1)
+		api.processPendingEvents ()
 		if not treeInterceptor:
 			return
 		treeInterceptor.passThrough = self.markerQuery.formMode
 		browseMode.reportPassThrough.last = treeInterceptor.passThrough 
-		self.node.activate()
 		
 	def script_speak(self, gesture):
 		repeat = scriptHandler.getLastScriptRepeatCount()
