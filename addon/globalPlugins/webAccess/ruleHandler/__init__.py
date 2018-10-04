@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.06.08"
+__version__ = "2018.06.27"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
@@ -392,7 +392,10 @@ class MarkerManager(baseObject.ScriptableObject):
 			sleep(0.2)
 			ui.message(u"Pas de marqueur")
 			return
-		r.script_moveto(None, fromQuickNav=True)
+		if hasattr (self.webApp, "event_movetoFromQuickNav"):
+			self.webApp.event_movetoFromQuickNav (r)
+		else:
+			r.script_moveto(None, fromQuickNav=True)
 		
 	def focusPreviousResult(self, name=None):
 		r = self.getPreviousResult(name)
@@ -401,7 +404,10 @@ class MarkerManager(baseObject.ScriptableObject):
 			sleep(0.2)
 			ui.message(u"Pas de marqueur")
 			return
-		r.script_moveto(None, fromQuickNav=True)
+		if hasattr (self.webApp, "event_movetoFromQuickNav"):
+			self.webApp.event_movetoFromQuickNav (r)
+		else:
+			r.script_moveto(None, fromQuickNav=True)
 		
 	def script_refreshMarkers(self, gesture):
 		ui.message(u"refresh markers")
