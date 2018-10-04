@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2016.12.23"
+__version__ = "2018.09.12"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
@@ -152,7 +152,7 @@ class Dialog(wx.Dialog):
 		if not isinstance(result, ruleHandler.MarkerResult):
 			wx.Bell()
 			return
-		self.markerManager.requestMoveto(result)
+		result.script_moveto (None)
 		self.Close()
 
 	def OnNew(self, evt):

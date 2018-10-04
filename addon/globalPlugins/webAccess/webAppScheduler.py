@@ -144,7 +144,7 @@ class WebAppScheduler(threading.Thread):
 
 	def event_markerManagerUpdated(self, markerManager):
 		markerManager.checkPageTitle ()
-		markerManager.checkAutoAction ()
+		# markerManager.checkAutoAction ()
 
 	def event_gainFocus (self, obj):
 		pass

@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.07.06"
+__version__ = "2018.09.13"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>, Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
@@ -294,7 +294,6 @@ class NodeManager(baseObject.ScriptableObject):
 			return None
 		if self._curNode is None:
 			self._curNode = getCaretNode()
-		# log.info("getCurrentNode => %s" % (self._curNode))
 		return self._curNode
 
 	def setCurrentNode(self, node):
@@ -320,7 +319,6 @@ class NodeManager(baseObject.ScriptableObject):
 			ui.message(u"Bas du document")
 			self._curNode.moveto()
 			return
-		# log.info("C is %s" % c)
 		if c.parent.role not in (controlTypes.ROLE_SECTION, controlTypes.ROLE_PARAGRAPH):
 			c = c.parent
 		# log.info("C set to %s" % c)
@@ -361,6 +359,7 @@ class NodeManager(baseObject.ScriptableObject):
 		"kb:uparrow": "previousItem",
 		"kb:enter": "enter",
 		}
+	
 class NodeField (baseObject.AutoPropertyObject):
 	customText = ""
 	
@@ -425,6 +424,9 @@ class NodeField (baseObject.AutoPropertyObject):
 		else:
 			return u"Node unknown"
 		
+	def isReady (self):
+		return self.nodeManager is not None and self.nodeManager.isReady
+	
 	def checkNodeManager (self):
 		if self.nodeManager is None or not self.nodeManager.isReady:
 			playWebAppSound ("keyError")
@@ -552,7 +554,7 @@ class NodeField (baseObject.AutoPropertyObject):
 	def activate (self):
 		if not self.checkNodeManager ():
 			return False 
-		info = self.nodeManager.treeInterceptor.makeTextInfo(textInfos.offsets.Offsets(self.offset, self.offset))
+		info = self.getTextInfo ()
 		self.nodeManager.treeInterceptor._activatePosition (info)
 
 	def sayAll (self):
@@ -563,7 +565,7 @@ class NodeField (baseObject.AutoPropertyObject):
 			return False
 
 	def getNVDAObject(self):
-		info = self.nodeManager.treeInterceptor.makeTextInfo(textInfos.offsets.Offsets(self.offset, self.offset))
+		info = self.getTextInfo ()
 		obj = info.NVDAObjectAtStart
 		return obj
 
@@ -571,7 +573,7 @@ class NodeField (baseObject.AutoPropertyObject):
 		if not self.checkNodeManager ():
 			return False 
 		self.moveto () 
-		info = self.nodeManager.treeInterceptor.makeTextInfo(textInfos.offsets.Offsets(self.offset, self.offset))
+		info = self.getTextInfo ()
 		obj = info.NVDAObjectAtStart
 		try:
 			(left,top,width,height)=obj.location
@@ -645,7 +647,7 @@ class NodeField (baseObject.AutoPropertyObject):
 		return ""
 
 	def getTextInfo (self):
-		if not self.nodeManager.isReady:
+		if not self.isReady ():
 			return None 
 		return self.nodeManager.treeInterceptor.makeTextInfo(textInfos.offsets.Offsets(self.offset, self.offset+self.size))
 

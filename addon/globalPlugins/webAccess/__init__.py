@@ -333,7 +333,6 @@ def getWebApp(self, eventName=None):
 	return webApp 
 	# sendWebAppEvent('webApp_loseFocus', self, activeWebApp)
 	# sendWebAppEvent('webApp_gainFocus', self, webApp)
-	# sendWebAppEvent('webApp_checkPendingActions', self, webApp)
 	# sendWebAppEvent('webApp_pageChanged', wPageTitle, activeWebApp)
 
 @classmethod

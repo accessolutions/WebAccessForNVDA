@@ -169,10 +169,6 @@ class WebModule(baseObject.ScriptableObject):
 		playWebAppSound ("webAppLoseFocus")
 		nextHandler()
 		
-	def event_webApp_checkPendingActions(self, obj, nextHandler):
-		self.markerManager.checkPendingActions()
-		nextHandler()
-		
 	def claimForJABObject(self, obj):
 		return False
 

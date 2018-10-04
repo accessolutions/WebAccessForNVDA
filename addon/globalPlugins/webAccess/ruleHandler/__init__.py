@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.06.27"
+__version__ = "2018.09.12"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
@@ -143,8 +143,9 @@ class MarkerManager(baseObject.ScriptableObject):
 		self.markerQueries = []
 		self.lock = threading.RLock()
 		self.markerResults = []
-		self.pendingMoveto = None 
 		self.triggeredIdentifiers = []
+		self.lastAutoMoveto = None
+		self.lastAutoMovetoTime = 0
 		self.defaultMarkerScripts = DefaultMarkerScripts(u"Aucun marqueur associé à cette touche")
 		webApp.widgetManager.register(MarkerGenericCollection)
 
@@ -239,6 +240,8 @@ class MarkerManager(baseObject.ScriptableObject):
 		if self.nodeManager != nodeManager:
 			log.warn (u"nodeManager different than self.nodeManager")
 			return
+		self._ready = False
+		self.timerCheckAutoAction.Stop ()
 		self.nodeManager = None
 		del self.markerResults[:]
 		for q in self.markerQueries:
@@ -270,6 +273,7 @@ class MarkerManager(baseObject.ScriptableObject):
 			#logTime("update marker", t)
 			if self.isReady:
 				webAppScheduler.scheduler.send(eventName="markerManagerUpdated", markerManager=self)
+				self.timerCheckAutoAction = wx.CallLater (1000, self.checkAutoAction)
 				return True
 		return False
 		
@@ -282,44 +286,44 @@ class MarkerManager(baseObject.ScriptableObject):
 		return False
 
 	def checkAutoAction(self):
-		countMoveto = 0
 		with self.lock:
 			if not self.isReady:
 				return
-			i = 0
+			countMoveto = 0
+			funcMoveto = None
+			firstCancelSpeech = True
 			for result in self.markerResults:
-				i += 1
 				if result.markerQuery.autoAction:
 					controlIdentifier = result.node.controlIdentifier
 					if not controlIdentifier in self.triggeredIdentifiers:
 						self.triggeredIdentifiers.append(controlIdentifier)
 						speechOn()
-						speech.cancelSpeech()
 						autoActionName = result.markerQuery.autoAction
 						func = getattr(result, "script_%s" % autoActionName)
 						if autoActionName == "speak":
 							playWebAppSound("errorMessage")
-							#sleep(0.5)
 						elif autoActionName == "moveto":
 							countMoveto += 1
-							if countMoveto > 1:
-								func = None
+							if countMoveto == 1:
+								if func.__name__== self.lastAutoMoveto \
+									and time.time() - self.lastAutoMovetoTime < 4:
+									# no autoMoveto of same rule before 4 seconds
+									continue
+								else:
+									funcMoveto = func
+							func = None
 						if func:
+							if firstCancelSpeech:
+								speech.cancelSpeech()
+								firstCancelSpeech = False
 							func(None)
-		
-	def checkPendingActions(self):
-		if not self.isReady:
-			self.pendingMoveto = None
-			return
-		if self.pendingMoveto is not None:
-			wx.CallAfter(self.pendingMoveto.script_moveto, None)
-			self.pendingMoveto = None
-			
-	def requestMoveto(self, result):
-		if not self.isReady:
-			self.pendingMoveto = None
-			return
-		self.pendingMoveto = result
+			if funcMoveto is not None:
+				if firstCancelSpeech:
+					speech.cancelSpeech()
+					firstCancelSpeech = False
+				self.lastAutoMoveto = funcMoveto.__name__
+				self.lastAutoMovetoTime = time.time()
+				funcMoveto (None)
 		
 	def getPageTitle(self):
 		with self.lock:
@@ -443,7 +447,6 @@ class MarkerManager(baseObject.ScriptableObject):
 		commandList=XMLFormatting.XMLTextParser().parse(text)
 		#text = info.getTextWithFields()
 		logTime("all text : %d " % len(text), t)
-		beep()
 
 
 	__gestures = {
@@ -521,12 +524,12 @@ class VirtualMarkerResult(MarkerResult):
 		if self.markerQuery.createWidget:
 			self.node.moveto(reason)
 			return
-		treeInterceptor = html.getTreeInterceptor()
+		treeInterceptor = self.node.nodeManager.treeInterceptor
 		if not treeInterceptor or not treeInterceptor.isReady:
 			return
 		focusObject = api.getFocusObject()
 		try:
-			nodeObject = self.node.getTextInfo().NVDAObjectAtStart
+			nodeObject = self.node.getNvdaObject ()
 		except:
 			nodeObject = None
 		treeInterceptor.passThrough = self.markerQuery.formMode
