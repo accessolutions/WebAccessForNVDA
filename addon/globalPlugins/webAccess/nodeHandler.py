@@ -58,15 +58,16 @@ class NodeManager(baseObject.ScriptableObject):
 		self._ready = False
 		self.identifier = None 
 		self.backendDict = {}
-		if treeInterceptor is None:
-			log.info (u"nodeManager created with none treeInterceptor")
-			return
 		self.treeInterceptor = treeInterceptor
 		self.treeInterceptorSize = 0
 		self.mainNode = None
 		self.devNode = None
-		self.callbackNodeMoveto = callbackNodeMoveto
+		self.callbackNodeMoveto = None
 		self.updating = False
+		if treeInterceptor is None:
+			log.info(u"nodeManager created with none treeInterceptor")
+			return
+		self.callbackNodeMoveto = callbackNodeMoveto
 		self.update()
 		
 	def terminate (self):

@@ -521,6 +521,8 @@ class VirtualMarkerResult(MarkerResult):
 		self.node = node
 	
 	def script_moveto(self, gesture, fromQuickNav=False, fromSpeak=False):
+		if self.node.nodeManager is None:
+			return
 		reason = nodeHandler.REASON_FOCUS
 		if not fromQuickNav:
 			reason = nodeHandler.REASON_SHORTCUT
@@ -572,6 +574,8 @@ class VirtualMarkerResult(MarkerResult):
 		sayAllHandler.readText(sayAllHandler.CURSOR_CARET)
 
 	def script_activate(self, gesture):
+		if self.node.nodeManager is None:
+			return
 		if not self.markerQuery.markerManager.isReady :
 			log.info (u"not ready")
 			return
