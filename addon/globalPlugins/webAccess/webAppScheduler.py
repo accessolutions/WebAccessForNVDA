@@ -135,7 +135,7 @@ class WebAppScheduler(threading.Thread):
 			treeInterceptor.nodeManager.update ()
 		else:
 			from . import nodeHandler
-			treeInterceptor.nodeManager = nodeHandler.NodeManager (treeInterceptor, self.onNodeMoveto, inSeparateThread=True)
+			treeInterceptor.nodeManager = nodeHandler.NodeManager (treeInterceptor, self.onNodeMoveto)
 		if webApp:
 			webApp.treeInterceptor = treeInterceptor
 

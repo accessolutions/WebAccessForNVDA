@@ -50,7 +50,7 @@ nodeManagerIndex = 0
 
 class NodeManager(baseObject.ScriptableObject):
 	
-	def __init__(self, treeInterceptor, callbackNodeMoveto=None, inSeparateThread=False):
+	def __init__(self, treeInterceptor, callbackNodeMoveto=None):
 		super(NodeManager, self).__init__()
 		global nodeManagerIndex
 		nodeManagerIndex = nodeManagerIndex + 1
@@ -67,10 +67,7 @@ class NodeManager(baseObject.ScriptableObject):
 		self.devNode = None
 		self.callbackNodeMoveto = callbackNodeMoveto
 		self.updating = False
-		self.inSeparateThread = inSeparateThread
-		if not inSeparateThread:
-			wx.CallLater (10, self.tickUpdate)
-		self.update ()
+		self.update()
 		
 	def terminate (self):
 		for backend in self.backendDict:
@@ -172,12 +169,6 @@ class NodeManager(baseObject.ScriptableObject):
 			s += self.afficheNode (child, level + 1)
 		return s
 			
-	def tickUpdate (self):
-		if not self.inSeparateThread:
-			wx.CallLater (10, self.tickUpdate)
-			if self.updating:
-				pass
-		
 	def update(self):
 		t = logTimeStart ()
 		if self.treeInterceptor is None or not self.treeInterceptor.isReady:

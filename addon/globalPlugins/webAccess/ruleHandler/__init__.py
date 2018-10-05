@@ -147,6 +147,7 @@ class MarkerManager(baseObject.ScriptableObject):
 		self.lastAutoMoveto = None
 		self.lastAutoMovetoTime = 0
 		self.defaultMarkerScripts = DefaultMarkerScripts(u"Aucun marqueur associé à cette touche")
+		self.timerCheckAutoAction = None
 		webApp.widgetManager.register(MarkerGenericCollection)
 
 	def setQueriesData(self, queryData):
@@ -241,7 +242,8 @@ class MarkerManager(baseObject.ScriptableObject):
 			log.warn (u"nodeManager different than self.nodeManager")
 			return
 		self._ready = False
-		self.timerCheckAutoAction.Stop ()
+		if self.timerCheckAutoAction:
+			self.timerCheckAutoAction.cancel()
 		self.nodeManager = None
 		del self.markerResults[:]
 		for q in self.markerQueries:
@@ -273,8 +275,14 @@ class MarkerManager(baseObject.ScriptableObject):
 			#logTime("update marker", t)
 			if self.isReady:
 				webAppScheduler.scheduler.send(eventName="markerManagerUpdated", markerManager=self)
-				self.timerCheckAutoAction = wx.CallLater (1000, self.checkAutoAction)
+				self.timerCheckAutoAction = threading.Timer(
+					1, # Accepts floating point number for sub-second precision
+					self.checkAutoAction
+					)
+				self.timerCheckAutoAction.start()				
 				return True
+			else:
+				log.error("Not yet")
 		return False
 		
 	def checkPageTitle(self):
@@ -583,7 +591,7 @@ class VirtualMarkerResult(MarkerResult):
 		if repeat == 0:
 			if self.markerQuery.sayName:
 				speech.speakMessage(self.markerQuery.name)
-			ui.message(self.node.getTreeInterceptorText())
+			wx.CallAfter(ui.message, self.node.getTreeInterceptorText())
 		else:
 			self.script_moveto(None, fromSpeak=True)
 			
