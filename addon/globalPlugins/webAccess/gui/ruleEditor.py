@@ -263,6 +263,7 @@ class Dialog(wx.Dialog):
 						node = node.parent
 
 				actionsDict = self.markerManager.getActions()
+				self.autoActionList.Clear()
 				self.autoActionList.Append("", "")
 				for action in actionsDict:
 						self.autoActionList.Append(actionsDict[action], action)
