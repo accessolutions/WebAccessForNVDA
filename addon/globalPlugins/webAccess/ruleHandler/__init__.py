@@ -507,12 +507,13 @@ class MarkerResult(baseObject.ScriptableObject):
 		raise NotImplementedError
 
 	def getDisplayString(self):
-		gestures = ""
-		for identifier in self._gestureMap.keys():
-			source, main = inputCore.getDisplayTextForGestureIdentifier(identifier)
-			gestures += main + " "
-		#g = inputCore.getDisplayTextForGestureIdentifier(identifier)
-		return self.markerQuery.name + " " + gestures
+		return u" ".join(
+			[self.name]
+			+ [
+				inputCore.getDisplayTextForGestureIdentifier(identifier)[1]
+				for identifier in self._gestureMap.keys()
+				]
+			)
 	
 class VirtualMarkerResult(MarkerResult):
 	
@@ -639,12 +640,13 @@ class MarkerQuery(baseObject.ScriptableObject):
 		return None
 	
 	def getDisplayString(self):
-		gestures = ""
-		for identifier in self.gestures.keys():
-			source, main = inputCore.getDisplayTextForGestureIdentifier(identifier)
-			gestures += main + " "
-		#g = inputCore.getDisplayTextForGestureIdentifier(identifier)
-		return self.name + " " + gestures
+		return u" ".join(
+			[self.name]
+			+ [
+				inputCore.getDisplayTextForGestureIdentifier(identifier)[1]
+				for identifier in self._gestureMap.keys()
+				]
+			)
 	
 	def script_notFound(self, gesture):
 		speech.speakMessage(u"%s introuvable" % self.name)
