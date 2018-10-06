@@ -127,15 +127,29 @@ class Dialog(wx.Dialog):
 		self.RefreshRuleList()
 
 
-	def RefreshRuleList(self):
+	def RefreshRuleList(self, selectName=None):
+		"""
+		Refresh the list of rules.
+		
+		If *selectName" is set, the rule with that name gets selected.
+		Otherwise, the rule matching the current focus in the document,
+		if any, gets selected.
+		"""
 		api.processPendingEvents()
+		if not selectName:
+			sel = self.ruleList.Selection
+			if sel >= 0:
+				selectName = self.ruleList.GetClientData(sel).name
 		self.ruleList.Clear()
 		self.listLabel.SetLabel(_("Active rules"))
+		sel = None
 		index = 0
-		sel = 0
 		for result in self.markerManager.getResults():
 			self.ruleList.Append(result.getDisplayString(), result)
-			if result == self.rule:
+			if selectName is not None:
+				if result.name == selectName:
+					sel == index
+			elif result == self.rule:
 				sel = index
 			index += 1
 		if not self.displayActiveRules.Value:
@@ -143,7 +157,12 @@ class Dialog(wx.Dialog):
 			for query in self.markerManager.getQueries():
 				if query not in [r.markerQuery for r in self.markerManager.getResults()]:
 					self.ruleList.Append(query.getDisplayString(), query)
-		self.ruleList.Selection = sel
+					if query.name == selectName:
+						sel = index
+					index += 1
+		if sel is not None:
+			self.ruleList.Selection = sel
+			self.ruleList.EnsureVisible(sel)
 		self.OnRuleListChoice(None)
 
 	def OnMoveto(self, evt):
@@ -158,15 +177,8 @@ class Dialog(wx.Dialog):
 	def OnNew(self, evt):
 		context = self.context.copy()  # Shallow copy
 		if ruleHandler.showCreator(context):
-			self.RefreshRuleList()
-			# Select the newly created rule if shown in the list
-			lookup = context["data"]["rule"]["name"]
-			for index in xrange(self.ruleList.Count):
-				rule = self.ruleList.GetClientData(index)
-				if rule.name == lookup:
-					self.ruleList.Select(index)
-					self.ruleList.EnsureVisible(index)
-					self.ruleList.SetFocus()
+			self.RefreshRuleList(context["data"]["rule"]["name"])
+			self.ruleList.SetFocus()
 
 	def OnDelete(self, evt):
 		sel = self.ruleList.Selection
@@ -215,9 +227,8 @@ class Dialog(wx.Dialog):
 		context = self.context.copy()  # Shallow copy
 		context["rule"] = query
 		if ruleHandler.showEditor(context):
-			self.RefreshRuleList()
-			self.ruleList.Select(sel)
-			self.ruleList.EnsureVisible(sel)
+			# Pass the eventually changed rule name
+			self.RefreshRuleList(context["data"]["rule"]["name"])
 			self.ruleList.SetFocus()
 
 	def OnDisplayActiveRules(self, evt):
