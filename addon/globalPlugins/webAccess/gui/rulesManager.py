@@ -182,7 +182,11 @@ class Dialog(wx.Dialog):
 		else:
 			query = rule.markerQuery
 		self.markerManager.removeQuery(query)
-		webAppScheduler.scheduler.send(eventName="configurationChanged", webApp=self.markerManager.webApp)
+		webAppScheduler.scheduler.send(
+			eventName="configurationChanged",
+			webModule=self.markerManager.webApp,
+			focus=self.context["focusObject"]
+			)
 		self.RefreshRuleList()
 		self.ruleList.SetFocus()
 

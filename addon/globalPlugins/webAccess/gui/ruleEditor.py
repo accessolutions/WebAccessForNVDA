@@ -34,7 +34,7 @@ from logHandler import log
 import ui
 
 from .. import ruleHandler
-from .. import webAppScheduler
+from .. import webModuleHandler
 from ..webAppLib import *
 
 addonHandler.initTranslation()
@@ -454,10 +454,10 @@ class Dialog(wx.Dialog):
 						self.markerManager.removeQuery(self.rule)
 				rule = ruleHandler.VirtualMarkerQuery(self.markerManager, dic)
 				self.markerManager.addQuery(rule)
-				self.markerManager.update(force=True)
-				webAppScheduler.scheduler.send(
-						eventName="configurationChanged", webApp=self.markerManager.webApp)
-
+				webModuleHandler.update(
+					webModule=self.markerManager.webApp,
+					focus=self.context["focusObject"]
+					)
 				assert self.IsModal()
 				self.EndModal(wx.ID_OK)
 

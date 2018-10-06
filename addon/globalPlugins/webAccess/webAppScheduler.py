@@ -95,9 +95,27 @@ class WebAppScheduler(threading.Thread):
 		if func:
 			func(obj, self.fakeNext)
 	
-	def event_configurationChanged (self, webApp):
-		from . import webModuleHandler
-		webModuleHandler.update(webApp)
+	def event_configurationChanged(self, webModule, focus):
+		# The updated WebModule is a new object in the store.
+		# Older references to the WebModule, MarkerManager or
+		# NodeManager should not be used anymore.
+		# Removing older cached references ensures a proper reload.
+		def generator():
+			yield focus
+			if hasattr(focus, "treeInterceptor"):
+				yield focus.treeInterceptor
+			obj = focus
+			while hasattr(obj, "parent"):
+				obj = obj.parent
+				yield obj
+		try:
+			for obj in generator():
+				if hasattr(obj, "_webApp"):
+					delattr(obj, "_webApp")
+				if hasattr(obj, "nodeManager"):
+					delattr(obj, "nodeManager")
+		except:
+			log.exception("While clearing cached references")
 
 	def event_treeInterceptor_gainFocus (self, treeInterceptor, firstGainFocus):
 		hadFirstGainFocus=treeInterceptor._hadFirstGainFocus

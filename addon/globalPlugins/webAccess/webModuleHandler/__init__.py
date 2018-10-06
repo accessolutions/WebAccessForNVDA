@@ -41,17 +41,31 @@ from ..store import DuplicateRefError
 from ..store import MalformedRefError
 
 
-def create(webModule, force=False):
+def create(webModule, force=False, focus=None):
 	store.getInstance().create(webModule, force=force)
 	getWebModules(refresh=True)
+	if focus:
+		from .. import webAppScheduler
+		webAppScheduler.scheduler.send(
+			eventName="configurationChanged",
+			webModule=webModule,
+			focus=focus
+			)
 
-def delete(webModule, prompt=True):
+def delete(webModule, prompt=True, focus=None):
 	if prompt:
 		from ..gui import webModulesManager
 		if not webModulesManager.promptDelete(webModule):
 			return False
 	store.getInstance().delete(webModule)
 	getWebModules(refresh=True)
+	if focus:
+		from .. import webAppSheduler
+		webAppScheduler.scheduler.send(
+			eventName="configurationChanged",
+			webModule=self.markerManager.webApp,
+			focus=self.context["focusObject"]
+			)
 	return True
 
 def getWebModules(refresh=False):
@@ -60,9 +74,16 @@ def getWebModules(refresh=False):
 		_webModuleCache = list(store.getInstance().list())
 	return _webModuleCache
 
-def update(webModule, force=False):
+def update(webModule, force=False, focus=None):
 	store.getInstance().update(webModule, force=force)
 	getWebModules(refresh=True)
+	if focus:
+		from .. import webAppScheduler
+		webAppScheduler.scheduler.send(
+			eventName="configurationChanged",
+			webModule=webModule,
+			focus=focus
+			)
 
 def showCreator(context):
 	showEditor(context, new=True)
@@ -84,8 +105,13 @@ def showEditor(context, new=False):
 			while keepTrying:
 				try:
 					if new:
-						webModule = context["webModule"] = WebModule(data=context["data"])
-						create(webModule, force=force)
+						webModule = context["webModule"] = \
+							WebModule(data=context["data"])
+						create(
+							webModule,
+							force=force,
+							focus=context.get("focusObject")
+							)
 						# Translators: Confirmation message after web module creation.
 						ui.message(
 							_("Your new web module %s has been created.")
@@ -94,7 +120,11 @@ def showEditor(context, new=False):
 					else:
 						webModule = context["webModule"]
 						webModule.load(context["data"])
-						update(webModule, force=force)
+						update(
+							webModule,
+							force=force,
+							focus=context.get("focusObject")
+							)
 					keepShowing = keepTrying = False
 				except DuplicateRefError as e:
 					if webModuleEditor.promptOverwrite():
