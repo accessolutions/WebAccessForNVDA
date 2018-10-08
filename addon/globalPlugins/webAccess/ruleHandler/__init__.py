@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.09.12"
+__version__ = "2018.10.08"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 

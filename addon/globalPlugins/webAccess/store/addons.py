@@ -1,4 +1,4 @@
-# globalPlugins/webAccess/store/__init__.py
+# globalPlugins/webAccess/store/addons.py
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.

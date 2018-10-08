@@ -1,4 +1,4 @@
-# webAppScheduler.py
+# globalPlugins/webAccess/webAppScheduler.py
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.07.06"
+__version__ = "2018.10.06"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 

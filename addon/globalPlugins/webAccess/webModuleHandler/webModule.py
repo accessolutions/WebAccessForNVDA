@@ -1,4 +1,4 @@
-# globalPlugins/webAccess/webModuleHandler/webModule/webModule.py
+# globalPlugins/webAccess/webModuleHandler/webModule.py
 # -*- coding: utf-8 -*-
 from __builtin__ import str
 
@@ -21,7 +21,7 @@ from __builtin__ import str
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2018.07.07"
+__version__ = "2018.10.08"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
