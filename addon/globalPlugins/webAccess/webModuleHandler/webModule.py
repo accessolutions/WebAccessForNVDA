@@ -1,5 +1,6 @@
 # globalPlugins/webAccess/webModuleHandler/webModule/webModule.py
 # -*- coding: utf-8 -*-
+from __builtin__ import str
 
 # This file is part of Web Access for NVDA.
 # Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
@@ -49,6 +50,9 @@ from ..webAppLib import *
 
 
 class WebModule(baseObject.ScriptableObject):
+	
+	FORMAT_VERSION = "0.1"
+	
 	url = None
 	name = None
 	windowTitle = None
@@ -56,11 +60,9 @@ class WebModule(baseObject.ScriptableObject):
 	widgetManager = None
 	activeWidget = None
 	presenter = None
-	userDefined = False
 
-	def __init__(self, data=None, jsonFile=None):
+	def __init__(self, data=None):
 		super(WebModule, self).__init__()
-		self.jsonDataFile = jsonFile
 		self.activePageTitle = None
 		self.activePageIdentifier = None
 		from .. import widgets
@@ -78,57 +80,79 @@ class WebModule(baseObject.ScriptableObject):
 		return "webApp %s" % (self.name) if self.name is not None else "<noName>"
 
 	def dump(self):
-		data = {}
+		data = {"formatVersion": self.FORMAT_VERSION}
+		
+		data["WebModule"] = {
+			"name": self.name,
+			"url": self.url,
+			"windowTitle": self.windowTitle,
+			}
+		
 		if self.markerManager is None:
-			log.info("Web module has no marker manager: %s" % self.name)
+			# Do not risk to erase an existing data file while in an
+			# unstable state.
+			raise Exception(
+				"WebModule has no marker manager: {name}"
+				"".format(name=self.name)
+				)
 		else:
-			queriesData = self.markerManager.getQueriesData(onlyUser=True)
+			queriesData = self.markerManager.getQueriesData()
 			if len(queriesData) > 0:
 				data["Rules"] = queriesData
 			else:
 				data["Rules"] = []
-		# TODO: Implement field labels saving
-		if self.userDefined:
-			data["WebModule"] = {
-				"name": self.name,
-				"url": self.url,
-				"windowTitle": self.windowTitle,
-				}
 		return data
 	
 	def load(self, data):
 		if data is None:
 			log.info("%s: No data to load" % self.name)
 			return True
-		item = data["WebModule"] if "WebModule" in data \
-			else data["WebApp"] if "WebApp" in data \
-			else None
+		
+		formatVersion = data.get("formatVersion")
+		# Ensure compatibility with data files prior to format versioning
+		if formatVersion is None:
+			# Back to the "WebAppHandler" days
+			if "WebModule" not in data and "WebApp" in data:
+				data["WebModule"] = data.pop("WebApp")
+			if "Rules" not in data and "PlaceMarkers" in data:
+				data["Rules"] = data.pop("PlaceMarkers")
+			# Earlier versions supported only a single URL trigger
+			url = data.get("WebModule", {}).get("url", None)
+			if isinstance(url, basestring):
+				data["WebModule"]["url"] = [url]
+			# Custom labels for certain fields are not supported anymore
+			# TODO: Re-implement custom field labels?
+			if "FieldLabels" in data:
+				log.warning("FieldLabels not supported")
+		elif formatVersion != self.FORMAT_VERSION:
+			# Attempt loading anyway.
+			log.warning(
+				"WebModule format not supported: "
+				"{ver}".format(ver=formatVersion)
+				)
+		
+		item = data.get("WebModule")
 		if item is not None:
 			if "name" in item:
 				self.name = item["name"]
-			if self.url is not None and isinstance(self.url, basestring):
-				self.url = [self.url]
 			else:
-				self.url = []
+				log.warning("WebModule has no name")
 			if "url" in item:
 				url = item["url"]
-				if isinstance(url, basestring):
-					self.url.append(url)
+				if not isinstance(url, list):
+					log.warning(
+						"Unexpected WebModule/url: "
+						"{url}".format(url)
+						)
 				else:
-					self.url.extend(url)
+					self.url = url
 			if "windowTitle" in item:
 				self.windowTitle = item["windowTitle"]
-			self.userDefined = True
 		del item
-		items = data["Rules"] if "Rules" in data \
-			else data["PlaceMarkers"] if "PlaceMarkers" in data \
-			else None
+		items = data.get("Rules")
 		if items is not None:
 			self.markerManager.setQueriesData(items)
 		del items
-		if "FieldLabels" in data:
-			# Load custom labels for certain fields
-			log.info("Labels not supported")
 		return True
 	
 	def _get_pageTitle(self):

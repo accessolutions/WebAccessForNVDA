@@ -152,17 +152,15 @@ class MarkerManager(baseObject.ScriptableObject):
 
 	def setQueriesData(self, queryData):
 		self.markerQueries = []
-		self.markerResults = []
+		self.markerResults = [] 
 		for qd in queryData:
-			if qd["class"] == "Virtual":
-				query = VirtualMarkerQuery(self, qd)
-				self.addQuery(query)
+			query = VirtualMarkerQuery(self, qd)
+			self.addQuery(query)
 
-	def getQueriesData(self, onlyUser=False):
+	def getQueriesData(self):
 		queryData = []
 		for query in self.markerQueries:
-			if not onlyUser or query.user:
-				queryData.append(query.getData())
+			queryData.append(query.getData())
 		return queryData 
 	
 	def addQuery(self, query):
@@ -183,11 +181,10 @@ class MarkerManager(baseObject.ScriptableObject):
 				return q
 		return None
 
-	def getQueries(self, onlyUser=False):
+	def getQueries(self):
 		queries = []
 		for q in self.markerQueries:
-			if not onlyUser or q.user:
-				queries.append(q)
+			queries.append(q)
 		return queries
 	
 	def getResults(self):
@@ -626,7 +623,6 @@ class MarkerQuery(baseObject.ScriptableObject):
 		self.markerManager = markerManager
 		self.name = None
 		self.pageIdentifier = None
-		self.user = False
 		self.skip = False
 		self.results = None
 
@@ -655,11 +651,9 @@ class VirtualMarkerQuery(MarkerQuery):
 	
 	def __init__(self, markerManager, dic):
 		super(VirtualMarkerQuery,self).__init__(markerManager)
-		dic["class"] = "Virtual"
 		self.dic = dic
 		self.name = dic["name"]
 		self.pageIdentifier = dic.get("pageIdentifier", None)
-		self.user= dic.get("user", False)
 		self.gestures= dic.get("gestures", {})
 		gesturesMap = {}
 		for gestureIdentifier in self.gestures.keys():

@@ -387,11 +387,7 @@ class Dialog(wx.Dialog):
 						self.markerName.SetFocus()
 						return
 
-				dic = self.data = self.context["data"]["rule"] = {
-						"class":  "virtual",
-						"name": name,
-						"user": True,
-				}
+				dic = self.data = self.context["data"]["rule"] = {"name": name}
 				text = self.searchText.Value
 				if text.strip() != "":
 						dic["text"] = text
