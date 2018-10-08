@@ -113,32 +113,32 @@ class Dialog(wx.Dialog):
 				inputCtrl = self.markerName = wx.ComboBox(staticBoxRuleDef)
 				gridSizer.Add(inputCtrl, pos=(0, 1), flag=wx.EXPAND)
 
-				gridSizer.Add(wx.StaticText(staticBoxRuleDef, label=_(u"Search &text")), pos=(1, 0))
-				inputCtrl = self.searchText = wx.ComboBox(staticBoxRuleDef)
+				gridSizer.Add(wx.StaticText(staticBoxRuleDef, label=_(u"Conte&xt")), pos=(1, 0))
+				inputCtrl = self.ruleContextCombo = wx.ComboBox(staticBoxRuleDef)
 				gridSizer.Add(inputCtrl, pos=(1, 1), flag=wx.EXPAND)
 
-				gridSizer.Add(wx.StaticText(staticBoxRuleDef, label=_(u"&Role")), pos=(2, 0))
-				inputCtrl = self.roleCombo = wx.ComboBox(staticBoxRuleDef)
+				gridSizer.Add(wx.StaticText(staticBoxRuleDef, label=_(u"Search &text")), pos=(2, 0))
+				inputCtrl = self.searchText = wx.ComboBox(staticBoxRuleDef)
 				gridSizer.Add(inputCtrl, pos=(2, 1), flag=wx.EXPAND)
 
-				gridSizer.Add(wx.StaticText(staticBoxRuleDef, label=_(u"&Tag")), pos=(3, 0))
-				inputCtrl = self.tagCombo = wx.ComboBox(staticBoxRuleDef)
+				gridSizer.Add(wx.StaticText(staticBoxRuleDef, label=_(u"&Role")), pos=(3, 0))
+				inputCtrl = self.roleCombo = wx.ComboBox(staticBoxRuleDef)
 				gridSizer.Add(inputCtrl, pos=(3, 1), flag=wx.EXPAND)
 
-				gridSizer.Add(wx.StaticText(staticBoxRuleDef, label=_(u"&ID")), pos=(4, 0))
-				inputCtrl = self.idCombo = wx.ComboBox(staticBoxRuleDef)
+				gridSizer.Add(wx.StaticText(staticBoxRuleDef, label=_(u"&Tag")), pos=(4, 0))
+				inputCtrl = self.tagCombo = wx.ComboBox(staticBoxRuleDef)
 				gridSizer.Add(inputCtrl, pos=(4, 1), flag=wx.EXPAND)
 
-				gridSizer.Add(wx.StaticText(staticBoxRuleDef, label=_(u"&Class")), pos=(5, 0))
-				inputCtrl = self.classCombo = wx.ComboBox(staticBoxRuleDef)
+				gridSizer.Add(wx.StaticText(staticBoxRuleDef, label=_(u"&ID")), pos=(5, 0))
+				inputCtrl = self.idCombo = wx.ComboBox(staticBoxRuleDef)
 				gridSizer.Add(inputCtrl, pos=(5, 1), flag=wx.EXPAND)
 
-				gridSizer.Add(wx.StaticText(staticBoxRuleDef, label=_(u"&Image source")), pos=(6, 0))
-				inputCtrl = self.srcCombo = wx.ComboBox(staticBoxRuleDef)
+				gridSizer.Add(wx.StaticText(staticBoxRuleDef, label=_(u"&Class")), pos=(6, 0))
+				inputCtrl = self.classCombo = wx.ComboBox(staticBoxRuleDef)
 				gridSizer.Add(inputCtrl, pos=(6, 1), flag=wx.EXPAND)
 
-				gridSizer.Add(wx.StaticText(staticBoxRuleDef, label=_(u"Conte&xt")), pos=(7, 0))
-				inputCtrl = self.ruleContextCombo = wx.ComboBox(staticBoxRuleDef)
+				gridSizer.Add(wx.StaticText(staticBoxRuleDef, label=_(u"&Image source")), pos=(7, 0))
+				inputCtrl = self.srcCombo = wx.ComboBox(staticBoxRuleDef)
 				gridSizer.Add(inputCtrl, pos=(7, 1), flag=wx.EXPAND)
 
 				# Separation with options related to multiple results
