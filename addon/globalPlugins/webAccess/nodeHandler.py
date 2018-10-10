@@ -201,14 +201,14 @@ class NodeManager(baseObject.ScriptableObject):
 			text=NVDAHelper.VBuf_getTextInRange(info.obj.VBufHandle,start,end,True)
 			if self.mainNode is not None:
 				self.mainNode.recursiveDelete ()
-			self.parseXML (text)
+			self.parseXML(text)
 			#logTime ("Update node manager %d, text=%d" % (self.index, len(text)), t)
 			self.info = None
-			gc.collect ()
+			gc.collect()
 		else:
 			self.updating = False
 			self._ready = False
-			log.info (u"reading vBuff error")
+			log.info(u"reading vBuff error")
 			return False
 		#self.info = info
 		if self.mainNode is None:
@@ -230,11 +230,11 @@ class NodeManager(baseObject.ScriptableObject):
 		if size != self.treeInterceptorSize:
 			# treeInterceptor has changed during analyze
 			self._ready = False
-			webAppScheduler.scheduler.send (eventName="updateNodeManager", treeInterceptor=self.treeInterceptor)
+			webAppScheduler.scheduler.send(eventName="updateNodeManager", treeInterceptor=self.treeInterceptor)
 			return False
 		else:
 			self._ready = True
-			webAppScheduler.scheduler.send (eventName="nodeManagerUpdated", nodeManager=self)
+			webAppScheduler.scheduler.send(eventName="nodeManagerUpdated", nodeManager=self)
 			return True
 		return False
 
