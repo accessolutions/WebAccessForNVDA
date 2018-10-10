@@ -1,9 +1,9 @@
 ﻿
 # Web Access pour NVDA - User Guide
 
-Version 2018.04.23
+Version 2018.10.10
 
-Copyright [Accessolutions](http://accessolutions.fr)
+Copyright (C) 2015-2018 [Accessolutions](http://accessolutions.fr)
 
 
 ## The web modules
