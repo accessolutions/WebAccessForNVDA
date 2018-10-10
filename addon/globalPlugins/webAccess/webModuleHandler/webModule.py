@@ -1,6 +1,5 @@
 # globalPlugins/webAccess/webModuleHandler/webModule.py
 # -*- coding: utf-8 -*-
-from __builtin__ import str
 
 # This file is part of Web Access for NVDA.
 # Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
@@ -73,11 +72,13 @@ class WebModule(baseObject.ScriptableObject):
 
 		self.load(data)
 		if self.name is None:
-			log.error("No web module defined in the configuration data: %s" % data)
+			log.error(u"No web module defined in the configuration data: %s" % data)
 			raise Exception("No web module defined in the configuration data.")
 	
 	def __str__(self):
-		return "webApp %s" % (self.name) if self.name is not None else "<noName>"
+		return u"WebModule {name}".format(
+			name=self.name if self.name is not None else "<noName>"
+			)
 
 	def dump(self):
 		data = {"formatVersion": self.FORMAT_VERSION}
@@ -105,7 +106,7 @@ class WebModule(baseObject.ScriptableObject):
 	
 	def load(self, data):
 		if data is None:
-			log.info("%s: No data to load" % self.name)
+			log.info(u"%s: No data to load" % self.name)
 			return True
 		
 		formatVersion = data.get("formatVersion")
@@ -174,9 +175,9 @@ class WebModule(baseObject.ScriptableObject):
 		nextHandler()
 
 	def event_webApp_pageChanged(self, pageTitle, nextHandler):
-		speech.cancelSpeech ()
-		playWebAppSound ("pageChanged")
-		speech.speakMessage (pageTitle)
+		speech.cancelSpeech()
+		playWebAppSound("pageChanged")
+		speech.speakMessage(pageTitle)
 	
 	def event_webApp_gainFocus(self, obj, nextHandler):
 		if obj.role not in [controlTypes.ROLE_DOCUMENT, controlTypes.ROLE_FRAME, controlTypes.ROLE_INTERNALFRAME]:
@@ -190,7 +191,7 @@ class WebModule(baseObject.ScriptableObject):
 		nextHandler()
 
 	def event_webApp_loseFocus(self, obj, nextHandler):
-		playWebAppSound ("webAppLoseFocus")
+		playWebAppSound("webAppLoseFocus")
 		nextHandler()
 		
 	def claimForJABObject(self, obj):
@@ -202,7 +203,7 @@ class WebModule(baseObject.ScriptableObject):
 		try:
 			webAppTitle = self.pageTitle
 		except Exception, e:
-			log.exception("Error retrieving webApp title: %s" % e)
+			log.exception(u"Error retrieving webApp title: %s" % e)
 			webAppTitle = windowTitle
 		if webAppTitle is None or webAppTitle == "":
 			webAppTitle = windowTitle
@@ -210,7 +211,7 @@ class WebModule(baseObject.ScriptableObject):
 
 	def script_sayWebAppName(self, gesture):
 		# Translators: Speak name of current web module
-		ui.message (_("Current web module is: %s") % (self.name))
+		ui.message(_(u"Current web module is: {name}").format(name=self.name))
 
 	__gestures = {
 		"kb:nvda+t": "sayTitle",
