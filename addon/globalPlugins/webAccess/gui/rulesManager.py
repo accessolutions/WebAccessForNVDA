@@ -37,7 +37,7 @@ import ui
 
 from .. import ruleHandler
 from ..webAppLib import *
-from .. import webAppScheduler
+from .. import webModuleHandler
 from . import ListCtrlAutoWidth
 
 
@@ -194,9 +194,8 @@ class Dialog(wx.Dialog):
 		else:
 			query = rule.markerQuery
 		self.markerManager.removeQuery(query)
-		webAppScheduler.scheduler.send(
-			eventName="configurationChanged",
-			webModule=self.markerManager.webApp,
+		webModuleHandler.update(
+			webModule=self.context["webModule"],
 			focus=self.context["focusObject"]
 			)
 		self.RefreshRuleList()

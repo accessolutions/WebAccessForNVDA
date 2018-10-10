@@ -50,6 +50,9 @@ class AddonsStore(DispatchStore):
 	stores = property(__getStores)
 	
 	# Defaults to read-only.
+	# A WebModule provided by an addon might still be modified by first
+	# duplicating it to the userConfig.
+	create = Store.create
 	delete = Store.delete
 	supports = Store.supports		
 	update = Store.update

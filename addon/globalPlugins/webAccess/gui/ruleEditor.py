@@ -451,7 +451,7 @@ class Dialog(wx.Dialog):
 				rule = ruleHandler.VirtualMarkerQuery(self.markerManager, dic)
 				self.markerManager.addQuery(rule)
 				webModuleHandler.update(
-					webModule=self.markerManager.webApp,
+					webModule=self.context["webModule"],
 					focus=self.context["focusObject"]
 					)
 				assert self.IsModal()

@@ -39,17 +39,46 @@ from . import ListCtrlAutoWidth
 
 
 def promptDelete(webModule):
-	return wx.MessageBox(
+	return gui.messageBox(
 		parent=gui.mainFrame,
 		message=(
-				# Translators: Prompt before deleting a web module.
-				_("Do you really want to delete this web module?")
-				+ os.linesep
-				+ webModule.name
-				),
-		style=wx.YES_NO|wx.ICON_WARNING,
+			# Translators: Prompt before deleting a web module.
+			_("Do you really want to delete this web module?")
+			+ os.linesep
+			+ webModule.name
+			),
 		) == wx.YES
 
+def promptMask(webModule):
+	msg = None
+	if hasattr(webModule, "storeRef"):
+		log.info(u"Proposing to mask {storeRef}".format(
+			storeRef=webModule.storeRef
+			))
+		try:
+			if webModule.storeRef[0] == "addons":
+				msg = _(
+					u"""This web module comes with the add-on {addon}.
+It cannot be modified at its current location."""
+					).format(addon=webModule.storeRef[1])
+		except:
+			pass
+	else:
+		log.info(u"Proposing to mask {storeRef}".format(
+			storeRef=webModule.storeRef
+			))
+	if msg is None:
+		msg = _(
+			u"This web module cannot be modified at its current location."
+			)
+	msg += u"\n\n"
+	msg += _(u"Do you want to make a copy in your user configuration?")
+	return gui.messageBox(
+		parent=gui.mainFrame,
+		message=msg,
+		caption=_("Warning"),
+		style=wx.ICON_WARNING | wx.YES | wx.NO
+	) == wx.YES
 
 def show(context):
 	gui.mainFrame.prePopup()
@@ -177,7 +206,10 @@ class Dialog(wx.Dialog):
 		pass
 		webModule = self.modules[index]
 		from .. import webModuleHandler
-		if webModuleHandler.delete(webModule):
+		if webModuleHandler.delete(
+				webModule=webModule,
+				focus=self.context.get("focusObject")
+				):
 			self.RefreshModulesList()
 
 	def OnModuleEdit(self, evt=None):

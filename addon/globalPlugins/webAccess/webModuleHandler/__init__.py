@@ -41,7 +41,7 @@ from ..store import DuplicateRefError
 from ..store import MalformedRefError
 
 
-def create(webModule, force=False, focus=None):
+def create(webModule, focus, force=False):
 	store.getInstance().create(webModule, force=force)
 	getWebModules(refresh=True)
 	if focus:
@@ -51,20 +51,22 @@ def create(webModule, force=False, focus=None):
 			webModule=webModule,
 			focus=focus
 			)
+	else:
+		log.error("No focus to update")
 
-def delete(webModule, prompt=True, focus=None):
+def delete(webModule, focus, prompt=True):
 	if prompt:
-		from ..gui import webModulesManager
-		if not webModulesManager.promptDelete(webModule):
+		from ..gui.webModulesManager import promptDelete
+		if not promptDelete(webModule):
 			return False
 	store.getInstance().delete(webModule)
 	getWebModules(refresh=True)
 	if focus:
-		from .. import webAppSheduler
+		from .. import webAppScheduler
 		webAppScheduler.scheduler.send(
 			eventName="configurationChanged",
-			webModule=self.markerManager.webApp,
-			focus=self.context["focusObject"]
+			webModule=webModule,
+			focus=focus
 			)
 	return True
 
@@ -74,9 +76,26 @@ def getWebModules(refresh=False):
 		_webModuleCache = list(store.getInstance().list())
 	return _webModuleCache
 
-def update(webModule, force=False, focus=None):
-	store.getInstance().update(webModule, force=force)
-	getWebModules(refresh=True)
+def update(webModule, focus, force=False):
+	updatable, mask = checkUpdatable(webModule)
+	if mask:
+		return create(webModule, focus, force=force)
+	if updatable:
+		store.getInstance().update(webModule, force=force)
+		ui.message(_("Web module updated."))
+		log.info(u"WebModule updated: {webModule}".format(webModule=webModule))
+	import speech
+	if not webModule in getWebModules(refresh=True):
+		speech.speak(u"marking as outdated")
+		# Avoid returning outdated cached versions
+		webModule._outdated = True
+		log.info(
+			u"Web module marked as outdated: {webModule}".format(
+				webModule=id(webModule)
+				)
+			)
+	else:
+		speech.speak(u"not marking as outdated")
 	if focus:
 		from .. import webAppScheduler
 		webAppScheduler.scheduler.send(
@@ -84,6 +103,26 @@ def update(webModule, force=False, focus=None):
 			webModule=webModule,
 			focus=focus
 			)
+	return True
+
+def checkUpdatable(webModule):
+	"""
+	Check if a WebModule can be updated in place.
+	
+	If not, prompts the user if they want to mask it with a
+	copy in userConfig (which is the default store when
+	creating a new WebModule).
+	
+	Returns (isUpdatable, shouldMask)
+	"""
+	store_ = store.getInstance()
+	if store_.supports("update", item=webModule):
+		return True, False
+	if store_.supports("mask", item=webModule):
+		from ..gui.webModulesManager import promptMask
+		if promptMask(webModule):
+			return False, True
+		return False, False
 
 def showCreator(context):
 	showEditor(context, new=True)
@@ -108,22 +147,23 @@ def showEditor(context, new=False):
 						webModule = context["webModule"] = \
 							WebModule(data=context["data"])
 						create(
-							webModule,
-							force=force,
-							focus=context.get("focusObject")
+							webModule=webModule,
+							focus=context.get("focusObject"),
+							force=force
 							)
 						# Translators: Confirmation message after web module creation.
 						ui.message(
-							_("Your new web module %s has been created.")
-							% webModule.name
-							) 
+							_(
+								u"Your new web module {name} has been created."
+								).format(name=webModule.name)
+							)
 					else:
 						webModule = context["webModule"]
 						webModule.load(context["data"])
 						update(
-							webModule,
-							force=force,
-							focus=context.get("focusObject")
+							webModule=webModule,
+							focus=context.get("focusObject"),
+							force=force
 							)
 					keepShowing = keepTrying = False
 				except DuplicateRefError as e:
