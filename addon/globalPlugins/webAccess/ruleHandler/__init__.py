@@ -46,19 +46,25 @@ from ..widgets import genericCollection
 from ..webAppLib import *
 from collections import OrderedDict
 
-builtinRuleActions = OrderedDict ()
+
+TRACE = lambda *args, **kwargs: None
+#TRACE = log.info
+
+
+builtinRuleActions = OrderedDict()
 # Translators: Action name
-builtinRuleActions ["moveto"] = pgettext("webAccess.action", "Move to")
+builtinRuleActions["moveto"] = pgettext("webAccess.action", "Move to")
 # Translators: Action name
-builtinRuleActions ["sayall"] = pgettext("webAccess.action", "Say all") 
+builtinRuleActions["sayall"] = pgettext("webAccess.action", "Say all") 
 # Translators: Action name
-builtinRuleActions ["speak"] = pgettext("webAccess.action", "Speak")
+builtinRuleActions["speak"] = pgettext("webAccess.action", "Speak")
 # Translators: Action name
-builtinRuleActions ["activate"] = pgettext("webAccess.action", "Activate")
+builtinRuleActions["activate"] = pgettext("webAccess.action", "Activate")
 # Translators: Action name
-builtinRuleActions ["mouseMove"] = pgettext("webAccess.action", "Mouse move")
+builtinRuleActions["mouseMove"] = pgettext("webAccess.action", "Mouse move")
 # Translators: Action name
-builtinRuleActions ["noAction"] = pgettext("webAccess.action", "No action")
+builtinRuleActions["noAction"] = pgettext("webAccess.action", "No action")
+
 
 def showCreator(context):
 	return showEditor(context, new=True)
@@ -109,11 +115,11 @@ class MarkerGenericCollection(genericCollection.GenericCollection):
 					instanceList.append(instance)
 		return instanceList
 
-
 	def __init__(self, webApp, obj=None):
 		self.supportSearch = True
 		super(MarkerGenericCollection, self).__init__(webApp)
 		self.autoEnter = False
+
 
 class DefaultMarkerScripts(baseObject.ScriptableObject):
 	
@@ -135,6 +141,13 @@ class DefaultMarkerScripts(baseObject.ScriptableObject):
 class MarkerManager(baseObject.ScriptableObject):
 	
 	def __init__(self, webApp):
+# 		TRACE(
+# 			u"MarkerManager.__init__("
+# 			u"self={self}, webApp={webApp}".format(
+# 				self=id(self),
+# 				webApp=id(webApp) if webApp is not None else None
+# 				)
+# 			)
 		super(MarkerManager,self).__init__()
 		self._ready = False
 		self.webApp = webApp
@@ -175,7 +188,7 @@ class MarkerManager(baseObject.ScriptableObject):
 			if self.markerQueries[i-1] == query:
 				del self.markerQueries[i-1]
 
-	def getQueryByName (self, name):
+	def getQueryByName(self, name):
 		for q in self.markerQueries:
 			if q.name == name:
 				return q
@@ -234,9 +247,17 @@ class MarkerManager(baseObject.ScriptableObject):
 			return False
 		return True
 
-	def event_nodeManagerTerminated (self, nodeManager):
+	def event_nodeManagerTerminated(self, nodeManager):
+		TRACE(
+			u"event_nodeManagerTerminated("
+			u"self={self}, nodeManager={nodeManager})".format(
+				self=id(self),
+				nodeManager=id(nodeManager)
+					if nodeManager is not None else None
+				)
+			)
 		if self.nodeManager != nodeManager:
-			log.warn (u"nodeManager different than self.nodeManager")
+			log.warn(u"nodeManager different than self.nodeManager")
 			return
 		self._ready = False
 		if self.timerCheckAutoAction:
@@ -247,7 +268,25 @@ class MarkerManager(baseObject.ScriptableObject):
 			q.resetResults () 
 
 	def update(self, nodeManager=None, force=False):
+		TRACE(
+			u"update(self={self}, "
+			u"nodeManager={nodeManager}, force={force}"
+			u"): Waiting for lock".format(
+				self=id(self),
+				nodeManager=id(nodeManager) if nodeManager is not None else None,
+				force=force
+				)
+			)
 		with self.lock:
+			TRACE(
+				u"update(self={self}, "
+				u"nodeManager={nodeManager}, force={force}"
+				u"): Obtained lock".format(
+					self=id(self),
+					nodeManager=id(nodeManager) if nodeManager is not None else None,
+					force=force
+					)
+				)
 			self._ready = False
 			if nodeManager is not None:
 				self.nodeManager = nodeManager
@@ -261,7 +300,7 @@ class MarkerManager(baseObject.ScriptableObject):
 			t = logTimeStart()
 			self.markerResults = []
 			for query in self.markerQueries:
-				query.resetResults ()
+				query.resetResults()
 				
 			for query in self.markerQueries:
 				results = query.getResults()
@@ -291,9 +330,21 @@ class MarkerManager(baseObject.ScriptableObject):
 		return False
 
 	def checkAutoAction(self):
+		TRACE(u"checkAutoAction(self={self}: Waiting for lock".format(
+			self=id(self)
+			))
 		with self.lock:
+			TRACE(u"checkAutoAction(self={self}): Obtained lock".format(
+				self=id(self)
+				))
 			if not self.isReady:
+				TRACE(u"checkAutoAction(self={self}): Not ready".format(
+					self=id(self)
+					))
 				return
+			TRACE(u"checkAutoAction(self={self}): Ready".format(
+				self=id(self)
+				))
 			countMoveto = 0
 			funcMoveto = None
 			firstCancelSpeech = True
@@ -526,7 +577,8 @@ class VirtualMarkerResult(MarkerResult):
 			reason = nodeHandler.REASON_SHORTCUT
 		if fromSpeak:
 			# Translators: Speak rule name on "Move to" action
-			speech.speakMessage(_("Move to %s") % self.markerQuery.name)
+			speech.speakMessage(_(u"Move to {ruleName}").format(
+				ruleName=self.markerQuery.name))
 		elif self.markerQuery.sayName:
 			speech.speakMessage(self.markerQuery.name)
 		if self.markerQuery.createWidget:
@@ -645,7 +697,9 @@ class MarkerQuery(baseObject.ScriptableObject):
 			)
 	
 	def script_notFound(self, gesture):
-		speech.speakMessage(u"%s introuvable" % self.name)
+		speech.speakMessage(_(u"{ruleName} not found").format(
+			ruleName=self.name))
+
 
 class VirtualMarkerQuery(MarkerQuery):
 	
@@ -735,7 +789,8 @@ class VirtualMarkerQuery(MarkerQuery):
 				exclude = False
 			contextQuery = self.markerManager.getQueryByName (context)
 			if contextQuery is None:
-				log.warn(_("Rule context \"%s\" not found") % context)
+				log.warning(u"Rule context \"{context}\" not found".format(
+					context=context))
 				return []
 			contextResult = contextQuery.getResults ()
 			if not exclude and contextResult == []:
