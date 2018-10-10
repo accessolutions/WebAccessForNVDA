@@ -23,7 +23,7 @@
 
 from __future__ import absolute_import
 
-__version__ = "2018.10.06"
+__version__ = "2018.10.10"
 
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 

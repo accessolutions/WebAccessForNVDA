@@ -21,7 +21,7 @@
 
 """Web Module data store."""
 
-__version__ = "2018.01.02"
+__version__ = "2018.10.10"
 
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 

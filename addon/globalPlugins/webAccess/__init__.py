@@ -49,7 +49,7 @@ Overridden NVDA functions:
 
 from __future__ import absolute_import
 
-__version__ = "2018.07.06"
+__version__ = "2018.10.10"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
