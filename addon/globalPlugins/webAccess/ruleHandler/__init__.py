@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2016 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2017.11.27"
+__version__ = "2018.10.10"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
@@ -28,6 +28,7 @@ import wx
 import addonHandler
 addonHandler.initTranslation()
 import api
+import time
 import baseObject
 import browseMode
 import controlTypes
@@ -43,20 +44,26 @@ from .. import nodeHandler
 from .. import webAppScheduler
 from ..widgets import genericCollection
 from ..webAppLib import *
+from collections import OrderedDict
 
-markerActions = ["moveto", "sayall", "speak", "activate", "mouseMove"]
-markerActionsDic = {
-				# Translators: Action name
-				"moveto" : pgettext("webAccess.action", "Move to"),
-				# Translators: Action name
-				"sayall" : pgettext("webAccess.action", "Say all"), 
-				# Translators: Action name
-				"speak" : pgettext("webAccess.action", "Speak"),
-				# Translators: Action name
-				"activate" : pgettext("webAccess.action", "Activate"),
-				# Translators: Action name
-				"mouseMove" : pgettext("webAccess.action", "Mouse move"),
-				}
+
+TRACE = lambda *args, **kwargs: None
+#TRACE = log.info
+
+
+builtinRuleActions = OrderedDict()
+# Translators: Action name
+builtinRuleActions["moveto"] = pgettext("webAccess.action", "Move to")
+# Translators: Action name
+builtinRuleActions["sayall"] = pgettext("webAccess.action", "Say all") 
+# Translators: Action name
+builtinRuleActions["speak"] = pgettext("webAccess.action", "Speak")
+# Translators: Action name
+builtinRuleActions["activate"] = pgettext("webAccess.action", "Activate")
+# Translators: Action name
+builtinRuleActions["mouseMove"] = pgettext("webAccess.action", "Mouse move")
+# Translators: Action name
+builtinRuleActions["noAction"] = pgettext("webAccess.action", "No action")
 
 
 def showCreator(context):
@@ -108,11 +115,11 @@ class MarkerGenericCollection(genericCollection.GenericCollection):
 					instanceList.append(instance)
 		return instanceList
 
-
 	def __init__(self, webApp, obj=None):
 		self.supportSearch = True
 		super(MarkerGenericCollection, self).__init__(webApp)
 		self.autoEnter = False
+
 
 class DefaultMarkerScripts(baseObject.ScriptableObject):
 	
@@ -134,6 +141,13 @@ class DefaultMarkerScripts(baseObject.ScriptableObject):
 class MarkerManager(baseObject.ScriptableObject):
 	
 	def __init__(self, webApp):
+# 		TRACE(
+# 			u"MarkerManager.__init__("
+# 			u"self={self}, webApp={webApp}".format(
+# 				self=id(self),
+# 				webApp=id(webApp) if webApp is not None else None
+# 				)
+# 			)
 		super(MarkerManager,self).__init__()
 		self._ready = False
 		self.webApp = webApp
@@ -142,24 +156,24 @@ class MarkerManager(baseObject.ScriptableObject):
 		self.markerQueries = []
 		self.lock = threading.RLock()
 		self.markerResults = []
-		self.pendingMoveto = None 
 		self.triggeredIdentifiers = []
+		self.lastAutoMoveto = None
+		self.lastAutoMovetoTime = 0
 		self.defaultMarkerScripts = DefaultMarkerScripts(u"Aucun marqueur associé à cette touche")
+		self.timerCheckAutoAction = None
 		webApp.widgetManager.register(MarkerGenericCollection)
 
 	def setQueriesData(self, queryData):
 		self.markerQueries = []
-		self.markerResults = []
+		self.markerResults = [] 
 		for qd in queryData:
-			if qd["class"] == "Virtual":
-				query = VirtualMarkerQuery(self, qd)
-				self.addQuery(query)
+			query = VirtualMarkerQuery(self, qd)
+			self.addQuery(query)
 
-	def getQueriesData(self, onlyUser=False):
+	def getQueriesData(self):
 		queryData = []
 		for query in self.markerQueries:
-			if not onlyUser or query.user:
-				queryData.append(query.getData())
+			queryData.append(query.getData())
 		return queryData 
 	
 	def addQuery(self, query):
@@ -174,11 +188,16 @@ class MarkerManager(baseObject.ScriptableObject):
 			if self.markerQueries[i-1] == query:
 				del self.markerQueries[i-1]
 
-	def getQueries(self, onlyUser=False):
+	def getQueryByName(self, name):
+		for q in self.markerQueries:
+			if q.name == name:
+				return q
+		return None
+
+	def getQueries(self):
 		queries = []
 		for q in self.markerQueries:
-			if not onlyUser or q.user:
-				queries.append(q)
+			queries.append(q)
 		return queries
 	
 	def getResults(self):
@@ -201,18 +220,7 @@ class MarkerManager(baseObject.ScriptableObject):
 				del self.markerResults[i-1]
 
 	def getActions(self):
-		dic = {
-			# Translators: Action name
-			"moveto" : pgettext("webAccess.action", "Move to"),
-			# Translators: Action name
-			"sayall" : pgettext("webAccess.action", "Say all"), 
-			# Translators: Action name
-			"speak" : pgettext("webAccess.action", "Speak"),
-			# Translators: Action name
-			"activate" : pgettext("webAccess.action", "Activate"),
-			# Translators: Action name
-			"mouseMove" : pgettext("webAccess.action", "Mouse move"),
-			}
+		dic = builtinRuleActions.copy ()
 		prefix = "action_"
 		for key in dir(self.webApp):
 			if key[:len(prefix)] == prefix:
@@ -239,13 +247,52 @@ class MarkerManager(baseObject.ScriptableObject):
 			return False
 		return True
 
+	def event_nodeManagerTerminated(self, nodeManager):
+		TRACE(
+			u"event_nodeManagerTerminated("
+			u"self={self}, nodeManager={nodeManager})".format(
+				self=id(self),
+				nodeManager=id(nodeManager)
+					if nodeManager is not None else None
+				)
+			)
+		if self.nodeManager != nodeManager:
+			log.warn(u"nodeManager different than self.nodeManager")
+			return
+		self._ready = False
+		if self.timerCheckAutoAction:
+			self.timerCheckAutoAction.cancel()
+		self.nodeManager = None
+		del self.markerResults[:]
+		for q in self.markerQueries:
+			q.resetResults () 
+
 	def update(self, nodeManager=None, force=False):
+		TRACE(
+			u"update(self={self}, "
+			u"nodeManager={nodeManager}, force={force}"
+			u"): Waiting for lock".format(
+				self=id(self),
+				nodeManager=id(nodeManager) if nodeManager is not None else None,
+				force=force
+				)
+			)
 		with self.lock:
+			TRACE(
+				u"update(self={self}, "
+				u"nodeManager={nodeManager}, force={force}"
+				u"): Obtained lock".format(
+					self=id(self),
+					nodeManager=id(nodeManager) if nodeManager is not None else None,
+					force=force
+					)
+				)
 			self._ready = False
 			if nodeManager is not None:
 				self.nodeManager = nodeManager
-			if not self.nodeManager.isReady:
+			if self.nodeManager is None or not self.nodeManager.isReady:
 				return False
+			self.nodeManager.addBackend (self)
 			if not force and self.nodeManagerIdentifier == self.nodeManager.identifier:
 				# already updated
 				self._ready = True
@@ -253,15 +300,25 @@ class MarkerManager(baseObject.ScriptableObject):
 			t = logTimeStart()
 			self.markerResults = []
 			for query in self.markerQueries:
+				query.resetResults()
+				
+			for query in self.markerQueries:
 				results = query.getResults()
 				self.markerResults += results
-			self.markerResults.sort()
+				self.markerResults.sort()
 			self.nodeManagerIdentifier = self.nodeManager.identifier
 			self._ready = True
 			#logTime("update marker", t)
 			if self.isReady:
 				webAppScheduler.scheduler.send(eventName="markerManagerUpdated", markerManager=self)
+				self.timerCheckAutoAction = threading.Timer(
+					1, # Accepts floating point number for sub-second precision
+					self.checkAutoAction
+					)
+				self.timerCheckAutoAction.start()				
 				return True
+			else:
+				log.error("Not yet")
 		return False
 		
 	def checkPageTitle(self):
@@ -273,44 +330,56 @@ class MarkerManager(baseObject.ScriptableObject):
 		return False
 
 	def checkAutoAction(self):
-		countMoveto = 0
+		TRACE(u"checkAutoAction(self={self}: Waiting for lock".format(
+			self=id(self)
+			))
 		with self.lock:
+			TRACE(u"checkAutoAction(self={self}): Obtained lock".format(
+				self=id(self)
+				))
 			if not self.isReady:
+				TRACE(u"checkAutoAction(self={self}): Not ready".format(
+					self=id(self)
+					))
 				return
-			i = 0
+			TRACE(u"checkAutoAction(self={self}): Ready".format(
+				self=id(self)
+				))
+			countMoveto = 0
+			funcMoveto = None
+			firstCancelSpeech = True
 			for result in self.markerResults:
-				i += 1
 				if result.markerQuery.autoAction:
 					controlIdentifier = result.node.controlIdentifier
 					if not controlIdentifier in self.triggeredIdentifiers:
 						self.triggeredIdentifiers.append(controlIdentifier)
 						speechOn()
-						speech.cancelSpeech()
 						autoActionName = result.markerQuery.autoAction
 						func = getattr(result, "script_%s" % autoActionName)
 						if autoActionName == "speak":
 							playWebAppSound("errorMessage")
-							#sleep(0.5)
 						elif autoActionName == "moveto":
 							countMoveto += 1
-							if countMoveto > 1:
-								func = None
+							if countMoveto == 1:
+								if func.__name__== self.lastAutoMoveto \
+									and time.time() - self.lastAutoMovetoTime < 4:
+									# no autoMoveto of same rule before 4 seconds
+									continue
+								else:
+									funcMoveto = func
+							func = None
 						if func:
+							if firstCancelSpeech:
+								speech.cancelSpeech()
+								firstCancelSpeech = False
 							func(None)
-		
-	def checkPendingActions(self):
-		if not self.isReady:
-			self.pendingMoveto = None
-			return
-		if self.pendingMoveto is not None:
-			wx.CallAfter(self.pendingMoveto.script_moveto, None)
-			self.pendingMoveto = None
-			
-	def requestMoveto(self, result):
-		if not self.isReady:
-			self.pendingMoveto = None
-			return
-		self.pendingMoveto = result
+			if funcMoveto is not None:
+				if firstCancelSpeech:
+					speech.cancelSpeech()
+					firstCancelSpeech = False
+				self.lastAutoMoveto = funcMoveto.__name__
+				self.lastAutoMovetoTime = time.time()
+				funcMoveto (None)
 		
 	def getPageTitle(self):
 		with self.lock:
@@ -318,7 +387,7 @@ class MarkerManager(baseObject.ScriptableObject):
 				return None
 			for result in self.markerResults:
 				if result.markerQuery.isPageTitle:
-					return result.text
+					return result.node.getTreeInterceptorText()
 			return ""
 
 	def getNextResult(self, name=None):
@@ -394,7 +463,10 @@ class MarkerManager(baseObject.ScriptableObject):
 			sleep(0.2)
 			ui.message(u"Pas de marqueur")
 			return
-		r.script_moveto(None, fromQuickNav=True)
+		if hasattr (self.webApp, "event_movetoFromQuickNav"):
+			self.webApp.event_movetoFromQuickNav (r)
+		else:
+			r.script_moveto(None, fromQuickNav=True)
 		
 	def focusPreviousResult(self, name=None):
 		r = self.getPreviousResult(name)
@@ -403,7 +475,10 @@ class MarkerManager(baseObject.ScriptableObject):
 			sleep(0.2)
 			ui.message(u"Pas de marqueur")
 			return
-		r.script_moveto(None, fromQuickNav=True)
+		if hasattr (self.webApp, "event_movetoFromQuickNav"):
+			self.webApp.event_movetoFromQuickNav (r)
+		else:
+			r.script_moveto(None, fromQuickNav=True)
 		
 	def script_refreshMarkers(self, gesture):
 		ui.message(u"refresh markers")
@@ -428,7 +503,6 @@ class MarkerManager(baseObject.ScriptableObject):
 		commandList=XMLFormatting.XMLTextParser().parse(text)
 		#text = info.getTextWithFields()
 		logTime("all text : %d " % len(text), t)
-		beep()
 
 
 	__gestures = {
@@ -443,15 +517,21 @@ class MarkerResult(baseObject.ScriptableObject):
 	
 	def __init__(self, markerQuery):
 		super(MarkerResult,self).__init__()
+		prefix = "action_"
+		for key in dir(markerQuery.markerManager.webApp):
+			if key[:len(prefix)] == prefix:
+				actionName = key[len(prefix):]
+				func = lambda self, gesture, actionName=actionName: getattr(self.markerQuery.markerManager.webApp, "action_%s" % actionName)(self)
+				setattr(self.__class__, "script_%s" % actionName, func)
 		self.markerQuery = markerQuery
 		self.bindGestures(markerQuery.gestures)
-		
+
 	def check(self):
 		raise NotImplementedError
 
 	def _get_name(self):
-		return self.markerQuery.name 
-
+		return self.markerQuery.name
+	 
 	def script_moveto(self, gesture):
 		raise NotImplementedError
 
@@ -467,43 +547,49 @@ class MarkerResult(baseObject.ScriptableObject):
 	def script_mouseMove(self, gesture):
 		raise NotImplementedError
 	
+	def script_noAction(self, gesture):
+		if self.markerQuery.sayName:
+			speech.speakMessage(self.markerQuery.name)
+	
 	def __lt__(self, other):
 		raise NotImplementedError
 
 	def getDisplayString(self):
-		gestures = ""
-		for identifier in self._gestureMap.keys():
-			source, main = inputCore.getDisplayTextForGestureIdentifier(identifier)
-			gestures += main + " "
-		#g = inputCore.getDisplayTextForGestureIdentifier(identifier)
-		return self.markerQuery.name + " " + gestures
+		return u" ".join(
+			[self.name]
+			+ [
+				inputCore.getDisplayTextForGestureIdentifier(identifier)[1]
+				for identifier in self._gestureMap.keys()
+				]
+			)
 	
 class VirtualMarkerResult(MarkerResult):
 	
 	def __init__(self, markerQuery, node):
-		func = lambda self, gesture: getattr(self.markerQuery.markerManager.webApp, "action_clickMenu")(self)
-		setattr(self.__class__, "script_clickMenu", func)
 		super(VirtualMarkerResult ,self).__init__(markerQuery)
 		self.node = node
 	
 	def script_moveto(self, gesture, fromQuickNav=False, fromSpeak=False):
+		if self.node.nodeManager is None:
+			return
 		reason = nodeHandler.REASON_FOCUS
 		if not fromQuickNav:
 			reason = nodeHandler.REASON_SHORTCUT
 		if fromSpeak:
 			# Translators: Speak rule name on "Move to" action
-			speech.speakMessage(_("Move to %s") % self.markerQuery.name)
+			speech.speakMessage(_(u"Move to {ruleName}").format(
+				ruleName=self.markerQuery.name))
 		elif self.markerQuery.sayName:
 			speech.speakMessage(self.markerQuery.name)
 		if self.markerQuery.createWidget:
 			self.node.moveto(reason)
 			return
-		treeInterceptor = html.getTreeInterceptor()
+		treeInterceptor = self.node.nodeManager.treeInterceptor
 		if not treeInterceptor or not treeInterceptor.isReady:
 			return
 		focusObject = api.getFocusObject()
 		try:
-			nodeObject = self.node.getTextInfo().NVDAObjectAtStart
+			nodeObject = self.node.getNvdaObject ()
 		except:
 			nodeObject = None
 		treeInterceptor.passThrough = self.markerQuery.formMode
@@ -538,21 +624,28 @@ class VirtualMarkerResult(MarkerResult):
 		sayAllHandler.readText(sayAllHandler.CURSOR_CARET)
 
 	def script_activate(self, gesture):
+		if self.node.nodeManager is None:
+			return
+		if not self.markerQuery.markerManager.isReady :
+			log.info (u"not ready")
+			return
+		treeInterceptor = self.node.nodeManager.treeInterceptor
 		if self.markerQuery.sayName:
 			speech.speakMessage(self.markerQuery.name)
-		treeInterceptor = html.getTreeInterceptor()
+		self.node.activate()
+		time.sleep(0.1)
+		api.processPendingEvents ()
 		if not treeInterceptor:
 			return
 		treeInterceptor.passThrough = self.markerQuery.formMode
 		browseMode.reportPassThrough.last = treeInterceptor.passThrough 
-		self.node.activate()
 		
 	def script_speak(self, gesture):
 		repeat = scriptHandler.getLastScriptRepeatCount()
 		if repeat == 0:
 			if self.markerQuery.sayName:
 				speech.speakMessage(self.markerQuery.name)
-			ui.message(self.node.getTreeInterceptorText())
+			wx.CallAfter(ui.message, self.node.getTreeInterceptorText())
 		else:
 			self.script_moveto(None, fromSpeak=True)
 			
@@ -565,18 +658,6 @@ class VirtualMarkerResult(MarkerResult):
 		treeInterceptor.passThrough = self.markerQuery.formMode
 		browseMode.reportPassThrough.last = treeInterceptor.passThrough 
 		self.node.mouseMove()
-
-	def script_custom(self, gesture):
-		webApp = self.markerQuery.markerManager.webApp
-		if not hasattr(self.markerQuery, "customActionName"):
-			ui.message(_("customAction not found"))
-			return
-		action = "action_%s" % self.markerQuery.customActionName
-		log.info("custom webapp : %s" % webApp)
-		if hasattr(webApp, action):
-			getattr(webApp, action)(self)
-		else:
-			ui.message(u"%s introuvable" % action)
 
 	def getTextInfo(self):
 		return self.node.getTextInfo.copy()
@@ -594,9 +675,12 @@ class MarkerQuery(baseObject.ScriptableObject):
 		self.markerManager = markerManager
 		self.name = None
 		self.pageIdentifier = None
-		self.user = False
 		self.skip = False
+		self.results = None
 
+	def resetResults (self):
+		self.results = None
+		
 	def getResults(self):
 		return []
 	
@@ -604,25 +688,26 @@ class MarkerQuery(baseObject.ScriptableObject):
 		return None
 	
 	def getDisplayString(self):
-		gestures = ""
-		for identifier in self.gestures.keys():
-			source, main = inputCore.getDisplayTextForGestureIdentifier(identifier)
-			gestures += main + " "
-		#g = inputCore.getDisplayTextForGestureIdentifier(identifier)
-		return self.name + " " + gestures
+		return u" ".join(
+			[self.name]
+			+ [
+				inputCore.getDisplayTextForGestureIdentifier(identifier)[1]
+				for identifier in self._gestureMap.keys()
+				]
+			)
 	
 	def script_notFound(self, gesture):
-		speech.speakMessage(u"%s introuvable" % self.name)
+		speech.speakMessage(_(u"{ruleName} not found").format(
+			ruleName=self.name))
+
 
 class VirtualMarkerQuery(MarkerQuery):
 	
 	def __init__(self, markerManager, dic):
 		super(VirtualMarkerQuery,self).__init__(markerManager)
-		dic["class"] = "Virtual"
 		self.dic = dic
 		self.name = dic["name"]
 		self.pageIdentifier = dic.get("pageIdentifier", None)
-		self.user= dic.get("user", False)
 		self.gestures= dic.get("gestures", {})
 		gesturesMap = {}
 		for gestureIdentifier in self.gestures.keys():
@@ -633,6 +718,7 @@ class VirtualMarkerQuery(MarkerQuery):
 		self.sayName = dic.get("sayName", True)
 		self.skip = dic.get("skip", False)
 		self.isPageTitle = dic.get("isPageTitle", False)
+		self.isContext = dic.get("isContext", False)
 		self.index = dic.get("index", 0)
 		self.multiple = dic.get("multiple", True)
 		self.createWidget = dic.get("createWidget", False)
@@ -676,8 +762,11 @@ class VirtualMarkerQuery(MarkerQuery):
 		if notIn != []:
 			dic["notIn_"+argName] = notIn
 
+		
 	def getResults(self, widget=False):
 		t = logTimeStart()
+		if self.results is not None:
+			return self.results
 		dic = self.dic
 		kwargs = {}
 		text = dic.get("text", None)
@@ -689,6 +778,25 @@ class VirtualMarkerQuery(MarkerQuery):
 				if func is not None:
 					return func(self)
 				raise
+
+		contextResults = None
+		context = dic.get("context", None)
+		if context is not None:
+			if context[0] == "!":
+				context = context[1:]
+				exclude = True
+			else:
+				exclude = False
+			contextQuery = self.markerManager.getQueryByName (context)
+			if contextQuery is None:
+				log.warning(u"Rule context \"{context}\" not found".format(
+					context=context))
+				return []
+			contextResult = contextQuery.getResults ()
+			if not exclude and contextResult == []:
+				return []
+			if exclude and contextResult != []:
+				return []
 		self.addSearchKwargs(kwargs, "text", text)
 		role = dic.get("role", None)
 		if role:
@@ -716,5 +824,6 @@ class VirtualMarkerQuery(MarkerQuery):
 			results.append(r)
 			if not widget and not self.multiple:
 				break
+		self.results = results
 		return results
 

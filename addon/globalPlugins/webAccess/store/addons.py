@@ -1,8 +1,8 @@
-# globalPlugins/webAccess/store/__init__.py
+# globalPlugins/webAccess/store/addons.py
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2016 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 
 """Web Access addons data store."""
 
-__version__ = "2017.12.06"
+__version__ = "2018.10.10"
 
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
@@ -50,6 +50,9 @@ class AddonsStore(DispatchStore):
 	stores = property(__getStores)
 	
 	# Defaults to read-only.
+	# A WebModule provided by an addon might still be modified by first
+	# duplicating it to the userConfig.
+	create = Store.create
 	delete = Store.delete
 	supports = Store.supports		
 	update = Store.update

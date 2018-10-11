@@ -1,8 +1,8 @@
-# globalPlugins/webAccess/__init__.py
+# globalPlugins/webAccess/gui/__init__.py
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2016 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by

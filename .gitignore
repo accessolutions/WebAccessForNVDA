@@ -5,3 +5,9 @@
 .vscode/
 *.pyc
 *.pyo
+*.pot
+*.mo
+manifest.ini
+/addon/doc/*/*.html
+/addon/doc/style.css
+*.nvda-addon

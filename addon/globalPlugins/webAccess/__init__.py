@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2016 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ Overridden NVDA functions:
 
 from __future__ import absolute_import
 
-__version__ = "2017.07.10"
+__version__ = "2018.10.10"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -85,6 +85,7 @@ import speech
 import tones
 import ui
 import virtualBuffers
+import queueHandler
 
 from . import json
 from . import nodeHandler
@@ -93,9 +94,11 @@ from . import webAppLib
 from .webAppLib import *
 from .webAppScheduler import WebAppScheduler
 from . import webModuleHandler
-from .webModuleHandler import webModule
 from . import widgets
 
+
+TRACE = lambda *args, **kwargs: None
+#TRACE = log.info
 
 #
 # defines sound directory
@@ -111,25 +114,6 @@ activeWebApp = None
 useInternalBrowser = False
 webAccessEnabled = True
 scheduler = None
-
-def getEssai ():
-	obj = api.getFocusObject ()
-	focus = obj.treeInterceptor
-	info = obj.treeInterceptor.makeTextInfo(textInfos.POSITION_FIRST)
-	#info = focus.nodeManager.info
-	obj = info.obj
-	try:
-		doc = info.obj.rootNVDAObject.HTMLNode.document
-	except:
-		return
-	lst = ["lundi"]
-	for ID in range (1, 200):
-		HTMLNode = NVDAObjects.IAccessible.MSHTML.locateHTMLElementByID(doc,'ms__id%d'%ID)
-		if HTMLNode is not None:
-			className = HTMLNode.attributes.item ("class").nodeValue
-			lst.append (className)
-	return lst
-
 
 class DefaultBrowserScripts(baseObject.ScriptableObject):
 	
@@ -171,21 +155,26 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def __init__(self):
 		super(globalPluginHandler.GlobalPlugin, self).__init__()
 		global scheduler
-		scheduler = WebAppScheduler(onNodeManagerUpdated)
+		scheduler = WebAppScheduler()
 		scheduler.start ()
 		
 		baseObject.ScriptableObject.getWebApp = getWebApp
-		scriptHandler.findScript = findScript
-		eventHandler._EventExecuter.gen = eventGen
-		virtualBuffers.VirtualBuffer._loadBufferDone = _loadBufferDone
+		scriptHandler.findScript = hook_findScript
+		eventHandler._EventExecuter.gen = hook_eventGen
+		virtualBuffers.VirtualBuffer.save_changeNotify = virtualBuffers.VirtualBuffer.changeNotify
+		virtualBuffers.VirtualBuffer.changeNotify = hook_changeNotify
+		virtualBuffers.VirtualBuffer.save_loadBufferDone = virtualBuffers.VirtualBuffer._loadBufferDone  
+		virtualBuffers.VirtualBuffer._loadBufferDone = hook_loadBufferDone
+		virtualBuffers.VirtualBuffer.save_terminate = virtualBuffers.VirtualBuffer.terminate 
+		virtualBuffers.VirtualBuffer.terminate = hook_terminate
 		
+		# Used to announce the opening of the Web Access menu
 		global mainFrame_prePopup_stock
 		mainFrame_prePopup_stock = gui.mainFrame.prePopup
 		gui.mainFrame.prePopup = mainFrame_prePopup_patched.__get__(gui.mainFrame, gui.MainFrame)
 		global mainFrame_postPopup_stock
 		mainFrame_postPopup_stock = gui.mainFrame.postPopup
 		gui.mainFrame.postPopup = mainFrame_postPopup_patched.__get__(gui.mainFrame, gui.MainFrame)
-
 		global appModule_nvda_event_NVDAObject_init_stock
 		from appModules.nvda import AppModule as NvdaAppModule
 		appModule_nvda_event_NVDAObject_init_stock = NvdaAppModule.event_NVDAObject_init
@@ -197,8 +186,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def terminate(self):
 		scheduler.send(eventName="stop")
-	
-	
+		
 	def chooseNVDAObjectOverlayClasses(self, obj, clsList):
 		if activeWebApp is None:
 			return
@@ -233,25 +221,114 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			webModule = obj.getWebApp()
 			if webModule is not None:
 				context["webModule"] = webModule
-		menu.show(context)		
+		menu.show(context)
 
-	def script_debugWebApp (self, gesture):
+	def script_debugWebModule(self, gesture):
 		global activeWebApp
-		if not activeWebApp:
-			ui.message (u"pas de webApp active")
+		focus = api.getFocusObject()
+		if \
+				activeWebApp is None \
+				and not hasattr(focus, "_webApp") \
+				and not hasattr(focus, "treeInterceptor") \
+				and not hasattr(focus.treeInterceptor, "_webApp") \
+				and not hasattr(focus.treeInterceptor, "nodeManager"):
+			ui.message(u"Pas de WebModule actif")
 			return
-		allMsg = ""
-		msg = u"webApp %s" % activeWebApp.name
-		speech.speakMessage (msg)
-		allMsg += msg + "\r\n"
+		
+		diverged = False
+		focusModule = None
+		treeModule = None
+		msg = u"Divergence :"
+		msg += os.linesep
+		msg += u"activeWebApp = {webModule}".format(
+			webModule=activeWebApp.storeRef
+				if hasattr(activeWebApp, "storeRef")
+				else activeWebApp
+			)
+		if activeWebApp is not None:
+			msg += u" ({id})".format(id=id(activeWebApp))
+		if not hasattr(focus, "_webApp"):
+			msg += u"focus._webApp absent"
+		else:
+			focusModule = focus._webApp
+			if activeWebApp is not focusModule:
+				diverged = True
+			msg += os.linesep
+			msg += u"focus._webApp = {webModule}".format(
+				webModule=
+					focusModule.storeRef
+					if hasattr(focusModule, "storeRef")
+					else focusModule
+				)
+			if focusModule is not None:
+				msg += u" ({id})".format(id=id(focusModule))
+		if not hasattr(focus, "treeInterceptor"):
+			diverged = True
+			msg += os.linesep
+			msg += u"focus.treeInterceptor absent"
+		else:
+			if focus.treeInterceptor is None:
+				diverged = True
+				msg += os.linesep
+				msg += u"focus.treeInterceptor None"
+# 			if not hasattr(focusModule, "treeInterceptor"):
+# 				diverged = True
+# 				msg += os.linesep
+# 				msg += u"focus._webApp.treeInterceptor absent"
+# 			elif focusModule.treeInterceptor is None:
+# 				diverged = True
+# 				msg += os.linesep
+# 				msg += u"focus._webApp.treeInterceptor None"
+# 			elif focus.treeInterceptor is not focusModule.treeInterceptor:
+# 				diverged = True
+# 				msg += os.linesep
+# 				msg += u"TreeInterceptors différents"				
+			if hasattr(focus.treeInterceptor, "_webApp"):
+				treeModule = focus.treeInterceptor._webApp
+				if \
+						treeModule is not focusModule \
+						or treeModule is not activeWebApp:
+					diverged = True
+				msg += os.linesep
+				msg += u"treeInterceptor._webApp = {webModule}".format(
+					webModule=
+						treeModule.storeRef
+						if hasattr(treeModule, "storeRef")
+						else treeModule
+					)
+				if treeModule is not None:
+					msg += u" ({id})".format(id=id(treeModule))
+			if hasattr(focus.treeInterceptor, "nodeManager"):
+				if focusModule is None:
+					diverged = True
+					msg += u"treeInterceptor.nodeManager "
+					if focus.treeInterceptor.nodeManager is None:
+						msg += u"est None"
+					else:
+						msg += u"n'est pas None"
+				elif \
+						focusModule.markerManager.nodeManager is not \
+						focus.treeInterceptor.nodeManager:
+					diverged = True
+					msg += os.linesep
+					msg += u"NodeManagers différents"
+				elif focusModule.markerManager.nodeManager is None:
+					msg += os.linesep
+					msg += u"NodeManagers None"
+					
+
+		allMsg = u""
+
+		if not diverged:
+			msg = unicode(focusModule.storeRef)
+		speech.speakMessage(msg)
+		allMsg += msg + os.linesep
 		
 		treeInterceptor = html.getTreeInterceptor ()
-		if treeInterceptor != activeWebApp.treeInterceptor:
-			ui.message (u"treeInterceptor différents")
 		msg = u"nodeManager %d caractères, %s, %s" % (treeInterceptor.nodeManager.treeInterceptorSize, treeInterceptor.nodeManager.isReady, treeInterceptor.nodeManager.mainNode is not None)
-		speech.speakMessage (msg)
-		allMsg += msg + "\r\n"
-		api.copyToClip (allMsg)
+		speech.speakMessage(msg)
+		allMsg += msg + os.linesep
+		api.copyToClip(allMsg)
 		 
 	def script_toggleWebAccessSupport(self, gesture):
 		global useInternalBrowser
@@ -269,9 +346,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	__gestures = {
 		"kb:nvda+w": "showWebAccessGui",
 		"kb:nvda+shift+w": "toggleWebAccessSupport",
-		"kb:nvda+control+w" : "debugWebApp"
+		"kb:nvda+control+w" : "debugWebModule"
 	}
-	
 
 def getActiveWebApp ():
 	global activeWebApp
@@ -294,13 +370,27 @@ def getWebApp(self, eventName=None):
 	global activeWebApp
 	global webAccessEnabled
 
-	if not webAccessEnabled or not supportWebApp (self):
+	if not webAccessEnabled or not supportWebApp(self):
 		return None
 	
 	obj = self
+	outdated = None
 
-	if hasattr (obj, "_webApp"):
-		return obj._webApp
+	if hasattr(obj, "_webApp"):
+		if hasattr(obj._webApp, "_outdated") and obj._webApp._outdated:
+			outdated = obj._webApp
+			TRACE(
+				u"Removing cached outdated WebModule {webModule} from "
+				u"obj {obj} with role {role}"
+				u"".format(
+					webModule=id(obj._webApp),
+					obj=obj,
+					role=obj.role
+					)
+				)
+			delattr(obj, "_webApp")
+		else:
+			return obj._webApp
 	
 	webApp = None
 	objList = []
@@ -313,11 +403,24 @@ def getWebApp(self, eventName=None):
 				break
 
 	i = 0
-	while webApp is None and obj is not None and i < 30:
+	while webApp is None and obj is not None and i < 50:
 		i += 1
 		if hasattr(obj, '_webApp'):
-			webApp = obj._webApp
-			break
+			if hasattr(obj._webApp, "_outdated") and obj._webApp._outdated:
+				outdated = outdated or obj._webApp
+				TRACE(
+					u"Removing cached outdated WebModule {webModule} from parent "
+					u"obj {obj} with role {role}"
+					u"".format(
+						webModule=id(obj._webApp),
+						obj=obj,
+						role=obj.role
+						)
+					)
+				delattr(obj, "_webApp")
+			else:
+				webApp = obj._webApp
+				break
 
 		objList.append(obj)
 
@@ -327,40 +430,67 @@ def getWebApp(self, eventName=None):
 			webApp = wa
 			break
 		
-		# On HTML webApps, we extract the URL from the document IAccessible value.
-		try:
-			url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
-		except: 
-			url = None
-		if url:
-			webApp = getWebAppFromUrl(url)
+		# Onr HTML webApps, we extract the URL from the document IAccessible value.
+		if obj.role == controlTypes.ROLE_DOCUMENT:
+			try:
+				#log.info (u"obj.IAccessibleChildID : %s" % obj.IAccessibleChildID)
+				url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
+			except: 
+				url = None
+			if url:
+				webApp = getWebAppFromUrl(url)
 
-		obj= obj.parent
+		obj = obj.parent
 
 	if webApp is None:
-		return None
+		obj = objList[0]
+		# TODO: Remove this awful fix
+		if outdated is not None and obj.role == 0:
+			obj = NVDAObjects.NVDAObject.objectWithFocus()
+			if \
+					hasattr(obj, "_webApp") \
+					and hasattr(obj._webApp, "_outdated") \
+					and obj._webApp._outdated:
+				delattr(obj, "_webApp")
+			webModule = obj.getWebApp()
+			TRACE(
+				u"Real focus: obj={obj}, treeInterceptor={treeInterceptor}, "
+				u"{webModule}".format(
+				obj=obj,
+				treeInterceptor=obj.treeInterceptor,
+				webModule=u"{webModule} ({id})".format(
+					webModule=webModule, id=id(webModule)
+					) if webModule is not None else None
+				))
+			webApp = webModule
+		else:
+			return None
 
 	for o in objList:
 		o._webApp = webApp
-		
+	
 	activeWebApp = webApp
 	return webApp 
 	# sendWebAppEvent('webApp_loseFocus', self, activeWebApp)
 	# sendWebAppEvent('webApp_gainFocus', self, webApp)
-	# sendWebAppEvent('webApp_checkPendingActions', self, webApp)
 	# sendWebAppEvent('webApp_pageChanged', wPageTitle, activeWebApp)
 
-def onNodeManagerUpdated (nodeManager):
-	global activeWebApp
+@classmethod
+def hook_changeNotify(cls, rootDocHandle, rootID):
+	#log.info (u"change notify")
+	virtualBuffers.VirtualBuffer.save_changeNotify (rootDocHandle, rootID)
 
-	webApp = activeWebApp
-	if webApp and webApp.treeInterceptor is not None and hasattr(webApp.treeInterceptor, 'nodeManager') and activeWebApp.treeInterceptor.nodeManager == nodeManager:
-		webApp.markerManager.update (nodeManager)
-		webApp.widgetManager.update ()
-
-def _loadBufferDone(self, success=True):
+def hook_terminate (self):
+	if hasattr (self, "nodeManager"):
+		self.nodeManager.terminate ()
+		del self.nodeManager  
+	virtualBuffers.VirtualBuffer.save_terminate (self)
+	
+# TODO: Isn't it dead code?
+# Because 'webApp' instead of '_webApp'
+def hook_loadBufferDone(self, success=True):
+	#log.info (u"load buffer done")
 	self._loadProgressCallLater.Stop()
-	#self.essai2 = getEssai ()
 	del self._loadProgressCallLater
 	self.isLoading = False
 	if not success:
@@ -379,8 +509,7 @@ def _loadBufferDone(self, success=True):
 		else:
 			self.event_treeInterceptor_gainFocus()
 
-
-def findScript(gesture, searchWebApp=True):
+def hook_findScript(gesture, searchWebApp=True):
 	global activeWebApp
 	global useInternalBrowser
 	global webAccessEnabled
@@ -401,7 +530,12 @@ def findScript(gesture, searchWebApp=True):
 	if globalMap:
 		globalMaps.append(globalMap)
 	for globalMap in globalMaps:
-		for identifier in gesture.identifiers:
+		# Changed from `identifiers` to `normalizedIdentifier in NVDA 2017.4
+		# (new member introduced in NVDA 2017.2)
+		for identifier in \
+				gesture.normalizedIdentifiers \
+				if hasattr(gesture, "normalizedIdentifiers") \
+				else gesture.identifiers:
 			globalMapScripts.extend(globalMap.getScriptsForGesture(identifier))
 			
 	# Gesture specific scriptable object.
@@ -437,8 +571,8 @@ def findScript(gesture, searchWebApp=True):
 		func = scriptHandler._getObjScript(webApp, gesture, globalMapScripts)
 		if func:
 			return func
-		ti = webApp.treeInterceptor
-		if hasattr(ti, 'nodeManager') and (useInternalBrowser is True or activeWidget is not None):
+		#ti = webApp.treeInterceptor
+		if False and hasattr(ti, 'nodeManager') and (useInternalBrowser is True or activeWidget is not None):
 			func = scriptHandler._getObjScript(webApp.presenter, gesture, globalMapScripts)
 			if func:
 				return func
@@ -488,7 +622,7 @@ def sendWebAppEvent(eventName, obj, webApp=None):
 		return
 	scheduler.send (eventName="webApp", name=eventName, obj=obj, webApp=webApp)
 
-def eventGen(self, eventName, obj):
+def hook_eventGen(self, eventName, obj):
 	#log.info("Event %s : %s : %s" % (eventName, obj.name, obj.value))
 	global useInternalBrowser
 
@@ -593,16 +727,19 @@ def setFocusToWebApp(srcApp, webAppName):
 	log.info("Set focus to webApp %s failed: Application not found.", webAppName)
 	return False
 
+# Used to announce the opening of the Web Access menu
 def mainFrame_prePopup_patched(self, contextMenuName=None):
 	global mainFrame_prePopup_stock, popupContextMenuName
 	popupContextMenuName = contextMenuName
 	mainFrame_prePopup_stock()  # Stock method was stored bound
 
+# Used to announce the opening of the Web Access menu
 def mainFrame_postPopup_patched(self):
 	global mainFrame_postPopup_stock, popupContextMenuName
 	popupContextMenuName = None
 	mainFrame_postPopup_stock()  # Stock method was stored bound
 
+# Used to announce the opening of the Web Access menu
 def appModule_nvda_event_NVDAObject_init_patched(self, obj):
 	import controlTypes
 	from appModules.nvda import AppModule as NvdaAppModule

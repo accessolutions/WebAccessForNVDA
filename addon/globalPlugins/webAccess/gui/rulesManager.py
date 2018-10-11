@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2016 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2016.12.23"
+__version__ = "2018.10.10"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
@@ -37,7 +37,7 @@ import ui
 
 from .. import ruleHandler
 from ..webAppLib import *
-from .. import webAppScheduler
+from .. import webModuleHandler
 from . import ListCtrlAutoWidth
 
 
@@ -127,15 +127,29 @@ class Dialog(wx.Dialog):
 		self.RefreshRuleList()
 
 
-	def RefreshRuleList(self):
+	def RefreshRuleList(self, selectName=None):
+		"""
+		Refresh the list of rules.
+		
+		If *selectName" is set, the rule with that name gets selected.
+		Otherwise, the rule matching the current focus in the document,
+		if any, gets selected.
+		"""
 		api.processPendingEvents()
+		if not selectName:
+			sel = self.ruleList.Selection
+			if sel >= 0:
+				selectName = self.ruleList.GetClientData(sel).name
 		self.ruleList.Clear()
 		self.listLabel.SetLabel(_("Active rules"))
+		sel = None
 		index = 0
-		sel = 0
 		for result in self.markerManager.getResults():
 			self.ruleList.Append(result.getDisplayString(), result)
-			if result == self.rule:
+			if selectName is not None:
+				if result.name == selectName:
+					sel == index
+			elif result == self.rule:
 				sel = index
 			index += 1
 		if not self.displayActiveRules.Value:
@@ -143,7 +157,12 @@ class Dialog(wx.Dialog):
 			for query in self.markerManager.getQueries():
 				if query not in [r.markerQuery for r in self.markerManager.getResults()]:
 					self.ruleList.Append(query.getDisplayString(), query)
-		self.ruleList.Selection = sel
+					if query.name == selectName:
+						sel = index
+					index += 1
+		if sel is not None:
+			self.ruleList.Selection = sel
+			self.ruleList.EnsureVisible(sel)
 		self.OnRuleListChoice(None)
 
 	def OnMoveto(self, evt):
@@ -152,21 +171,14 @@ class Dialog(wx.Dialog):
 		if not isinstance(result, ruleHandler.MarkerResult):
 			wx.Bell()
 			return
-		self.markerManager.requestMoveto(result)
+		result.script_moveto (None)
 		self.Close()
 
 	def OnNew(self, evt):
 		context = self.context.copy()  # Shallow copy
 		if ruleHandler.showCreator(context):
-			self.RefreshRuleList()
-			# Select the newly created rule if shown in the list
-			lookup = context["data"]["rule"]["name"]
-			for index in xrange(self.ruleList.Count):
-				rule = self.ruleList.GetClientData(index)
-				if rule.name == lookup:
-					self.ruleList.Select(index)
-					self.ruleList.EnsureVisible(index)
-					self.ruleList.SetFocus()
+			self.RefreshRuleList(context["data"]["rule"]["name"])
+			self.ruleList.SetFocus()
 
 	def OnDelete(self, evt):
 		sel = self.ruleList.Selection
@@ -182,7 +194,10 @@ class Dialog(wx.Dialog):
 		else:
 			query = rule.markerQuery
 		self.markerManager.removeQuery(query)
-		webAppScheduler.scheduler.send(eventName="configurationChanged", webApp=self.markerManager.webApp)
+		webModuleHandler.update(
+			webModule=self.context["webModule"],
+			focus=self.context["focusObject"]
+			)
 		self.RefreshRuleList()
 		self.ruleList.SetFocus()
 
@@ -211,9 +226,8 @@ class Dialog(wx.Dialog):
 		context = self.context.copy()  # Shallow copy
 		context["rule"] = query
 		if ruleHandler.showEditor(context):
-			self.RefreshRuleList()
-			self.ruleList.Select(sel)
-			self.ruleList.EnsureVisible(sel)
+			# Pass the eventually changed rule name
+			self.RefreshRuleList(context["data"]["rule"]["name"])
 			self.ruleList.SetFocus()
 
 	def OnDisplayActiveRules(self, evt):

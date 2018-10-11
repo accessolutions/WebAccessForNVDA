@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2016 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2017.03.22"
+__version__ = "2018.10.10"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>, Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
@@ -29,54 +29,150 @@ import time
 import weakref
 import winUser
 import wx
-import XMLFormatting
-
 import api
 import baseObject
 import NVDAHelper
+from xml.parsers import expat
 import mouseHandler
 import sayAllHandler
-import threading
 import ui
 
 from .webAppLib import *
+import gc
 
 
 REASON_FOCUS = 0
 REASON_NAVIGATION = 1
 REASON_SHORTCUT = 2
 _count = 0
-
+countNode = 0
+nodeManagerIndex = 0
 
 class NodeManager(baseObject.ScriptableObject):
 	
 	def __init__(self, treeInterceptor, callbackNodeMoveto=None):
 		super(NodeManager, self).__init__()
-		#log.info (u"nodeManager created")
+		global nodeManagerIndex
+		nodeManagerIndex = nodeManagerIndex + 1
+		self.index = nodeManagerIndex
 		self._ready = False
 		self.identifier = None 
-		if treeInterceptor is None:
-			log.info (u"nodeManager called with none treeInterceptor")
-			return
+		self.backendDict = {}
 		self.treeInterceptor = treeInterceptor
 		self.treeInterceptorSize = 0
 		self.mainNode = None
 		self.devNode = None
-		self.callbackNodeMoveto = callbackNodeMoveto
+		self.callbackNodeMoveto = None
 		self.updating = False
-		wx.CallLater (10, self.tickUpdate)
-		self.update ()
+		if treeInterceptor is None:
+			log.info(u"nodeManager created with none treeInterceptor")
+			return
+		self.callbackNodeMoveto = callbackNodeMoveto
+		self.update()
 		
-	def __del__ (self):
-		log.info (u"nodeManager deleted")
-	def tickUpdate (self):
-		wx.CallLater (10, self.tickUpdate)
-		if self.updating:
+	def terminate (self):
+		for backend in self.backendDict:
+			backend.event_nodeManagerTerminated (self)
+		self._ready = False
+		self.treeInterceptor = None
+		self.treeInterceptorSize = 0
+		if self.mainNode is not None:
+			self.mainNode.recursiveDelete ()
+		self.mainNode = None
+		self.devNode = None
+		self.callbackNodeMoveto = None
+		self.updating = False
+		self._curNode = self.caretNode = None
+		
+	def formatAttributes (self, attrs):
+		s = ""
+		for a in attrs:
+			s = s + "     %s: %s\n" % (a, attrs[a])
+		return s
+
+	def _startElementHandler(self,tagName,attrs):
+		#s = self.formatAttributes(attrs)
+		#log.info (u"start : %s attrs : %s" % (tagName, s))
+		if tagName=='unich':
+			data=attrs.get('value',None)
+			if data is not None:
+				try:
+					data=unichr(int(data))
+				except ValueError:
+					data=u'\ufffd'
+				self._CharacterDataHandler(data)
+			return
+		elif tagName=='control':
+			attrs = self.info._normalizeControlField (attrs)
+			node = NodeField("control", attrs, self.currentParentNode, self.fieldOffset, self)
+		elif tagName=='text':
+			node = NodeField("format", attrs, self.currentParentNode, self.fieldOffset, self)
+		else:
+			raise ValueError("Unknown tag name: %s"%tagName)
+		self.currentParentNode = node
+		if self.mainNode is None:
+			self.mainNode = node
+
+	def _EndElementHandler(self,tagName):
+		#log.info (u"end : %s" % tagName)
+		if tagName=='unich':
 			pass
-		
+		elif tagName in ("control", "text"):
+			parent = self.currentParentNode.parent
+			if parent is not None:
+				parent.size += self.currentParentNode.size
+			self.currentParentNode = parent
+		else:
+			raise ValueError("unknown tag name: %s"%tagName)
+
+	def _CharacterDataHandler(self,data):
+		#log.info (u"text : %s" % data)
+		p = self.currentParentNode
+		if not hasattr (p, "format"):
+			raise
+		p.size = len(data)
+		p.text = data
+		self.fieldOffset += p.size
+		self.lastTextNode = p
+		return
+		if cmdList and isinstance(cmdList[-1],basestring):
+			cmdList[-1]+=data
+		else:
+			cmdList.append(data)
+
+
+	def parseXML(self, XMLText):
+		parser=expat.ParserCreate('utf-8')
+		parser.StartElementHandler=self._startElementHandler
+		parser.EndElementHandler=self._EndElementHandler
+		parser.CharacterDataHandler=self._CharacterDataHandler
+		self.currentParentNode = None
+		self.fieldOffset = 0
+		self.lastTextNode = None
+		self.mainNode = None
+		parser.Parse(XMLText.encode('utf-8'))
+	def afficheNode (self, node, level=0):
+		if node is None:
+			return ""
+		indentation = ""
+		for i in range (0, level):
+			indentation += "  "
+		if hasattr (node, "text"):
+			s = node.text
+		elif hasattr (node, "control"):
+			s = node.tag
+		elif hasattr (node, "format"):
+			s = "format"
+		else:
+			s = "inconnu"
+		s = indentation + s + "\n"
+		for child in node.children:
+			s += self.afficheNode (child, level + 1)
+		return s
+			
 	def update(self):
 		t = logTimeStart ()
-		if not self.treeInterceptor or not self.treeInterceptor.isReady:
+		if self.treeInterceptor is None or not self.treeInterceptor.isReady:
 			self._ready = False
 			return False
 		try:
@@ -93,26 +189,32 @@ class NodeManager(baseObject.ScriptableObject):
 			# probably not changed
 			return False
 		self.treeInterceptorSize = size
-		try:
+		if True:
 			self.updating = True
 			info = self.treeInterceptor.makeTextInfo(textInfos.POSITION_ALL)
-			fields = info.getTextWithFields()
-		except:
+			self.info = info
+			start=info._startOffset
+			end=info._endOffset
+			if start==end:
+				self._ready = False
+				return False
+			text=NVDAHelper.VBuf_getTextInRange(info.obj.VBufHandle,start,end,True)
+			if self.mainNode is not None:
+				self.mainNode.recursiveDelete ()
+			self.parseXML(text)
+			#logTime ("Update node manager %d, text=%d" % (self.index, len(text)), t)
+			self.info = None
+			gc.collect()
+		else:
 			self.updating = False
 			self._ready = False
-			log.info (u"getTextWithFields error")
+			log.info(u"reading vBuff error")
 			return False
-		self.info = info
-		self.fieldList = fields
-		self.fieldIndex = 0
-		self.fieldOffset = 0
-		self.lastTextNode = None 
-		self.mainNode = self.createNodeField (None)
+		#self.info = info
 		if self.mainNode is None:
 			self.updating = False
 			self._ready = False
 			return False
-		self.devNode = None
 		self.identifier = time.time()
 		#logTime ("Update node manager %d nodes" % len(fields), t)
 		self.updating = False
@@ -128,11 +230,11 @@ class NodeManager(baseObject.ScriptableObject):
 		if size != self.treeInterceptorSize:
 			# treeInterceptor has changed during analyze
 			self._ready = False
-			webAppScheduler.scheduler.send (eventName="updateNodeManager", treeInterceptor=self.treeInterceptor)
+			webAppScheduler.scheduler.send(eventName="updateNodeManager", treeInterceptor=self.treeInterceptor)
 			return False
 		else:
 			self._ready = True
-			webAppScheduler.scheduler.send (eventName="nodeManagerUpdated", nodeManager=self)
+			webAppScheduler.scheduler.send(eventName="nodeManagerUpdated", nodeManager=self)
 			return True
 		return False
 
@@ -141,45 +243,12 @@ class NodeManager(baseObject.ScriptableObject):
 			return False
 		return True
 
-	def createNodeField(self, parent):
-		if self.fieldIndex >= len(self.fieldList):
-			return None
-		f = self.fieldList[self.fieldIndex]
-		if isinstance (f, unicode):
-			node = NodeField (f, parent, self.fieldOffset, self)
-			self.fieldOffset += node.size
-			self.lastTextNode = node
-			return node
-		elif f.command == "controlEnd":
-			return None
-		elif f.command == "formatChange":
-			return NodeField(f, parent, self.fieldOffset, self)
-		elif f.command == "controlStart":
-			node = NodeField(f, parent, self.fieldOffset, self)
-			self.fieldIndex += 1
-			chield = self.createNodeField (node)
-			while chield is not None:
-				node.children.append(chield)
-				node.size += chield.size
-				self.fieldIndex += 1
-				chield = self.createNodeField(node)
-			return node
-		raise
-	
+	def addBackend (self, obj):
+		self.backendDict[obj] = 1
 	def searchString(self, text):
 		if not self.isReady:
 			return []
 		return self.mainNode.searchString (text)
-
-	def searchSimple(self, **kwargs):
-		if not self.isReady:
-			return []
-		t = logTimeStart ()
-		global _count 
-		_count = 0
-		r = self.mainNode.searchSimple (**kwargs)
-		#logTime (u"simple %d node %s " % (_count, kwargs), t)
-		return r
 
 	def searchNode(self, **kwargs):
 		if not self.isReady:
@@ -217,7 +286,6 @@ class NodeManager(baseObject.ScriptableObject):
 			return None
 		if self._curNode is None:
 			self._curNode = getCaretNode()
-		# log.info("getCurrentNode => %s" % (self._curNode))
 		return self._curNode
 
 	def setCurrentNode(self, node):
@@ -243,7 +311,6 @@ class NodeManager(baseObject.ScriptableObject):
 			ui.message(u"Bas du document")
 			self._curNode.moveto()
 			return
-		# log.info("C is %s" % c)
 		if c.parent.role not in (controlTypes.ROLE_SECTION, controlTypes.ROLE_PARAGRAPH):
 			c = c.parent
 		# log.info("C set to %s" % c)
@@ -284,39 +351,31 @@ class NodeManager(baseObject.ScriptableObject):
 		"kb:uparrow": "previousItem",
 		"kb:enter": "enter",
 		}
+	
 class NodeField (baseObject.AutoPropertyObject):
 	customText = ""
 	
-	def __init__(self, field, parent, offset, nodeManager):
+	def __init__(self, nodeType, attrs, parent, offset, nodeManager):
 		super(NodeField, self).__init__()
 		self.nodeManager = nodeManager
 		self.parent = parent
 		self.offset = offset
 		self.size = 0
-		if isinstance (field, unicode):
-			self.size = len(field)
-			self.text = field
-			self.customText = field
+		self.children = []
+		if nodeType == "text":
+			self.size = len(attrs)
+			self.text = attrs
+			self.customText = attrs
 			self.controlIdentifier = parent.controlIdentifier
 			self.role = parent.role
-		elif field.command == "formatChange":
-			self.format = field.field
-		elif field.command == "controlStart":
-			self.control = field.field
-			# jklm
-			#info = self.nodeManager.treeInterceptor.makeTextInfo(textInfos.offsets.Offsets(self.offset, self.offset))
-			info = self.nodeManager.info
-			obj = info.obj
-			try:
-				doc = info.obj.rootNVDAObject.HTMLNode.document
-				n = self.nodeManager.treeInterceptor.essai2 if hasattr (self.nodeManager.treeInterceptor, "essai2") else "non"
-				#log.info (u"n%s : %s" % (self.control.get ("controlIdentifier_ID", ""), n))
-			except:
-				pass
-			
+		elif nodeType == "format":
+			self.format = attrs
+			self.controlIdentifier = 0
+			self.role = 0
+		elif nodeType == "control":
+			self.control = attrs
 			self.name = self.control.get("name", "")
 			self.role = self.control["role"]
-			self.previousTextNode = nodeManager.lastTextNode
 			self.controlIdentifier = self.control.get ("controlIdentifier_ID", 0)
 			self.tag = self.control["IAccessible2::attribute_tag"] if "IAccessible2::attribute_tag" in self.control else None
 			if not self.tag:
@@ -334,7 +393,19 @@ class NodeField (baseObject.AutoPropertyObject):
 			if not self.src:
 				self.src = self.control["HTMLAttrib::src"] if "HTMLAttrib::src" in self.control else ""
 			self.children = []
+		else:
+			raise
+		self.previousTextNode = nodeManager.lastTextNode
+		if parent is not None:
+			parent.children.append (self)
+		global countNode
+		countNode = countNode + 1
 
+	def __del__ (self):
+		#log.info (u"dell node")
+		global countNode
+		countNode = countNode - 1
+		
 	def __repr__ (self):
 		if hasattr (self, "text"):
 			return u"Node text : %s" % self.text
@@ -345,6 +416,33 @@ class NodeField (baseObject.AutoPropertyObject):
 		else:
 			return u"Node unknown"
 		
+	def isReady (self):
+		return self.nodeManager is not None and self.nodeManager.isReady
+	
+	def checkNodeManager (self):
+		if self.nodeManager is None or not self.nodeManager.isReady:
+			playWebAppSound ("keyError")
+			return False
+		else:
+			return True
+		
+	def recursiveDelete (self):
+		n = 1
+		if hasattr (self, "children"):
+			for child in self.children:
+				n = n + child.recursiveDelete ()
+			self.children = []
+		self.nodeManager = None
+		self.previousTextNode = None
+		self.parent = None
+		self.format = None
+		self.control = None
+		self.text = None
+		self.customText = None
+		self.controlIdentifier = None
+		return n
+
+
 	def searchString (self, text):
 		if not isinstance (text, list):
 			text = [text]
@@ -355,8 +453,8 @@ class NodeField (baseObject.AutoPropertyObject):
 			return []
 		elif hasattr (self, "children"):
 			result = []
-			for chield in self.children:
-				result += chield.searchString (text)
+			for child in self.children:
+				result += child.searchString (text)
 			return result
 		return []
 
@@ -378,21 +476,10 @@ class NodeField (baseObject.AutoPropertyObject):
 				return True
 		return False
 
-	def searchSimple (self, **kwargs):
-		global _count
-		_count += 1
-		nodeList = []
-		if hasattr (self, "control"):
-			if self.className == "jklm":
-				log.info (u"trouvé")
-			for chield in self.children:
-				chield.searchSimple (**kwargs)
-		return nodeList
-
 	def searchNode (self, **kwargs):
 		global _count
-		_count += 1
 		nodeList = []
+		_count += 1
 		if hasattr (self, "control"):
 			found = True
 			for key in kwargs.keys(): 
@@ -433,8 +520,8 @@ class NodeField (baseObject.AutoPropertyObject):
 			if offset >= self.offset and offset < self.offset + self.size: 
 				return self
 		elif hasattr (self, "children"):
-			for chield in self.children:
-				node = chield.searchOffset (offset)
+			for child in self.children:
+				node = child.searchOffset (offset)
 				if node:
 					return node
 		return None
@@ -446,7 +533,7 @@ class NodeField (baseObject.AutoPropertyObject):
 		return self.nodeManager.searchOffset (self.offset + self.size)
 	
 	def moveto(self, reason=REASON_FOCUS):
-		if not self.nodeManager.isReady:
+		if not self.checkNodeManager ():
 			return False 
 		info = self.nodeManager.treeInterceptor.makeTextInfo(textInfos.offsets.Offsets(self.offset, self.offset))
 		self.nodeManager.treeInterceptor.selection = info
@@ -457,9 +544,9 @@ class NodeField (baseObject.AutoPropertyObject):
 		return True
 		
 	def activate (self):
-		if not self.nodeManager.isReady:
+		if not self.checkNodeManager ():
 			return False 
-		info = self.nodeManager.treeInterceptor.makeTextInfo(textInfos.offsets.Offsets(self.offset, self.offset))
+		info = self.getTextInfo ()
 		self.nodeManager.treeInterceptor._activatePosition (info)
 
 	def sayAll (self):
@@ -470,15 +557,15 @@ class NodeField (baseObject.AutoPropertyObject):
 			return False
 
 	def getNVDAObject(self):
-		info = self.nodeManager.treeInterceptor.makeTextInfo(textInfos.offsets.Offsets(self.offset, self.offset))
+		info = self.getTextInfo ()
 		obj = info.NVDAObjectAtStart
 		return obj
 
 	def mouseMove (self):
-		if not self.nodeManager.isReady:
-			return False
+		if not self.checkNodeManager ():
+			return False 
 		self.moveto () 
-		info = self.nodeManager.treeInterceptor.makeTextInfo(textInfos.offsets.Offsets(self.offset, self.offset))
+		info = self.getTextInfo ()
 		obj = info.NVDAObjectAtStart
 		try:
 			(left,top,width,height)=obj.location
@@ -552,7 +639,7 @@ class NodeField (baseObject.AutoPropertyObject):
 		return ""
 
 	def getTextInfo (self):
-		if not self.nodeManager.isReady:
+		if not self.isReady ():
 			return None 
 		return self.nodeManager.treeInterceptor.makeTextInfo(textInfos.offsets.Offsets(self.offset, self.offset+self.size))
 

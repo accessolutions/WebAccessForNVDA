@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2016 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 
 """Web Access data store."""
 
-__version__ = "2016.12.06"
+__version__ = "2018.10.10"
 
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
@@ -55,7 +55,9 @@ class Store(object):
 		for ref in self.catalog():
 			item = self.get(ref)
 			if item is None:
-				log.warn("No item retrieved for ref: %s" % (ref,))
+				log.warning(
+					u"No item retrieved for ref: {ref}".format(ref=ref)
+					)
 			else:
 				yield item
 	
@@ -83,7 +85,7 @@ class DispatchStore(Store):
 				yield self.track(store, ref=ref)["ref"]
 	
 	def create(self, item, **kwargs):
-		for store in self.getSupportingStore("create", item=item, **kwargs):
+		for store in self.getSupportingStores("create", item=item, **kwargs):
 			ref = store.create(item, **kwargs)
 			return self.track(store, ref=ref)["ref"]
 	
@@ -101,7 +103,7 @@ class DispatchStore(Store):
 	def getStoreKey(self, store):
 		return store.name
 	
-	def getSupportingStore(self, operation, **kwargs):
+	def getSupportingStores(self, operation, **kwargs):
 		for store in self.stores:
 			if store.supports(operation, **kwargs):
 				yield store		
@@ -121,7 +123,7 @@ class DispatchStore(Store):
 					if len(ref) == 1:
 						ref = ref[0]
 			else:
-				ValueError("Unexpected ref format: %s" % ref)
+				ValueError(u"Unexpected ref format: {ref}".format(ref))
 		else:
 			storeKey = ref
 		store = None
@@ -133,7 +135,9 @@ class DispatchStore(Store):
 					store = candidate
 					break
 			if store is None:
-				raise Exception("Unknown store: %s" % storeKey)
+				raise Exception(
+					u"Unknown store: {storeKey}".format(storeKey=storeKey)
+					)
 		if hasNestedRef:
 			kwargs["ref"] = ref
 		if item is not None:
@@ -142,7 +146,7 @@ class DispatchStore(Store):
 
 	def supports(self, operation, **kwargs):
 		if operation == "create":
-			for store in self.getSupportingStore(operation, **kwargs):
+			for store in self.getSupportingStores(operation, **kwargs):
 				return True
 			return False
 		if "ref" in kwargs or "item" in kwargs:
