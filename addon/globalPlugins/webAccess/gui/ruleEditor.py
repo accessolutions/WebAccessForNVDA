@@ -291,6 +291,7 @@ class Dialog(wx.Dialog):
 						self.skipCheckBox.Value = False
 						self.isPageTitleCheckBox.Value = False
 						self.isContextCheckBox.Value = False
+						self.createWidgetCheckBox.Value = False
 						self.comment.Value = ""
 				else:
 						self.Title = _("Edit rule")
