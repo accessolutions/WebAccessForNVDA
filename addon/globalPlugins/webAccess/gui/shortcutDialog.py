@@ -141,7 +141,7 @@ class Dialog(wx.Dialog):
 				global resultShortcut
 				resultShortcut = gestureIdentifier
 				if oldValue != main:
-					ui.message(_(u"Shortcut set to %s" % main))
+					wx.CallAfter(ui.message, _(u"Shortcut set to %s" % main))
 			elif gestureIdentifier == "kb:tab":
 				return True
 			elif gestureIdentifier == "kb:shift+tab":
