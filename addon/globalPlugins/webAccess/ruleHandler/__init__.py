@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.10.10"
+__version__ = "2018.10.19"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
@@ -531,7 +531,7 @@ class MarkerResult(baseObject.ScriptableObject):
 
 	def _get_name(self):
 		return self.markerQuery.name
-	 
+	
 	def script_moveto(self, gesture):
 		raise NotImplementedError
 
@@ -729,39 +729,49 @@ class VirtualMarkerQuery(MarkerQuery):
 	def getData(self):
 		return self.dic
 		
-	def addSearchKwargs(self, dic, argName, strArg):
-		if strArg is None or strArg == "":
+	def addSearchKwargs(self, dic, prop, expr):
+		if not expr:
 			return
-		if argName == "text" and strArg[0] == "<":
-			dic["prev_text"] = strArg[1:]
+		if prop == "text":
+			if expr[0] == "<":
+				dic["in_prevText"] = expr[1:]
+				return
+			dic["in_text"] = expr[1:]
 			return
-		eq = []
-		notEq = []
-		_in = []
-		notIn = []
-		argList = strArg.split("|")
-		for arg in argList:
-			if arg == "":
-				continue
-			if arg[0] == "!":
-				if "*" in arg:
-					notIn.append(arg[1:])
+		if prop == "className":
+			expr = expr.replace(" ", "&")
+		for andIndex, expr in enumerate(expr.split("&")):
+			eq = []
+			notEq = []
+			in_ = []
+			notIn = []
+			for expr in expr.split("|"):
+				if not expr:
+					continue
+				if expr[0] == "!":
+					if "*" in expr:
+						notIn.append(expr[1:])
+					else:
+						notEq.append(expr[1:])
 				else:
-					notEq.append(arg[1:])
-			else:
-				if "*" in arg:
-					_in.append(arg)
-				else:
-					eq.append(arg)
-		if eq != []:
-			dic["eq_"+argName] = eq
-		if notEq != []:
-			dic["notEq_"+argName] = notEq
-		if _in != []:
-			dic["in_"+argName] = _in
-		if notIn != []:
-			dic["notIn_"+argName] = notIn
-
+					if "*" in expr:
+						in_.append(expr)
+					else:
+						eq.append(expr)
+			for test, values in (
+				("eq", eq),
+				("notEq", notEq),
+				("in", in_),
+				("notIn", notIn),
+			):
+				if not values:
+					continue
+				key = "{test}_{prop}#{index}".format(
+					test=test,
+					prop=prop,
+					index=andIndex
+				)
+				dic[key] = values
 		
 	def getResults(self, widget=False):
 		t = logTimeStart()
@@ -770,15 +780,13 @@ class VirtualMarkerQuery(MarkerQuery):
 		dic = self.dic
 		kwargs = {}
 		text = dic.get("text", None)
-		if text is not None:
-			if text[0:1] == "#":
-				# use the named method in the webApp script instead of the query dictionnary
-				funcName ="getResults_" + text[1:]
-				func = getattr(self.markerManager.webApp, funcName)
-				if func is not None:
-					return func(self)
-				raise
-
+# 		if text is not None:
+# 			if text[0:1] == "#":
+# 				# use the named method in the webApp script instead of the query dictionnary
+# 				funcName ="getResults_" + text[1:]
+# 				func = getattr(self.markerManager.webApp, funcName)
+# 				if func is not None:
+# 					return func(self)
 		contextResults = None
 		context = dic.get("context", None)
 		if context is not None:
@@ -798,13 +806,14 @@ class VirtualMarkerQuery(MarkerQuery):
 			if exclude and contextResult != []:
 				return []
 		self.addSearchKwargs(kwargs, "text", text)
+		# TODO: Why store role as int and not allow !/|/& ?
 		role = dic.get("role", None)
 		if role:
 			kwargs["eq_role"] = role
-		self.addSearchKwargs(kwargs, "tag", dic.get("tag", None))
-		self.addSearchKwargs(kwargs, "id", dic.get("id", None))
-		self.addSearchKwargs(kwargs, "className", dic.get("className", None))
-		self.addSearchKwargs(kwargs, "src", dic.get("src", None))
+		self.addSearchKwargs(kwargs, "tag", dic.get("tag"))
+		self.addSearchKwargs(kwargs, "id", dic.get("id"))
+		self.addSearchKwargs(kwargs, "className", dic.get("className"))
+		self.addSearchKwargs(kwargs, "src", dic.get("src"))
 		
 		results = []
 		nodeList = self.markerManager.nodeManager.searchNode(**kwargs)

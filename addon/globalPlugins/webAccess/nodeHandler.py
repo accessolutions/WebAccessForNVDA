@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.10.10"
+__version__ = "2018.10.18"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>, Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
@@ -476,36 +476,65 @@ class NodeField (baseObject.AutoPropertyObject):
 				return True
 		return False
 
-	def searchNode (self, **kwargs):
+	def searchNode(self, **kwargs):
+		"""
+		Searches the current node and its sub-tree for a match with the given
+		criteria.
+		
+		Keyword argument names are of the form: `test_property[#index]`
+		All of the criteria must be matched (logical `and`).
+		Values can be lists, in which case any value in the list can match
+		(logical `or`).
+		Supported tests are: `eq`, `notEq`, `in` and `notIn`.
+		
+		Properties `text` and `prevText` are mutually exclusive, are only valid
+		for the `in` test and do not support multiple values.
+		"""
 		global _count
 		nodeList = []
 		_count += 1
-		if hasattr (self, "control"):
+		if hasattr(self, "control"):
 			found = True
-			for key in kwargs.keys(): 
-				if key[:3] == "eq_": 
-					if self.search_eq (kwargs[key], getattr (self, key[3:], None)):
-						del kwargs[key]
-					elif key != "eq_text":
-						found = False
-				if key[:3] == "in_": 
-					if self.search_in (kwargs[key], getattr (self, key[3:], None)):
-						del kwargs[key]
-					elif key != "in_text":
-						found = False
-				if key[:6] == "notEq_": 
-					if self.search_eq (kwargs[key], getattr (self, key[6:], None)):
-						return []
-				if key[:6] == "notIn_": 
-					if self.search_in (kwargs[key], getattr (self, key[6:], None)):
-						return []
+			for key, allowedValues in kwargs.items():
+				if not "_" in key:
+					log.warning(u"Unexpected argument: {arg}".format(arg=key))
+					continue
+				test, prop = key.split("_", 1)
+				prop = prop.rsplit("#", 1)[0]
+				if prop in ("text", "prevText"):
+					continue
+				candidateValue = getattr(self, prop, None)
+				if prop == "className":
+					candidateValues = candidateValue.split(" ")
+				else:
+					candidateValues = (candidateValue,)
+				for candidateValue in candidateValues:
+					if test == "eq":
+						if self.search_eq(allowedValues, candidateValue):
+							del kwargs[key]
+						else:
+							found = False
+					elif test == "in":
+						if self.search_in(allowedValues, candidateValue):
+							del kwargs[key]
+						else:
+							found = False
+					elif test == "notEq":
+						if self.search_eq(allowedValues, candidateValue):
+							return []
+					elif test == "notIn":
+						if self.search_in(allowedValues, candidateValue):
+							return []
 			if found:
-				text = kwargs.get ("eq_text", []) 
-				prevText = kwargs.get ("prev_text", "") 
+				text = kwargs.get("in_text", []) 
+				prevText = kwargs.get("in_prevText", "") 
 				if text != []:
-					return self.searchString (text)
+					return self.searchString(text)
 				elif prevText != "":
-					if self.previousTextNode is not None and prevText in self.previousTextNode.text:
+					if (
+						self.previousTextNode is not None
+						and prevText in self.previousTextNode.text
+					):
 						return [self]
 					else:
 						return []

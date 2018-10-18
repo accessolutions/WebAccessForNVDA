@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2018.10.10"
+__version__ = "2018.10.18"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -50,7 +50,7 @@ from ..webAppLib import *
 
 class WebModule(baseObject.ScriptableObject):
 	
-	FORMAT_VERSION = "0.1"
+	FORMAT_VERSION = "0.2-dev"
 	
 	url = None
 	name = None
