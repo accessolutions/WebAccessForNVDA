@@ -49,7 +49,7 @@ Overridden NVDA functions:
 
 from __future__ import absolute_import
 
-__version__ = "2018.10.10"
+__version__ = "2018.10.17"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -79,7 +79,7 @@ import gui
 import inputCore
 from logHandler import log
 import NVDAObjects
-from NVDAObjects import NVDAObject, JAB
+from NVDAObjects import NVDAObject
 import scriptHandler
 import speech
 import tones
@@ -374,6 +374,10 @@ def getWebApp(self, eventName=None):
 		return None
 	
 	obj = self
+	if isinstance (obj, NVDAObjects.JAB.JAB):
+		# to avoid lock with jab object
+		return
+	
 	outdated = None
 
 	if hasattr(obj, "_webApp"):
@@ -405,6 +409,7 @@ def getWebApp(self, eventName=None):
 	i = 0
 	while webApp is None and obj is not None and i < 50:
 		i += 1
+
 		if hasattr(obj, '_webApp'):
 			if hasattr(obj._webApp, "_outdated") and obj._webApp._outdated:
 				outdated = outdated or obj._webApp
@@ -424,12 +429,6 @@ def getWebApp(self, eventName=None):
 
 		objList.append(obj)
 
-		# For Java Apps we can't rely on URLs so call a specific method, if implemented
-		wa = getWebAppFromObject(obj, eventName)
-		if wa:
-			webApp = wa
-			break
-		
 		# Onr HTML webApps, we extract the URL from the document IAccessible value.
 		if obj.role == controlTypes.ROLE_DOCUMENT:
 			try:
@@ -443,7 +442,7 @@ def getWebApp(self, eventName=None):
 		obj = obj.parent
 
 	if webApp is None:
-		obj = objList[0]
+		obj = self
 		# TODO: Remove this awful fix
 		if outdated is not None and obj.role == 0:
 			obj = NVDAObjects.NVDAObject.objectWithFocus()
@@ -680,20 +679,6 @@ def hook_eventGen(self, eventName, obj):
 		if obj.name is not None and "http" in obj.name and obj.role in [controlTypes.ROLE_DOCUMENT, controlTypes.ROLE_FRAME]:
 			return
 		yield func, ()
-
-def getWebAppFromObject(obj, eventName):
-	# log.info("Searching for object webapp eventName = %s" % eventName)
-	if eventName not in ("gainFocus", "becomeNavigatorObject"):
-		return None
-	for app in webModuleHandler.getWebModules():
-		# log.info("object class is %s" % obj.__class__)
-		if hasattr(app, "claimObjectClasses"):
-			for cls in obj.__class__.__mro__:
-				if cls in app.claimObjectClasses:
-					log.info("app %s can claim for object %s" %(app.name, str(obj.__class__)))
-					if app.claimForJABObject(obj) is True:
-						return app
-	return None
 
 def getWebAppFromUrl(url):
 	if url is None:
