@@ -49,7 +49,7 @@ Overridden NVDA functions:
 
 from __future__ import absolute_import
 
-__version__ = "2018.10.17"
+__version__ = "2018.10.19"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -91,6 +91,7 @@ from . import json
 from . import nodeHandler
 from . import presenter
 from . import webAppLib
+from .packaging import version
 from .webAppLib import *
 from .webAppScheduler import WebAppScheduler
 from . import webModuleHandler
@@ -181,8 +182,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# The NVDA AppModule should not yet have been instanciated at this stage
 		NvdaAppModule.event_NVDAObject_init = appModule_nvda_event_NVDAObject_init_patched 		
 
-		#webModuleHandler.getWebModules(refresh=True)
 		log.info("Web Access for NVDA version %s initialized" % getVersion())
+		showWebModulesLoadErrors()
 
 	def terminate(self):
 		scheduler.send(eventName="stop")
@@ -741,3 +742,42 @@ def appModule_nvda_event_NVDAObject_init_patched(self, obj):
 	# Stock method was stored unbound
 	appModule_nvda_event_NVDAObject_init_stock.__get__(self, NvdaAppModule)(obj)
 
+
+def showWebModulesLoadErrors():
+	errors = []
+	webModuleHandler.getWebModules(errors=errors)
+	if errors:
+		invalidVersionRefsStr = []
+		otherErrors = False
+		for ref, exc_info in errors:
+			if isinstance(exc_info[1], version.InvalidVersion):
+				if isinstance(ref, tuple):
+					label = ref[-1]
+					if len(ref) > 2 and ref[0] == "addons":
+						label = u"{webModuleName} ({addonName})".format(
+							webModuleName=ref[-1],
+							addonName=ref[1]
+						)
+				else:
+					label = ref
+				invalidVersionRefsStr.append(label)
+			msg = None
+			if len(invalidVersionRefsStr) == 1:
+				msg = _(
+					"This web module has been created by a newer version of "
+					"Web Access for NVDA and could not be loaded:"
+				)
+			elif len(invalidVersionRefsStr) > 1:
+				msg = _(
+					"These web modules have been created by a newer version of "
+					"Web Access for NVDA and could not be loaded:"
+				)
+			if msg:
+				msg = os.linesep.join([msg] + invalidVersionRefsStr)
+				wx.CallAfter(
+					gui.messageBox,
+					message=msg,
+					caption=_("Web Access for NVDA"),
+					style=wx.ICON_WARNING,
+					parent=gui.mainFrame
+				)

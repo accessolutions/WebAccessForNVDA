@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2018.10.18"
+__version__ = "2018.10.19"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -43,6 +43,7 @@ import speech
 import ui
 
 from .. import json
+from ..packaging import version
 from .. import presenter
 from .. import ruleHandler
 from ..webAppLib import *
@@ -50,7 +51,8 @@ from ..webAppLib import *
 
 class WebModule(baseObject.ScriptableObject):
 	
-	FORMAT_VERSION = "0.2-dev"
+	FORMAT_VERSION_STR = "0.2-dev"
+	FORMAT_VERSION = version.parse(FORMAT_VERSION_STR)
 	
 	url = None
 	name = None
@@ -81,7 +83,7 @@ class WebModule(baseObject.ScriptableObject):
 			)
 
 	def dump(self):
-		data = {"formatVersion": self.FORMAT_VERSION}
+		data = {"formatVersion": self.FORMAT_VERSION_STR}
 		
 		data["WebModule"] = {
 			"name": self.name,
@@ -125,13 +127,12 @@ class WebModule(baseObject.ScriptableObject):
 			# TODO: Re-implement custom field labels?
 			if "FieldLabels" in data:
 				log.warning("FieldLabels not supported")
-		elif formatVersion != self.FORMAT_VERSION:
-			# Attempt loading anyway.
-			log.warning(
-				"WebModule format not supported: "
-				"{ver}".format(ver=formatVersion)
+		elif version.parse(formatVersion) > self.FORMAT_VERSION:
+			raise version.InvalidVersion(
+				"WebModule format version not supported: {ver}".format(
+					ver=formatVersion
 				)
-		
+			)
 		item = data.get("WebModule")
 		if item is not None:
 			if "name" in item:

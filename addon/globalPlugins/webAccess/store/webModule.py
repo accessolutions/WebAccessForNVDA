@@ -21,11 +21,12 @@
 
 """Web Module data store."""
 
-__version__ = "2018.10.10"
+__version__ = "2018.10.19"
 
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
+from collections import OrderedDict
 import errno
 import imp
 import os
@@ -81,7 +82,7 @@ class WebModuleJsonFileStore(Store):
 			log.exception(
 				u"Failed to load JSON file: {path}".format(path=path)
 				)
-			return None
+			raise
 		self.setRef(item, ref)
 		return item
 	
@@ -128,7 +129,7 @@ class WebModuleJsonFileStore(Store):
 			fd = os.open(path, os.O_RDONLY)
 		except:
 			log.exception(u"Failed to open file: {path}".format(path=path))
-			return None
+			raise
 		serialized = ""
 		eof = False
 		while not eof:
@@ -137,9 +138,9 @@ class WebModuleJsonFileStore(Store):
 			except:
 				log.exception(
 					u"Failed to read from file: {path}".format(path=path)
-					)
+				)
 				os.close(fd)
-				return None
+				raise
 			if s is None or s == "":
 				eof = True
 			else:
@@ -150,8 +151,8 @@ class WebModuleJsonFileStore(Store):
 		except:
 			log.exception(
 				u"Failed to parse JSON file: {path}".format(path=path)
-				)
-			return None
+			)
+			raise
 	
 	def getNewRef(self, item):
 		return item.name
@@ -246,15 +247,16 @@ class WebModulePythonFileStore(Store):
 		except:
 			log.exception(
 				u"Failed to compile module: {name}".format(name=name)
-				)
-			return None
+			)
+			raise
 		ctor = getattr(mod, "WebModule", None)
 		if ctor is None:
-			log.error(
+			msg = (
 				u"Python module {name} does not provide a 'WebModule' class: "
 				u"{path}".format(name=name, path=path)
-				)
-			return None
+			)
+			log.error(msg)
+			raise AttributeError(msg)
 		kwargs = {}
 		try:
 			dataPath = self.defaultDataStore.getCheckedPath(ref)
@@ -264,14 +266,14 @@ class WebModulePythonFileStore(Store):
 			log.exception(
 				u"While loading data for module: {name}".format(name=name)
 				)
-			pass
+			raise
 		try:
 			instance = ctor(**kwargs)
 		except:
 			log.exception(
 				u"Failed to instanciate web module: {name}".format(name=name)
 				)
-			return None
+			raise
 		if not hasattr(instance, "name"):
 			instance.name = name
 		if not hasattr(instance, "dataStore"):
