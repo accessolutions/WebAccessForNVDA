@@ -21,7 +21,10 @@
 
 __version__ = "2018.10.21"
 
-__author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>, Julien Cochuyt <j.cochuyt@accessolutions.fr>"
+__authors__ = (
+	u"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
+	u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
+)
 
 
 import gc
@@ -267,14 +270,18 @@ class NodeManager(baseObject.ScriptableObject):
 			return []
 		return self.mainNode.searchString(text)
 
-	def searchNode(self, **kwargs):
+	def searchNode(self, roots=None, exclude=None, **kwargs):
 		if not self.isReady:
 			return []
 		t = logTimeStart()
-		global _count 
+		global _count
 		_count = 0
-		r = self.mainNode.searchNode (**kwargs)
-		#logTime (u"search %d node %s " % (_count, kwargs), t)
+		r = []
+		for node in roots or (self.mainNode,):
+			if exclude and node in exclude:
+				continue
+			r += node.searchNode(exclude=exclude, **kwargs)
+		# logTime(u"search %d node %s " % (_count, kwargs), t)
 		return r
 
 	def searchOffset(self, offset):
@@ -464,10 +471,9 @@ class NodeField(baseObject.AutoPropertyObject):
 		self.customText = None
 		self.controlIdentifier = None
 		return n
-
-
-	def searchString (self, text):
-		if not isinstance (text, list):
+	
+	def searchString(self, text, exclude=None, maxIndex=0, currentIndex=0):
+		if not isinstance(text, list):
 			text = [text]
 		if hasattr(self, "text"):
 			for t in text:
@@ -477,7 +483,19 @@ class NodeField(baseObject.AutoPropertyObject):
 		elif hasattr(self, "children"):
 			result = []
 			for child in self.children:
-				result += child.searchString (text)
+				if exclude and child in exclude:
+					continue
+				childResult = child.searchString(
+					text,
+					exclude=exclude,
+					maxIndex=maxIndex,
+					currentIndex=currentIndex
+				)
+				result += childResult
+				if maxIndex:
+					currentIndex += len(childResult)
+					if currentIndex >= maxIndex:
+						break
 			return result
 		return []
 
@@ -499,12 +517,22 @@ class NodeField(baseObject.AutoPropertyObject):
 				return True
 		return False
 
-	def searchNode(self, **kwargs):
+	def searchNode(self, exclude=None, maxIndex=0, currentIndex=0, **kwargs):
 		"""
 		Searches the current node and its sub-tree for a match with the given
 		criteria.
 		
-		Keyword argument names are of the form: `test_property[#index]`
+		Keyword arguments:
+		  exclude: If specified, supply a list of children nodes not to explore.
+		  maxIndex:
+		    If set to 0 (default value), every result found is returned.
+		    If greater than 0, only return the n first results (1 based).
+		  currentIndex: Used to compare against maxIndex when searching down
+		    sub-trees.
+		  
+		Additional keyword arguments names are of the form:
+		  `test_property[#index]`
+		
 		All of the criteria must be matched (logical `and`).
 		Values can be lists, in which case any value in the list can match
 		(logical `or`).
@@ -518,8 +546,9 @@ class NodeField(baseObject.AutoPropertyObject):
 		_count += 1
 		if hasattr(self, "control"):
 			found = True
-			for key, allowedValues in kwargs.items():
-				if not "_" in key:
+			# Copy kwargs dict to get ready for Python 3:
+			for key, allowedValues in kwargs.copy().items():
+				if "_" not in key:
 					log.warning(u"Unexpected argument: {arg}".format(arg=key))
 					continue
 				test, prop = key.split("_", 1)
@@ -552,7 +581,12 @@ class NodeField(baseObject.AutoPropertyObject):
 				text = kwargs.get("in_text", [])
 				prevText = kwargs.get("in_prevText", "")
 				if text != []:
-					return self.searchString(text)
+					return self.searchString(
+						text,
+						exclude=exclude,
+						maxIndex=maxIndex,
+						currentIndex=currentIndex
+					)
 				elif prevText != "":
 					if (
 						self.previousTextNode is not None
@@ -564,7 +598,19 @@ class NodeField(baseObject.AutoPropertyObject):
 				else:
 					return [self]
 			for child in self.children:
-				nodeList += child.searchNode (**kwargs)
+				if exclude and child in exclude:
+					continue
+				childResult = child.searchNode(
+					exclude=exclude,
+					maxIndex=maxIndex,
+					currentIndex=currentIndex,
+					**kwargs
+				)
+				nodeList += childResult
+				if maxIndex:
+					currentIndex += len(childResult)
+					if currentIndex >= maxIndex:
+						break
 		return nodeList
 
 	def searchOffset(self, offset):

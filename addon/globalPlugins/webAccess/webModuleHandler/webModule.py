@@ -46,6 +46,7 @@ from .. import json
 from ..packaging import version
 from .. import presenter
 from .. import ruleHandler
+from ..ruleHandler import contextTypes
 from ..webAppLib import *
 
 
@@ -114,6 +115,7 @@ class WebModule(baseObject.ScriptableObject):
 		formatVersion = data.get("formatVersion")
 		# Ensure compatibility with data files prior to format versioning
 		if formatVersion is None:
+			formatVersion = ""
 			# Back to the "WebAppHandler" days
 			if "WebModule" not in data and "WebApp" in data:
 				data["WebModule"] = data.pop("WebApp")
@@ -127,7 +129,16 @@ class WebModule(baseObject.ScriptableObject):
 			# TODO: Re-implement custom field labels?
 			if "FieldLabels" in data:
 				log.warning("FieldLabels not supported")
-		elif version.parse(formatVersion) > self.FORMAT_VERSION:
+		formatVersion = version.parse(formatVersion)
+		if formatVersion < version.parse("0.2"):
+			for rule in data.get("Rules", []):
+				if "context" in rule:
+					rule["requiresContext"] = rule.pop("context")
+				if "isContext" in rule:
+					if rule.get("isContext"):
+						rule["definesContext"] = contextTypes.PAGE_ID
+					del rule["isContext"]
+		if formatVersion > self.FORMAT_VERSION:
 			raise version.InvalidVersion(
 				"WebModule format version not supported: {ver}".format(
 					ver=formatVersion

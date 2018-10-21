@@ -19,32 +19,37 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.10.19"
+__version__ = "2018.10.21"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
-import wx
 import addonHandler
 addonHandler.initTranslation()
-import api
+
+
+from collections import OrderedDict
+import threading
 import time
+import wx
+
+import api
 import baseObject
 import browseMode
 import controlTypes
 import gui
 import inputCore
+from logHandler import log
 import sayAllHandler
 import speech
 import textInfos
-import threading
 import ui
-from logHandler import log
+
 from .. import nodeHandler
 from .. import webAppScheduler
 from ..widgets import genericCollection
 from ..webAppLib import *
-from collections import OrderedDict
+from . import contextTypes
 
 
 TRACE = lambda *args, **kwargs: None
@@ -490,27 +495,27 @@ class MarkerManager(baseObject.ScriptableObject):
 	def script_previousMarker(self, gesture):
 		self.focusPreviousResult()
 
-	def script_essai(self, gesture):
-		ui.message(u"essai")
-		ti = html.getTreeInterceptor()
-		obj = ti.rootNVDAObject
-		api.setNavigatorObject(obj)
-		return
-		t = logTimeStart()
-		treeInterceptor = html.getTreeInterceptor()
-		info = treeInterceptor.makeTextInfo(textInfos.POSITION_ALL)
-		text=NVDAHelper.VBuf_getTextInRange(treeInterceptor.VBufHandle,info._startOffset,info._endOffset,True)
-		commandList=XMLFormatting.XMLTextParser().parse(text)
-		#text = info.getTextWithFields()
-		logTime("all text : %d " % len(text), t)
+# 	def script_essai(self, gesture):
+# 		ui.message(u"essai")
+# 		ti = html.getTreeInterceptor()
+# 		obj = ti.rootNVDAObject
+# 		api.setNavigatorObject(obj)
+# 		return
+# 		t = logTimeStart()
+# 		treeInterceptor = html.getTreeInterceptor()
+# 		info = treeInterceptor.makeTextInfo(textInfos.POSITION_ALL)
+# 		text=NVDAHelper.VBuf_getTextInRange(treeInterceptor.VBufHandle,info._startOffset,info._endOffset,True)
+# 		commandList=XMLFormatting.XMLTextParser().parse(text)
+# 		#text = info.getTextWithFields()
+# 		logTime("all text : %d " % len(text), t)
 
 
 	__gestures = {
-				"kb:control+nvda+r" : "refreshMarkers",
-				"kb:pagedown" : "nextMarker",
-				"kb:pageup" : "previousMarker",
-				"kb:alt+control+shift+e" : "essai",
-				}
+		"kb:control+nvda+r" : "refreshMarkers",
+		"kb:pagedown" : "nextMarker",
+		"kb:pageup" : "previousMarker",
+# 		"kb:alt+control+shift+e" : "essai",
+	}
 
 
 class MarkerResult(baseObject.ScriptableObject):
@@ -674,7 +679,6 @@ class MarkerQuery(baseObject.ScriptableObject):
 		super(MarkerQuery,self).__init__()
 		self.markerManager = markerManager
 		self.name = None
-		self.pageIdentifier = None
 		self.skip = False
 		self.results = None
 
@@ -683,6 +687,9 @@ class MarkerQuery(baseObject.ScriptableObject):
 		
 	def getResults(self):
 		return []
+
+	def _getResults(self):
+		raise NotImplementedError()
 	
 	def getData(self):
 		return None
@@ -707,20 +714,18 @@ class VirtualMarkerQuery(MarkerQuery):
 		super(VirtualMarkerQuery,self).__init__(markerManager)
 		self.dic = dic
 		self.name = dic["name"]
-		self.pageIdentifier = dic.get("pageIdentifier", None)
-		self.gestures= dic.get("gestures", {})
+		self.requiresContext = dic.get("requiresContext")
+		self.gestures = dic.get("gestures", {})
 		gesturesMap = {}
 		for gestureIdentifier in self.gestures.keys():
 			gesturesMap[gestureIdentifier] = "notFound"
 		self.bindGestures(gesturesMap)
-		self.autoAction= dic.get("autoAction", None)
+		self.autoAction = dic.get("autoAction")
 		self.formMode = dic.get("formMode", False)
 		self.sayName = dic.get("sayName", True)
 		self.skip = dic.get("skip", False)
 		self.isPageTitle = dic.get("isPageTitle", False)
-		self.isContext = dic.get("isContext", False)
-		self.index = dic.get("index", 0)
-		self.multiple = dic.get("multiple", True)
+		self.definesContext = dic.get("definesContext")
 		self.createWidget = dic.get("createWidget", False)
 
 	def __eq__(self, other):
@@ -775,11 +780,8 @@ class VirtualMarkerQuery(MarkerQuery):
 		
 	def getResults(self, widget=False):
 		t = logTimeStart()
-		if self.results is not None:
-			return self.results
 		dic = self.dic
-		kwargs = {}
-		text = dic.get("text", None)
+		text = dic.get("text")
 # 		if text is not None:
 # 			if text[0:1] == "#":
 # 				# use the named method in the webApp script instead of the query dictionnary
@@ -787,24 +789,56 @@ class VirtualMarkerQuery(MarkerQuery):
 # 				func = getattr(self.markerManager.webApp, funcName)
 # 				if func is not None:
 # 					return func(self)
-		contextResults = None
-		context = dic.get("context", None)
-		if context is not None:
-			if context[0] == "!":
-				context = context[1:]
+		rootNodes = []
+		excludedNodes = []
+		for alternatives in dic.get("requiresContext", "").split("&"):
+			alternatives = alternatives.strip()
+			if not alternatives:
+				continue
+			if alternatives[0] == "!":
 				exclude = True
+				alternatives = alternatives[1:]
 			else:
 				exclude = False
-			contextQuery = self.markerManager.getQueryByName (context)
-			if contextQuery is None:
-				log.warning(u"Rule context \"{context}\" not found".format(
-					context=context))
+			found = False
+			for context in alternatives.split("|"):
+				context = context.strip()
+				if not context:
+					continue
+				contextQuery = self.markerManager.getQueryByName(context)
+				if contextQuery is None:
+					log.error(u"Rule context \"{context}\" not found".format(
+						context=context
+					))
+					return []
+				contextResults = contextQuery.getResults()
+				if contextResults:
+					if exclude:
+						if contextQuery.definesContext != contextTypes.ZONE:
+							return []
+						excludedNodes += [
+							result.node for result in contextResults]
+					else:
+						found = True
+						if contextQuery.definesContext == contextTypes.ZONE:
+							rootNodes += [
+							result.node for result in contextResults]
+			if not exclude and not found:
 				return []
-			contextResult = contextQuery.getResults ()
-			if not exclude and contextResult == []:
-				return []
-			if exclude and contextResult != []:
-				return []
+		
+		kwargs = {}
+		if rootNodes:
+			kwargs["roots"] = rootNodes
+		if excludedNodes:
+			kwargs["exclude"] = excludedNodes
+		if "index" in dic:
+			targetIndex = kwargs["maxIndex"] = dic["index"]
+			#targetIndex = dic["index"]
+		elif not dic.get("multiple", True):
+			targetIndex = kwargs["maxIndex"] = 1
+			#targetIndex = 1
+		else:
+			targetIndex = 0
 		self.addSearchKwargs(kwargs, "text", text)
 		# TODO: Why store role as int and not allow !/|/& ?
 		role = dic.get("role", None)
@@ -822,17 +856,14 @@ class VirtualMarkerQuery(MarkerQuery):
 		for node in nodeList:
 			i += 1
 			r = VirtualMarkerResult(self, node)
-			if r.markerQuery.isPageTitle:
+			if self.isPageTitle:
 				r.text = node.getTreeInterceptorText()
-			if self.index > 0:
-				if self.index == i:
+			if targetIndex:
+				if i == targetIndex:
 					results.append(r)
 					break
 				else:
 					continue
 			results.append(r)
-			if not widget and not self.multiple:
-				break
-		self.results = results
 		return results
 
