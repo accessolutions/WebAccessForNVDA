@@ -49,7 +49,7 @@ Overridden NVDA functions:
 
 from __future__ import absolute_import
 
-__version__ = "2018.10.19"
+__version__ = "2018.10.21"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -79,7 +79,7 @@ import gui
 import inputCore
 from logHandler import log
 import NVDAObjects
-from NVDAObjects import NVDAObject
+import NVDAObjects.JAB
 import scriptHandler
 import speech
 import tones
@@ -98,7 +98,7 @@ from . import webModuleHandler
 from . import widgets
 
 
-TRACE = lambda *args, **kwargs: None
+TRACE = lambda *args, **kwargs: None  # @UnusedVariable
 #TRACE = log.info
 
 #
@@ -125,7 +125,7 @@ class DefaultBrowserScripts(baseObject.ScriptableObject):
 			character = chr(ascii)
 			self.__class__.__gestures["kb:control+shift+%s" % character] = "notAssigned"
 
-	def script_notAssigned(self, gesture):
+	def script_notAssigned(self, gesture):  # @UnusedVariable
 		playWebAppSound("keyError")
 		sleep(0.2)
 		ui.message(self.warningMessage)
@@ -157,7 +157,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		super(globalPluginHandler.GlobalPlugin, self).__init__()
 		global scheduler
 		scheduler = WebAppScheduler()
-		scheduler.start ()
+		scheduler.start()
 		
 		baseObject.ScriptableObject.getWebApp = getWebApp
 		scriptHandler.findScript = hook_findScript
@@ -194,7 +194,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if hasattr(activeWebApp, 'chooseNVDAObjectOverlayClasses'):
 			activeWebApp.chooseNVDAObjectOverlayClasses(obj, clsList)
 	
-	def script_showWebAccessGui(self, gesture):
+	def script_showWebAccessGui(self, gesture):  # @UnusedVariable
 		wx.CallAfter(self.showWebAccessGui)
 	# Translators: Input help mode message for show Web Access menu command.
 	script_showWebAccessGui.__doc__ = _("Shows the Web Access menu.")
@@ -224,7 +224,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				context["webModule"] = webModule
 		menu.show(context)
 
-	def script_debugWebModule(self, gesture):
+	def script_debugWebModule(self, gesture):  # @UnusedVariable
 		global activeWebApp
 		focus = api.getFocusObject()
 		if \
@@ -249,6 +249,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if activeWebApp is not None:
 			msg += u" ({id})".format(id=id(activeWebApp))
 		if not hasattr(focus, "_webApp"):
+			msg += os.linesep
 			msg += u"focus._webApp absent"
 		else:
 			focusModule = focus._webApp
@@ -325,13 +326,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		speech.speakMessage(msg)
 		allMsg += msg + os.linesep
 		
-		treeInterceptor = html.getTreeInterceptor ()
+		treeInterceptor = html.getTreeInterceptor()
 		msg = u"nodeManager %d caractères, %s, %s" % (treeInterceptor.nodeManager.treeInterceptorSize, treeInterceptor.nodeManager.isReady, treeInterceptor.nodeManager.mainNode is not None)
 		speech.speakMessage(msg)
 		allMsg += msg + os.linesep
 		api.copyToClip(allMsg)
-		 
-	def script_toggleWebAccessSupport(self, gesture):
+	
+	def script_toggleWebAccessSupport(self, gesture):  # @UnusedVariable
 		global useInternalBrowser
 		global webAccessEnabled
 
@@ -350,7 +351,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		"kb:nvda+control+w" : "debugWebModule"
 	}
 
-def getActiveWebApp ():
+def getActiveWebApp():
 	global activeWebApp
 	return activeWebApp
 
@@ -361,13 +362,13 @@ def webAppLoseFocus(obj):
 		activeWebApp = None
 		#log.info("Losing webApp focus for object:\n%s\n" % ("\n".join(obj.devInfo)))
 
-def supportWebApp (obj):
+def supportWebApp(obj):
 	if obj is None or obj.appModule is None:
 		return None
 	return  obj.appModule.appName in supportedWebAppHosts
 	
 
-def getWebApp(self, eventName=None):
+def getWebApp(self):
 	global activeWebApp
 	global webAccessEnabled
 
@@ -375,7 +376,7 @@ def getWebApp(self, eventName=None):
 		return None
 	
 	obj = self
-	if isinstance (obj, NVDAObjects.JAB.JAB):
+	if isinstance(obj, NVDAObjects.JAB.JAB):
 		# to avoid lock with jab object
 		return
 	
@@ -478,13 +479,13 @@ def getWebApp(self, eventName=None):
 @classmethod
 def hook_changeNotify(cls, rootDocHandle, rootID):
 	#log.info (u"change notify")
-	virtualBuffers.VirtualBuffer.save_changeNotify (rootDocHandle, rootID)
+	virtualBuffers.VirtualBuffer.save_changeNotify(rootDocHandle, rootID)
 
-def hook_terminate (self):
-	if hasattr (self, "nodeManager"):
-		self.nodeManager.terminate ()
+def hook_terminate(self):
+	if hasattr(self, "nodeManager"):
+		self.nodeManager.terminate()
 		del self.nodeManager  
-	virtualBuffers.VirtualBuffer.save_terminate (self)
+	virtualBuffers.VirtualBuffer.save_terminate(self)
 	
 # TODO: Isn't it dead code?
 # Because 'webApp' instead of '_webApp'
@@ -500,12 +501,12 @@ def hook_loadBufferDone(self, success=True):
 		# If this buffer has already had focus once while loaded, this is a refresh.
 		# Translators: Reported when a page reloads (example: after refreshing a webpage).
 		speech.speakMessage(_("Refreshed"))
-	focus=api.getFocusObject()
-	if api.getFocusObject().treeInterceptor == self:
-		if hasattr(api.getFocusObject (), 'webApp'):
+	focus = api.getFocusObject()
+	if focus.treeInterceptor == self:
+		if hasattr(focus, 'webApp'):
 			firstGainFocus = self._hadFirstGainFocus
 			#self._hadFirstGainFocus = True
-			scheduler.send (eventName="treeInterceptor_gainFocus", treeInterceptor=self, firstGainFocus=firstGainFocus)
+			scheduler.send(eventName="treeInterceptor_gainFocus", treeInterceptor=self, firstGainFocus=firstGainFocus)
 		else:
 			self.event_treeInterceptor_gainFocus()
 
@@ -552,7 +553,7 @@ def hook_findScript(gesture, searchWebApp=True):
 			return func
 
 	# webApp scripts
-	webApp = focus.getWebApp ()
+	webApp = focus.getWebApp()
 	if webApp is not None and searchWebApp is True:
 		# Search if a place marker uses this shortcut
 		if webApp.markerManager:
@@ -571,20 +572,20 @@ def hook_findScript(gesture, searchWebApp=True):
 		func = scriptHandler._getObjScript(webApp, gesture, globalMapScripts)
 		if func:
 			return func
-		#ti = webApp.treeInterceptor
-		if False and hasattr(ti, 'nodeManager') and (useInternalBrowser is True or activeWidget is not None):
-			func = scriptHandler._getObjScript(webApp.presenter, gesture, globalMapScripts)
-			if func:
-				return func
-			func = scriptHandler._getObjScript(ti.nodeManager, gesture, globalMapScripts)
-			if func:
-				return func
+# 		ti = webApp.treeInterceptor
+# 		if hasattr(ti, 'nodeManager') and (useInternalBrowser is True or activeWidget is not None):
+# 			func = scriptHandler._getObjScript(webApp.presenter, gesture, globalMapScripts)
+# 			if func:
+# 				return func
+# 			func = scriptHandler._getObjScript(ti.nodeManager, gesture, globalMapScripts)
+# 			if func:
+# 				return func
 
 	# App module default scripts.
 	app = focus.appModule
 	if app:
 		# browsers default scripts.
-		if supportWebApp (focus):
+		if supportWebApp(focus):
 			func = scriptHandler._getObjScript(defaultBrowserScripts, gesture, globalMapScripts)
 			if func:
 				return func
@@ -620,7 +621,7 @@ def hook_findScript(gesture, searchWebApp=True):
 def sendWebAppEvent(eventName, obj, webApp=None):
 	if webApp is None:
 		return
-	scheduler.send (eventName="webApp", name=eventName, obj=obj, webApp=webApp)
+	scheduler.send(eventName="webApp", name=eventName, obj=obj, webApp=webApp)
 
 def hook_eventGen(self, eventName, obj):
 	#log.info("Event %s : %s : %s" % (eventName, obj.name, obj.value))
@@ -635,11 +636,11 @@ def hook_eventGen(self, eventName, obj):
 			yield func, (obj, self.next)
 
 	# webApp level
-	if  not supportWebApp (obj) and eventName in ["gainFocus"] and activeWebApp is not None:
+	if  not supportWebApp(obj) and eventName in ["gainFocus"] and activeWebApp is not None:
 		# log.info("Received event %s on a non-hosted object" % eventName)
 		webAppLoseFocus(obj)
 	else:
-		webApp = obj.getWebApp(eventName)
+		webApp = obj.getWebApp()
 		if webApp is None:
 			if activeWebApp is not None and obj.hasFocus:
 				#log.info("Disabling active webApp event %s" % eventName)
@@ -700,19 +701,6 @@ def getWebAppFromUrl(url):
 				matchedLen = len(wUrl)
 	return matchedWebApp
 
-def setFocusToWebApp(srcApp, webAppName):
-	global activeWebApp
-
-	if activeWebApp == srcApp:
-		log.info("Posting setFocus event to ourself is not allowed.")
-		return True
-	for app in webModuleHandler.getWebModules():
-		if app.name == webAppName:
-			sendWebAppEvent('event_webApp_setFocus', srcApp, app)
-			return True
-	log.info("Set focus to webApp %s failed: Application not found.", webAppName)
-	return False
-
 # Used to announce the opening of the Web Access menu
 def mainFrame_prePopup_patched(self, contextMenuName=None):
 	global mainFrame_prePopup_stock, popupContextMenuName
@@ -727,16 +715,15 @@ def mainFrame_postPopup_patched(self):
 
 # Used to announce the opening of the Web Access menu
 def appModule_nvda_event_NVDAObject_init_patched(self, obj):
-	import controlTypes
 	from appModules.nvda import AppModule as NvdaAppModule
 	global appModule_nvda_event_NVDAObject_init_stock, popupContextMenuName
 	from NVDAObjects.IAccessible import IAccessible
 	if (
-			"popupContextMenuName" in globals()
-			and popupContextMenuName is not None
-			and isinstance(obj, IAccessible)
-			and obj.role == controlTypes.ROLE_POPUPMENU
-			):
+		"popupContextMenuName" in globals()
+		and popupContextMenuName is not None
+		and isinstance(obj, IAccessible)
+		and obj.role == controlTypes.ROLE_POPUPMENU
+	):
 		obj.name = popupContextMenuName
 		popupContextMenuName = None
 	# Stock method was stored unbound
@@ -748,7 +735,6 @@ def showWebModulesLoadErrors():
 	webModuleHandler.getWebModules(errors=errors)
 	if errors:
 		invalidVersionRefsStr = []
-		otherErrors = False
 		for ref, exc_info in errors:
 			if isinstance(exc_info[1], version.InvalidVersion):
 				if isinstance(ref, tuple):

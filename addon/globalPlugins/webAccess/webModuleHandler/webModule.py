@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2018.10.19"
+__version__ = "2018.10.21"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -168,9 +168,6 @@ class WebModule(baseObject.ScriptableObject):
 			'braille.stripBlanks': True,
 			}
 	
-	def setFocusToWebApp(self, webAppName):
-		return setFocusToWebApp(self, webAppName)
-
 	def event_webApp_init(self, obj, nextHandler):
 		self.loadUserFile()
 		nextHandler()

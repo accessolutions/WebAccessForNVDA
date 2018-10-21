@@ -19,26 +19,23 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.10.18"
+__version__ = "2018.10.21"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>, Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
-import Queue
+import gc
 import time
-import weakref
 import winUser
-import wx
-import api
-import baseObject
-import NVDAHelper
 from xml.parsers import expat
+
+import baseObject
 import mouseHandler
+import NVDAHelper
 import sayAllHandler
 import ui
 
 from .webAppLib import *
-import gc
 
 
 REASON_FOCUS = 0
@@ -128,18 +125,12 @@ class NodeManager(baseObject.ScriptableObject):
 	def _CharacterDataHandler(self,data):
 		#log.info (u"text : %s" % data)
 		p = self.currentParentNode
-		if not hasattr (p, "format"):
+		if not hasattr(p, "format"):
 			raise
 		p.size = len(data)
 		p.text = data
 		self.fieldOffset += p.size
 		self.lastTextNode = p
-		return
-		if cmdList and isinstance(cmdList[-1],basestring):
-			cmdList[-1]+=data
-		else:
-			cmdList.append(data)
-
 
 	def parseXML(self, XMLText):
 		parser=expat.ParserCreate('utf-8')
@@ -155,7 +146,7 @@ class NodeManager(baseObject.ScriptableObject):
 		if node is None:
 			return ""
 		indentation = ""
-		for i in range (0, level):
+		for unused in range(0, level):
 			indentation += "  "
 		if hasattr (node, "text"):
 			s = node.text
@@ -285,7 +276,7 @@ class NodeManager(baseObject.ScriptableObject):
 		if not self.isReady:
 			return None
 		if self._curNode is None:
-			self._curNode = getCaretNode()
+			self._curNode = self.getCaretNode()
 		return self._curNode
 
 	def setCurrentNode(self, node):
@@ -294,7 +285,7 @@ class NodeManager(baseObject.ScriptableObject):
 		else:
 			self._curNode = node
 
-	def event_caret(self, obj, nextHandler):
+	def event_caret(self, obj, nextHandler):  # @UnusedVariable
 		if not self.isReady:
 			return
 		self.display(self._curNode)
@@ -661,7 +652,7 @@ class NodeField (baseObject.AutoPropertyObject):
 			if not txt.endswith('\n'):
 				txt += " "
 			return txt
- 		if hasattr (self, "children"):
+		if hasattr(self, "children"):
 			for child in self.children:
 				txt += child._get_innerText()
 			return txt
