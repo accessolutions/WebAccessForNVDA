@@ -30,19 +30,34 @@ addon_info = {
 	"addon_url" : "http://www.accessolutions.fr",
 	# Documentation file name
 	"addon_docFileName" : "readme.html",
+	# Minimum NVDA version supported *e.g. "2018.3")
+	"addon_minimumNVDAVersion" : "2016.3",
+	# Add-on update channel (default is stable or None)
+	"addon_updateChannel" : None,
 }
 
+# Specify whether this add-on provides a single documentation or separate
+# technical and user documentations.
+# If set to `True`, the `readme.md` file at the root of this project is used
+# as the source for the user documentation in the base language.
+useRootDocAsUserDoc = False
 
 import os.path
 
 # Define the python files that are the sources of your add-on.
 # You can use glob expressions here, they will be expanded.
 pythonSources = [
-	os.path.join(entry[0], filename)
-	for entry in os.walk("addon")  # yields a 3-tuple (dirpath, dirnames, filenames)
-		for filename in entry[2]
-		if os.path.splitext(filename)[1] in (".py")
+	os.path.join(dirpath, filename)
+	for dirpath, dirnames, filenames in os.walk("addon")
+		for filename in filenames
+		if os.path.splitext(filename)[1] == ".py"
 	]
+
+# Native language.
+# This is the language of the root `readme.md` and the original string literals
+# found in the source code. If the add-on is ever to be translated, the native
+# language should be "en" for English.
+i18nNative = "en"
 
 # Files that contain strings for translation. Usually your python sources
 i18nSources = pythonSources + ["buildVars.py"]
