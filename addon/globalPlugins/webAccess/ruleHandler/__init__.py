@@ -723,6 +723,8 @@ class VirtualMarkerQuery(MarkerQuery):
 		self.autoAction = dic.get("autoAction")
 		self.formMode = dic.get("formMode", False)
 		self.sayName = dic.get("sayName", True)
+		self.index = dic.get("index")
+		self.multiple = dic.get("multiple", True)
 		self.skip = dic.get("skip", False)
 		self.isPageTitle = dic.get("isPageTitle", False)
 		self.definesContext = dic.get("definesContext")
@@ -831,14 +833,8 @@ class VirtualMarkerQuery(MarkerQuery):
 			kwargs["roots"] = rootNodes
 		if excludedNodes:
 			kwargs["exclude"] = excludedNodes
-		if "index" in dic:
-			targetIndex = kwargs["maxIndex"] = dic["index"]
-			#targetIndex = dic["index"]
-		elif not dic.get("multiple", True):
-			targetIndex = kwargs["maxIndex"] = 1
-			#targetIndex = 1
-		else:
-			targetIndex = 0
+		if not self.multiple:
+			kwargs["maxIndex"] = self.index or 1
 		self.addSearchKwargs(kwargs, "text", text)
 		# TODO: Why store role as int and not allow !/|/& ?
 		role = dic.get("role", None)
@@ -852,18 +848,16 @@ class VirtualMarkerQuery(MarkerQuery):
 		results = []
 		nodeList = self.markerManager.nodeManager.searchNode(**kwargs)
 		#logTime(u"searchNode %s, %d results" % (self.name, len(nodeList)), t)
-		i = 0
+		index = 0
 		for node in nodeList:
-			i += 1
+			index += 1  # 1-based
+			if self.index and index < self.index:
+				continue
 			r = VirtualMarkerResult(self, node)
 			if self.isPageTitle:
 				r.text = node.getTreeInterceptorText()
-			if targetIndex:
-				if i == targetIndex:
-					results.append(r)
-					break
-				else:
-					continue
 			results.append(r)
+			if not self.multiple:
+				break
 		return results
 
