@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.10.21"
+__version__ = "2018.11.01"
 
 __authors__ = (
 	u"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
@@ -556,7 +556,7 @@ class NodeField(baseObject.AutoPropertyObject):
 				if prop in ("text", "prevText"):
 					continue
 				candidateValue = getattr(self, prop, None)
-				if prop == "className":
+				if prop == "className" and candidateValue is not None:
 					candidateValues = candidateValue.split(" ")
 				else:
 					candidateValues = (candidateValue,)
