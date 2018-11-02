@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.11.01"
+__version__ = "2018.11.02"
 
 __authors__ = (
 	u"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
@@ -33,12 +33,21 @@ import winUser
 from xml.parsers import expat
 
 import baseObject
+import controlTypes
+from logHandler import log
 import mouseHandler
 import NVDAHelper
 import sayAllHandler
+import textInfos
 import ui
 
 from .webAppLib import *
+
+
+TRACE = lambda *args, **kwargs: None  # noqa: E731
+# TRACE = log.info  # noqa: E731
+# TRACE = lambda *args, **kwargs: trace.append((args, kwargs))  # noqa: E731
+# trace = []
 
 
 REASON_FOCUS = 0
@@ -92,6 +101,10 @@ class NodeManager(baseObject.ScriptableObject):
 		return s
 
 	def _startElementHandler(self, tagName, attrs):
+		TRACE(
+			u"_startElementHandler(tagName={}, attrs={})".format(
+				tagName, attrs)
+		)
 		# s = self.formatAttributes(attrs)
 		# log.info (u"start : %s attrs : %s" % (tagName, s))
 		if tagName == 'unich':
@@ -127,7 +140,7 @@ class NodeManager(baseObject.ScriptableObject):
 			self.mainNode = node
 
 	def _EndElementHandler(self, tagName):
-		# log.info (u"end : %s" % tagName)
+		TRACE(u"_EndElementHandler(tagName={})".format(tagName))
 		if tagName == 'unich':
 			pass
 		elif tagName in ("control", "text"):
@@ -139,7 +152,7 @@ class NodeManager(baseObject.ScriptableObject):
 			raise ValueError("unknown tag name: %s" % tagName)
 
 	def _CharacterDataHandler(self, data):
-		# log.info (u"text : %s" % data)
+		TRACE(u"_CharacterDataHandler(data={})".format(data))
 		p = self.currentParentNode
 		if not hasattr(p, "format"):
 			raise
@@ -157,6 +170,7 @@ class NodeManager(baseObject.ScriptableObject):
 		self.fieldOffset = 0
 		self.lastTextNode = None
 		self.mainNode = None
+		# trace[:] = []
 		parser.Parse(XMLText.encode('utf-8'))
 	
 	def afficheNode(self, node, level=0):
@@ -179,7 +193,7 @@ class NodeManager(baseObject.ScriptableObject):
 		return s
 			
 	def update(self):
-		t = logTimeStart()
+		# t = logTimeStart()
 		if self.treeInterceptor is None or not self.treeInterceptor.isReady:
 			self._ready = False
 			return False
@@ -273,7 +287,7 @@ class NodeManager(baseObject.ScriptableObject):
 	def searchNode(self, roots=None, exclude=None, **kwargs):
 		if not self.isReady:
 			return []
-		t = logTimeStart()
+		# t = logTimeStart()
 		global _count
 		_count = 0
 		r = []
@@ -544,73 +558,76 @@ class NodeField(baseObject.AutoPropertyObject):
 		global _count
 		nodeList = []
 		_count += 1
-		if hasattr(self, "control"):
-			found = True
-			# Copy kwargs dict to get ready for Python 3:
-			for key, allowedValues in kwargs.copy().items():
-				if "_" not in key:
-					log.warning(u"Unexpected argument: {arg}".format(arg=key))
-					continue
-				test, prop = key.split("_", 1)
-				prop = prop.rsplit("#", 1)[0]
-				if prop in ("text", "prevText"):
-					continue
-				candidateValue = getattr(self, prop, None)
-				if prop == "className" and candidateValue is not None:
-					candidateValues = candidateValue.split(" ")
-				else:
-					candidateValues = (candidateValue,)
-				for candidateValue in candidateValues:
-					if test == "eq":
-						if self.search_eq(allowedValues, candidateValue):
-							del kwargs[key]
-						else:
-							found = False
-					elif test == "in":
-						if self.search_in(allowedValues, candidateValue):
-							del kwargs[key]
-						else:
-							found = False
-					elif test == "notEq":
-						if self.search_eq(allowedValues, candidateValue):
-							return []
-					elif test == "notIn":
-						if self.search_in(allowedValues, candidateValue):
-							return []
-			if found:
-				text = kwargs.get("in_text", [])
-				prevText = kwargs.get("in_prevText", "")
-				if text != []:
-					return self.searchString(
-						text,
-						exclude=exclude,
-						maxIndex=maxIndex,
-						currentIndex=currentIndex
-					)
-				elif prevText != "":
-					if (
-						self.previousTextNode is not None
-						and prevText in self.previousTextNode.text
-					):
-						return [self]
+		found = True
+		# Copy kwargs dict to get ready for Python 3:
+		for key, allowedValues in kwargs.copy().items():
+			if "_" not in key:
+				log.warning(u"Unexpected argument: {arg}".format(arg=key))
+				continue
+			test, prop = key.split("_", 1)
+			prop = prop.rsplit("#", 1)[0]
+			if prop in ("text", "prevText"):
+				continue
+			if not hasattr(self, prop):
+				if test in ("eq", "in"):
+					found = False
+				continue
+			candidateValue = getattr(self, prop)
+			if prop == "className" and candidateValue is not None:
+				candidateValues = candidateValue.split(" ")
+			else:
+				candidateValues = (candidateValue,)
+			for candidateValue in candidateValues:
+				if test == "eq":
+					if self.search_eq(allowedValues, candidateValue):
+						del kwargs[key]
 					else:
+						found = False
+				elif test == "in":
+					if self.search_in(allowedValues, candidateValue):
+						del kwargs[key]
+					else:
+						found = False
+				elif test == "notEq":
+					if self.search_eq(allowedValues, candidateValue):
 						return []
-				else:
-					return [self]
-			for child in self.children:
-				if exclude and child in exclude:
-					continue
-				childResult = child.searchNode(
+				elif test == "notIn":
+					if self.search_in(allowedValues, candidateValue):
+						return []
+		if found:
+			text = kwargs.get("in_text", [])
+			prevText = kwargs.get("in_prevText", "")
+			if text != []:
+				return self.searchString(
+					text,
 					exclude=exclude,
 					maxIndex=maxIndex,
-					currentIndex=currentIndex,
-					**kwargs
+					currentIndex=currentIndex
 				)
-				nodeList += childResult
-				if maxIndex:
-					currentIndex += len(childResult)
-					if currentIndex >= maxIndex:
-						break
+			elif prevText != "":
+				if (
+					self.previousTextNode is not None
+					and prevText in self.previousTextNode.text
+				):
+					return [self]
+				else:
+					return []
+			else:
+				return [self]
+		for child in self.children:
+			if exclude and child in exclude:
+				continue
+			childResult = child.searchNode(
+				exclude=exclude,
+				maxIndex=maxIndex,
+				currentIndex=currentIndex,
+				**kwargs
+			)
+			nodeList += childResult
+			if maxIndex:
+				currentIndex += len(childResult)
+				if currentIndex >= maxIndex:
+					break
 		return nodeList
 
 	def searchOffset(self, offset):
