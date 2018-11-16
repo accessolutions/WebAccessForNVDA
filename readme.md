@@ -26,12 +26,16 @@ See the file COPYING.txt at the root of this distribution for more details.
 
 This is an add-on targeting the NVDA screen reader version 2016.2 or greater. 
 
-Additionally, the following software is required in order to build this add-on:
+The following software is required in order to build this add-on:
 
-- a Python distribution (2.7 or greater 32 bits is recommended). Check the [Python Website](http://www.python.org) for Windows Installers.
-- SCons - [Website](http://www.scons.org/) - version 2.1.0 or greater. Install it using **pip** or grab an windows installer from the website.
-- GNU Gettext tools. You can find windows builds [here](http://gnuwin32.sourceforge.net/downlinks/gettext.php).
-- Markdown-2.0.1 or greater, to convert documentation files to HTML documents. You can [Download Markdown-2.0.1 installer for Windows](https://pypi.python.org/pypi/Markdown/2.0.1) or get it using `pip install markdown`.
+- a Python distribution (2.7 or greater 32 bits is recommended).
+  Check the [Python website](http://www.python.org) for Windows Installers.
+- GNU Gettext tools. You can find windows builds
+  [here](http://gnuwin32.sourceforge.net/downlinks/gettext.php).
+
+Additional requirements (see installation procedure in the next section):
+ - SCons - [Website](http://www.scons.org/) - version 3.0.0
+ - Markdown-2.0.1 or greater, to convert documentation files to HTML documents.
 
 
 ## Virtual environment
@@ -48,103 +52,123 @@ either is or you activated (as we recommend) the dedicated virtual environment.
 The following commands use our dev team installation paths, amend according to
 your needs.
 
- - First, install `virtualenv`:
- 	
-	```
-	D:\dev\Python27-32\Scripts\pip install virtualenv
-	```
 
- - Then, create a home folder for your virtual environments:
+### Install `virtualenv`
  	
-	```
-	md D:\dev\venv
-	```
+```
+D:\dev\Python27-32\Scripts\pip install virtualenv
+```
 
- - Create a new virtual environment:
- 	
-	```
-	D:\dev\Python27-32\Scripts\virtualenv.exe D:\dev\venv\nvda-addon
-	```
-	
-	We will then need to inject in this virtual environment the Python dependencies
-	for the targeted release of NVDA.
 
- - Download the NVDA misc deps package:
-[Link for release 2017.4](https://github.com/nvaccess/nvda-misc-deps/archive/3707b8e4052670c454343e32d8de3f0b8beab642.zip)
-	
-	And uncompress it in a directory of your choice.
-	
-	You might of course as well clone the NVDA git repo (with submodules) to obtain these.
+### Create a home folder for your virtual environments
 
- - Then, create a `.pth` file in the `site-packages` of your virtual environment with
-a single line containing the path to the `python` directory contained in NVDA misc deps.
-	
-	From the `python` directory of the uncompressed NVDA misc deps archive, run:
-	
-	```
-	cd > D:\dev\venv\nvda-addon\Lib\site-packages\nvda-misc-deps.pth
-	```
-	
-	Note that, even if you invoke a Windows Python from Git Bash (as we do), this path
-	*must* be in Windows format. That is, from the same `python` directory:
-	
-	```
-	cygpath -w $(pwd) > /d/dev/venv/nvda-addon/Lib/site-packages/nvda-misc-deps.pth
-	```
+```
+md D:\dev\venv
+```
 
- - Copy the file `scons.py` from the root of this project to the `Scripts`
- directory of the virtual environment:
- 	
- 	This is only a convenience script allowing easier invocation of the SCons found
- 	in NVDA misc deps. 
 
- - If using Git Bash, the `activate` script might need to be fixed.
- 	
- 	The `VIRTUAL_ENV` variable it defines holds a path in Windows format.
- 	
- 	This has no impact if calling Python commands from the same hard disk unit
- 	but would prevent ie. calling a `python.exe` on drive `D:` from your home
- 	folder on drive `C:`.
- 	
- 	The script can be patched in-place with the following command:
- 	
- 	```
- 	sed -E -i 's/^(VIRTUAL_ENV=)(.+)$/echo \1\\""$(cygpath \2)"\\"/e' /d/dev/venv/nvda-addon/Scripts/activate
- 	```
+### Create a new virtual environment
 
- - Then, activate the virtual environment.
- 	
-	```
-	D:\dev\venv\nvda-addon\Script\activate.bat
-	```
-	
-	or from Git Bash:
-	
-	```
-	. /d/dev/venv/nvda-addon/Scripts/activate
-	```
-	
-	Note the leading period, meaning the script is sourced, not run.
-	
-	Your command prompt should now be prefixed with the name of the virtual
-	environment in parenthesis.
-	
-	Any subsequent command will be run in the context of this virtual
-	environment.
-	The corresponding `python.exe` is now the first in your `PATH` environment
-	variable, whether another one was already present or not.
-	Furthermore, packages installed via `pip` will land in this virtual
-	environment instead of the base Python installation.
-	
-	You can later run `deactivate` to leave this virtual environment, but let's
-	first finish to set it up.
+```
+D:\dev\Python27-32\Scripts\virtualenv.exe D:\dev\venv\nvda-addon
+```
 
- - Install the remaining build dependencies:
- 	
-	```
-	pip install "Markdown>=2.0.1"
-	```
 	
+### (Optional) Inject references
+
+We will inject in the new virtual environment references to the targetted
+NVDA source code and its Python dependencies.
+
+This step is not strictly necessary, but it eases IDE integration and the
+use of code linters / style checkers.
+
+From the root folder you store your projects in:
+
+```
+git clone --recurse-submodules "https://github.com/nvaccess/nvda.git"
+cd nvda
+git checkout --recurse-submodules release-2018.3.2
+```
+
+Then, create a `.pth` file in the `site-packages` of your virtual
+environment containing the paths - in Windows format - to the cloned
+source and dependancies, one line for each.
+
+Example of a typical `nvda.pth` file:
+
+```
+D:\dev\src\nvda\source
+D:\dev\src\nvda\include\scons\src\engine
+D:\dev\src\nvda\include\pyserial
+D:\dev\src\nvda\include\comtypes
+D:\dev\src\nvda\include\wxPython
+D:\dev\src\nvda\miscDeps\python
+```
+
+This exhaustive list is obtained from looking at the file
+`source/sourceEnv.py` in the NVDA source tree.
+
+Finally, copy the file `scons.py` from the root of this project to the
+`Scripts` directory of the virtual environment.
+This is just a small convenience script allowing easier invocation of the
+SCons found in the cloned NVDA sub-module.
+
+
+### If using Git Bash, the `activate` script might need to be fixed.
+
+The `VIRTUAL_ENV` variable it defines holds a path in Windows format.
+
+This has no impact if calling Python commands from the same hard disk unit
+but would prevent ie. calling a `python.exe` on drive `D:` from your home
+folder on drive `C:`.
+
+The script can be patched in-place with the following command:
+
+```
+sed -E -i 's/^(VIRTUAL_ENV=)(.+)$/echo \1\\""$(cygpath \2)"\\"/e' /d/dev/venv/nvda-addon/Scripts/activate
+```
+
+
+### Activate the virtual environment.
+
+```
+D:\dev\venv\nvda-addon\Script\activate.bat
+```
+
+or from Git Bash:
+
+```
+. /d/dev/venv/nvda-addon/Scripts/activate
+```
+	
+Note the leading period, meaning the script is sourced, not run.
+
+Your command prompt should now be prefixed with the name of the virtual
+environment in parenthesis.
+
+Any subsequent command will be run in the context of this virtual
+environment.
+The corresponding `python.exe` is now the first in your `PATH` environment
+variable, whether another one was already present or not.
+Furthermore, packages installed via `pip` will land in this virtual
+environment instead of the base Python installation.
+
+You can later run `deactivate` to leave this virtual environment, but let's
+first finish to set it up.
+
+### Install the remaining build dependencies:
+
+```
+pip install "Markdown>=2.0.1"
+```
+
+Optionally, if you did not create a `nvda.pth` file the in virtual environment:
+
+```
+pip install "SCons==3.0.0"
+```
+
+
 The new `nvda-addon` virtual environment is now ready to build our addon.
 
 Note that it can also be used by many IDEs, such as PyDev for Eclipse, as
