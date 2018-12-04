@@ -1,7 +1,7 @@
 ﻿
 # Web Access pour NVDA - Documentation utilisateur
 
-Version 2018.10.10
+Version 2018.12.04
 
 Copyright (C) 2015-2018 [Accessolutions](http://accessolutions.fr)
 
