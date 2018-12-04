@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.10.10"
+__version__ = "2018.12.04"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
@@ -68,15 +68,15 @@ def show(context):
 
 
 class Dialog(wx.Dialog):
-
+	
 	# Singleton
 	_instance = None
-
+	
 	def __new__(cls, *args, **kwargs):
 		if Dialog._instance is None:
 			return super(Dialog, cls).__new__(cls, *args, **kwargs)
 		return Dialog._instance
-
+	
 	def __init__(self, parent):
 		if Dialog._instance is not None:
 			return
@@ -335,7 +335,7 @@ class Dialog(wx.Dialog):
 			data = self.data = context["data"]["rule"]
 		markerManager = self.markerManager = context["webModule"].markerManager
 		rule = self.rule = context["rule"] if "rule" in context else None
-
+		
 		node = markerManager.nodeManager.getCaretNode()
 		textNode = node
 		node = node.parent
@@ -361,13 +361,13 @@ class Dialog(wx.Dialog):
 			classChoices.append(node.className)
 			srcChoices.append(node.src)
 			node = node.parent
-
+		
 		actionsDict = self.markerManager.getActions()
 		self.autoActionList.Clear()
 		self.autoActionList.Append("", "")
 		for action in actionsDict:
 			self.autoActionList.Append(actionsDict[action], action)
-
+		
 		if len(self.getQueriesNames()) == 0:
 			self.markerName.Set([""])
 		else:
@@ -383,7 +383,7 @@ class Dialog(wx.Dialog):
 		self.definesContextList.Append("", False)
 		for key, label in contextTypes.contextTypeLabels.items():
 			self.definesContextList.Append(label, key)
-
+		
 		if self.rule is None:
 			self.Title = _(u"New rule")
 			self.gestureMapValue = {}
@@ -431,8 +431,8 @@ class Dialog(wx.Dialog):
 			self.createWidgetCheckBox.Value = rule.dic.get(
 				"createWidget", False)
 			self.comment.Value = rule.dic.get("comment", "")
-			
-			self.updateGesturesList()
+		
+		self.updateGesturesList()
 	
 	def getQueriesNames(self):
 		nameList = []
@@ -632,7 +632,7 @@ class Dialog(wx.Dialog):
 			array.Set([""])
 		else:
 			array.Set(valueArray)
-
+	
 	def ShowModal(self, context):
 		self.InitData(context)
 		self.Fit()

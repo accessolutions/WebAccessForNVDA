@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2018.10.21"
+__version__ = "2018.12.04"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
