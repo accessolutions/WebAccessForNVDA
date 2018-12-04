@@ -49,7 +49,7 @@ Overridden NVDA functions:
 
 from __future__ import absolute_import
 
-__version__ = "2018.10.21"
+__version__ = "2018.12.04"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -100,6 +100,8 @@ from . import widgets
 
 TRACE = lambda *args, **kwargs: None  # @UnusedVariable
 #TRACE = log.info
+
+SCRIPT_CATEGORY = "WebAccess"
 
 #
 # defines sound directory
@@ -196,9 +198,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	
 	def script_showWebAccessGui(self, gesture):  # @UnusedVariable
 		wx.CallAfter(self.showWebAccessGui)
+	
 	# Translators: Input help mode message for show Web Access menu command.
-	script_showWebAccessGui.__doc__ = _("Shows the Web Access menu.")
+	script_showWebAccessGui.__doc__ = _("Show the Web Access menu.")
 
+	script_showWebAccessGui.category = SCRIPT_CATEGORY
+	
 	def showWebAccessGui(self):
 		obj = api.getFocusObject()		
 		if obj is None or obj.appModule is None:
@@ -223,7 +228,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			if webModule is not None:
 				context["webModule"] = webModule
 		menu.show(context)
-
+	
 	def script_debugWebModule(self, gesture):  # @UnusedVariable
 		global activeWebApp
 		focus = api.getFocusObject()
@@ -332,6 +337,26 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		allMsg += msg + os.linesep
 		api.copyToClip(allMsg)
 	
+	script_debugWebModule.category = SCRIPT_CATEGORY
+	
+	def script_showElementDescription(self, gesture):  # @UnusedVariable
+		obj = api.getFocusObject()		
+		if obj is None or obj.appModule is None:
+			# Translators: Error message when attempting to show the Web Access GUI.
+			ui.message(_("The current object does not support Web Access."))
+			return
+		if obj.treeInterceptor is None:
+			# Translators: Error message when attempting to show the Web Access GUI.
+			ui.message(_("You must be on the web page to use Web Access."))
+			return
+		from .gui import elementDescription
+		elementDescription.showElementDescriptionDialog()
+	
+	# Translators: Input help mode message for show Web Access menu command.
+	script_showElementDescription.__doc__ = _("Show the element description.")
+
+	script_showElementDescription.category = SCRIPT_CATEGORY
+	
 	def script_toggleWebAccessSupport(self, gesture):  # @UnusedVariable
 		global useInternalBrowser
 		global webAccessEnabled
@@ -344,11 +369,14 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			#useInternalBrowser = True
 			webAccessEnabled = True
 			ui.message(_("Web Access support enabled."))  # FR: u"Support Web Access activé."
-
+	
+	script_toggleWebAccessSupport.category = SCRIPT_CATEGORY
+	
 	__gestures = {
 		"kb:nvda+w": "showWebAccessGui",
 		"kb:nvda+shift+w": "toggleWebAccessSupport",
-		"kb:nvda+control+w" : "debugWebModule"
+		"kb:nvda+control+w": "debugWebModule",
+		"kb:nvda+control+e": "showElementDescription",
 	}
 
 def getActiveWebApp():
