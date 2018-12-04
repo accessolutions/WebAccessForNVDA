@@ -364,7 +364,11 @@ class Dialog(wx.Dialog):
 		
 		actionsDict = self.markerManager.getActions()
 		self.autoActionList.Clear()
-		self.autoActionList.Append("", "")
+		self.autoActionList.Append(
+			# Translators: Action name
+			pgettext("webAccess.action", "No action"),
+			""
+		)
 		for action in actionsDict:
 			self.autoActionList.Append(actionsDict[action], action)
 		

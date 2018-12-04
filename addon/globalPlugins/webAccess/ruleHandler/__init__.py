@@ -67,8 +67,6 @@ builtinRuleActions["speak"] = pgettext("webAccess.action", "Speak")
 builtinRuleActions["activate"] = pgettext("webAccess.action", "Activate")
 # Translators: Action name
 builtinRuleActions["mouseMove"] = pgettext("webAccess.action", "Mouse move")
-# Translators: Action name
-builtinRuleActions["noAction"] = pgettext("webAccess.action", "No action")
 
 
 def showCreator(context):
@@ -225,7 +223,7 @@ class MarkerManager(baseObject.ScriptableObject):
 				del self.markerResults[i-1]
 
 	def getActions(self):
-		dic = builtinRuleActions.copy ()
+		dic = builtinRuleActions.copy()
 		prefix = "action_"
 		for key in dir(self.webApp):
 			if key[:len(prefix)] == prefix:
@@ -556,9 +554,6 @@ class MarkerResult(baseObject.ScriptableObject):
 
 	def script_mouseMove(self, gesture):
 		raise NotImplementedError
-	
-	def script_noAction(self, gesture):
-		pass
 	
 	def __lt__(self, other):
 		raise NotImplementedError

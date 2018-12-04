@@ -52,7 +52,7 @@ from ..webAppLib import *
 
 class WebModule(baseObject.ScriptableObject):
 	
-	FORMAT_VERSION_STR = "0.2-dev"
+	FORMAT_VERSION_STR = "0.3-dev"
 	FORMAT_VERSION = version.parse(FORMAT_VERSION_STR)
 	
 	url = None
@@ -138,6 +138,10 @@ class WebModule(baseObject.ScriptableObject):
 					if rule.get("isContext"):
 						rule["definesContext"] = contextTypes.PAGE_ID
 					del rule["isContext"]
+		if formatVersion < version.parse("0.3"):
+			for rule in data.get("Rules", []):
+				if rule.get("autoAction") == "noAction":
+					del rule["autoAction"]
 		if formatVersion > self.FORMAT_VERSION:
 			raise version.InvalidVersion(
 				"WebModule format version not supported: {ver}".format(
