@@ -1,5 +1,5 @@
 [flake8]
-builtins = _
+builtins = _,pgettext
 ignore = E722,W191,W293,W503
 
 # E722 do not use bare except, specify exception instead
