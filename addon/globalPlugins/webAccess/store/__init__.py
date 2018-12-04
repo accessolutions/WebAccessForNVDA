@@ -21,10 +21,12 @@
 
 """Web Access data store."""
 
-__version__ = "2018.10.10"
+__version__ = "2018.10.19"
 
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
+
+import sys
 
 from logHandler import log
 
@@ -51,13 +53,23 @@ class Store(object):
 	def get(self, ref, **kwargs):
 		return None
 	
-	def list(self):
+	def list(self, errors=None):
 		for ref in self.catalog():
-			item = self.get(ref)
+			try:
+				item = self.get(ref)
+			except:
+				if errors is not None:
+					errors.append((ref, sys.exc_info()))
+				else:
+					log.exception(
+						u"Error while retrieving item: ref={ref}".format(
+							ref=ref
+						)
+					)
 			if item is None:
 				log.warning(
 					u"No item retrieved for ref: {ref}".format(ref=ref)
-					)
+				)
 			else:
 				yield item
 	

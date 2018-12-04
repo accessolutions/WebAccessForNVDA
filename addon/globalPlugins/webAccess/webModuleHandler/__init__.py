@@ -23,7 +23,7 @@
 
 from __future__ import absolute_import
 
-__version__ = "2018.10.10"
+__version__ = "2018.10.19"
 
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
@@ -70,10 +70,18 @@ def delete(webModule, focus, prompt=True):
 			)
 	return True
 
-def getWebModules(refresh=False):
-	global _webModuleCache
+def getWebModules(refresh=False, errors=None):
 	if refresh or "_webModuleCache" not in globals():
-		_webModuleCache = list(store.getInstance().list())
+		global _webModuleCache
+		if refresh:
+			former = set(_webModuleCache or tuple())
+		_webModuleCache = list(store.getInstance().list(errors))
+		if refresh:
+			newer = set(_webModuleCache)
+			for outdated in (former - newer):
+				# Avoid returning outdated cached versions.
+				# See `globalPlugins.webAccess.getWebApp`
+				outdated._outdated = True
 	return _webModuleCache
 
 def update(webModule, focus, force=False):
@@ -84,18 +92,7 @@ def update(webModule, focus, force=False):
 		store.getInstance().update(webModule, force=force)
 		ui.message(_("Web module updated."))
 		log.info(u"WebModule updated: {webModule}".format(webModule=webModule))
-	import speech
-	if not webModule in getWebModules(refresh=True):
-		speech.speak(u"marking as outdated")
-		# Avoid returning outdated cached versions
-		webModule._outdated = True
-		log.info(
-			u"Web module marked as outdated: {webModule}".format(
-				webModule=id(webModule)
-				)
-			)
-	else:
-		speech.speak(u"not marking as outdated")
+	getWebModules(refresh=True)
 	if focus:
 		from .. import webAppScheduler
 		webAppScheduler.scheduler.send(

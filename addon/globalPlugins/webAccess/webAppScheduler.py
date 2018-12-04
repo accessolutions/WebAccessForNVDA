@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.10.10"
+__version__ = "2018.10.21"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
@@ -29,22 +29,17 @@ import Queue
 import threading
 
 import api
-import traceback
 import textInfos
-import ui
 
 from .webAppLib import *
 
 
-TRACE = lambda *args, **kwargs: None
+TRACE = lambda *args, **kwargs: None  # @UnusedVariable
 #TRACE = log.info
 
 
-def displayTraceBack (msg):
-	stack = ""
-	for func in traceback.extract_stack()[:-1]:
-		stack += func[2] + "\n"
-	log.info (u"%s : %s" % (msg, stack))
+scheduler = None
+
 
 class WebAppScheduler(threading.Thread):
 	
@@ -94,7 +89,7 @@ class WebAppScheduler(threading.Thread):
 			treeInterceptor=ti,
 			webApp=webModule
 			)
-				 
+	
 	def fakeNext(self = None):
 		return True
 
@@ -179,7 +174,7 @@ class WebAppScheduler(threading.Thread):
 		if not hadFirstGainFocus:
 			# This treeInterceptor is gaining focus for the first time.
 			# Fake a focus event on the focus object, as the treeInterceptor may have missed the actual focus event.
-			focus = api.getFocusObject()
+			#focus = api.getFocusObject()
 			#self.event_gainFocus(focus, lambda: focus.event_gainFocus())
 			if not treeInterceptor.passThrough:
 				# We only set the caret position if in browse mode.
@@ -287,7 +282,7 @@ class WebAppScheduler(threading.Thread):
 			if size != self.lastSize:
 				self.lastSize = size
 				log.info(u"taille : %d" % size)
-		except Exception, e:
+		except Exception:
 			pass
 
 	def onNodeMoveto(self, node, reason):

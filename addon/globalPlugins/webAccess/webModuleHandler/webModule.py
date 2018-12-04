@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2018.10.10"
+__version__ = "2018.12.04"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -43,14 +43,17 @@ import speech
 import ui
 
 from .. import json
+from ..packaging import version
 from .. import presenter
 from .. import ruleHandler
+from ..ruleHandler import contextTypes
 from ..webAppLib import *
 
 
 class WebModule(baseObject.ScriptableObject):
 	
-	FORMAT_VERSION = "0.1"
+	FORMAT_VERSION_STR = "0.3-dev"
+	FORMAT_VERSION = version.parse(FORMAT_VERSION_STR)
 	
 	url = None
 	name = None
@@ -81,7 +84,7 @@ class WebModule(baseObject.ScriptableObject):
 			)
 
 	def dump(self):
-		data = {"formatVersion": self.FORMAT_VERSION}
+		data = {"formatVersion": self.FORMAT_VERSION_STR}
 		
 		data["WebModule"] = {
 			"name": self.name,
@@ -112,6 +115,7 @@ class WebModule(baseObject.ScriptableObject):
 		formatVersion = data.get("formatVersion")
 		# Ensure compatibility with data files prior to format versioning
 		if formatVersion is None:
+			formatVersion = ""
 			# Back to the "WebAppHandler" days
 			if "WebModule" not in data and "WebApp" in data:
 				data["WebModule"] = data.pop("WebApp")
@@ -125,13 +129,25 @@ class WebModule(baseObject.ScriptableObject):
 			# TODO: Re-implement custom field labels?
 			if "FieldLabels" in data:
 				log.warning("FieldLabels not supported")
-		elif formatVersion != self.FORMAT_VERSION:
-			# Attempt loading anyway.
-			log.warning(
-				"WebModule format not supported: "
-				"{ver}".format(ver=formatVersion)
+		formatVersion = version.parse(formatVersion)
+		if formatVersion < version.parse("0.2"):
+			for rule in data.get("Rules", []):
+				if "context" in rule:
+					rule["requiresContext"] = rule.pop("context")
+				if "isContext" in rule:
+					if rule.get("isContext"):
+						rule["definesContext"] = contextTypes.PAGE_ID
+					del rule["isContext"]
+		if formatVersion < version.parse("0.3"):
+			for rule in data.get("Rules", []):
+				if rule.get("autoAction") == "noAction":
+					del rule["autoAction"]
+		if formatVersion > self.FORMAT_VERSION:
+			raise version.InvalidVersion(
+				"WebModule format version not supported: {ver}".format(
+					ver=formatVersion
 				)
-		
+			)
 		item = data.get("WebModule")
 		if item is not None:
 			if "name" in item:
@@ -167,9 +183,6 @@ class WebModule(baseObject.ScriptableObject):
 			'braille.stripBlanks': True,
 			}
 	
-	def setFocusToWebApp(self, webAppName):
-		return setFocusToWebApp(self, webAppName)
-
 	def event_webApp_init(self, obj, nextHandler):
 		self.loadUserFile()
 		nextHandler()
