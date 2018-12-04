@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.11.02"
+__version__ = "2018.12.04"
 
 __authors__ = (
 	u"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
@@ -412,7 +412,7 @@ class NodeField(baseObject.AutoPropertyObject):
 			self.role = parent.role
 		elif nodeType == "format":
 			self.format = attrs
-			self.controlIdentifier = 0
+			self.controlIdentifier = parent.controlIdentifier
 			self.role = 0
 		elif nodeType == "control":
 			self.control = attrs

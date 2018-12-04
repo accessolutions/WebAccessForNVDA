@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.10.21"
+__version__ = "2018.12.04"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
@@ -161,7 +161,7 @@ class MarkerManager(baseObject.ScriptableObject):
 		self.markerQueries = []
 		self.lock = threading.RLock()
 		self.markerResults = []
-		self.triggeredIdentifiers = []
+		self.triggeredIdentifiers = {}
 		self.lastAutoMoveto = None
 		self.lastAutoMovetoTime = 0
 		self.defaultMarkerScripts = DefaultMarkerScripts(u"Aucun marqueur associé à cette touche")
@@ -356,8 +356,13 @@ class MarkerManager(baseObject.ScriptableObject):
 			for result in self.markerResults:
 				if result.markerQuery.autoAction:
 					controlIdentifier = result.node.controlIdentifier
-					if not controlIdentifier in self.triggeredIdentifiers:
-						self.triggeredIdentifiers.append(controlIdentifier)
+					text = result.node.getTreeInterceptorText()
+					if (
+						text and
+						self.triggeredIdentifiers.get(controlIdentifier) !=
+						text
+					):
+						self.triggeredIdentifiers[controlIdentifier] = text
 						speechOn()
 						autoActionName = result.markerQuery.autoAction
 						func = getattr(result, "script_%s" % autoActionName)
@@ -553,8 +558,7 @@ class MarkerResult(baseObject.ScriptableObject):
 		raise NotImplementedError
 	
 	def script_noAction(self, gesture):
-		if self.markerQuery.sayName:
-			speech.speakMessage(self.markerQuery.name)
+		pass
 	
 	def __lt__(self, other):
 		raise NotImplementedError
