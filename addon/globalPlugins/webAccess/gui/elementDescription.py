@@ -30,9 +30,13 @@ __license__ = "GPL"
 
 import wx
 
+import addonHandler
 import controlTypes
 import gui
 from logHandler import log
+
+
+addonHandler.initTranslation()
 
 
 def truncText(node):
