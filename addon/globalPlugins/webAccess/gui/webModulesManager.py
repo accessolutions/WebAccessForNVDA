@@ -46,8 +46,9 @@ def promptDelete(webModule):
 			_("Do you really want to delete this web module?")
 			+ os.linesep
 			+ webModule.name
-			),
-		) == wx.YES
+		),
+		style=wx.YES_NO | wx.ICON_WARNING
+	) == wx.YES
 
 def promptMask(webModule):
 	msg = None
