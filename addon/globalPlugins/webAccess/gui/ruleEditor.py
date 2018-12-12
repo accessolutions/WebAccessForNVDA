@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.12.04"
+__version__ = "2018.12.13"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
@@ -87,240 +87,230 @@ class Dialog(wx.Dialog):
 			style=wx.DEFAULT_DIALOG_STYLE | wx.MAXIMIZE_BOX | wx.RESIZE_BORDER,
 		)
 		
-		# Fonts variables
-		fontTitle = wx.Font(13, wx.FONTFAMILY_DEFAULT, wx.NORMAL, wx.NORMAL)
-		
-		# Margins
-		mainPadding = 10
-		padding = 5
-		
 		# Dialog main sizer
 		mainSizer = wx.BoxSizer(wx.VERTICAL)
-		mainSizer.AddStretchSpacer(prop=1)  # vertical centering
-		mainSizer.AddSpacer(mainPadding)
-		
-		# Dialog title
-		labelMainTitle = wx.StaticText(self, label=_("Add rule"))
-		labelMainTitle.SetFont(fontTitle)
-		mainSizer.Add(labelMainTitle, flag=wx.LEFT, border=mainPadding)
 		
 		# Form part
-		columnSizer = wx.GridBagSizer()
+		columnsSizer = wx.GridBagSizer(8, 8)
+		mainSizer.Add(
+			columnsSizer,
+			proportion=1,
+			flag=wx.EXPAND | wx.ALL,
+			border=8
+		)
+		leftSizer = wx.GridBagSizer(8, 8)
+		rightSizer = wx.GridBagSizer(8, 8)
+		columnsSizer.Add(leftSizer, pos=(0, 0), flag=wx.EXPAND)
+		columnsSizer.Add(
+			wx.StaticLine(self, style=wx.LI_VERTICAL),
+			pos=(0, 1),
+			flag=wx.EXPAND
+		)
+		columnsSizer.Add(rightSizer, pos=(0, 2), flag=wx.EXPAND)
 		
-		# Static box grouping input elements for rule properties
-		staticBoxRuleDef = wx.StaticBox(self, label=_("Define rule properties"))
-		staticBoxSizer = wx.StaticBoxSizer(staticBoxRuleDef, orient=wx.VERTICAL)
-		gridSizer = wx.GridBagSizer(padding, mainPadding)
+		leftRow = 0
+		item = wx.StaticText(self, label=_(u"Rule &name"))
+		leftSizer.Add(item, pos=(leftRow, 0))
+		item = self.markerName = wx.ComboBox(self)
+		leftSizer.Add(item, pos=(leftRow, 1), flag=wx.EXPAND)
+		
+		# Static box grouping element selection criteria
+		leftRow += 1
+		criteriaBox = wx.StaticBox(self, label=_("Criteria"))
+		criteriaSizer = wx.GridBagSizer(8, 8)
+		item = wx.StaticBoxSizer(criteriaBox, orient=wx.VERTICAL)
+		item.Add(criteriaSizer, flag=wx.EXPAND | wx.ALL, border=4)
+		leftSizer.Add(item, pos=(leftRow, 0), span=(1, 2), flag=wx.EXPAND)
 		
 		# Inputs
-		item = wx.StaticText(staticBoxRuleDef, label=_(u"Rule &name"))
-		gridSizer.Add(item, pos=(0, 0))
-		item = self.markerName = wx.ComboBox(staticBoxRuleDef)
-		gridSizer.Add(item, pos=(0, 1), flag=wx.EXPAND)
+		row = 0
+		item = wx.StaticText(criteriaBox, label=_(u"Conte&xt"))
+		criteriaSizer.Add(item, pos=(row, 0))
+		item = self.requiresContextCombo = wx.ComboBox(criteriaBox)
+		criteriaSizer.Add(item, pos=(row, 1), flag=wx.EXPAND)
 		
-		item = wx.StaticText(staticBoxRuleDef, label=_(u"Conte&xt"))
-		gridSizer.Add(item, pos=(1, 0))
-		item = self.requiresContextCombo = wx.ComboBox(staticBoxRuleDef)
-		gridSizer.Add(item, pos=(1, 1), flag=wx.EXPAND)
+		row += 1
+		item = wx.StaticText(criteriaBox, label=_(u"Search &text"))
+		criteriaSizer.Add(item, pos=(row, 0))
+		item = self.searchText = wx.ComboBox(criteriaBox)
+		criteriaSizer.Add(item, pos=(row, 1), flag=wx.EXPAND)
 		
-		item = wx.StaticText(staticBoxRuleDef, label=_(u"Search &text"))
-		gridSizer.Add(item, pos=(2, 0))
-		item = self.searchText = wx.ComboBox(staticBoxRuleDef)
-		gridSizer.Add(item, pos=(2, 1), flag=wx.EXPAND)
+		row += 1
+		item = wx.StaticText(criteriaBox, label=_(u"&Role"))
+		criteriaSizer.Add(item, pos=(row, 0))
+		item = self.roleCombo = wx.ComboBox(criteriaBox)
+		criteriaSizer.Add(item, pos=(row, 1), flag=wx.EXPAND)
 		
-		item = wx.StaticText(staticBoxRuleDef, label=_(u"&Role"))
-		gridSizer.Add(item, pos=(3, 0))
-		item = self.roleCombo = wx.ComboBox(staticBoxRuleDef)
-		gridSizer.Add(item, pos=(3, 1), flag=wx.EXPAND)
+		row += 1
+		item = wx.StaticText(criteriaBox, label=_(u"&Tag"))
+		criteriaSizer.Add(item, pos=(row, 0))
+		item = self.tagCombo = wx.ComboBox(criteriaBox)
+		criteriaSizer.Add(item, pos=(row, 1), flag=wx.EXPAND)
 		
-		item = wx.StaticText(staticBoxRuleDef, label=_(u"&Tag"))
-		gridSizer.Add(item, pos=(4, 0))
-		item = self.tagCombo = wx.ComboBox(staticBoxRuleDef)
-		gridSizer.Add(item, pos=(4, 1), flag=wx.EXPAND)
+		row += 1
+		item = wx.StaticText(criteriaBox, label=_(u"&ID"))
+		criteriaSizer.Add(item, pos=(row, 0))
+		item = self.idCombo = wx.ComboBox(criteriaBox)
+		criteriaSizer.Add(item, pos=(row, 1), flag=wx.EXPAND)
 		
-		item = wx.StaticText(staticBoxRuleDef, label=_(u"&ID"))
-		gridSizer.Add(item, pos=(5, 0))
-		item = self.idCombo = wx.ComboBox(staticBoxRuleDef)
-		gridSizer.Add(item, pos=(5, 1), flag=wx.EXPAND)
+		row += 1
+		item = wx.StaticText(criteriaBox, label=_(u"&Class"))
+		criteriaSizer.Add(item, pos=(row, 0))
+		item = self.classCombo = wx.ComboBox(criteriaBox)
+		criteriaSizer.Add(item, pos=(row, 1), flag=wx.EXPAND)
 		
-		item = wx.StaticText(staticBoxRuleDef, label=_(u"&Class"))
-		gridSizer.Add(item, pos=(6, 0))
-		item = self.classCombo = wx.ComboBox(staticBoxRuleDef)
-		gridSizer.Add(item, pos=(6, 1), flag=wx.EXPAND)
+		row += 1
+		item = wx.StaticText(criteriaBox, label=_(u"&Image source"))
+		criteriaSizer.Add(item, pos=(row, 0))
+		item = self.srcCombo = wx.ComboBox(criteriaBox)
+		criteriaSizer.Add(item, pos=(row, 1), flag=wx.EXPAND)
 		
-		item = wx.StaticText(staticBoxRuleDef, label=_(u"&Image source"))
-		gridSizer.Add(item, pos=(7, 0))
-		item = self.srcCombo = wx.ComboBox(staticBoxRuleDef)
-		gridSizer.Add(item, pos=(7, 1), flag=wx.EXPAND)
+		row += 1
+		item = wx.StaticText(criteriaBox, label=_(u"&Index"))
+		criteriaSizer.Add(item, pos=(row, 0))
+		item = self.indexText = wx.ComboBox(criteriaBox)
+		criteriaSizer.Add(item, pos=(row, 1), flag=wx.EXPAND)
 
-		# Separation with options related to multiple results
-		item = wx.StaticLine(staticBoxRuleDef)
-		gridSizer.Add(
-			item,
-			pos=(8, 0),
-			span=(1, 2),
-			flag=wx.EXPAND | wx.BOTTOM | wx.TOP, border=padding
-		)
-		
-		item = self.multipleCheckBox = wx.CheckBox(
-			staticBoxRuleDef,
-			label=_(u"&Multiple results available")
-		)
-		gridSizer.Add(item, pos=(9, 0), flag=wx.EXPAND)
-		
-		item = wx.StaticText(staticBoxRuleDef, label=_(u"&Index"))
-		gridSizer.Add(item, pos=(10, 0))
-		item = self.indexText = wx.ComboBox(staticBoxRuleDef)
-		gridSizer.Add(item, pos=(10, 1), flag=wx.EXPAND)
-		
-		# Make inputs resizable with the window
-		for i in range(2):
-			gridSizer.AddGrowableCol(i)
-		
-		staticBoxSizer.Add(
-			gridSizer,
-			flag=wx.EXPAND | wx.ALL,
-			border=mainPadding
-		)
-		columnSizer.Add(
-			staticBoxSizer,
-			pos=(0, 0),
-			flag=wx.EXPAND | wx.ALL,
-			border=mainPadding
-		)
-		
-		# Static box grouping input elements for keyboard shortcuts
-		staticBoxKeyboard = wx.StaticBox(self, label=_("Define shortcuts"))
-		staticBoxSizer = wx.StaticBoxSizer(staticBoxKeyboard, orient=wx.VERTICAL)
-		keyboardGridSizer = wx.GridBagSizer(padding, mainPadding)
+		criteriaSizer.AddGrowableCol(1)
+				
+		# Static box grouping input elements for actions
+		leftRow += 1
+		actionsBox = wx.StaticBox(self, label=_("Actions"), style=wx.SB_RAISED)
+		actionsSizer = wx.GridBagSizer(8, 8)
+		item = wx.StaticBoxSizer(actionsBox, orient=wx.VERTICAL)
+		item.Add(actionsSizer, flag=wx.EXPAND | wx.ALL, border=4)
+		leftSizer.Add(item, pos=(leftRow, 0), span=(1, 2), flag=wx.EXPAND)
 		
 		# Inputs
-		item = wx.StaticText(staticBoxKeyboard, label=_("&Keyboard shortcut"))
-		keyboardGridSizer.Add(item, pos=(0, 0), span=(2, 1))
-		item = self.gesturesList = wx.ListBox(staticBoxKeyboard)
+		row = 0
+		item = wx.StaticText(actionsBox, label=_("&Keyboard shortcut"))
+		actionsSizer.Add(item, pos=(row, 0), span=(2, 1))
+		item = self.gesturesList = wx.ListBox(actionsBox)
 		item.Bind(wx.EVT_LISTBOX, self.onGesturesListChoice)
-		keyboardGridSizer.Add(item, pos=(0, 1), span=(2, 1), flag=wx.EXPAND)
+		actionsSizer.Add(item, pos=(row, 1), span=(2, 1), flag=wx.EXPAND)
 		
-		item = wx.Button(staticBoxKeyboard, label=_("Add a keyboard shortcut"))
+		item = wx.Button(actionsBox, label=_("Add a keyboard shortcut"))
 		item.Bind(wx.EVT_BUTTON, self.onAddGesture)
-		keyboardGridSizer.Add(item, pos=(0, 2), flag=wx.EXPAND)
+		actionsSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 		
+		row += 1
 		item = self.deleteGestureButton = wx.Button(
-			staticBoxKeyboard,
+			actionsBox,
 			label=_("Delete this shortcut")
 		)
 		item.Bind(wx.EVT_BUTTON, self.onDeleteGesture)
-		keyboardGridSizer.Add(item, pos=(1, 2), flag=wx.EXPAND)
+		actionsSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 		
+		row += 1
 		item = wx.StaticText(
-			staticBoxKeyboard,
+			actionsBox,
 			label=_("&Automatic action at rule detection")
 		)
-		keyboardGridSizer.Add(item, pos=(2, 0))
+		actionsSizer.Add(item, pos=(2, 0))
 		item = self.autoActionList = wx.ComboBox(
-			staticBoxKeyboard,
+			actionsBox,
 			style=wx.CB_READONLY
 		)
-		keyboardGridSizer.Add(item, pos=(2, 1), flag=wx.EXPAND)
+		actionsSizer.Add(item, pos=(row, 1), flag=wx.EXPAND)
 		
-		item = wx.StaticLine(staticBoxKeyboard)
-		keyboardGridSizer.Add(
-			item,
-			pos=(3, 0),
-			span=(1, 3),
-			flag=wx.EXPAND | wx.BOTTOM | wx.TOP, border=padding
+		# Static box grouping rule properties
+		leftRow += 1
+		propertiesBox = wx.StaticBox(self, label=_("Properties"))
+		propertiesSizer = wx.GridBagSizer(8, 8)
+		item = wx.StaticBoxSizer(propertiesBox, orient=wx.VERTICAL)
+		item.Add(propertiesSizer, flag=wx.EXPAND | wx.ALL, border=4)
+		leftSizer.Add(item, pos=(leftRow, 0), span=(1, 2), flag=wx.EXPAND)
+		
+		row = 0
+		item = self.multipleCheckBox = wx.CheckBox(
+			propertiesBox,
+			label=_(u"&Multiple results available")
 		)
+		propertiesSizer.Add(item, pos=(row, 0), span=(1, 2), flag=wx.EXPAND)
 		
+		row += 1
 		item = self.formModeCheckBox = wx.CheckBox(
-			staticBoxKeyboard,
+			propertiesBox,
 			label=_("Activate &form mode")
 		)
-		keyboardGridSizer.Add(item, pos=(4, 0), flag=wx.TOP, border=-3)
+		propertiesSizer.Add(item, pos=(row, 0), span=(1, 2), flag=wx.EXPAND)
 		
+		row += 1
 		item = self.sayNameCheckBox = wx.CheckBox(
-			staticBoxKeyboard,
+			propertiesBox,
 			label=_("Speak r&ule name")
 		)
-		keyboardGridSizer.Add(item, pos=(5, 0), flag=wx.TOP, border=-3)
+		propertiesSizer.Add(item, pos=(row, 0), span=(1, 2), flag=wx.EXPAND)
 		
+		row += 1
 		item = self.skipCheckBox = wx.CheckBox(
-			staticBoxKeyboard,
+			propertiesBox,
 			label=_("S&kip with Page Down")
 		)
-		keyboardGridSizer.Add(item, pos=(6, 0), flag=wx.TOP, border=-3)
+		propertiesSizer.Add(item, pos=(row, 0), span=(1, 2), flag=wx.EXPAND)
 		
+		row += 1
 		item = self.isPageTitleCheckBox = wx.CheckBox(
-			staticBoxKeyboard,
+			propertiesBox,
 			label=_("&Page title")
 		)
-		keyboardGridSizer.Add(item, pos=(7, 0), flag=wx.TOP, border=-3)
+		propertiesSizer.Add(item, pos=(row, 0), span=(1, 2), flag=wx.EXPAND)
 		
-		item = wx.StaticText(staticBoxKeyboard, label=_("Defines a conte&xt"))
-		keyboardGridSizer.Add(item, pos=(8, 0))
+		row += 1
+		item = wx.StaticText(propertiesBox, label=_("Defines a conte&xt"))
+		propertiesSizer.Add(item, pos=(row, 0))
 		item = self.definesContextList = wx.ComboBox(
-			staticBoxKeyboard,
+			propertiesBox,
 			style=wx.CB_READONLY
 		)
-		keyboardGridSizer.Add(item, pos=(8, 1), flag=wx.TOP, border=-3)
+		propertiesSizer.Add(item, pos=(row, 1), span=(1, 2), flag=wx.EXPAND)
 		
+		row += 1
 		item = self.createWidgetCheckBox = wx.CheckBox(
-			staticBoxKeyboard,
+			propertiesBox,
 			label=_("Create a &list of items")
 		)
-		keyboardGridSizer.Add(item, pos=(9, 0), flag=wx.TOP, border=-3)
 		item.Enabled = False
+		propertiesSizer.Add(item, pos=(row, 0), span=(1, 2), flag=wx.EXPAND)
 
 		# Make inputs resizable with the window
-		for i in range(3):
-			keyboardGridSizer.AddGrowableCol(i)
+		propertiesSizer.AddGrowableCol(1)
+		leftSizer.AddGrowableCol(1)
 			
 		# Comment section
-		commentBox = wx.StaticBox(self, label=_("&Comment"))
-		commentBoxSizer = wx.StaticBoxSizer(commentBox, orient=wx.VERTICAL)
+		row = 0
+		rightSizer.Add(
+			wx.StaticText(self, label=_("&Comment")),
+			pos=(row, 0)
+		)
+		
+		row += 1
 		item = self.comment = wx.TextCtrl(
-			commentBox,
+			self,
 			size=(500, 300),
 			style=wx.TE_MULTILINE
 		)
-		commentBoxSizer.Add(
+		rightSizer.Add(
 			item,
-			proportion=1,
-			flag=wx.EXPAND | wx.ALL,
-			border=mainPadding
+			pos=(row, 0),
+			flag=wx.EXPAND
 		)
-		columnSizer.Add(
-			commentBoxSizer,
-			pos=(0, 1),
-			span=(3, 3),
-			flag=wx.EXPAND | wx.ALL,
-			border=mainPadding
-		)
+
+		rightSizer.AddGrowableCol(0)
+		rightSizer.AddGrowableRow(1)
 		
-		staticBoxSizer.Add(
-			keyboardGridSizer,
-			flag=wx.EXPAND | wx.ALL,
-			border=mainPadding
-		)
-		columnSizer.Add(
-			staticBoxSizer,
-			pos=(1, 0),
-			flag=wx.EXPAND | wx.ALL,
-			border=mainPadding
-		)
-		columnSizer.AddGrowableCol(0)
-		columnSizer.AddGrowableCol(1)
+		columnsSizer.AddGrowableCol(0)
+		columnsSizer.AddGrowableCol(2)
+		columnsSizer.AddGrowableRow(0)
 		
-		mainSizer.Add(columnSizer, flag=wx.EXPAND)
 		mainSizer.Add(
-			self.CreateButtonSizer(wx.OK | wx.CANCEL),
-			flag=wx.BOTTOM | wx.LEFT,
-			border=mainPadding
+			self.CreateSeparatedButtonSizer(wx.OK | wx.CANCEL),
+			flag=wx.EXPAND | wx.BOTTOM,
+			border=8
 		)
 		self.Bind(wx.EVT_BUTTON, self.onOk, id=wx.ID_OK)
 		self.Bind(wx.EVT_BUTTON, self.onCancel, id=wx.ID_CANCEL)
-		mainSizer.AddStretchSpacer(prop=1)  # vertical centering
-		mainSizer.Fit(self)
-		self.Sizer = mainSizer
+		self.SetSizerAndFit(mainSizer)
 	
 	def __del__(self):
 		Dialog._instance = None
@@ -390,10 +380,10 @@ class Dialog(wx.Dialog):
 		
 		if self.rule is None:
 			self.Title = _(u"New rule")
+			self.indexText.Set([""])
 			self.gestureMapValue = {}
 			self.autoActionList.SetSelection(0)
 			self.multipleCheckBox.Value = False
-			self.indexText.Set([""])
 			self.formModeCheckBox.Value = formModeControl
 			self.sayNameCheckBox.Value = True
 			self.skipCheckBox.Value = False
@@ -413,6 +403,7 @@ class Dialog(wx.Dialog):
 			self.idCombo.Value = rule.dic.get("id", "")
 			self.classCombo.Value = rule.dic.get("className", "")
 			self.srcCombo.Value = rule.dic.get("src", "")
+			self.indexText.Value = str(rule.dic.get("index", ""))
 			self.gestureMapValue = rule.gestures.copy()
 			self.autoActionList.SetSelection(
 				markerManager.getActions().keys().index(
@@ -421,7 +412,6 @@ class Dialog(wx.Dialog):
 				if "autoAction" in rule.dic else 0
 			)
 			self.multipleCheckBox.Value = rule.dic.get("multiple", False)
-			self.indexText.Value = str(rule.dic.get("index", ""))
 			self.formModeCheckBox.Value = rule.dic.get("formMode", False)
 			self.sayNameCheckBox.Value = rule.dic.get("sayName", True)
 			self.skipCheckBox.Value = rule.dic.get("skip", False)
@@ -534,13 +524,6 @@ class Dialog(wx.Dialog):
 		src = self.srcCombo.Value
 		if src.strip() != "":
 			dic["src"] = src
-		dic["gestures"] = self.gestureMapValue
-
-		sel = self.autoActionList.Selection
-		autoAction = self.autoActionList.GetClientData(sel)
-		if autoAction != "":
-			dic["autoAction"] = autoAction
-		dic["multiple"] = self.multipleCheckBox.Value
 		index = self.indexText.Value
 		if index.strip() != "":
 			try:
@@ -549,6 +532,14 @@ class Dialog(wx.Dialog):
 				i = 0
 			if i > 0:
 				dic["index"] = i
+
+		dic["gestures"] = self.gestureMapValue
+		sel = self.autoActionList.Selection
+		autoAction = self.autoActionList.GetClientData(sel)
+		if autoAction != "":
+			dic["autoAction"] = autoAction
+		
+		dic["multiple"] = self.multipleCheckBox.Value
 		dic["formMode"] = self.formModeCheckBox.Value
 		dic["sayName"] = self.sayNameCheckBox.Value
 		dic["skip"] = self.skipCheckBox.Value
