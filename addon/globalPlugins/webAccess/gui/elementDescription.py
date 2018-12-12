@@ -23,7 +23,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2018.12.04"
+__version__ = "2018.12.12"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 __license__ = "GPL"
 
@@ -41,26 +41,36 @@ addonHandler.initTranslation()
 
 def truncText(node):
 	textList = getTextList(node)
-	if len(textList) == 0:
+	if not textList:
 		return ""
 	elif len(textList) == 1:
 		return textList[0]
 	else:
-		t = u"%d %s\r\n" % (
+		desc = u"%d %s\r\n" % (
 			len(textList),
 			pgettext("webAccess.elementDescription", "elements")
 			if len(textList) > 1
 			else pgettext("webAccess.elementDescription", "element")
 		)
-		t += u"        %s %s\r\n" % (
+		textFrom = ""
+		for text in textList:
+			if text and text.strip():
+				textFrom = text.strip()
+				break
+		textTo = ""
+		for text in textList[::-1]:
+			if text and text.strip():
+				textTo = text.strip()
+				break
+		desc += u"        %s %s\r\n" % (
 			pgettext("webAccess.elementDescription", "from:"),
-			(textList[0] or "").strip()
+			textFrom
 		)
-		t += u"        %s %s" % (
+		desc += u"        %s %s" % (
 			pgettext("webAccess.elementDescription", "to:"),
-			(textList[-1] or "").strip()
+			textTo
 		)
-		return t
+		return desc
 
 
 def getTextList(node):
@@ -143,7 +153,6 @@ dialog = None
 class ElementDescriptionDialog(wx.Dialog):
 
 	def __init__(self, parent):
-		log.info("__init__")
 		ElementDescriptionDialog._instance = self
 		super(ElementDescriptionDialog, self).__init__(
 			parent, title=_("Element description")
