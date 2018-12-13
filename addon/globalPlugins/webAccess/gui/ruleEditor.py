@@ -27,17 +27,14 @@ __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 import wx
 
 import addonHandler
-import api
 import controlTypes
 import gui
 import inputCore
 from logHandler import log
-import ui
 
 from .. import ruleHandler
 from ..ruleHandler import contextTypes
 from .. import webModuleHandler
-from ..webAppLib import *
 
 
 addonHandler.initTranslation()
@@ -213,6 +210,12 @@ class Dialog(wx.Dialog):
 		)
 		actionsSizer.Add(item, pos=(row, 1), flag=wx.EXPAND)
 		
+		row += 1
+		item = wx.StaticText(actionsBox, label=_(u"Custom m&essage"))
+		actionsSizer.Add(item, pos=(row, 0))
+		item = self.customValue = wx.TextCtrl(actionsBox)
+		actionsSizer.Add(item, pos=(row, 1), span=(1, 2), flag=wx.EXPAND)
+		
 		# Static box grouping rule properties
 		leftRow += 1
 		propertiesBox = wx.StaticBox(self, label=_("Properties"))
@@ -383,6 +386,7 @@ class Dialog(wx.Dialog):
 			self.indexText.Set([""])
 			self.gestureMapValue = {}
 			self.autoActionList.SetSelection(0)
+			self.customValue.Value = ""
 			self.multipleCheckBox.Value = False
 			self.formModeCheckBox.Value = formModeControl
 			self.sayNameCheckBox.Value = True
@@ -411,6 +415,7 @@ class Dialog(wx.Dialog):
 				) + 1  # Empty entry at index 0
 				if "autoAction" in rule.dic else 0
 			)
+			self.customValue.Value = rule.dic.get("customValue", "")
 			self.multipleCheckBox.Value = rule.dic.get("multiple", False)
 			self.formModeCheckBox.Value = rule.dic.get("formMode", False)
 			self.sayNameCheckBox.Value = rule.dic.get("sayName", True)
@@ -538,6 +543,8 @@ class Dialog(wx.Dialog):
 		autoAction = self.autoActionList.GetClientData(sel)
 		if autoAction != "":
 			dic["autoAction"] = autoAction
+		if self.customValue.Value:
+			dic["customValue"] = self.customValue.Value
 		
 		dic["multiple"] = self.multipleCheckBox.Value
 		dic["formMode"] = self.formModeCheckBox.Value

@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.12.04"
+__version__ = "2018.12.13"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
@@ -540,6 +540,9 @@ class MarkerResult(baseObject.ScriptableObject):
 	def _get_name(self):
 		return self.markerQuery.name
 	
+	def _get_value(self):
+		raise NotImplementedError
+	
 	def script_moveto(self, gesture):
 		raise NotImplementedError
 
@@ -572,6 +575,13 @@ class VirtualMarkerResult(MarkerResult):
 	def __init__(self, markerQuery, node):
 		super(VirtualMarkerResult ,self).__init__(markerQuery)
 		self.node = node
+	
+	_cache_value = False
+	
+	def _get_value(self):
+		return \
+			self.markerQuery.customValue \
+			or self.node.getTreeInterceptorText()
 	
 	def script_moveto(self, gesture, fromQuickNav=False, fromSpeak=False):
 		if self.node.nodeManager is None:
@@ -647,9 +657,12 @@ class VirtualMarkerResult(MarkerResult):
 	def script_speak(self, gesture):
 		repeat = scriptHandler.getLastScriptRepeatCount()
 		if repeat == 0:
+			parts = []
 			if self.markerQuery.sayName:
-				speech.speakMessage(self.markerQuery.name)
-			wx.CallAfter(ui.message, self.node.getTreeInterceptorText())
+				parts.append(self.markerQuery.name)
+			parts.append(self.value)
+			msg = u" - ".join(parts)
+			wx.CallAfter(ui.message, msg)
 		else:
 			self.script_moveto(None, fromSpeak=True)
 			
@@ -728,6 +741,7 @@ class VirtualMarkerQuery(MarkerQuery):
 		self.isPageTitle = dic.get("isPageTitle", False)
 		self.definesContext = dic.get("definesContext")
 		self.createWidget = dic.get("createWidget", False)
+		self.customValue = dic.get("customValue")
 
 	def __eq__(self, other):
 		return self.dic == other.dic
