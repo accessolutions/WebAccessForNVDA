@@ -49,7 +49,7 @@ Overridden NVDA functions:
 
 from __future__ import absolute_import
 
-__version__ = "2018.12.04"
+__version__ = "2018.12.17"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -432,7 +432,8 @@ def getWebApp(self):
 	# Before anything, check if the webApp window title matches the actuel one.
 	if len(obj.windowText) > 0:
 		for app in webModuleHandler.getWebModules():
-			if app.windowTitle is not None and len(app.windowTitle) > 0 and app.windowTitle in obj.windowText:
+			# TODO: Chrome: Retrieve proper window title
+			if app.windowTitle and app.windowTitle in obj.windowText:
 				webApp = app
 				break
 
