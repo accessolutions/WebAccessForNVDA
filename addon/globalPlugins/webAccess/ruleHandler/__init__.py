@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.12.13"
+__version__ = "2018.12.31"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
@@ -50,6 +50,7 @@ from .. import webAppScheduler
 from ..widgets import genericCollection
 from ..webAppLib import *
 from . import contextTypes
+from . import ruleTypes
 
 
 TRACE = lambda *args, **kwargs: None
@@ -390,15 +391,50 @@ class MarkerManager(baseObject.ScriptableObject):
 				funcMoveto (None)
 		
 	def getPageTitle(self):
+		# TODO: Failback to HTML HEAD TITLE, then to window title
 		with self.lock:
 			if not self.isReady:
 				return None
-			for result in self.markerResults:
-				if result.markerQuery.isPageTitle:
-					return result.node.getTreeInterceptorText()
+			parts = [
+				part
+				for part in [
+					self._getPageTitle1(),
+					self._getPageTitle2(),
+				]
+				if part
+			]
+			if parts:
+				return " - ".join(parts)
+			# TODO: Failback to HTML HEAD TITLE, then to window title
 			return ""
+	
+	def _getPageTitle1(self):
+		for result in self.markerResults:
+			if result.markerQuery.type == ruleTypes.PAGE_TITLE_1:
+				return result.value
+	
+	def _getPageTitle2(self):
+		for result in self.markerResults:
+			if result.markerQuery.type == ruleTypes.PAGE_TITLE_2:
+				return result.value
+	
+	def getPageTypes(self):
+		types = []
+		with self.lock:
+			if not self.isReady:
+				return types
+			for result in self.markerResults:
+				if result.markerQuery.type is ruleTypes.PAGE_TYPE:
+					types.append(result.markerQuery.name)
+			return types
 
 	def getNextResult(self, name=None):
+		return self._getIncrementalResult(name=None)
+	
+	def getPreviousResult(self, name=None):
+		return self._getIncrementalResult(previous=True, name=None)
+	
+	def _getIncrementalResult(self, previous=False, name=None):
 		if not self.isReady:
 			return None
 		if len(self.markerResults) < 1:
@@ -408,46 +444,37 @@ class MarkerManager(baseObject.ScriptableObject):
 		info = html.getCaretInfo()
 		if info is None:
 			return None
-		for r in self.markerResults:
-			if name is not None and r.markerQuery.name != name:
-				continue
-			if r.markerQuery.skip:
-				continue
-			if hasattr(r, "node") and info._startOffset < r.node.offset:
-				return r
-
-		# if not ffound, return the first result
-		for r in self.markerResults:
-			if not r.markerQuery.skip:
-				playWebAppSound("loop")
-				sleep(0.2)
-				return r
-		return None
-
-	def getPreviousResult(self, name=None):
-		if not self.isReady:
-			return None
-		if len(self.markerResults) < 1:
-			return None
-
-		# search from the actual caret position
-		info = html.getCaretInfo()
-		if info is None:
-			return None
-		for r in reversed(self.markerResults):
-			if name is not None and r.markerQuery.name != name:
-				continue 
-			if r.markerQuery.skip:
-				continue
-			if hasattr(r, "node") and info._startOffset > r.node.offset:
-				return r
-			
-		# if not ffound, return the latest result
-		for r in reversed(self.markerResults):
-			if not r.markerQuery.skip:
-				playWebAppSound("loop")
-				sleep(0.2)
-				return r
+		# If not found after/before the current position,
+		# return the first/last result.
+		for positioned in (True, False):
+			for result in (
+				reversed(self.markerResults)
+				if previous else self.markerResults
+			):
+				query = result.markerQuery
+				if name:
+					if query.name != name:
+						continue
+				elif query.skip or query.type != ruleTypes.MARKER:
+					continue
+				if (
+					hasattr(result, "node")
+					and (
+						not positioned
+						or (
+							not previous
+							and info._startOffset < result.node.offset
+						)
+						or (
+							previous
+							and info._startOffset > result.node.offset
+						)
+					)
+				):
+					if not positioned:
+						playWebAppSound("loop")
+						sleep(0.2)
+					return result
 		return None
 
 	def getCurrentResult(self, focusObject=None):
@@ -569,7 +596,8 @@ class MarkerResult(baseObject.ScriptableObject):
 				for identifier in self._gestureMap.keys()
 				]
 			)
-	
+
+
 class VirtualMarkerResult(MarkerResult):
 	
 	def __init__(self, markerQuery, node):
@@ -685,12 +713,14 @@ class VirtualMarkerResult(MarkerResult):
 	def getTitle(self):
 		return self.markerQuery.name + " - " + self.node.innerText
 
+
 class MarkerQuery(baseObject.ScriptableObject):
 	
 	def __init__(self, markerManager):
 		super(MarkerQuery,self).__init__()
 		self.markerManager = markerManager
 		self.name = None
+		self.type = None
 		self.skip = False
 		self.results = None
 
@@ -712,12 +742,13 @@ class MarkerQuery(baseObject.ScriptableObject):
 			+ [
 				inputCore.getDisplayTextForGestureIdentifier(identifier)[1]
 				for identifier in self._gestureMap.keys()
-				]
-			)
+			]
+		)
 	
 	def script_notFound(self, gesture):
 		speech.speakMessage(_(u"{ruleName} not found").format(
-			ruleName=self.name))
+			ruleName=self.name)
+		)
 
 
 class VirtualMarkerQuery(MarkerQuery):
@@ -726,7 +757,10 @@ class VirtualMarkerQuery(MarkerQuery):
 		super(VirtualMarkerQuery,self).__init__(markerManager)
 		self.dic = dic
 		self.name = dic["name"]
-		self.requiresContext = dic.get("requiresContext")
+		self.type = dic["type"]
+		self.contextPageTitle = dic.get("contextPageTitle", "")
+		self.contextPageType = dic.get("contextPageType", "")
+		self.contextParent = dic.get("contextParent", "")
 		self.gestures = dic.get("gestures", {})
 		gesturesMap = {}
 		for gestureIdentifier in self.gestures.keys():
@@ -739,7 +773,6 @@ class VirtualMarkerQuery(MarkerQuery):
 		self.multiple = dic.get("multiple", True)
 		self.skip = dic.get("skip", False)
 		self.isPageTitle = dic.get("isPageTitle", False)
-		self.definesContext = dic.get("definesContext")
 		self.createWidget = dic.get("createWidget", False)
 		self.customValue = dic.get("customValue")
 
@@ -792,7 +825,66 @@ class VirtualMarkerQuery(MarkerQuery):
 					index=andIndex
 				)
 				dic[key] = values
+	
+	def checkContextPageTitle(self):
+		"""
+		Check whether the current page satisfies `contextPageTitle`.
 		
+		A leading '!' negates the match.
+		A leading '\' escapes the first character to allow for a literal
+		match.
+		
+		No further unescaping is performed past the first character. 
+		"""
+		expr = (self.contextPageTitle or "").strip()
+		if not expr:
+			return True
+		if expr[0] == "!":
+			exclude = True
+			expr = expr[1:]
+		else:
+			exclude = False
+		if expr.startswith("\\"):
+			expr = expr[1:]
+		# TODO: contextPageTitle: Handle '1:' and '2:' prefixes
+		# TODO: contextPageTitle: Handle '*' partial match
+		candidate = self.markerManager.getPageTitle()
+		if expr == candidate:
+			return not exclude
+		return False		
+
+	def checkContextPageType(self):
+		"""
+		Check whether the current page satisfies `contextPageTitle`.
+		
+		'|', '!' and '&' are supported, in this order of precedence.
+		"""
+		for expr in (self.contextPageType or "").split("&"):
+			expr = expr.strip()
+			if not expr:
+				continue
+			if expr[0] == "!":
+				exclude = True
+				expr = expr[1:]
+			else:
+				exclude = False
+			found = False
+			for pageType in expr.split("|"):
+				pageType = pageType.strip()
+				if not pageType:
+					continue
+				for candidate in self.markerManager.getPageTypes():
+					if candidate == pageType:
+						if exclude:
+							return False
+						found = True
+						break
+				if found:
+					break
+			if not found:
+				return False
+		return True
+	
 	def getResults(self, widget=False):
 		t = logTimeStart()
 		dic = self.dic
@@ -804,42 +896,59 @@ class VirtualMarkerQuery(MarkerQuery):
 # 				func = getattr(self.markerManager.webApp, funcName)
 # 				if func is not None:
 # 					return func(self)
-		rootNodes = []
-		excludedNodes = []
-		for alternatives in dic.get("requiresContext", "").split("&"):
-			alternatives = alternatives.strip()
-			if not alternatives:
+		
+		if not self.checkContextPageTitle():
+			return []
+		if not self.checkContextPageType():
+			return []
+
+		# Handle contextParent
+		rootNodes = set()  # Set of possible parent nodes
+		excludedNodes = set()  # Set of excluded parent nodes
+		for expr in self.contextParent.split("&"):
+			expr = expr.strip()
+			if not expr:
 				continue
-			if alternatives[0] == "!":
+			if expr[0] == "!":
 				exclude = True
-				alternatives = alternatives[1:]
+				expr = expr[1:]
 			else:
 				exclude = False
-			found = False
-			for context in alternatives.split("|"):
-				context = context.strip()
-				if not context:
+			altRootNodes = set()
+			for name in expr.split("|"):
+				name = name.strip()
+				if not name:
 					continue
-				contextQuery = self.markerManager.getQueryByName(context)
-				if contextQuery is None:
-					log.error(u"Rule context \"{context}\" not found".format(
-						context=context
-					))
+				query = self.markerManager.getQueryByName(name)
+				if query is None:
+					log.error((
+						u"In rule \"{rule}\".contextParent: "
+						u"Rule not found: \"{parent}\""
+					).format(rule=self.name, parent=name))
 					return []
-				contextResults = contextQuery.getResults()
-				if contextResults:
+				results = query.getResults()
+				if results:
+					nodes = [result.node for result in results]
 					if exclude:
-						if contextQuery.definesContext != contextTypes.ZONE:
-							return []
-						excludedNodes += [
-							result.node for result in contextResults]
+						excludedNodes.update(nodes)
 					else:
-						found = True
-						if contextQuery.definesContext == contextTypes.ZONE:
-							rootNodes += [
-							result.node for result in contextResults]
-			if not exclude and not found:
+						altRootNodes.update(nodes)
+			if not exclude and not altRootNodes:
 				return []
+			if exclude:
+				continue
+			if not rootNodes:
+				rootNodes = altRootNodes
+				continue
+			newRootNodes = set()
+			for node1 in rootNodes:
+				for node2 in altRootNodes:
+					node = nodeHandler.NodeField.getDeepest(node1, node2)
+					if node is not None:
+						newRootNodes.add(node)
+			if not newRootNodes:
+				return []
+			rootNodes = newRootNodes
 		
 		kwargs = {}
 		if rootNodes:

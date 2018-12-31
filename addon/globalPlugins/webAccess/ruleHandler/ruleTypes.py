@@ -1,4 +1,4 @@
-# globalPlugins/webAccess/ruleHandler/contextTypes.py
+# globalPlugins/webAccess/ruleHandler/ruleTypes.py
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.10.20"
+__version__ = "2018.12.14"
 
 __author__ = u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
@@ -32,15 +32,22 @@ import addonHandler
 addonHandler.initTranslation()
 
 
-PAGE_ID = "pageId"
+PAGE_TITLE_1 = "pageTitle1"
+PAGE_TITLE_2 = "pageTitle2"
 PAGE_TYPE = "pageType"
-ZONE = "zone"
+PARENT = "parent"
+MARKER = "marker"
 
-contextTypeLabels = OrderedDict((
-	# Translators: The label for a rule context type.
-	(PAGE_ID, _("page identifier")),
-	# Translators: The label for a rule context type.
-	(PAGE_TYPE, _("page type")),
-	# Translators: The label for a rule context type.
-	(ZONE, _("zone"))
+
+ruleTypeLabels = OrderedDict((
+	# Translators: The label for a rule type.
+	(PAGE_TITLE_1, _("Page main title")),
+	# Translators: The label for a rule type.
+	(PAGE_TITLE_2, _("Page secondary title")),
+	# Translators: The label for a rule type.
+	(PAGE_TYPE, _("Page type")),
+	# Translators: The label for a rule type.
+	(PARENT, _("Parent element")),
+	# Translators: The label for a rule type.
+	(MARKER, _("Marker")),
 ))

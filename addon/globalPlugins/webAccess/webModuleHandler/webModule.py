@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2018.12.04"
+__version__ = "2018.12.31"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -46,13 +46,13 @@ from .. import json
 from ..packaging import version
 from .. import presenter
 from .. import ruleHandler
-from ..ruleHandler import contextTypes
+from ..ruleHandler import ruleTypes
 from ..webAppLib import *
 
 
 class WebModule(baseObject.ScriptableObject):
 	
-	FORMAT_VERSION_STR = "0.3-dev"
+	FORMAT_VERSION_STR = "0.4-dev"
 	FORMAT_VERSION = version.parse(FORMAT_VERSION_STR)
 	
 	url = None
@@ -90,7 +90,7 @@ class WebModule(baseObject.ScriptableObject):
 			"name": self.name,
 			"url": self.url,
 			"windowTitle": self.windowTitle,
-			}
+		}
 		
 		if self.markerManager is None:
 			# Do not risk to erase an existing data file while in an
@@ -98,7 +98,7 @@ class WebModule(baseObject.ScriptableObject):
 			raise Exception(
 				"WebModule has no marker manager: {name}"
 				"".format(name=self.name)
-				)
+			)
 		else:
 			queriesData = self.markerManager.getQueriesData()
 			if len(queriesData) > 0:
@@ -136,12 +136,62 @@ class WebModule(baseObject.ScriptableObject):
 					rule["requiresContext"] = rule.pop("context")
 				if "isContext" in rule:
 					if rule.get("isContext"):
-						rule["definesContext"] = contextTypes.PAGE_ID
+						rule["definesContext"] = "pageId"
 					del rule["isContext"]
 		if formatVersion < version.parse("0.3"):
 			for rule in data.get("Rules", []):
 				if rule.get("autoAction") == "noAction":
 					del rule["autoAction"]
+		if formatVersion < version.parse("0.4"):
+			for rule in data.get("Rules", []):
+				rule.setdefault("type", ruleTypes.MARKER)
+				for reason in ("isPageTitle", "definesContext"):
+					if not rule.get(reason):
+						continue
+					notSupported = []
+					for key in (
+						"gestures", "autoAction",
+						"multiple", "formMode", "sayName"
+					):
+						if rule.get(key):
+							notSupported.append(key)
+					if notSupported:
+						log.error(
+							u"Web module \"{module}\" - rule \"{rule}\": "
+							u"Not supported on rules with property "
+							u"\"{reason}\": {notSupported}".format(
+								module=data.get("WebModule", {}).get("name"),
+								rule=rule.get("name"),
+								reason=reason,
+								notSupported=u", ".join(notSupported)
+							)
+						)
+					elif rule.get("isPageTitle"):
+						rule["type"] = ruleTypes.PAGE_TITLE_1
+					elif rule["definesContext"] in ("pageId", "pageType"):
+						rule["type"] = ruleTypes.PAGE_TYPE
+					else:
+						rule["type"] = ruleTypes.PARENT
+				if rule.get("requiresContext"):
+					rule["contextParent"] = rule["requiresContext"]
+					log.error(
+						u"Web module \"{module}\" - rule \"{rule}\": "
+						u"Property \"requiresContext\" has been copied to " 
+						u"\"contextParent\", which is probably not accurate. "
+						u"Please redefine the required context.".format(
+							module=data.get("WebModule", {}).get("name"),
+							rule=rule.get("name")
+						)
+					)
+				for key in (
+					"definesContext",
+					"requiresContext",
+					"isPageTitle"
+				):
+					try:
+						del rule[key]
+					except KeyError:
+						pass
 		if formatVersion > self.FORMAT_VERSION:
 			raise version.InvalidVersion(
 				"WebModule format version not supported: {ver}".format(

@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.12.04"
+__version__ = "2018.12.31"
 
 __authors__ = (
 	u"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
@@ -397,6 +397,21 @@ class NodeField(baseObject.AutoPropertyObject):
 	
 	customText = ""
 	
+	@classmethod
+	def getDeepest(cls, node1, node2):
+		"""
+		Given two nodes on the same branch, return the one closest to the tip.
+		
+		Returns `None` if the two nodes are not on the same branch. 
+		"""
+		if node1 in node2:
+			return node1
+		if node2 in node1:
+			return node2
+		if node1 == node2:
+			return node1
+		return None
+	
 	def __init__(self, nodeType, attrs, parent, offset, nodeManager):
 		super(NodeField, self).__init__()
 		self.nodeManager = nodeManager
@@ -537,7 +552,7 @@ class NodeField(baseObject.AutoPropertyObject):
 		criteria.
 		
 		Keyword arguments:
-		  exclude: If specified, supply a list of children nodes not to explore.
+		  exclude: If specified, set of children nodes not to explore.
 		  maxIndex:
 		    If set to 0 (default value), every result found is returned.
 		    If greater than 0, only return the n first results (1 based).
@@ -719,18 +734,50 @@ class NodeField(baseObject.AutoPropertyObject):
 		return False
 
 	def __lt__(self, node):
+		"""
+		Compare nodes based on their offset.
+		"""
 		if self.offset < node.offset:
 			return True
 		return False
 
-	def __contains__(self, node):
-		if self == node:
+	def __le__(self, node):
+		"""
+		Compare nodes based on their offset.
+		"""
+		if self.offset <= node.offset:
 			return True
-		if hasattr(self, "children"):
-			for ch in self.children:
-				if ch == node:
-					return True
 		return False
+
+	def __gt__(self, node):
+		"""
+		Compare nodes based on their offset.
+		"""
+		if self.offset > node.offset:
+			return True
+		return False
+
+	def __ge__(self, node):
+		"""
+		Compare nodes based on their offset.
+		"""
+		if self.offset >= node.offset:
+			return True
+		return False
+
+	def __contains__(self, node):
+		"""
+		Check whether the given node belongs to the subtree of this node, based
+		on their offset.
+		"""
+		if self <= node:
+			return False
+		if not self.children:
+			return False
+		lastChild = self.children[-1]
+		if lastChild >= node:
+			return True
+		return node in lastChild
 
 	def __len__(self):
 		return self.size

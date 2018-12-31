@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.10.10"
+__version__ = "2018.12.31"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
@@ -28,7 +28,6 @@ import wx
 
 import addonHandler
 addonHandler.initTranslation()
-import api
 import controlTypes
 import gui
 import inputCore
