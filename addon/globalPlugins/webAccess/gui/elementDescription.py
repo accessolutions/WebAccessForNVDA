@@ -23,7 +23,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2018.12.12"
+__version__ = "2018.12.31"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 __license__ = "GPL"
 
@@ -33,7 +33,6 @@ import wx
 import addonHandler
 import controlTypes
 import gui
-from logHandler import log
 
 
 addonHandler.initTranslation()
@@ -83,8 +82,8 @@ def getTextList(node):
 			return []
 	elif hasattr(node, "children"):
 		textList = []
-		for chield in node.children:
-			textList += getTextList(chield)
+		for child in node.children:
+			textList += getTextList(child)
 		return textList
 	else:
 		return []
@@ -162,7 +161,7 @@ class ElementDescriptionDialog(wx.Dialog):
 			self,
 			wx.ID_ANY,
 			size=(600, 600),
-			style=wx.TE_MULTILINE | wx.TE_RICH
+			style=wx.TE_MULTILINE | wx.TE_RICH | wx.TE_READONLY
 		)
 		item.Bind(wx.EVT_KEY_DOWN, self.OnOutputKeyDown)
 		mainSizer.Add(item)
