@@ -400,7 +400,6 @@ class MarkerManager(baseObject.ScriptableObject):
 				funcMoveto (None)
 		
 	def getPageTitle(self):
-		# TODO: Failback to HTML HEAD TITLE, then to window title
 		with self.lock:
 			if not self.isReady:
 				return None
@@ -414,8 +413,8 @@ class MarkerManager(baseObject.ScriptableObject):
 			]
 			if parts:
 				return " - ".join(parts)
-			# TODO: Failback to HTML HEAD TITLE, then to window title
-			return ""
+			# TODO: Failback first to HTML HEAD TITLE
+			return api.getForegroundObject().name
 	
 	def _getPageTitle1(self):
 		for result in self.markerResults:

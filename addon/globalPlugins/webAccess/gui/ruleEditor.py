@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2016 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.12.31"
+__version__ = "2019.01.01"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
@@ -178,7 +178,7 @@ class RuleContextEditor(wx.Dialog):
 		
 		showPageTitle = data["type"] != ruleTypes.PAGE_TITLE_1 
 		if showPageTitle:
-			self.pageTitleCombo.Set([markerManager.getPageTitle()])
+			self.pageTitleCombo.Set([context["pageTitle"]])
 			self.pageTitleCombo.Value = data.get("contextPageTitle", "")
 		self.pageTitleLabel.Show(showPageTitle)
 		self.pageTitleCombo.Show(showPageTitle)

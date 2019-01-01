@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ Overridden NVDA functions:
 
 from __future__ import absolute_import
 
-__version__ = "2018.12.17"
+__version__ = "2019.01.01"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -227,6 +227,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			webModule = obj.getWebApp()
 			if webModule is not None:
 				context["webModule"] = webModule
+				context["pageTitle"] = webModule.pageTitle
 		menu.show(context)
 	
 	def script_debugWebModule(self, gesture):  # @UnusedVariable

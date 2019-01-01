@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2018.12.31"
+__version__ = "2019.01.01"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -222,10 +222,22 @@ class WebModule(baseObject.ScriptableObject):
 		del items
 		return True
 	
+	_cache_pageTitle = False
+	
 	def _get_pageTitle(self):
-		title = self.markerManager.getPageTitle ()
-		if title is None:
-			title = api.getForegroundObject().windowText
+		title = self.activePageTitle
+		if not title:
+			try:
+				title = self.markerManager.getPageTitle()
+			except:
+				log.exception(
+					u'Error while retrieving page title'
+					u' in WebModule "{}"'.format(
+						self.name
+					)
+				)
+		if not title:
+			title = api.getForegroundObject().name
 		return title
 
 	def getPresentationConfig(self):
@@ -260,24 +272,23 @@ class WebModule(baseObject.ScriptableObject):
 	def claimForJABObject(self, obj):
 		return False
 
-	def script_sayTitle(self, gesture):
-		titleObj = api.getForegroundObject()
-		windowTitle = titleObj.windowText
-		try:
-			webAppTitle = self.pageTitle
-		except Exception, e:
-			log.exception(u"Error retrieving webApp title: %s" % e)
-			webAppTitle = windowTitle
-		if webAppTitle is None or webAppTitle == "":
-			webAppTitle = windowTitle
-		ui.message (webAppTitle)
+	def script_title(self, gesture):
+		title = self.pageTitle
+		repeatCount = scriptHandler.getLastScriptRepeatCount()
+		if repeatCount == 0:
+			ui.message(title)
+		elif repeatCount == 1:
+			speech.speakSpelling(title)
+		else:
+			if api.copyToClip(title):
+				ui.message(_("%s copied to clipboard") % title)
 
 	def script_sayWebAppName(self, gesture):
 		# Translators: Speak name of current web module
 		ui.message(_(u"Current web module is: {name}").format(name=self.name))
 
 	__gestures = {
-		"kb:nvda+t": "sayTitle",
+		"kb:nvda+t": "title",
 		"kb:nvda+shift+t": "sayWebAppName",
 	}
 	
