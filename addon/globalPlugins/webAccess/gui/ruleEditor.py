@@ -19,8 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.01.01"
-
+__version__ = "2019.01.03"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -75,15 +74,26 @@ def convRoleStringToInteger(role):
 	return None
 
 
+def safeDelete(dic, key):
+	try:
+		del dic[key]
+	except KeyError:
+		pass
+
+
 def updateAndDeleteMissing(keys, src, dest):
 	for key in keys:
 		if key in src:
 			dest[key] = src[key]
 		else:
-			try:
-				del dest[key]
-			except KeyError:
-				pass
+			safeDelete(dest, key)
+
+
+def updateOrDeleteIfEmpty(dic, key, value):
+	if value:
+		dic[key] = value
+	else:
+		safeDelete(dic, key)
 
 
 def show(context):
@@ -170,7 +180,7 @@ class RuleContextEditor(wx.Dialog):
 		self.Bind(wx.EVT_BUTTON, self.onOk, id=wx.ID_OK)
 		self.SetSizerAndFit(mainSizer)
 	
-	def InitData(self, context):
+	def initData(self, context):
 		data = self.data = context["data"]["rule"]
 		markerManager = self.markerManager = context["webModule"].markerManager
 		node = markerManager.nodeManager.getCaretNode()
@@ -207,7 +217,7 @@ class RuleContextEditor(wx.Dialog):
 		self.EndModal(wx.ID_OK)
 	
 	def ShowModal(self, context):
-		self.InitData(context)
+		self.initData(context)
 		self.Fit()
 		self.Center(wx.BOTH | wx.CENTER_ON_SCREEN)
 		if self.pageTitleCombo.IsShown():
@@ -314,7 +324,7 @@ class RuleCriteriaEditor(wx.Dialog):
 		self.Bind(wx.EVT_BUTTON, self.onOk, id=wx.ID_OK)
 		self.SetSizerAndFit(mainSizer)
 	
-	def InitData(self, context):
+	def initData(self, context):
 		data = self.data = context["data"]["rule"]
 		markerManager = self.markerManager = context["webModule"].markerManager
 		node = markerManager.nodeManager.getCaretNode()
@@ -394,7 +404,7 @@ class RuleCriteriaEditor(wx.Dialog):
 		self.EndModal(wx.ID_OK)
 	
 	def ShowModal(self, context):
-		self.InitData(context)
+		self.initData(context)
 		self.Fit()
 		self.Center(wx.BOTH | wx.CENTER_ON_SCREEN)
 		self.searchText.SetFocus()
@@ -536,7 +546,7 @@ class RulePropertiesEditor(wx.Dialog):
 		self.Bind(wx.EVT_BUTTON, self.onOk, id=wx.ID_OK)
 		self.SetSizerAndFit(mainSizer)
 	
-	def InitData(self, context):
+	def initData(self, context):
 		data = self.data = context["data"]["rule"]
 		
 		fields = self.RULE_TYPE_FIELDS.get(data.get("type"), {})
@@ -580,7 +590,7 @@ class RulePropertiesEditor(wx.Dialog):
 		self.EndModal(wx.ID_OK)
 	
 	def ShowModal(self, context):
-		self.InitData(context)
+		self.initData(context)
 		self.Fit()
 		self.Center(wx.BOTH | wx.CENTER_ON_SCREEN)
 		if self.customValueText.IsShown():
@@ -786,7 +796,7 @@ class RuleEditor(wx.Dialog):
 	def __del__(self):
 		RuleEditor._instance = None
 	
-	def InitData(self, context):
+	def initData(self, context):
 		self.context = context
 		rule = self.rule = context.get("rule")
 		self.data = context.setdefault("data", {}).setdefault(
@@ -1005,19 +1015,13 @@ class RuleEditor(wx.Dialog):
 			data["gestures"] = self.gestureMapValue
 			sel = self.autoActionList.Selection
 			autoAction = self.autoActionList.GetClientData(sel)
-			if autoAction != "":
-				data["autoAction"] = autoAction
-				if self.customValue.Value:
-					data["customValue"] = self.customValue.Value
+			updateOrDeleteIfEmpty(data, "autoAction", autoAction)
+			updateOrDeleteIfEmpty(data, "customValue", self.customValue.Value)
 		else:
-			try:
-				del data["gestures"]
-			except KeyError:
-				pass
-			try:
-				del data["autoAction"]
-			except KeyError:
-				pass
+			safeDelete(data, "gestures")
+			safeDelete(data, "autoAction")
+			# "customValue" will eventually get updated below
+		
 		propertyFieldsForType = RulePropertiesEditor.RULE_TYPE_FIELDS.get(
 			ruleType, {}
 		)
@@ -1025,10 +1029,7 @@ class RuleEditor(wx.Dialog):
 			if key == "customValue" and ruleType == ruleTypes.MARKER:
 				continue
 			if key not in propertyFieldsForType:
-				try:
-					del data[key]
-				except KeyError:
-					pass
+				safeDelete(data, key)
 		
 		unic = True
 		for rule in self.markerManager.getQueries():
@@ -1059,10 +1060,7 @@ class RuleEditor(wx.Dialog):
 		self.EndModal(wx.ID_OK)
 	
 	def onCancel(self, evt):
-		try:
-			del self.context["rule"]
-		except KeyError:
-			pass
+		safeDelete(self.context, "rule")
 		self.EndModal(wx.ID_CANCEL)
 	
 	def onSize(self, evt):
@@ -1076,7 +1074,7 @@ class RuleEditor(wx.Dialog):
 		self.hasMoved = True
 	
 	def ShowModal(self, context):
-		self.InitData(context)
+		self.initData(context)
 		self.Fit()
 		self.Center(wx.BOTH | wx.CENTER_ON_SCREEN)
 		self.ruleTypeCombo.SetFocus()
