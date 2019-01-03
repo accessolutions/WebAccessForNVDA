@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2019.01.01"
+__version__ = "2019.01.03"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -192,6 +192,18 @@ class WebModule(baseObject.ScriptableObject):
 						del rule[key]
 					except KeyError:
 						pass
+				# If it is upper-case (as in non-normalized identifiers),
+				# `keyboardHandler.KeyboardInputGesture.getDisplayTextForIdentifier`
+				# does not properly handle the NVDA key. 
+				gestures = rule.get("gestures", {})
+				# Get ready for Python 3: dict.items will return an iterator.
+				for key, value in list(gestures.items()):
+					if "NVDA" not in key:
+						continue
+					del gestures[key]
+					key = key.replace("NVDA", "nvda")
+					gestures[key] = value				
+		
 		if formatVersion > self.FORMAT_VERSION:
 			raise version.InvalidVersion(
 				"WebModule format version not supported: {ver}".format(
