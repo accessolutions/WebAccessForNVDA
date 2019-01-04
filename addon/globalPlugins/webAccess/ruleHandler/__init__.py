@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.01.01"
+__version__ = "2019.01.04"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
@@ -49,7 +49,6 @@ from .. import nodeHandler
 from .. import webAppScheduler
 from ..widgets import genericCollection
 from ..webAppLib import *
-from . import contextTypes
 from . import ruleTypes
 
 
