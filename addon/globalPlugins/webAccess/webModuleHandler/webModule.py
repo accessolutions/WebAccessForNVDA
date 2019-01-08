@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2019.01.08"
+__version__ = "2019.01.10"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -129,49 +129,92 @@ class WebModule(baseObject.ScriptableObject):
 			# TODO: Re-implement custom field labels?
 			if "FieldLabels" in data:
 				log.warning("FieldLabels not supported")
+		
 		formatVersion = version.parse(formatVersion)
+		
+		rules = data.get("Rules", [])
+		
 		if formatVersion < version.parse("0.2"):
-			for rule in data.get("Rules", []):
+			for rule in rules:
 				if "context" in rule:
 					rule["requiresContext"] = rule.pop("context")
 				if "isContext" in rule:
 					if rule.get("isContext"):
 						rule["definesContext"] = "pageId"
 					del rule["isContext"]
+		
 		if formatVersion < version.parse("0.3"):
-			for rule in data.get("Rules", []):
+			for rule in rules:
 				if rule.get("autoAction") == "noAction":
 					del rule["autoAction"]
+		
 		if formatVersion < version.parse("0.4"):
-			for rule in data.get("Rules", []):
+			markerKeys = (
+				"gestures", "autoAction", "skip",
+				"multiple", "formMode", "sayName",
+			)
+			splitTitles = []
+			splitMarkers = []
+			for rule in rules:
 				rule.setdefault("type", ruleTypes.MARKER)
-				for reason in ("isPageTitle", "definesContext"):
-					if not rule.get(reason):
-						continue
-					notSupported = []
-					for key in (
-						"gestures", "autoAction",
-						"multiple", "formMode", "sayName"
-					):
-						if rule.get(key):
-							notSupported.append(key)
-					if notSupported:
-						log.error(
-							u"Web module \"{module}\" - rule \"{rule}\": "
-							u"Not supported on rules with property "
-							u"\"{reason}\": {notSupported}".format(
-								module=data.get("WebModule", {}).get("name"),
-								rule=rule.get("name"),
-								reason=reason,
-								notSupported=u", ".join(notSupported)
-							)
-						)
-					elif rule.get("isPageTitle"):
-						rule["type"] = ruleTypes.PAGE_TITLE_1
-					elif rule["definesContext"] in ("pageId", "pageType"):
+				if rule.get("definesContext") and rule.get("isPageTitle"):
+						split = rule.copy()
+						del rule["isPageTitle"]
+						split["type"] = ruleTypes.PAGE_TITLE_1
+						split["name"] = u"{} (title)".format(rule["name"])
+						for key in markerKeys:
+							try:
+								del split[key]
+							except KeyError:
+								pass
+						splitTitles.append(split)
+						log.warning((
+							u'Web module \"{module}\" - rule "{rule}": '
+							u'Splitting "isPageTitle" from "definesContext".'
+						).format(
+							module=data.get("WebModule", {}).get("name"),
+							rule=rule.get("name")
+						))
+				elif rule.get("definesContext"):
+					if rule["definesContext"] in ("pageId", "pageType"):
 						rule["type"] = ruleTypes.PAGE_TYPE
 					else:
 						rule["type"] = ruleTypes.PARENT
+					reason = "definesContext"
+				elif rule.get("isPageTitle"):
+					rule["type"] = ruleTypes.PAGE_TITLE_1
+					reason = "isPageTitle"
+				else:
+					reason = None
+				if reason:
+					if (
+						rule.get("gestures")
+						or rule.get("autoAction")
+						or not rule.get("skip", False)
+					):
+						split = rule.copy()
+						del split[reason]
+						split["type"] = ruleTypes.MARKER
+						split["name"] = u"{} (marker)".format(rule["name"])
+						splitMarkers.append(split)
+						log.warning((
+							u'Web module \"{module}\" - rule "{rule}": '
+							u'Splitting "{reason}" from marker.'
+						).format(
+							module=data.get("WebModule", {}).get("name"),
+							rule=rule.get("name"),
+							reason=reason
+						))
+					for key in markerKeys:
+						try:
+							del rule[key]
+						except KeyError:
+							pass
+			
+			rules.extend(splitTitles)
+			rules.extend(splitMarkers)
+
+			for rule in rules:
 				if rule.get("requiresContext"):
 					rule["contextPageType"] = rule["requiresContext"]
 					log.warning(
@@ -183,6 +226,7 @@ class WebModule(baseObject.ScriptableObject):
 							rule=rule.get("name")
 						)
 					)
+				
 				for key in (
 					"definesContext",
 					"requiresContext",
@@ -192,6 +236,7 @@ class WebModule(baseObject.ScriptableObject):
 						del rule[key]
 					except KeyError:
 						pass
+				
 				# If it is upper-case (as in non-normalized identifiers),
 				# `keyboardHandler.KeyboardInputGesture.getDisplayTextForIdentifier`
 				# does not properly handle the NVDA key. 
