@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2019.01.03"
+__version__ = "2019.01.08"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -173,11 +173,11 @@ class WebModule(baseObject.ScriptableObject):
 					else:
 						rule["type"] = ruleTypes.PARENT
 				if rule.get("requiresContext"):
-					rule["contextParent"] = rule["requiresContext"]
-					log.error(
+					rule["contextPageType"] = rule["requiresContext"]
+					log.warning(
 						u"Web module \"{module}\" - rule \"{rule}\": "
 						u"Property \"requiresContext\" has been copied to " 
-						u"\"contextParent\", which is probably not accurate. "
+						u"\"contextPageType\", which is probably not accurate. "
 						u"Please redefine the required context.".format(
 							module=data.get("WebModule", {}).get("name"),
 							rule=rule.get("name")
