@@ -730,13 +730,15 @@ class MarkerQuery(baseObject.ScriptableObject):
 		self.type = None
 		self.skip = False
 		self.results = None
-
-	def resetResults (self):
+	
+	def resetResults(self):
 		self.results = None
-		
+	
 	def getResults(self):
-		return []
-
+		if self.results is None:
+			self.results = self._getResults()
+		return self.results
+	
 	def _getResults(self):
 		raise NotImplementedError()
 	
@@ -892,7 +894,7 @@ class VirtualMarkerQuery(MarkerQuery):
 				return False
 		return True
 	
-	def getResults(self, widget=False):
+	def _getResults(self, widget=False):
 		t = logTimeStart()
 		dic = self.dic
 		text = dic.get("text")
