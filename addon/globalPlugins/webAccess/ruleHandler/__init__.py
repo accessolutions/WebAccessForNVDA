@@ -304,8 +304,16 @@ class MarkerManager(baseObject.ScriptableObject):
 			self.markerResults = []
 			for query in self.markerQueries:
 				query.resetResults()
-				
-			for query in self.markerQueries:
+			
+			
+			for query in sorted(
+				self.markerQueries,
+				key=lambda query: (
+					0 if query.type in (
+						ruleTypes.PAGE_TITLE_1, ruleTypes.PAGE_TITLE_2
+					) else 1
+				)
+			):
 				results = query.getResults()
 				self.markerResults += results
 				self.markerResults.sort()
@@ -402,18 +410,21 @@ class MarkerManager(baseObject.ScriptableObject):
 		with self.lock:
 			if not self.isReady:
 				return None
-			parts = [
-				part
-				for part in [
-					self._getPageTitle1(),
-					self._getPageTitle2(),
-				]
-				if part
+			return self._getPageTitle()
+	
+	def _getPageTitle(self):
+		parts = [
+			part
+			for part in [
+				self._getPageTitle1(),
+				self._getPageTitle2(),
 			]
-			if parts:
-				return " - ".join(parts)
-			# TODO: Failback first to HTML HEAD TITLE
-			return api.getForegroundObject().name
+			if part
+		]
+		if parts:
+			return " - ".join(parts)
+		# TODO: Failback first to HTML HEAD TITLE
+		return api.getForegroundObject().name
 	
 	def _getPageTitle1(self):
 		for result in self.markerResults:
@@ -857,7 +868,7 @@ class VirtualMarkerQuery(MarkerQuery):
 			expr = expr[1:]
 		# TODO: contextPageTitle: Handle '1:' and '2:' prefixes
 		# TODO: contextPageTitle: Handle '*' partial match
-		candidate = self.markerManager.getPageTitle()
+		candidate = self.markerManager._getPageTitle()
 		if expr == candidate:
 			return not exclude
 		return False		
@@ -878,14 +889,23 @@ class VirtualMarkerQuery(MarkerQuery):
 			else:
 				exclude = False
 			found = False
-			for pageType in expr.split("|"):
-				pageType = pageType.strip()
-				if not pageType:
+			for name in expr.split("|"):
+				name = name.strip()
+				if not name:
 					continue
-				for candidate in self.markerManager.getPageTypes():
-					if candidate == pageType:
-						if exclude:
-							return False
+				query = self.markerManager.getQueryByName(name)
+				if query is None:
+					log.error((
+						u"In rule \"{rule}\".contextPageType: "
+						u"Rule not found: \"{pageType}\""
+					).format(rule=self.name, pageType=name))
+					return False
+				results = query.getResults()
+				if results:
+					nodes = [result.node for result in results]
+					if exclude:
+						return False
+					else:
 						found = True
 						break
 				if found:
