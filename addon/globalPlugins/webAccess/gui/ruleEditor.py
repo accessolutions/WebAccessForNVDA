@@ -19,12 +19,11 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.01.03"
+__version__ = "2019.01.10"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
 import re
-import six
 import wx.lib.expando
 
 import addonHandler
@@ -836,9 +835,7 @@ class RuleEditor(wx.Dialog):
 		else:
 			self.Title = _("Edit rule")
 			self.ruleNameText.Value = rule.name
-			for index, key in enumerate(six.iterkeys(
-				ruleTypes.ruleTypeLabels
-			)):
+			for index, key in enumerate(ruleTypes.ruleTypeLabels.keys()):
 				if key == rule.type:
 					break
 			else:
