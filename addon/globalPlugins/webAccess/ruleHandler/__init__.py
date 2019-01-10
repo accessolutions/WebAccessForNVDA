@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.01.04"
+__version__ = "2019.01.10"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
@@ -431,7 +431,7 @@ class MarkerManager(baseObject.ScriptableObject):
 			if not self.isReady:
 				return types
 			for result in self.markerResults:
-				if result.markerQuery.type is ruleTypes.PAGE_TYPE:
+				if result.markerQuery.type == ruleTypes.PAGE_TYPE:
 					types.append(result.markerQuery.name)
 			return types
 
