@@ -20,12 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 __version__ = "2019.01.10"
-
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
-
-
-import addonHandler
-addonHandler.initTranslation()
 
 
 from collections import OrderedDict
@@ -33,6 +28,7 @@ import threading
 import time
 import wx
 
+import addonHandler
 import api
 import baseObject
 import browseMode
@@ -43,6 +39,7 @@ from logHandler import log
 import sayAllHandler
 import speech
 import textInfos
+import textInfos.offsets
 import ui
 
 from .. import nodeHandler
@@ -52,8 +49,7 @@ from ..webAppLib import *
 from . import ruleTypes
 
 
-TRACE = lambda *args, **kwargs: None
-#TRACE = log.info
+addonHandler.initTranslation()
 
 
 builtinRuleActions = OrderedDict()
@@ -72,6 +68,7 @@ builtinRuleActions["mouseMove"] = pgettext("webAccess.action", "Mouse move")
 def showCreator(context):
 	return showEditor(context, new=True)
 
+
 def showEditor(context, new=False):
 	from ..gui import ruleEditor
 	if new:
@@ -80,6 +77,7 @@ def showEditor(context, new=False):
 		if "data" in context:
 			del context["data"]["rule"]
 	return ruleEditor.show(context)
+
 
 def showManager(context):
 	api.processPendingEvents()
@@ -144,13 +142,6 @@ class DefaultMarkerScripts(baseObject.ScriptableObject):
 class MarkerManager(baseObject.ScriptableObject):
 	
 	def __init__(self, webApp):
-# 		TRACE(
-# 			u"MarkerManager.__init__("
-# 			u"self={self}, webApp={webApp}".format(
-# 				self=id(self),
-# 				webApp=id(webApp) if webApp is not None else None
-# 				)
-# 			)
 		super(MarkerManager,self).__init__()
 		self._ready = False
 		self.webApp = webApp
@@ -251,14 +242,6 @@ class MarkerManager(baseObject.ScriptableObject):
 		return True
 
 	def event_nodeManagerTerminated(self, nodeManager):
-		TRACE(
-			u"event_nodeManagerTerminated("
-			u"self={self}, nodeManager={nodeManager})".format(
-				self=id(self),
-				nodeManager=id(nodeManager)
-					if nodeManager is not None else None
-				)
-			)
 		if self.nodeManager != nodeManager:
 			log.warn(u"nodeManager different than self.nodeManager")
 			return
@@ -271,25 +254,7 @@ class MarkerManager(baseObject.ScriptableObject):
 			q.resetResults () 
 
 	def update(self, nodeManager=None, force=False):
-		TRACE(
-			u"update(self={self}, "
-			u"nodeManager={nodeManager}, force={force}"
-			u"): Waiting for lock".format(
-				self=id(self),
-				nodeManager=id(nodeManager) if nodeManager is not None else None,
-				force=force
-				)
-			)
 		with self.lock:
-			TRACE(
-				u"update(self={self}, "
-				u"nodeManager={nodeManager}, force={force}"
-				u"): Obtained lock".format(
-					self=id(self),
-					nodeManager=id(nodeManager) if nodeManager is not None else None,
-					force=force
-					)
-				)
 			self._ready = False
 			if nodeManager is not None:
 				self.nodeManager = nodeManager
@@ -341,21 +306,9 @@ class MarkerManager(baseObject.ScriptableObject):
 		return False
 
 	def checkAutoAction(self):
-		TRACE(u"checkAutoAction(self={self}: Waiting for lock".format(
-			self=id(self)
-			))
 		with self.lock:
-			TRACE(u"checkAutoAction(self={self}): Obtained lock".format(
-				self=id(self)
-				))
 			if not self.isReady:
-				TRACE(u"checkAutoAction(self={self}): Not ready".format(
-					self=id(self)
-					))
 				return
-			TRACE(u"checkAutoAction(self={self}): Ready".format(
-				self=id(self)
-				))
 			countMoveto = 0
 			funcMoveto = None
 			firstCancelSpeech = True
@@ -539,30 +492,14 @@ class MarkerManager(baseObject.ScriptableObject):
 		
 	def script_nextMarker(self, gesture):
 		self.focusNextResult()
-
+	
 	def script_previousMarker(self, gesture):
 		self.focusPreviousResult()
-
-# 	def script_essai(self, gesture):
-# 		ui.message(u"essai")
-# 		ti = html.getTreeInterceptor()
-# 		obj = ti.rootNVDAObject
-# 		api.setNavigatorObject(obj)
-# 		return
-# 		t = logTimeStart()
-# 		treeInterceptor = html.getTreeInterceptor()
-# 		info = treeInterceptor.makeTextInfo(textInfos.POSITION_ALL)
-# 		text=NVDAHelper.VBuf_getTextInRange(treeInterceptor.VBufHandle,info._startOffset,info._endOffset,True)
-# 		commandList=XMLFormatting.XMLTextParser().parse(text)
-# 		#text = info.getTextWithFields()
-# 		logTime("all text : %d " % len(text), t)
-
-
+	
 	__gestures = {
 		"kb:control+nvda+r" : "refreshMarkers",
 		"kb:pagedown" : "nextMarker",
 		"kb:pageup" : "previousMarker",
-# 		"kb:alt+control+shift+e" : "essai",
 	}
 
 
@@ -578,10 +515,10 @@ class MarkerResult(baseObject.ScriptableObject):
 				setattr(self.__class__, "script_%s" % actionName, func)
 		self.markerQuery = markerQuery
 		self.bindGestures(markerQuery.gestures)
-
+	
 	def check(self):
 		raise NotImplementedError
-
+	
 	def _get_name(self):
 		return self.markerQuery.name
 	
@@ -590,22 +527,22 @@ class MarkerResult(baseObject.ScriptableObject):
 	
 	def script_moveto(self, gesture):
 		raise NotImplementedError
-
+	
 	def script_sayall(self, gesture):
 		raise NotImplementedError
-		
+	
 	def script_activate(self, gesture):
 		raise NotImplementedError
-		
+	
 	def script_speak(self, gesture):
 		raise NotImplementedError
-
+	
 	def script_mouseMove(self, gesture):
 		raise NotImplementedError
 	
 	def __lt__(self, other):
 		raise NotImplementedError
-
+	
 	def getDisplayString(self):
 		return u" ".join(
 			[self.name]
@@ -682,7 +619,7 @@ class VirtualMarkerResult(MarkerResult):
 		html.speakLine()
 		speechOn()
 		sayAllHandler.readText(sayAllHandler.CURSOR_CARET)
-
+	
 	def script_activate(self, gesture):
 		if self.node.nodeManager is None:
 			return
@@ -699,7 +636,7 @@ class VirtualMarkerResult(MarkerResult):
 			return
 		treeInterceptor.passThrough = self.markerQuery.formMode
 		browseMode.reportPassThrough.last = treeInterceptor.passThrough 
-		
+	
 	def script_speak(self, gesture):
 		repeat = scriptHandler.getLastScriptRepeatCount()
 		if repeat == 0:
@@ -711,7 +648,7 @@ class VirtualMarkerResult(MarkerResult):
 			wx.CallAfter(ui.message, msg)
 		else:
 			self.script_moveto(None, fromSpeak=True)
-			
+	
 	def script_mouseMove(self, gesture):
 		if self.markerQuery.sayName:
 			speech.speakMessage(self.markerQuery.name)
@@ -721,13 +658,13 @@ class VirtualMarkerResult(MarkerResult):
 		treeInterceptor.passThrough = self.markerQuery.formMode
 		browseMode.reportPassThrough.last = treeInterceptor.passThrough 
 		self.node.mouseMove()
-
+	
 	def getTextInfo(self):
 		return self.node.getTextInfo.copy()
 	
 	def __lt__(self, other):
 		return self.node.offset < other.node.offset
-
+	
 	def getTitle(self):
 		return self.markerQuery.name + " - " + self.node.innerText
 
@@ -795,13 +732,13 @@ class VirtualMarkerQuery(MarkerQuery):
 		self.isPageTitle = dic.get("isPageTitle", False)
 		self.createWidget = dic.get("createWidget", False)
 		self.customValue = dic.get("customValue")
-
+	
 	def __eq__(self, other):
 		return self.dic == other.dic
-
+	
 	def getData(self):
 		return self.dic
-		
+	
 	def addSearchKwargs(self, dic, prop, expr):
 		if not expr:
 			return
@@ -872,7 +809,7 @@ class VirtualMarkerQuery(MarkerQuery):
 		if expr == candidate:
 			return not exclude
 		return False		
-
+	
 	def checkContextPageType(self):
 		"""
 		Check whether the current page satisfies `contextPageTitle`.
@@ -1011,4 +948,3 @@ class VirtualMarkerQuery(MarkerQuery):
 			if not self.multiple:
 				break
 		return results
-
