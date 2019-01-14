@@ -156,6 +156,7 @@ class MarkerManager(baseObject.ScriptableObject):
 		self.defaultMarkerScripts = DefaultMarkerScripts(u"Aucun marqueur associé à cette touche")
 		self.timerCheckAutoAction = None
 		webApp.widgetManager.register(MarkerGenericCollection)
+		self.zone = None
 
 	def setQueriesData(self, queryData):
 		self.markerQueries = []
@@ -236,6 +237,20 @@ class MarkerManager(baseObject.ScriptableObject):
 			return func
 		return None
 	
+	def getScript(self, gesture):
+		func = super(MarkerManager, self).getScript(gesture)
+		if func is not None:
+			return func
+		for result in self.getResults():
+			func = result.getScript(gesture)
+			if func is not None:
+				return func
+		for query in self.getQueries():
+			func = query.getScript(gesture)
+			if func is not None:
+				return func
+		return self.defaultMarkerScripts.getScript(gesture)
+	
 	def _get_isReady(self):
 		if not self._ready or not self.nodeManager or not self.nodeManager.isReady or self.nodeManager.identifier != self.nodeManagerIdentifier:
 			return False
@@ -251,7 +266,7 @@ class MarkerManager(baseObject.ScriptableObject):
 		self.nodeManager = None
 		del self.markerResults[:]
 		for q in self.markerQueries:
-			q.resetResults () 
+			q.resetResults()
 
 	def update(self, nodeManager=None, force=False):
 		with self.lock:
@@ -270,7 +285,6 @@ class MarkerManager(baseObject.ScriptableObject):
 			for query in self.markerQueries:
 				query.resetResults()
 			
-			
 			for query in sorted(
 				self.markerQueries,
 				key=lambda query: (
@@ -282,6 +296,9 @@ class MarkerManager(baseObject.ScriptableObject):
 				results = query.getResults()
 				self.markerResults += results
 				self.markerResults.sort()
+			if self.zone:
+				if not self.zone.update():
+					self.zone = None
 			self.nodeManagerIdentifier = self.nodeManager.identifier
 			self._ready = True
 			#logTime("update marker", t)
@@ -399,19 +416,23 @@ class MarkerManager(baseObject.ScriptableObject):
 					types.append(result.markerQuery.name)
 			return types
 
-	def getNextResult(self, name=None):
-		return self._getIncrementalResult(name=None)
+	def getNextResult(self, ruleType=None, name=None):
+		return self._getIncrementalResult(ruleType=ruleType, name=None)
 	
-	def getPreviousResult(self, name=None):
-		return self._getIncrementalResult(previous=True, name=None)
+	def getPreviousResult(self, ruleType=None, name=None):
+		return self._getIncrementalResult(
+			previous=True,
+			ruleType=ruleType,
+			name=None
+		)
 	
-	def _getIncrementalResult(self, previous=False, name=None):
+	def _getIncrementalResult(self, previous=False, ruleType=None, name=None):
 		if not self.isReady:
 			return None
 		if len(self.markerResults) < 1:
 			return None
 	
-		# search from the actual caret position
+		# search from the current caret position
 		info = html.getCaretInfo()
 		if info is None:
 			return None
@@ -423,10 +444,13 @@ class MarkerManager(baseObject.ScriptableObject):
 				if previous else self.markerResults
 			):
 				query = result.markerQuery
+				if ruleType:
+					if query.type != ruleType:
+						continue
 				if name:
 					if query.name != name:
 						continue
-				elif query.skip or query.type != ruleTypes.MARKER:
+				elif query.skip:
 					continue
 				if (
 					hasattr(result, "node")
@@ -440,6 +464,11 @@ class MarkerManager(baseObject.ScriptableObject):
 							previous
 							and info._startOffset > result.node.offset
 						)
+					)
+					and (
+						ruleType == ruleTypes.ZONE
+						or not self.zone
+						or self.zone.containsNode(result.node)
 					)
 				):
 					if not positioned:
@@ -462,24 +491,42 @@ class MarkerManager(baseObject.ScriptableObject):
 				return r
 		return None
 
-	def focusNextResult(self, name=None):
-		r = self.getNextResult(name)
+	def focusNextResult(self, ruleType=None, name=None):
+		r = self.getNextResult(ruleType=ruleType, name=name)
 		if r is None:
 			playWebAppSound("keyError")
 			sleep(0.2)
-			ui.message(u"Pas de marqueur")
+			if ruleType == ruleTypes.ZONE:
+				# Translator: Announcement in quicknav (page up/down)
+				msg = _("No zone")
+			elif self.zone:
+				# Translator: Announcement in quicknav (page up/down)
+				msg = _("No marker in this zone")
+			else:
+				# Translator: Announcement in quicknav (page up/down)
+				msg = _("No marker")
+			ui.message(msg)
 			return
 		if hasattr (self.webApp, "event_movetoFromQuickNav"):
 			self.webApp.event_movetoFromQuickNav (r)
 		else:
 			r.script_moveto(None, fromQuickNav=True)
 		
-	def focusPreviousResult(self, name=None):
-		r = self.getPreviousResult(name)
+	def focusPreviousResult(self, ruleType=None, name=None):
+		r = self.getPreviousResult(ruleType=ruleType, name=name)
 		if r is None:
 			playWebAppSound("keyError")
 			sleep(0.2)
-			ui.message(u"Pas de marqueur")
+			if ruleType == ruleTypes.ZONE:
+				# Translator: Announcement in quicknav (page up/down)
+				msg = _("No zone")
+			elif self.zone:
+				# Translator: Announcement in quicknav (page up/down)
+				msg = _("No marker in this zone")
+			else:
+				# Translator: Announcement in quicknav (page up/down)
+				msg = _("No marker")
+			ui.message(msg)
 			return
 		if hasattr (self.webApp, "event_movetoFromQuickNav"):
 			self.webApp.event_movetoFromQuickNav (r)
@@ -491,15 +538,23 @@ class MarkerManager(baseObject.ScriptableObject):
 		self.update()
 		
 	def script_nextMarker(self, gesture):
-		self.focusNextResult()
+		self.focusNextResult(ruleType=ruleTypes.MARKER)
 	
 	def script_previousMarker(self, gesture):
-		self.focusPreviousResult()
+		self.focusPreviousResult(ruleType=ruleTypes.MARKER)
+	
+	def script_nextZone(self, gesture):
+		self.focusNextResult(ruleType=ruleTypes.ZONE)
+	
+	def script_previousZone(self, gesture):
+		self.focusPreviousResult(ruleType=ruleTypes.ZONE)
 	
 	__gestures = {
-		"kb:control+nvda+r" : "refreshMarkers",
-		"kb:pagedown" : "nextMarker",
-		"kb:pageup" : "previousMarker",
+		"kb:control+nvda+r": "refreshMarkers",
+		"kb:pagedown": "nextMarker",
+		"kb:pageup": "previousMarker",
+		"kb:control+pagedown": "nextZone",
+		"kb:control+pageup": "previousZone",
 	}
 
 
@@ -569,40 +624,48 @@ class VirtualMarkerResult(MarkerResult):
 	def script_moveto(self, gesture, fromQuickNav=False, fromSpeak=False):
 		if self.node.nodeManager is None:
 			return
+		query = self.markerQuery
 		reason = nodeHandler.REASON_FOCUS
 		if not fromQuickNav:
 			reason = nodeHandler.REASON_SHORTCUT
 		if fromSpeak:
 			# Translators: Speak rule name on "Move to" action
 			speech.speakMessage(_(u"Move to {ruleName}").format(
-				ruleName=self.markerQuery.name))
+				ruleName=query.name))
 		elif self.markerQuery.sayName:
-			speech.speakMessage(self.markerQuery.name)
-		if self.markerQuery.createWidget:
-			self.node.moveto(reason)
-			return
+			speech.speakMessage(query.name)
 		treeInterceptor = self.node.nodeManager.treeInterceptor
 		if not treeInterceptor or not treeInterceptor.isReady:
 			return
+		treeInterceptor.passThrough = query.formMode
+		browseMode.reportPassThrough.last = treeInterceptor.passThrough
+		if query.type == ruleTypes.ZONE:
+			query.markerManager.zone = Zone(query)
+			# Ensure the focus does not remain on a control out of the zone
+			treeInterceptor.rootNVDAObject.setFocus()
+		elif (
+			query.markerManager.zone and
+			not query.markerManager.zone.containsNode(self.node)
+		):
+			query.markerManager.zone = None
+		info = treeInterceptor.makeTextInfo(
+			textInfos.offsets.Offsets(self.node.offset, self.node.offset)
+		)
+		treeInterceptor.selection = info
+		if not treeInterceptor.passThrough:
+			info.expand(textInfos.UNIT_LINE)
+			speech.speakTextInfo(
+				info,
+				unit=textInfos.UNIT_LINE,
+				reason=controlTypes.REASON_CARET
+			)
+			return
 		focusObject = api.getFocusObject()
 		try:
-			nodeObject = self.node.getNvdaObject ()
+			nodeObject = self.node.getNvdaObject()
 		except:
 			nodeObject = None
-		treeInterceptor.passThrough = self.markerQuery.formMode
-		browseMode.reportPassThrough.last = treeInterceptor.passThrough 
-		self.node.moveto(reason)
-		if not self.markerQuery.formMode:
-			speechOff()
-			html.speakLine()
-			speechOn()
-			#info = html.getCaretInfo()
-			#info.expand(textInfos.UNIT_LINE)
-			#speech.speakTextInfo(info, reason=controlTypes.REASON_FOCUS, unit=textInfos.UNIT_LINE)
-			sleep(0.3)
-			#log.info(u"trace")
-			html.speakLine()
-		elif nodeObject == focusObject and focusObject is not None:
+		if nodeObject == focusObject and focusObject is not None:
 			focusObject.reportFocus()
 	
 	def script_sayall(self, gesture, fromQuickNav=False):
@@ -948,3 +1011,65 @@ class VirtualMarkerQuery(MarkerQuery):
 			if not self.multiple:
 				break
 		return results
+
+
+class Zone(textInfos.offsets.Offsets):
+	
+	def __init__(self, rule):
+		self.ruleManager = rule.markerManager
+		self.name = rule.name
+		self.update()
+	
+	def containsTextInfo(self, info):
+		if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
+			raise ValueError(u"Not supported {}".format(type(info)))
+		return (
+			self.startOffset <= info._startOffset
+			and info._endOffset <= self.endOffset
+		)
+	
+	def containsNode(self, node):
+		return self.startOffset <= node.offset < self.endOffset
+	
+	def isTextInfoAtStart(self, info):
+		if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
+			raise ValueError(u"Not supported {}".format(type(info)))
+		return info._startOffset == self.startOffset
+	
+	def isTextInfoAtEnd(self, info):
+		if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
+			raise ValueError(u"Not supported {}".format(type(info)))
+		return info._endOffset == self.endOffset
+	
+	def restrictTextInfo(self, info):
+		if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
+			raise ValueError(u"Not supported {}".format(type(info)))
+		res = False
+		if info._startOffset < self.startOffset:
+			res = True
+			info._startOffset = self.startOffset
+		elif info._startOffset > self.endOffset:
+			res = True
+			info._startOffset = self.endOffset
+		if info._endOffset < self.startOffset:
+			res = True
+			info._endOffset = self.startOffset
+		elif info._endOffset > self.endOffset:
+			res = True
+			info._endOffset = self.endOffset
+		return res
+	
+	def update(self):
+		rule = self.ruleManager.getQueryByName(self.name)
+		if not rule:
+			# The WebModule might have been edited and the rule deleted.
+			return False
+		results = rule.getResults()
+		if not results:
+			return False
+		node = results[0].node
+		if not node:
+			return False
+		self.startOffset = node.offset
+		self.endOffset = node.offset + node.size
+		return True

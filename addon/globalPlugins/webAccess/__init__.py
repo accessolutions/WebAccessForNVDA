@@ -49,7 +49,7 @@ Overridden NVDA functions:
 
 from __future__ import absolute_import
 
-__version__ = "2019.01.01"
+__version__ = "2019.01.14"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -66,7 +66,6 @@ import time
 import wx
 
 import addonHandler
-addonHandler.initTranslation()
 import api
 import baseObject
 import braille
@@ -85,10 +84,10 @@ import speech
 import tones
 import ui
 import virtualBuffers
-import queueHandler
 
 from . import json
 from . import nodeHandler
+from . import overlay
 from . import presenter
 from . import webAppLib
 from .packaging import version
@@ -96,6 +95,9 @@ from .webAppLib import *
 from .webAppScheduler import WebAppScheduler
 from . import webModuleHandler
 from . import widgets
+
+
+addonHandler.initTranslation()
 
 
 TRACE = lambda *args, **kwargs: None  # @UnusedVariable
@@ -167,7 +169,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		virtualBuffers.VirtualBuffer.save_changeNotify = virtualBuffers.VirtualBuffer.changeNotify
 		virtualBuffers.VirtualBuffer.changeNotify = hook_changeNotify
 		virtualBuffers.VirtualBuffer.save_loadBufferDone = virtualBuffers.VirtualBuffer._loadBufferDone  
-		virtualBuffers.VirtualBuffer._loadBufferDone = hook_loadBufferDone
+		# virtualBuffers.VirtualBuffer._loadBufferDone = hook_loadBufferDone
 		virtualBuffers.VirtualBuffer.save_terminate = virtualBuffers.VirtualBuffer.terminate 
 		virtualBuffers.VirtualBuffer.terminate = hook_terminate
 		
@@ -191,6 +193,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		scheduler.send(eventName="stop")
 		
 	def chooseNVDAObjectOverlayClasses(self, obj, clsList):
+		if obj.role == controlTypes.ROLE_DOCUMENT:
+			clsList.insert(0, overlay.WebAccessDocument)
 		if activeWebApp is None:
 			return
 		if hasattr(activeWebApp, 'chooseNVDAObjectOverlayClasses'):

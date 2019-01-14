@@ -452,6 +452,13 @@ class RulePropertiesEditor(wx.Dialog):
 		(ruleTypes.PAGE_TITLE_1, ("customValue",)),
 		(ruleTypes.PAGE_TITLE_2, ("customValue",)),
 		(
+			ruleTypes.ZONE,
+			(
+				"formMode",
+				"sayName",
+			)
+		),
+		(
 			ruleTypes.MARKER,
 			(
 				"multiple",
@@ -470,7 +477,8 @@ class RulePropertiesEditor(wx.Dialog):
 				label = stripAccel(cls.FIELDS[key])
 				value = data[key]
 				if isinstance(value, bool):
-					parts.append(label)
+					if value:
+						parts.append(label.strip().strip(":"))
 				else:
 					parts.append(u"{} {}".format(label, value))
 		if parts:
@@ -873,12 +881,18 @@ class RuleEditor(wx.Dialog):
 			)
 		self.data["type"] = ruleType
 		for control, types in (
-			(self.actionsBox, (ruleTypes.MARKER,),),
+			(
+				self.actionsBox, (
+					ruleTypes.ZONE,
+					ruleTypes.MARKER,
+				),
+			),
 			(
 				self.propertiesBox,
 				(
 					ruleTypes.PAGE_TITLE_1,
 					ruleTypes.PAGE_TITLE_2,
+					ruleTypes.ZONE,
 					ruleTypes.MARKER,
 				)
 			)
@@ -1008,7 +1022,7 @@ class RuleEditor(wx.Dialog):
 			return
 		data["name"] = name
 
-		if ruleType == ruleTypes.MARKER:
+		if ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
 			data["gestures"] = self.gestureMapValue
 			sel = self.autoActionList.Selection
 			autoAction = self.autoActionList.GetClientData(sel)
@@ -1023,7 +1037,10 @@ class RuleEditor(wx.Dialog):
 			ruleType, {}
 		)
 		for key in RulePropertiesEditor.FIELDS:
-			if key == "customValue" and ruleType == ruleTypes.MARKER:
+			if key == "customValue" and ruleType in (
+				ruleTypes.MARKER,
+				ruleTypes.ZONE,
+			):
 				continue
 			if key not in propertyFieldsForType:
 				safeDelete(data, key)
