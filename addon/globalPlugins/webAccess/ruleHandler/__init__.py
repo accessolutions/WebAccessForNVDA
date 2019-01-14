@@ -321,38 +321,37 @@ class MarkerManager(baseObject.ScriptableObject):
 			webAppScheduler.scheduler.send(eventName="webApp", name="webApp_pageChanged", obj=title, webApp=self.webApp)
 			return True
 		return False
-
+	
 	def checkAutoAction(self):
 		with self.lock:
 			if not self.isReady:
 				return
-			countMoveto = 0
 			funcMoveto = None
 			firstCancelSpeech = True
 			for result in self.markerResults:
 				if result.markerQuery.autoAction:
 					controlIdentifier = result.node.controlIdentifier
 					text = result.node.getTreeInterceptorText()
-					if (
-						text and
-						self.triggeredIdentifiers.get(controlIdentifier) !=
-						text
-					):
+					autoActionName = result.markerQuery.autoAction
+					func = getattr(result, "script_%s" % autoActionName)
+					lastText = self.triggeredIdentifiers.get(controlIdentifier)
+					if (lastText is None or text != lastText):
 						self.triggeredIdentifiers[controlIdentifier] = text
 						speechOn()
 						autoActionName = result.markerQuery.autoAction
 						func = getattr(result, "script_%s" % autoActionName)
 						if autoActionName == "speak":
 							playWebAppSound("errorMessage")
-						elif autoActionName == "moveto":
-							countMoveto += 1
-							if countMoveto == 1:
-								if func.__name__== self.lastAutoMoveto \
-									and time.time() - self.lastAutoMovetoTime < 4:
-									# no autoMoveto of same rule before 4 seconds
-									continue
-								else:
-									funcMoveto = func
+						elif autoActionName == "moveto": 
+							if lastText is None:
+								# uniquement si c'est un nouveau controlIdentifier
+								if funcMoveto is None:
+									if func.__name__== self.lastAutoMoveto \
+										and time.time() - self.lastAutoMovetoTime < 4:
+										# no autoMoveto of same rule before 4 seconds
+										continue
+									else:
+										funcMoveto = func
 							func = None
 						if func:
 							if firstCancelSpeech:
