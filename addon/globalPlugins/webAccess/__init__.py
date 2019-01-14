@@ -586,6 +586,18 @@ def hook_findScript(gesture, searchWebApp=True):
 		if func:
 			return func
 
+	# App module default scripts.
+	app = focus.appModule
+	if app:
+		# browsers default scripts.
+		if supportWebApp(focus):
+			func = scriptHandler._getObjScript(defaultBrowserScripts, gesture, globalMapScripts)
+			if func:
+				return func
+		func = scriptHandler._getObjScript(app, gesture, globalMapScripts)
+		if func:
+			return func
+
 	# webApp scripts
 	webApp = focus.getWebApp()
 	if webApp is not None and searchWebApp is True:
@@ -615,17 +627,6 @@ def hook_findScript(gesture, searchWebApp=True):
 # 			if func:
 # 				return func
 
-	# App module default scripts.
-	app = focus.appModule
-	if app:
-		# browsers default scripts.
-		if supportWebApp(focus):
-			func = scriptHandler._getObjScript(defaultBrowserScripts, gesture, globalMapScripts)
-			if func:
-				return func
-		func = scriptHandler._getObjScript(app, gesture, globalMapScripts)
-		if func:
-			return func
 
 	# Tree interceptor level.
 	treeInterceptor = focus.treeInterceptor
