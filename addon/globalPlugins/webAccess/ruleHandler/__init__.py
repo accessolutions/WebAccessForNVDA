@@ -870,7 +870,7 @@ class VirtualMarkerQuery(MarkerQuery):
 		candidate = self.markerManager._getPageTitle()
 		if expr == candidate:
 			return not exclude
-		return False		
+		return exclude
 	
 	def checkContextPageType(self):
 		"""
@@ -909,7 +909,7 @@ class VirtualMarkerQuery(MarkerQuery):
 						break
 				if found:
 					break
-			if not found:
+			if not (found or exclude):
 				return False
 		return True
 	
