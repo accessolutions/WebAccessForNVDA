@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.01.10"
+__version__ = "2019.01.15"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -811,12 +811,13 @@ class RuleEditor(wx.Dialog):
 			rule.getData() if rule else OrderedDict()
 		)
 		markerManager = self.markerManager = context["webModule"].markerManager		
-		node = markerManager.nodeManager.getCaretNode()
-		while node is not None:
-			if node.role in formModeRoles:
-				self.data["formMode"] = True
-				break
-			node = node.parent
+		if not self.rule and markerManager.nodeManager:
+			node = markerManager.nodeManager.getCaretNode()
+			while node is not None:
+				if node.role in formModeRoles:
+					self.data["formMode"] = True
+					break
+				node = node.parent
 		
 		actionsDict = self.markerManager.getActions()
 		self.autoActionList.Clear()
