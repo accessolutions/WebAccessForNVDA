@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.01.10"
+__version__ = "2019.01.15"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -789,7 +789,7 @@ class VirtualMarkerQuery(MarkerQuery):
 		self.formMode = dic.get("formMode", False)
 		self.sayName = dic.get("sayName", True)
 		self.index = dic.get("index")
-		self.multiple = dic.get("multiple", True)
+		self.multiple = dic.get("multiple", False)
 		self.skip = dic.get("skip", False)
 		self.isPageTitle = dic.get("isPageTitle", False)
 		self.createWidget = dic.get("createWidget", False)
