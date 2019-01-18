@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.01.15"
+__version__ = "2019.01.18"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -36,6 +36,7 @@ import controlTypes
 import gui
 import inputCore
 from logHandler import log
+import queueHandler
 import sayAllHandler
 import speech
 import textInfos
@@ -358,7 +359,11 @@ class MarkerManager(baseObject.ScriptableObject):
 								speech.cancelSpeech()
 								firstCancelSpeech = False
 							try:
-								func(None)
+								queueHandler.queueFunction(
+									queueHandler.eventQueue,
+									func,
+									None
+								) 
 							except:
 								log.exception((
 									u'Error in rule "{rule}" while executing'
@@ -373,7 +378,11 @@ class MarkerManager(baseObject.ScriptableObject):
 					firstCancelSpeech = False
 				self.lastAutoMoveto = funcMoveto.__name__
 				self.lastAutoMovetoTime = time.time()
-				funcMoveto (None)
+				queueHandler.queueFunction(
+					queueHandler.eventQueue,
+					funcMoveto,
+					None
+				) 
 		
 	def getPageTitle(self):
 		with self.lock:
