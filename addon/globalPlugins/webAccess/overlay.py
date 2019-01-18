@@ -322,8 +322,12 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 				else:
 					msg = _("No previous focusable element in this zone.")
 				msg += " "
-				# Translators: Hint on how to cancel zone restriction.
-				msg += _("Press escape to cancel zone restriction.")
+				if (self.passThrough and not self.disableAutoPassThrough):
+					# Translators: Hint on how to cancel zone restriction.
+					msg += _("Press escape twice to cancel zone restriction.")
+				else:
+					# Translators: Hint on how to cancel zone restriction.
+					msg += _("Press escape to cancel zone restriction.")
 				ui.message(msg)
 				return True
 			except StopIteration:
@@ -416,6 +420,24 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		super(WebAccessBmdti, self).script_elementsList(gesture)
 	
 	script_elementsListInZone.ignoreTreeInterceptorPassThrough = True
+	
+	def script_tab(self, gesture):
+		if (
+			(self.passThrough and not self.webAccess.zone)
+			or not self._tabOverride("next")
+		):
+			gesture.send()
+	
+	script_tab.ignoreTreeInterceptorPassThrough = True
+	
+	def script_shiftTab(self, gesture):
+		if (
+			(self.passThrough and not self.webAccess.zone)
+			or not self._tabOverride("previous")
+		):
+			gesture.send()
+	
+	script_shiftTab.ignoreTreeInterceptorPassThrough = True
 	
 	__gestures = {
 		"kb:NVDA+shift+f7": "elementsListInZone",
