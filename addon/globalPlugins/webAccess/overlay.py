@@ -121,19 +121,6 @@ class WebAccessBmdtiTextInfo(textInfos.offsets.OffsetsTextInfo):
 	"""
 	An `OffsetTextInfo` enforcing respect of the active zone borders.
 	"""
-	def expand(self, unit):
-		zone = self.obj.webAccess.zone
-		if not zone:
-			super(WebAccessBmdtiTextInfo, self).expand(unit)
-			return
-		zone.restrictTextInfo(self)
-		if self._startOffset == self._endOffset == zone.endOffset:
-			# If collapsed at the end of the zone, step back one unit in
-			# order to expand backwards.
-			self.move(unit, -1)
-		super(WebAccessBmdtiTextInfo, self).expand(unit)
-		zone.restrictTextInfo(self)
-	
 	def find(self, text, caseSensitive=False, reverse=False):
 		zone = self.obj.webAccess.zone
 		if not zone:
@@ -184,10 +171,16 @@ class WebAccessBmdtiTextInfo(textInfos.offsets.OffsetsTextInfo):
 			count += moved
 		return count
 	
+	def updateCaret(self):
+		zone = self.obj.webAccess.zone
+		if zone and not zone.containsTextInfo(self):
+			self.obj.webAccess.zone = None
+		super(WebAccessBmdtiTextInfo, self).updateCaret()
+	
 	def updateSelection(self):
 		zone = self.obj.webAccess.zone
-		if zone:
-			zone.restrictTextInfo(self)
+		if zone and not zone.containsTextInfo(self):
+			self.obj.webAccess.zone = None
 		super(WebAccessBmdtiTextInfo, self).updateSelection()
 
 
@@ -258,6 +251,12 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 					# Translators: Hint on how to cancel zone restriction.
 					msg += _("Press escape to cancel zone restriction.")
 				ui.message(msg)
+			if posConstant == textInfos.POSITION_FIRST:
+				pos = zone.startOffset
+				posConstant = textInfos.offsets.Offsets(pos, pos)
+			elif posConstant == textInfos.POSITION_LAST:
+				pos = max(zone.endOffset - 1, zone.startOffset)
+				posConstant = textInfos.offsets.Offsets(pos, pos)
 		super(WebAccessBmdti, self)._caretMovementScriptHelper(
 			gesture,
 			unit,
