@@ -25,7 +25,7 @@ WebAccess overlay classes
 
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.01.14"
+__version__ = "2019.01.18"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -75,14 +75,17 @@ class IgnorePassThroughScriptWrapper(object):
 		self._func(gesture)
 
 
+class IterNodesByTypeHitZoneBorder(StopIteration):
+	pass
+
+
 class WebAccessBmdtiHelper(object):
 	"""
 	Utility methods and properties.
 	"""
 	def __init__(self, treeInterceptor):
 		self.treeInterceptor = treeInterceptor
-		self.zoneBorderHit = False
-		self.zoneBorderHitByIterNodes = False
+		self.caretHitZoneBorder = False
 	
 	@property
 	def ruleManager(self):
@@ -225,8 +228,8 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		extraDetail=False,
 		handleSymbols=False
 	):
-		alreadyHit = self.webAccess.zoneBorderHit == "caret"
-		self.webAccess.zoneBorderHit = False
+		alreadyHit = self.webAccess.caretHitZoneBorder
+		self.webAccess.caretHitZoneBorder = False
 		zone = self.webAccess.zone
 		if zone:
 			# Detect zone border hit before-hand so that we can both inform
@@ -237,9 +240,9 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 				info.expand(unit)
 				if direction > 0:
 					if zone.isTextInfoAtEnd(info):
-						self.webAccess.zoneBorderHit = "caret"
+						self.webAccess.caretHitZoneBorder = True
 				elif zone.isTextInfoAtStart(info):
-					self.webAccess.zoneBorderHit = "caret"
+					self.webAccess.caretHitZoneBorder = True
 			elif (
 				posUnit == textInfos.POSITION_LAST
 				and zone.isTextInfoAtEnd(info)
@@ -247,13 +250,13 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 				posUnit == textInfos.POSITION_FIRST
 				and zone.isTextInfoAtStart(info)
 			):
-				self.webAccess.zoneBorderHit = "caret"
-			if self.webAccess.zoneBorderHit:
+				self.webAccess.caretHitZoneBorder = True
+			if self.webAccess.caretHitZoneBorder:
 				msg = _("Zone border")
 				if alreadyHit:
 					msg += " "
 					# Translators: Hint on how to cancel zone restriction.
-					msg += _("Press escape now to cancel zone restriction.")
+					msg += _("Press escape to cancel zone restriction.")
 				ui.message(msg)
 		super(WebAccessBmdti, self)._caretMovementScriptHelper(
 			gesture,
@@ -267,7 +270,6 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		)
 	
 	def _iterNodesByType(self, itemType, direction="next", pos=None):
-		self.webAccess.zoneBorderHitByIterNodes = False
 		zone = self.webAccess.zone
 		if (
 			zone
@@ -285,51 +287,47 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 					if direction == "next":
 						continue
 					else:
-						self.webAccess.zoneBorderHitByIterNodes = True
-						raise StopIteration
+						raise IterNodesByTypeHitZoneBorder
 				elif item.textInfo._startOffset >= zone.endOffset:
 					if direction == "previous":
 						continue
 					else:
-						self.webAccess.zoneBorderHitByIterNodes = True
-						raise StopIteration
+						raise IterNodesByTypeHitZoneBorder
 			yield item
+		if zone:
+			raise IterNodesByTypeHitZoneBorder
 	
 	def _quickNavScript(
 		self, gesture, itemType, direction, errorMessage, readUnit
 	):
-		self.webAccess.zoneBorderHit = False
 		if self.webAccess.zone:
 			errorMessage += " "
 			# Translators: Complement to quicknav error message in zone.
 			errorMessage += _("in this zone.") 
 			errorMessage += " "
 			# Translators: Hint on how to cancel zone restriction.
-			errorMessage += _("Press escape now to cancel zone restriction.")
+			errorMessage += _("Press escape to cancel zone restriction.")
 		super(WebAccessBmdti, self)._quickNavScript(
 			gesture, itemType, direction, errorMessage, readUnit
 		)
-		if self.webAccess.zoneBorderHitByIterNodes:
-			self.webAccess.zoneBorderHit = True
 	
 	def _tabOverride(self, direction):
-		self.webAccess.zoneBorderHit = False
 		if self.webAccess.zone:
 			caretInfo = self.makeTextInfo(textInfos.POSITION_CARET)
 			try:
 				next(self._iterNodesByType("focusable", direction, caretInfo))
+			except IterNodesByTypeHitZoneBorder:
+				if direction == "next":
+					msg = _("No more focusable element in this zone.")
+				else:
+					msg = _("No previous focusable element in this zone.")
+				msg += " "
+				# Translators: Hint on how to cancel zone restriction.
+				msg += _("Press escape to cancel zone restriction.")
+				ui.message(msg)
+				return True
 			except StopIteration:
-				if self.webAccess.zoneBorderHitByIterNodes:
-					self.webAccess.zoneBorderHit = True
-					if direction == "next":
-						msg = _("No more focusable element in this zone.")
-					else:
-						msg = _("No previous focusable element in this zone.")
-					msg += " "
-					# Translators: Hint on how to cancel zone restriction.
-					msg += _("Press escape now to cancel zone restriction.")
-					ui.message(msg)
-					return True
+				pass
 		return super(WebAccessBmdti, self)._tabOverride(direction)
 	
 	def doFindText(self, text, reverse=False, caseSensitive=False):
@@ -382,8 +380,10 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		return super(WebAccessBmdti, self).getScript(gesture)
 	
 	def script_disablePassThrough(self, gesture):
-		if self.webAccess.zoneBorderHit:
-			self.webAccess.zoneBorderHit = False
+		if (
+			(not self.passThrough or self.disableAutoPassThrough)
+			and self.webAccess.zone
+		):
 			self.webAccess.zone = None
 			ui.message(_("Zone restriction cancelled"))
 		else:

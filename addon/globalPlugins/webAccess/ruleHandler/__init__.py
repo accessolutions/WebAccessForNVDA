@@ -510,6 +510,9 @@ class MarkerManager(baseObject.ScriptableObject):
 			elif self.zone:
 				# Translator: Announcement in quicknav (page up/down)
 				msg = _("No marker in this zone")
+				msg += " "
+				# Translators: Hint on how to cancel zone restriction.
+				msg += _("Press escape to cancel zone restriction.")
 			else:
 				# Translator: Announcement in quicknav (page up/down)
 				msg = _("No marker")
@@ -1027,6 +1030,11 @@ class Zone(textInfos.offsets.Offsets):
 		self.ruleManager = rule.markerManager
 		self.name = rule.name
 		self.update()
+	
+	def __repr__(self):
+		return u"<Zone {} at ({}, {})>".format(
+			repr(self.name), self.startOffset, self.endOffset
+		)
 	
 	def containsTextInfo(self, info):
 		if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
