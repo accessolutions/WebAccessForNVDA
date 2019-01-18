@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.12.31"
+__version__ = "2019.01.18"
 
 __authors__ = (
 	u"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
@@ -156,9 +156,10 @@ class NodeManager(baseObject.ScriptableObject):
 		p = self.currentParentNode
 		if not hasattr(p, "format"):
 			raise
-		p.size = len(data)
+		size = len(data)
+		p.size += size
 		p.text = data
-		self.fieldOffset += p.size
+		self.fieldOffset += size
 		self.lastTextNode = p
 
 	def parseXML(self, XMLText):
