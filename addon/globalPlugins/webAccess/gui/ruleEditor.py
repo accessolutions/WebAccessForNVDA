@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.01.15"
+__version__ = "2019.01.19"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -49,8 +49,9 @@ formModeRoles = [
 
 LABEL_ACCEL = re.compile("&(?!&)")
 """
-Compiled pattern used to strip accelerator key indicators from labels. 
-"""	
+Compiled pattern used to strip accelerator key indicators from labels.
+"""
+
 
 def stripAccel(label):
 	return LABEL_ACCEL.sub("", label)
@@ -59,7 +60,6 @@ def stripAccel(label):
 def setIfNotEmpty(dic, key, value):
 	if value and value.strip():
 		dic[key] = value
-
 
 
 def convRoleIntegerToString(role):
@@ -106,7 +106,7 @@ def show(context):
 class RuleContextEditor(wx.Dialog):
 	
 	# The semi-column is part of the labels because some localizations
-	# (ie. French) require it to be prepended with one space. 
+	# (ie. French) require it to be prepended with one space.
 	FIELDS = OrderedDict((
 		(
 			"contextPageTitle",
@@ -147,7 +147,7 @@ class RuleContextEditor(wx.Dialog):
 		
 		mainSizer = wx.BoxSizer(wx.VERTICAL)
 		
-		fgSizer = self.contextSizer = wx.FlexGridSizer(2, 8, 8)
+		fgSizer = wx.FlexGridSizer(2, 8, 8)
 		mainSizer.Add(fgSizer, proportion=1, flag=wx.EXPAND | wx.ALL, border=8)
 
 		item = self.pageTitleLabel = wx.StaticText(
@@ -169,7 +169,7 @@ class RuleContextEditor(wx.Dialog):
 		item = self.parentCombo = wx.ComboBox(self)
 		fgSizer.Add(item, flag=wx.EXPAND)
 
-		fgSizer.AddGrowableCol(1)				
+		fgSizer.AddGrowableCol(1)
 		
 		mainSizer.Add(
 			self.CreateSeparatedButtonSizer(wx.OK | wx.CANCEL),
@@ -183,9 +183,8 @@ class RuleContextEditor(wx.Dialog):
 		data = self.data = context["data"]["rule"]
 		markerManager = self.markerManager = context["webModule"].markerManager
 		node = markerManager.nodeManager.getCaretNode()
-
 		
-		showPageTitle = data["type"] != ruleTypes.PAGE_TITLE_1 
+		showPageTitle = data["type"] != ruleTypes.PAGE_TITLE_1
 		if showPageTitle:
 			self.pageTitleCombo.Set([context["pageTitle"]])
 			self.pageTitleCombo.Value = data.get("contextPageTitle", "")
@@ -229,7 +228,7 @@ class RuleContextEditor(wx.Dialog):
 class RuleCriteriaEditor(wx.Dialog):
 	
 	# The semi-column is part of the labels because some localizations
-	# (ie. French) require it to be prepended with one space. 
+	# (ie. French) require it to be prepended with one space.
 	FIELDS = OrderedDict((
 		# Translator: Field label on the RuleCriteriaEditor dialog.
 		("text", pgettext("webAccess.ruleCriteria", u"&Text:")),
@@ -275,7 +274,7 @@ class RuleCriteriaEditor(wx.Dialog):
 		
 		mainSizer = wx.BoxSizer(wx.VERTICAL)
 		
-		fgSizer = self.contextSizer = wx.FlexGridSizer(2, 8, 8)
+		fgSizer = wx.FlexGridSizer(2, 8, 8)
 		mainSizer.Add(fgSizer, proportion=1, flag=wx.EXPAND | wx.ALL, border=8)
 
 		item = wx.StaticText(self, label=self.FIELDS["text"])
@@ -313,7 +312,7 @@ class RuleCriteriaEditor(wx.Dialog):
 		item = self.indexText = wx.TextCtrl(self)
 		fgSizer.Add(item, flag=wx.EXPAND)
 
-		fgSizer.AddGrowableCol(1)				
+		fgSizer.AddGrowableCol(1)
 		
 		mainSizer.Add(
 			self.CreateSeparatedButtonSizer(wx.OK | wx.CANCEL),
@@ -413,16 +412,8 @@ class RuleCriteriaEditor(wx.Dialog):
 class RulePropertiesEditor(wx.Dialog):
 	
 	# The semi-column is part of the labels because some localizations
-	# (ie. French) require it to be prepended with one space. 
+	# (ie. French) require it to be prepended with one space.
 	FIELDS = OrderedDict((
-		(
-			"customValue",
-			# Translator: Field label on the RulePropertiesEditor dialog.
-			pgettext(
-				"webAccess.ruleProperties",
-				u"Custom page &title:"
-			)
-		),
 		(
 			"multiple",
 			# Translator: Field label on the RulePropertiesEditor dialog.
@@ -438,14 +429,20 @@ class RulePropertiesEditor(wx.Dialog):
 		),
 		(
 			# Translator: Field label on the RulePropertiesEditor dialog.
-			"sayName",
-			pgettext("webAccess.ruleProperties", u"Speak r&ule name:")
-		),
-		(
-			# Translator: Field label on the RulePropertiesEditor dialog.
 			"skip",
 			pgettext("webAccess.ruleProperties", u"S&kip with Page Down:")
 		),
+		(
+			# Translator: Field label on the RulePropertiesEditor dialog.
+			"sayName",
+			pgettext("webAccess.ruleProperties", u"&Speak rule name:")
+		),
+		(
+			# Translator: Field label on the RulePropertiesEditor dialog.
+			"customName",
+			pgettext("webAccess.ruleProperties", u"Custom &name:")
+		),
+		("customValue", None)  # Label depends on rule type),
 	))
 	
 	RULE_TYPE_FIELDS = OrderedDict((
@@ -456,6 +453,8 @@ class RulePropertiesEditor(wx.Dialog):
 			(
 				"formMode",
 				"sayName",
+				"customName",
+				"customValue",
 			)
 		),
 		(
@@ -463,18 +462,40 @@ class RulePropertiesEditor(wx.Dialog):
 			(
 				"multiple",
 				"formMode",
+				"skip",
 				"sayName",
-				"skip"
+				"customName",
+				"customValue",
 			)
 		),
 	))
 	
 	@classmethod
+	def getAltFieldLabel(cls, ruleType, key, default=None):
+		if key == "customValue":
+			if ruleType in (ruleTypes.PAGE_TITLE_1, ruleTypes.PAGE_TITLE_2):
+				# Translator: Field label on the RulePropertiesEditor dialog.
+				return pgettext(
+					"webAccess.ruleProperties", u"Custom page &title:"
+				)
+			elif ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
+				# Translator: Field label on the RulePropertiesEditor dialog.
+				return pgettext(
+					"webAccess.ruleProperties", u"Custom messa&ge:"
+				)
+		return default
+	
+	@classmethod
 	def getSummary(cls, data):
 		parts = []
-		for key in cls.RULE_TYPE_FIELDS.get(data.get("type"), {}):
+		ruleType = data.get("type")
+		data = data.copy()
+		data.setdefault("sayName", True)
+		for key in cls.RULE_TYPE_FIELDS.get(ruleType, {}):
 			if key in data:
-				label = stripAccel(cls.FIELDS[key])
+				label = cls.FIELDS[key]
+				label = cls.getAltFieldLabel(ruleType, key, label)
+				label = stripAccel(label)
 				value = data[key]
 				if isinstance(value, bool):
 					if value:
@@ -497,27 +518,28 @@ class RulePropertiesEditor(wx.Dialog):
 		
 		mainSizer = wx.BoxSizer(wx.VERTICAL)
 		
-		gbSizer = self.contextSizer = wx.GridBagSizer(8, 8)
-		mainSizer.Add(gbSizer, proportion=1, flag=wx.EXPAND | wx.ALL, border=8)
-		
-		row = 0
-		item = self.customValueLabel =wx.StaticText(
-			self,
-			label=self.FIELDS["customValue"]
+		gbSizer = self.contextSizer = wx.GridBagSizer()
+		gbSizer.SetEmptyCellSize((0, 0))
+		mainSizer.Add(
+			gbSizer,
+			proportion=1,
+			flag=wx.EXPAND | wx.ALL | wx.ALIGN_TOP,
+			border=8
 		)
-		item.Hide()  # Visibility depends on rule type
-		gbSizer.Add(item, pos=(row, 0))
-		item = self.customValueText = wx.TextCtrl(self)
-		item.Hide()  # Visibility depends on rule type
-		gbSizer.Add(item, pos=(row, 1), flag=wx.EXPAND)
-		
-		row += 1
+				
+		row = 0
 		item = self.multipleCheckBox = wx.CheckBox(
 			self,
 			label=self.FIELDS["multiple"]
 		)
 		item.Hide()  # Visibility depends on rule type
-		gbSizer.Add(item, pos=(row, 0), span=(1, 2), flag=wx.EXPAND)
+		gbSizer.Add(
+			item,
+			pos=(row, 0),
+			span=(1, 2),
+			flag=wx.EXPAND | wx.TOP | wx.BOTTOM,
+			border=4
+		)
 		
 		row += 1
 		item = self.formModeCheckBox = wx.CheckBox(
@@ -525,15 +547,13 @@ class RulePropertiesEditor(wx.Dialog):
 			label=self.FIELDS["formMode"]
 		)
 		item.Hide()  # Visibility depends on rule type
-		gbSizer.Add(item, pos=(row, 0), span=(1, 2), flag=wx.EXPAND)
-		
-		row += 1
-		item = self.sayNameCheckBox = wx.CheckBox(
-			self,
-			label=self.FIELDS["sayName"]
+		gbSizer.Add(
+			item,
+			pos=(row, 0),
+			span=(1, 2),
+			flag=wx.EXPAND | wx.TOP | wx.BOTTOM,
+			border=4
 		)
-		item.Hide()  # Visibility depends on rule type
-		gbSizer.Add(item, pos=(row, 0), span=(1, 2), flag=wx.EXPAND)
 		
 		row += 1
 		item = self.skipCheckBox = wx.CheckBox(
@@ -541,10 +561,72 @@ class RulePropertiesEditor(wx.Dialog):
 			label=_("S&kip with Page Down")
 		)
 		item.Hide()  # Visibility depends on rule type
-		gbSizer.Add(item, pos=(row, 0), span=(1, 2), flag=wx.EXPAND)		
+		gbSizer.Add(
+			item,
+			pos=(row, 0),
+			span=(1, 2),
+			flag=wx.EXPAND | wx.TOP | wx.BOTTOM,
+			border=4
+		)
 		
-		gbSizer.AddGrowableCol(1)				
+		row += 1
+		item = self.sayNameCheckBox = wx.CheckBox(
+			self,
+			label=self.FIELDS["sayName"]
+		)
+		item.Hide()  # Visibility depends on rule type
+		gbSizer.Add(
+			item,
+			pos=(row, 0),
+			span=(1, 2),
+			flag=wx.EXPAND | wx.TOP | wx.BOTTOM,
+			border=4
+		)
 		
+		row += 1
+		item = self.customNameLabel = wx.StaticText(
+			self,
+			label=self.FIELDS["customName"] or ""
+		)
+		item.Hide()  # Visibility depends on rule type
+		gbSizer.Add(
+			item,
+			pos=(row, 0),
+			flag=wx.TOP | wx.BOTTOM | wx.RIGHT,
+			border=4
+		)
+		item = self.customNameText = wx.TextCtrl(self, size=(350, -1))
+		item.Hide()  # Visibility depends on rule type
+		gbSizer.Add(
+			item,
+			pos=(row, 1),
+			flag=wx.EXPAND | wx.TOP | wx.BOTTOM | wx.LEFT,
+			border=4
+		)
+		
+		row += 10
+		item = self.customValueLabel = wx.StaticText(
+			self,
+			label=self.FIELDS["customValue"] or ""
+		)
+		item.Hide()  # Visibility depends on rule type
+		gbSizer.Add(
+			item,
+			pos=(row, 0),
+			flag=wx.TOP | wx.BOTTOM | wx.RIGHT,
+			border=4
+		)
+		item = self.customValueText = wx.TextCtrl(self, size=(350, -1))
+		item.Hide()  # Visibility depends on rule type
+		gbSizer.Add(
+			item,
+			pos=(row, 1),
+			flag=wx.EXPAND | wx.TOP | wx.BOTTOM | wx.LEFT,
+			border=4
+		)
+		
+		gbSizer.AddGrowableCol(1)
+
 		mainSizer.Add(
 			self.CreateSeparatedButtonSizer(wx.OK | wx.CANCEL),
 			flag=wx.EXPAND | wx.BOTTOM,
@@ -556,40 +638,53 @@ class RulePropertiesEditor(wx.Dialog):
 	def initData(self, context):
 		data = self.data = context["data"]["rule"]
 		
-		fields = self.RULE_TYPE_FIELDS.get(data.get("type"), {})
+		ruleType = data.get("type")
+		fields = self.RULE_TYPE_FIELDS.get(ruleType, {})
 		
-		if "customValue" in fields:
-			self.customValueText.Value = data.get("customValue", "")
-			self.customValueLabel.Show()
-			self.customValueText.Show()
 		if "multiple" in fields:
 			self.multipleCheckBox.Value = data.get("multiple", False)
 			self.multipleCheckBox.Show()
 		if "formMode" in fields:
 			self.formModeCheckBox.Value = data.get("formMode", False)
 			self.formModeCheckBox.Show()
-		if "sayName" in fields:
-			self.sayNameCheckBox.Value = data.get("sayName", False)
-			self.sayNameCheckBox.Show()
 		if "skip" in fields:
 			self.skipCheckBox.Value = data.get("skip", False)
 			self.skipCheckBox.Show()
+		if "sayName" in fields:
+			self.sayNameCheckBox.Value = data.get("sayName", True)
+			self.sayNameCheckBox.Show()
+		if "customName" in fields:
+			self.customNameText.Value = data.get("customName", "")
+			self.customNameLabel.Show()
+			self.customNameText.Show()
+		if "customValue" in fields:
+			self.customValueText.Value = data.get("customValue", "")
+			self.customValueLabel.Label = self.getAltFieldLabel(
+				ruleType, "customValue"
+			)
+			self.customValueLabel.Show()
+			self.customValueText.Show()
 	
 	def onOk(self, evt):
 		data = OrderedDict()
 		
 		fields = self.RULE_TYPE_FIELDS.get(self.data.get("type"), {})
 		
-		if "customValue" in fields:
-			setIfNotEmpty(data, "customValue", self.customValueText.Value)
+		# Among these properties, only "sayName" defaults to True
+		# All others default to False or empty.
+		
 		if "multiple" in fields and self.multipleCheckBox.Value:
 			data["multiple"] = True
 		if "formMode" in fields and self.formModeCheckBox.Value:
 			data["formMode"] = True
-		if "sayName" in fields and self.sayNameCheckBox.Value:
-			data["sayName"] = True
 		if "skip" in fields and self.skipCheckBox.Value:
 			data["skip"] = True
+		if "sayName" in fields and not self.sayNameCheckBox.Value:
+			data["sayName"] = False
+		if "customName" in fields:
+			setIfNotEmpty(data, "customName", self.customNameText.Value)
+		if "customValue" in fields:
+			setIfNotEmpty(data, "customValue", self.customValueText.Value)
 		
 		updateAndDeleteMissing(fields, data, self.data)
 
@@ -600,10 +695,14 @@ class RulePropertiesEditor(wx.Dialog):
 		self.initData(context)
 		self.Fit()
 		self.Center(wx.BOTH | wx.CENTER_ON_SCREEN)
-		if self.customValueText.IsShown():
-			self.customValueText.SetFocus()
-		elif self.multipleCheckBox.IsShown():
-			self.multipleCheckBox.SetFocus()
+		for ctrl in (
+			self.multipleCheckBox,
+			self.formModeCheckBox,
+			self.customValueText
+		):
+			if ctrl.IsShown():
+				ctrl.SetFocus()
+				break
 		return super(RulePropertiesEditor, self).ShowModal()
 
 
@@ -627,7 +726,6 @@ class RuleEditor(wx.Dialog):
 			flag=wx.EXPAND | wx.ALL,
 			border=8
 		)
-		#leftSizer = wx.GridBagSizer(8, 8)
 		leftSizer = wx.FlexGridSizer(1, 8, 8)
 		rightSizer = wx.GridBagSizer(8, 8)
 		columnsSizer.Add(leftSizer, pos=(0, 0), flag=wx.EXPAND)
@@ -663,7 +761,7 @@ class RuleEditor(wx.Dialog):
 		# Context Box
 		contextBox = self.contextBox = wx.StaticBox(self, label=_("Context"))
 		contextSizer = self.contextSizer = wx.GridBagSizer(8, 8)
-		item  = wx.StaticBoxSizer(contextBox, orient=wx.VERTICAL)
+		item = wx.StaticBoxSizer(contextBox, orient=wx.VERTICAL)
 		item.Add(contextSizer, flag=wx.EXPAND | wx.ALL, border=4)
 		leftSizer.Add(item, flag=wx.EXPAND)
 				
@@ -696,7 +794,7 @@ class RuleEditor(wx.Dialog):
 		item = wx.Button(criteriaBox, label=_("Edit c&riteria"))
 		item.Bind(wx.EVT_BUTTON, self.onCriteriaBtn)
 		criteriaSizer.Add(item, pos=(0, 1))
-		criteriaSizer.AddGrowableCol(0)				
+		criteriaSizer.AddGrowableCol(0)
 		criteriaSizer.AddGrowableRow(1)
 		
 		# Actions Box
@@ -737,11 +835,6 @@ class RuleEditor(wx.Dialog):
 		)
 		actionsSizer.Add(item, pos=(3, 1), flag=wx.EXPAND)
 		
-		item = wx.StaticText(actionsBox, label=_(u"Custom m&essage"))
-		actionsSizer.Add(item, pos=(4, 0))
-		item = self.customValue = wx.TextCtrl(actionsBox)
-		actionsSizer.Add(item, pos=(4, 1), span=(1, 2), flag=wx.EXPAND)
-		
 		actionsSizer.AddGrowableCol(1)
 		actionsSizer.AddGrowableCol(2)
 		actionsSizer.AddGrowableRow(2)
@@ -766,7 +859,7 @@ class RuleEditor(wx.Dialog):
 		item = wx.Button(propertiesBox, label=_("Edit &properties"))
 		item.Bind(wx.EVT_BUTTON, self.onPropertiesBtn)
 		propertiesSizer.Add(item, pos=(0, 1))
-		propertiesSizer.AddGrowableCol(0)				
+		propertiesSizer.AddGrowableCol(0)
 		propertiesSizer.AddGrowableRow(1)
 		
 		leftSizer.AddGrowableCol(0)
@@ -810,7 +903,7 @@ class RuleEditor(wx.Dialog):
 			"rule",
 			rule.getData() if rule else OrderedDict()
 		)
-		markerManager = self.markerManager = context["webModule"].markerManager		
+		markerManager = self.markerManager = context["webModule"].markerManager
 		if not self.rule and markerManager.nodeManager:
 			node = markerManager.nodeManager.getCaretNode()
 			while node is not None:
@@ -839,7 +932,6 @@ class RuleEditor(wx.Dialog):
 			self.ruleTypeCombo.SetSelection(-1)
 			self.gestureMapValue = {}
 			self.autoActionList.SetSelection(0)
-			self.customValue.Value = ""
 			self.comment.Value = ""
 		else:
 			self.Title = _("Edit rule")
@@ -858,7 +950,6 @@ class RuleEditor(wx.Dialog):
 				) + 1  # Empty entry at index 0
 				if "autoAction" in rule.dic else 0
 			)
-			self.customValue.Value = rule.dic.get("customValue", "")
 			self.comment.Value = rule.dic.get("comment", "")
 		
 		self.onRuleTypeChoice(None)
@@ -1028,21 +1119,14 @@ class RuleEditor(wx.Dialog):
 			sel = self.autoActionList.Selection
 			autoAction = self.autoActionList.GetClientData(sel)
 			updateOrDeleteIfEmpty(data, "autoAction", autoAction)
-			updateOrDeleteIfEmpty(data, "customValue", self.customValue.Value)
 		else:
 			safeDelete(data, "gestures")
 			safeDelete(data, "autoAction")
-			# "customValue" will eventually get updated below
 		
 		propertyFieldsForType = RulePropertiesEditor.RULE_TYPE_FIELDS.get(
 			ruleType, {}
 		)
 		for key in RulePropertiesEditor.FIELDS:
-			if key == "customValue" and ruleType in (
-				ruleTypes.MARKER,
-				ruleTypes.ZONE,
-			):
-				continue
 			if key not in propertyFieldsForType:
 				safeDelete(data, key)
 		

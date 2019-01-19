@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.01.18"
+__version__ = "2019.01.19"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -709,9 +709,10 @@ class VirtualMarkerResult(MarkerResult):
 		if fromSpeak:
 			# Translators: Speak rule name on "Move to" action
 			speech.speakMessage(_(u"Move to {ruleName}").format(
-				ruleName=query.name))
+				ruleName=query.label)
+			)
 		elif self.markerQuery.sayName:
-			speech.speakMessage(query.name)
+			speech.speakMessage(query.label)
 		treeInterceptor = self.node.nodeManager.treeInterceptor
 		if not treeInterceptor or not treeInterceptor.isReady:
 			return
@@ -749,7 +750,7 @@ class VirtualMarkerResult(MarkerResult):
 	def script_sayall(self, gesture, fromQuickNav=False):
 		speech.cancelSpeech()
 		if self.markerQuery.sayName:
-			speech.speakMessage(self.markerQuery.name)
+			speech.speakMessage(self.markerQuery.label)
 		treeInterceptor = html.getTreeInterceptor()
 		if not treeInterceptor:
 			return
@@ -769,7 +770,7 @@ class VirtualMarkerResult(MarkerResult):
 			return
 		treeInterceptor = self.node.nodeManager.treeInterceptor
 		if self.markerQuery.sayName:
-			speech.speakMessage(self.markerQuery.name)
+			speech.speakMessage(self.markerQuery.label)
 		self.node.activate()
 		time.sleep(0.1)
 		api.processPendingEvents ()
@@ -783,7 +784,7 @@ class VirtualMarkerResult(MarkerResult):
 		if repeat == 0:
 			parts = []
 			if self.markerQuery.sayName:
-				parts.append(self.markerQuery.name)
+				parts.append(self.markerQuery.label)
 			parts.append(self.value)
 			msg = u" - ".join(parts)
 			wx.CallAfter(ui.message, msg)
@@ -792,7 +793,7 @@ class VirtualMarkerResult(MarkerResult):
 	
 	def script_mouseMove(self, gesture):
 		if self.markerQuery.sayName:
-			speech.speakMessage(self.markerQuery.name)
+			speech.speakMessage(self.markerQuery.label)
 		treeInterceptor = html.getTreeInterceptor()
 		if not treeInterceptor:
 			return
@@ -807,7 +808,7 @@ class VirtualMarkerResult(MarkerResult):
 		return self.node.offset < other.node.offset
 	
 	def getTitle(self):
-		return self.markerQuery.name + " - " + self.node.innerText
+		return self.markerQuery.label + " - " + self.node.innerText
 
 
 class MarkerQuery(baseObject.ScriptableObject):
@@ -845,7 +846,7 @@ class MarkerQuery(baseObject.ScriptableObject):
 	
 	def script_notFound(self, gesture):
 		speech.speakMessage(_(u"{ruleName} not found").format(
-			ruleName=self.name)
+			ruleName=self.label)
 		)
 
 
@@ -859,23 +860,26 @@ class VirtualMarkerQuery(MarkerQuery):
 		self.contextPageTitle = dic.get("contextPageTitle", "")
 		self.contextPageType = dic.get("contextPageType", "")
 		self.contextParent = dic.get("contextParent", "")
+		self.index = dic.get("index")
 		self.gestures = dic.get("gestures", {})
 		gesturesMap = {}
 		for gestureIdentifier in self.gestures.keys():
 			gesturesMap[gestureIdentifier] = "notFound"
 		self.bindGestures(gesturesMap)
 		self.autoAction = dic.get("autoAction")
-		self.formMode = dic.get("formMode", False)
-		self.sayName = dic.get("sayName", True)
-		self.index = dic.get("index")
 		self.multiple = dic.get("multiple", False)
+		self.formMode = dic.get("formMode", False)
 		self.skip = dic.get("skip", False)
-		self.isPageTitle = dic.get("isPageTitle", False)
-		self.createWidget = dic.get("createWidget", False)
+		self.sayName = dic.get("sayName", True)
+		self.customName = dic.get("customName")
 		self.customValue = dic.get("customValue")
+		self.createWidget = dic.get("createWidget", False)
 	
 	def __eq__(self, other):
 		return self.dic == other.dic
+	
+	def _get_label(self):
+		return self.customName or self.name
 	
 	def getData(self):
 		return self.dic
@@ -1083,8 +1087,6 @@ class VirtualMarkerQuery(MarkerQuery):
 			if self.index and index < self.index:
 				continue
 			r = VirtualMarkerResult(self, node)
-			if self.isPageTitle:
-				r.text = node.getTreeInterceptorText()
 			results.append(r)
 			if not self.multiple:
 				break
