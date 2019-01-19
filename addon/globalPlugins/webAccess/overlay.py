@@ -301,7 +301,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 	):
 		if self.webAccess.zone:
 			errorMessage += " "
-			# Translators: Complement to quicknav error message in zone.
+			# Translators: Complement to quickNav error message in zone.
 			errorMessage += _("in this zone.") 
 			errorMessage += " "
 			# Translators: Hint on how to cancel zone restriction.

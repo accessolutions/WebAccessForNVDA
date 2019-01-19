@@ -44,13 +44,16 @@ import textInfos.offsets
 import ui
 
 from .. import nodeHandler
+from ..webAppLib import *
 from .. import webAppScheduler
 from ..widgets import genericCollection
-from ..webAppLib import *
 from . import ruleTypes
 
 
 addonHandler.initTranslation()
+
+
+SCRIPT_CATEGORY = "WebAccess"
 
 
 builtinRuleActions = OrderedDict()
@@ -434,57 +437,54 @@ class MarkerManager(baseObject.ScriptableObject):
 			name=None
 		)
 	
-	def _getIncrementalResult(self, previous=False, ruleType=None, name=None):
-		if not self.isReady:
-			return None
-		if len(self.markerResults) < 1:
-			return None
-	
-		# search from the current caret position
-		info = html.getCaretInfo()
-		if info is None:
-			return None
-		# If not found after/before the current position,
-		# return the first/last result.
-		for positioned in (True, False):
-			for result in (
-				reversed(self.markerResults)
-				if previous else self.markerResults
-			):
-				query = result.markerQuery
-				if ruleType:
-					if query.type != ruleType:
-						continue
-				if name:
-					if query.name != name:
-						continue
-				elif query.skip:
+	def _getIncrementalResult(
+		self,
+		previous=False,
+		info=None,
+		types=None,
+		name=None,
+		respectZone=False,
+		honourSkip=True,
+	):
+		for result in (
+			reversed(self.markerResults)
+			if previous else self.markerResults
+		):
+			query = result.markerQuery
+			if types and query.type not in types:
+				continue
+			if name:
+				if query.name != name:
 					continue
-				if (
-					hasattr(result, "node")
-					and (
-						not positioned
-						or (
-							not previous
-							and info._startOffset < result.node.offset
-						)
-						or (
-							previous
-							and info._startOffset > result.node.offset
+			elif honourSkip and query.skip:
+				continue
+			if (
+				hasattr(result, "node")
+				and (
+					info is None
+					or (
+						not previous
+						and info._startOffset < result.node.offset
+					)
+					or (previous and info._startOffset > result.node.offset)
+				)
+				and (
+					not respectZone
+					or not self.zone
+					or (
+						self.zone.containsNode(result.node)
+						and not (
+							# If respecting zone restriction, avoid returning
+							# the zone itself.
+							self.zone.name == result.markerQuery.name
+							and self.zone.startOffset == result.node.offset
 						)
 					)
-					and (
-						ruleType == ruleTypes.ZONE
-						or not self.zone
-						or self.zone.containsNode(result.node)
-					)
-				):
-					if not positioned:
-						playWebAppSound("loop")
-						sleep(0.2)
-					return result
+				)
+			):
+				return result
 		return None
-
+	
 	def getCurrentResult(self, focusObject=None):
 		if not self.isReady:
 			return None
@@ -498,74 +498,141 @@ class MarkerManager(baseObject.ScriptableObject):
 			if hasattr(r, "node") and offset >= r.node.offset:
 				return r
 		return None
-
-	def focusNextResult(self, ruleType=None, name=None):
-		r = self.getNextResult(ruleType=ruleType, name=name)
-		if r is None:
+	
+	def quickNav(
+		self,
+		previous=False,
+		types=None,
+		name=None,
+		respectZone=False,
+		honourSkip=True,
+		cycle=True
+	):
+		if not self.isReady:
+			playWebAppSound("keyError")
+			ui.message(_("Not ready"))
+			return
+		
+		# Search first from the current caret position
+		info = html.getCaretInfo()
+		
+		# If not found after/before the current position, and cycle is True,
+		# return the first/last result.
+		for positioned in ((True, False) if cycle else (True,)):
+			result = self._getIncrementalResult(
+				previous=previous,
+				info=info if positioned else None,
+				types=types,
+				name=name,
+				respectZone=respectZone,
+				honourSkip=honourSkip
+			)
+			if result:
+				if not positioned:
+					playWebAppSound("loop")
+					sleep(0.2)
+				break
+		else:
 			playWebAppSound("keyError")
 			sleep(0.2)
-			if ruleType == ruleTypes.ZONE:
-				# Translator: Announcement in quicknav (page up/down)
-				msg = _("No zone")
-			elif self.zone:
-				# Translator: Announcement in quicknav (page up/down)
-				msg = _("No marker in this zone")
+			if types == (ruleTypes.ZONE,):
+				# Translator: Error message in quickNav (page up/down)
+				ui.message(_("No zone"))
+				return
+			if cycle:
+				# Translator: Error message in quickNav (page up/down)
+				msg = _("No marker")
+			elif previous:
+				# Translator: Error message in quickNav (page up/down)
+				msg = _("No previous marker")
+			else:
+				# Translator: Error message in quickNav (page up/down)
+				msg = _("No next marker")
+			if respectZone and self.zone:
+				msg += " "
+				# Translators: Complement to quickNav error message in zone.
+				msg += _("in this zone.") 
 				msg += " "
 				# Translators: Hint on how to cancel zone restriction.
 				msg += _("Press escape to cancel zone restriction.")
-			else:
-				# Translator: Announcement in quicknav (page up/down)
-				msg = _("No marker")
 			ui.message(msg)
 			return
-		if hasattr (self.webApp, "event_movetoFromQuickNav"):
-			self.webApp.event_movetoFromQuickNav (r)
+		if hasattr(self.webApp, "event_movetoFromQuickNav"):
+			self.webApp.event_movetoFromQuickNav(result)
 		else:
-			r.script_moveto(None, fromQuickNav=True)
-		
-	def focusPreviousResult(self, ruleType=None, name=None):
-		r = self.getPreviousResult(ruleType=ruleType, name=name)
-		if r is None:
-			playWebAppSound("keyError")
-			sleep(0.2)
-			if ruleType == ruleTypes.ZONE:
-				# Translator: Announcement in quicknav (page up/down)
-				msg = _("No zone")
-			elif self.zone:
-				# Translator: Announcement in quicknav (page up/down)
-				msg = _("No marker in this zone")
-			else:
-				# Translator: Announcement in quicknav (page up/down)
-				msg = _("No marker")
-			ui.message(msg)
-			return
-		if hasattr (self.webApp, "event_movetoFromQuickNav"):
-			self.webApp.event_movetoFromQuickNav (r)
-		else:
-			r.script_moveto(None, fromQuickNav=True)
-		
+			result.script_moveto(None, fromQuickNav=True)
+	
 	def script_refreshMarkers(self, gesture):
 		ui.message(u"refresh markers")
 		self.update()
-		
-	def script_nextMarker(self, gesture):
-		self.focusNextResult(ruleType=ruleTypes.MARKER)
 	
-	def script_previousMarker(self, gesture):
-		self.focusPreviousResult(ruleType=ruleTypes.MARKER)
+	def script_quickNavToNextLevel1(self, gesture):
+		self.quickNav(types=(ruleTypes.ZONE,))
 	
-	def script_nextZone(self, gesture):
-		self.focusNextResult(ruleType=ruleTypes.ZONE)
+	# Translators: Input help mode message for quickNavToNextLevel1.
+	script_quickNavToNextLevel1.__doc__ = _("Move to next zone.")
 	
-	def script_previousZone(self, gesture):
-		self.focusPreviousResult(ruleType=ruleTypes.ZONE)
+	script_quickNavToNextLevel1.category = SCRIPT_CATEGORY
+	
+	def script_quickNavToPreviousLevel1(self, gesture):
+		self.quickNav(previous=True, types=(ruleTypes.ZONE,))
+	
+	# Translators: Input help mode message for quickNavToPreviousLevel1.
+	script_quickNavToPreviousLevel1.__doc__ = _("Move to previous zone.")
+	
+	script_quickNavToPreviousLevel1.category = SCRIPT_CATEGORY
+	
+	def script_quickNavToNextLevel2(self, gesture):
+		self.quickNav(types=(ruleTypes.ZONE, ruleTypes.MARKER))
+	
+	# Translators: Input help mode message for quickNavToNextLevel2.
+	script_quickNavToNextLevel2.__doc__ = _("Move to next global marker.")
+	
+	script_quickNavToNextLevel2.category = SCRIPT_CATEGORY
+	
+	def script_quickNavToPreviousLevel2(self, gesture):
+		self.quickNav(previous=True, types=(ruleTypes.ZONE, ruleTypes.MARKER))
+	
+	# Translators: Input help mode message for quickNavToPreviousLevel2.
+	script_quickNavToPreviousLevel2.__doc__ = _("Move to previous global marker.")
+	
+	script_quickNavToPreviousLevel2.category = SCRIPT_CATEGORY
+	
+	def script_quickNavToNextLevel3(self, gesture):
+		self.quickNav(
+			types=(ruleTypes.ZONE, ruleTypes.MARKER),
+			respectZone=True,
+			honourSkip=False,
+			cycle=False
+		)
+	
+	# Translators: Input help mode message for quickNavToNextLevel3.
+	script_quickNavToNextLevel3.__doc__ = _("Move to next local marker.")
+	
+	script_quickNavToNextLevel3.category = SCRIPT_CATEGORY
+	
+	def script_quickNavToPreviousLevel3(self, gesture):
+		self.quickNav(
+			previous=True,
+			types=(ruleTypes.ZONE, ruleTypes.MARKER),
+			respectZone=True,
+			honourSkip=False,
+			cycle=False
+		)
+	
+	# Translators: Input help mode message for quickNavToPreviousLevel3.
+	script_quickNavToPreviousLevel3.__doc__ = _("Move to previous local marker.")
+	
+	script_quickNavToPreviousLevel3.category = SCRIPT_CATEGORY
 	
 	__gestures = {
 		"kb:control+nvda+r": "refreshMarkers",
-		"kb:pagedown": "nextMarker",
-		"kb:pageup": "previousMarker",
-		"kb:control+pagedown": "nextZone",
-		"kb:control+pageup": "previousZone",
+		"kb:control+pagedown": "quickNavToNextLevel1",
+		"kb:control+pageup": "quickNavToPreviousLevel1",
+		"kb:pagedown": "quickNavToNextLevel2",
+		"kb:pageup": "quickNavToPreviousLevel2",
+		"kb:shift+pagedown": "quickNavToNextLevel3",
+		"kb:shift+pageup": "quickNavToPreviousLevel3",
 	}
 
 
