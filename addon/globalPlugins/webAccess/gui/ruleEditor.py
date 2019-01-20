@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.01.19"
+__version__ = "2019.01.20"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -242,6 +242,11 @@ class RuleCriteriaEditor(wx.Dialog):
 		("className", pgettext("webAccess.ruleCriteria", u"&Class:")),
 		# Translator: Field label on the RuleCriteriaEditor dialog.
 		("src", pgettext("webAccess.ruleCriteria", u"Image &source:")),
+		(
+			"relativePath",
+			# Translator: Field label on the RuleCriteriaEditor dialog.
+			pgettext("webAccess.ruleCriteria", u"R&elative path:")
+		),
 		# Translator: Field label on the RuleCriteriaEditor dialog.
 		("index", pgettext("webAccess.ruleCriteria", u"Inde&x:")),
 	))
@@ -307,6 +312,11 @@ class RuleCriteriaEditor(wx.Dialog):
 		item = self.srcCombo = wx.ComboBox(self)
 		fgSizer.Add(item, flag=wx.EXPAND)
 		
+		item = wx.StaticText(self, label=self.FIELDS["relativePath"])
+		fgSizer.Add(item)
+		item = self.relativePathText = wx.TextCtrl(self)
+		fgSizer.Add(item, flag=wx.EXPAND)
+		
 		item = wx.StaticText(self, label=self.FIELDS["index"])
 		fgSizer.Add(item)
 		item = self.indexText = wx.TextCtrl(self)
@@ -361,6 +371,7 @@ class RuleCriteriaEditor(wx.Dialog):
 		self.idCombo.Value = data.get("id", "")
 		self.classCombo.Value = data.get("className", "")
 		self.srcCombo.Value = data.get("src", "")
+		self.relativePathText.Value = str(data.get("relativePath", ""))
 		self.indexText.Value = str(data.get("index", ""))
 	
 	def onOk(self, evt):
@@ -377,6 +388,7 @@ class RuleCriteriaEditor(wx.Dialog):
 		setIfNotEmpty(data, "id", self.idCombo.Value)
 		setIfNotEmpty(data, "className", self.classCombo.Value)
 		setIfNotEmpty(data, "src", self.srcCombo.Value)
+		setIfNotEmpty(data, "relativePath", self.relativePathText.Value)
 		
 		index = self.indexText.Value
 		if index.strip():

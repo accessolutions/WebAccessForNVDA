@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.01.19"
+__version__ = "2019.01.20"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -1068,6 +1068,7 @@ class VirtualMarkerQuery(MarkerQuery):
 			kwargs["exclude"] = excludedNodes
 		if not self.multiple:
 			kwargs["maxIndex"] = self.index or 1
+		kwargs["relativePath"] = dic.get("relativePath")
 		self.addSearchKwargs(kwargs, "text", text)
 		# TODO: Why store role as int and not allow !/|/& ?
 		role = dic.get("role", None)
