@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.01.20"
+__version__ = "2019.01.21"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -197,7 +197,10 @@ class RuleContextEditor(wx.Dialog):
 		parents = []
 		for result in markerManager.getResults():
 			query = result.markerQuery
-			if (query.type == ruleTypes.PARENT and node in result.node):
+			if (
+				query.type in (ruleTypes.PARENT, ruleTypes.ZONE)
+				and node in result.node
+			):
 				parents.insert(0, query.name)
 		self.parentCombo.Set(parents)
 		self.parentCombo.Value = data.get("contextParent", "")
