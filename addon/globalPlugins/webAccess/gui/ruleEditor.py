@@ -434,23 +434,23 @@ class RulePropertiesEditor(wx.Dialog):
 			# Translator: Field label on the RulePropertiesEditor dialog.
 			pgettext(
 				"webAccess.ruleProperties",
-				u"&Multiple results available:"
+				u"&Multiple results"
 			)
 		),
 		(
 			"formMode",
 			# Translator: Field label on the RulePropertiesEditor dialog.
-			pgettext("webAccess.ruleProperties", u"Activate &form mode:")
+			pgettext("webAccess.ruleProperties", u"Activate &form mode")
 		),
 		(
 			# Translator: Field label on the RulePropertiesEditor dialog.
 			"skip",
-			pgettext("webAccess.ruleProperties", u"S&kip with Page Down:")
+			pgettext("webAccess.ruleProperties", u"S&kip with Page Down")
 		),
 		(
 			# Translator: Field label on the RulePropertiesEditor dialog.
 			"sayName",
-			pgettext("webAccess.ruleProperties", u"&Speak rule name:")
+			pgettext("webAccess.ruleProperties", u"&Speak rule name")
 		),
 		(
 			# Translator: Field label on the RulePropertiesEditor dialog.
