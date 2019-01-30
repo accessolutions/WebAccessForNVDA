@@ -21,8 +21,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: nvda-translations@freelists.org\n"
-"POT-Creation-Date: 2019-01-30 00:07+0100\n"
-"PO-Revision-Date: 2019-01-30 00:32+0100\n"
+"POT-Creation-Date: 2019-01-30 00:55+0100\n"
+"PO-Revision-Date: 2019-01-30 00:58+0100\n"
 "Last-Translator: Julien Cochuyt <j.cochuyt@accessolutions.fr>\n"
 "Language-Team: \n"
 "Language: fr_FR\n"
@@ -151,6 +151,26 @@ msgstr ""
 msgid "Web Access for NVDA"
 msgstr "Web Access pour NVDA"
 
+#: addon\globalPlugins\webAccess\gui\elementDescription.py:50
+msgctxt "webAccess.elementDescription"
+msgid "elements"
+msgstr "éléments"
+
+#: addon\globalPlugins\webAccess\gui\elementDescription.py:52
+msgctxt "webAccess.elementDescription"
+msgid "element"
+msgstr "élément"
+
+#: addon\globalPlugins\webAccess\gui\elementDescription.py:65
+msgctxt "webAccess.elementDescription"
+msgid "from:"
+msgstr "de :"
+
+#: addon\globalPlugins\webAccess\gui\elementDescription.py:69
+msgctxt "webAccess.elementDescription"
+msgid "to:"
+msgstr "à :"
+
 #: addon\globalPlugins\webAccess\gui\elementDescription.py:103
 msgid "No NodeManager"
 msgstr "Pas de NodeManager"
@@ -195,6 +215,23 @@ msgstr "Gérer les &modules web..."
 msgid "Temporarily &disable all web modules"
 msgstr "&Désactiver temporairement tous les modules web"
 
+#. Translator: Field label on the RuleContextEditor dialog.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:114
+msgctxt "webAccess.ruleContext"
+msgid "Page &title:"
+msgstr "&Titre de la page :"
+
+#. Translator: Field label on the RuleContextEditor dialog.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:119
+msgctxt "webAccess.ruleContext"
+msgid "Page t&ype:"
+msgstr "T&ype de page :"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:124
+msgctxt "webAccess.ruleContext"
+msgid "&Parent element:"
+msgstr "Élément &parent :"
+
 #. Translators: Fail-back context summary in RuleEditor dialog.
 #: addon\globalPlugins\webAccess\gui\ruleEditor.py:138
 msgid "Global - Applies to the whole web module."
@@ -204,6 +241,54 @@ msgstr "Global - S'applique à l'ensemble du module web."
 #: addon\globalPlugins\webAccess\gui\ruleEditor.py:144
 msgid "Rule Context"
 msgstr "Contexte de la règle"
+
+#. Translator: Field label on the RuleCriteriaEditor dialog.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:237
+msgctxt "webAccess.ruleCriteria"
+msgid "&Text:"
+msgstr "&Texte :"
+
+#. Translator: Field label on the RuleCriteriaEditor dialog.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:239
+msgctxt "webAccess.ruleCriteria"
+msgid "&Role:"
+msgstr "&Rôle :"
+
+#. Translator: Field label on the RuleCriteriaEditor dialog.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:241
+msgctxt "webAccess.ruleCriteria"
+msgid "Ta&g:"
+msgstr "&Balise :"
+
+#. Translator: Field label on the RuleCriteriaEditor dialog.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:243
+msgctxt "webAccess.ruleCriteria"
+msgid "&ID:"
+msgstr "&ID :"
+
+#. Translator: Field label on the RuleCriteriaEditor dialog.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:245
+msgctxt "webAccess.ruleCriteria"
+msgid "&Class:"
+msgstr "&Classe :"
+
+#. Translator: Field label on the RuleCriteriaEditor dialog.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:247
+msgctxt "webAccess.ruleCriteria"
+msgid "Image &source:"
+msgstr "&Source de l'image :"
+
+#. Translator: Field label on the RuleCriteriaEditor dialog.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:251
+msgctxt "webAccess.ruleCriteria"
+msgid "R&elative path:"
+msgstr "Ch&emin relatif :"
+
+#. Translator: Field label on the RuleCriteriaEditor dialog.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:254
+msgctxt "webAccess.ruleCriteria"
+msgid "Inde&x:"
+msgstr "Inde&x :"
 
 #. Translators: Fail-back criteria summary in RuleEditor dialog.
 #: addon\globalPlugins\webAccess\gui\ruleEditor.py:273
@@ -228,6 +313,42 @@ msgstr "Index, si renseigné, doit être un nombre entier strictement positif."
 #: addon\globalPlugins\webAccess\gui\webModuleEditor.py:306
 msgid "Error"
 msgstr "Erreur"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:437
+msgctxt "webAccess.ruleProperties"
+msgid "&Multiple results"
+msgstr "Résultats &multiples"
+
+#. Translator: Field label on the RulePropertiesEditor dialog.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:443
+msgctxt "webAccess.ruleProperties"
+msgid "Activate &form mode"
+msgstr "Activer le mode &formulaire"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:448
+msgctxt "webAccess.ruleProperties"
+msgid "S&kip with Page Down"
+msgstr "&Ignorer avec Page Suivante"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:453
+msgctxt "webAccess.ruleProperties"
+msgid "&Speak rule name"
+msgstr "Én&oncer le nom de la règle"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:458
+msgctxt "webAccess.ruleProperties"
+msgid "Custom &name:"
+msgstr "&Nom personnalisé :"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:494
+msgctxt "webAccess.ruleProperties"
+msgid "Custom page &title:"
+msgstr "&Titre de page personnalisé :"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:499
+msgctxt "webAccess.ruleProperties"
+msgid "Custom messa&ge:"
+msgstr "Messa&ge personnalisé :"
 
 #. Translators: Fail-back property summary in RuleEditor dialog.
 #: addon\globalPlugins\webAccess\gui\ruleEditor.py:524
@@ -300,6 +421,12 @@ msgstr "Modifier les &propriétés"
 #: addon\globalPlugins\webAccess\gui\ruleEditor.py:885
 msgid "&Comment"
 msgstr "&Commentaire"
+
+#. Translators: Action name
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:934
+msgctxt "webAccess.action"
+msgid "No action"
+msgstr "Ne rien faire"
 
 #: addon\globalPlugins\webAccess\gui\ruleEditor.py:946
 msgid "New rule"
@@ -521,6 +648,36 @@ msgstr "Élément parent"
 msgid "Marker"
 msgstr "Marqueur"
 
+#. Translators: Action name
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:61
+msgctxt "webAccess.action"
+msgid "Move to"
+msgstr "Aller à"
+
+#. Translators: Action name
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:63
+msgctxt "webAccess.action"
+msgid "Say all"
+msgstr "Dire tout"
+
+#. Translators: Action name
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:65
+msgctxt "webAccess.action"
+msgid "Speak"
+msgstr "Énoncer"
+
+#. Translators: Action name
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:67
+msgctxt "webAccess.action"
+msgid "Activate"
+msgstr "Activer"
+
+#. Translators: Action name
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:69
+msgctxt "webAccess.action"
+msgid "Mouse move"
+msgstr "Déplacer la souris"
+
 #: addon\globalPlugins\webAccess\ruleHandler\__init__.py:513
 msgid "Not ready"
 msgstr "Pas encore prêt"
@@ -627,21 +784,21 @@ msgstr ""
 "Gestion des modules d'applications web pour la navigation sur sites web "
 "riches ou complexes."
 
-#~ msgctxt "webAccess.elementDescription"
-#~ msgid "elements"
-#~ msgstr "éléments"
+#~ msgctxt "webAccess.ruleProperties"
+#~ msgid "&Multiple results available:"
+#~ msgstr "Résultats &multiples"
 
-#~ msgctxt "webAccess.elementDescription"
-#~ msgid "element"
-#~ msgstr "élément"
+#~ msgctxt "webAccess.ruleProperties"
+#~ msgid "Activate &form mode:"
+#~ msgstr "Activer le mode &formulaire"
 
-#~ msgctxt "webAccess.elementDescription"
-#~ msgid "from:"
-#~ msgstr "de :"
+#~ msgctxt "webAccess.ruleProperties"
+#~ msgid "S&kip with Page Down:"
+#~ msgstr "Ig&norer avec Page Suivante"
 
-#~ msgctxt "webAccess.elementDescription"
-#~ msgid "to:"
-#~ msgstr "à :"
+#~ msgctxt "webAccess.ruleProperties"
+#~ msgid "&Speak rule name:"
+#~ msgstr "Én&oncer le nom de la règle"
 
 #~ msgid "Add rule"
 #~ msgstr "Ajouter une &règle"
@@ -697,10 +854,6 @@ msgstr ""
 #~ msgid "Create a &list of items"
 #~ msgstr "Créer une liste d'&éléments"
 
-#~ msgctxt "webAccess.action"
-#~ msgid "No action"
-#~ msgstr "Ne rien faire"
-
 #~ msgid "page identifier"
 #~ msgstr "page spécifique"
 
@@ -709,26 +862,6 @@ msgstr ""
 
 #~ msgid "zone"
 #~ msgstr "zone"
-
-#~ msgctxt "webAccess.action"
-#~ msgid "Move to"
-#~ msgstr "Aller à"
-
-#~ msgctxt "webAccess.action"
-#~ msgid "Say all"
-#~ msgstr "Dire tout"
-
-#~ msgctxt "webAccess.action"
-#~ msgid "Speak"
-#~ msgstr "Énoncer"
-
-#~ msgctxt "webAccess.action"
-#~ msgid "Activate"
-#~ msgstr "Activer"
-
-#~ msgctxt "webAccess.action"
-#~ msgid "Mouse move"
-#~ msgstr "Déplacer la souris"
 
 #~ msgctxt "webAccess.elementDescription"
 #~ msgid "from"
