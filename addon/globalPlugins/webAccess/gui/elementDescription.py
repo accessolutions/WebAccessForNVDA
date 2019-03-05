@@ -138,7 +138,7 @@ def getNodeDescription():
 def showElementDescriptionDialog():
 	text = getNodeDescription()
 	global dialog
-	# Evaluate to False when not yet created or already destroyed.
+	# Evaluates to False when not yet created or already destroyed.
 	if not dialog:
 		dialog = ElementDescriptionDialog(gui.mainFrame)
 	dialog.Raise()
