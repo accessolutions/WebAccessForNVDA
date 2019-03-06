@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.01.20"
+__version__ = "2019.03.06"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -300,7 +300,7 @@ class MarkerManager(baseObject.ScriptableObject):
 				results = query.getResults()
 				self.markerResults += results
 				self.markerResults.sort()
-			if self.zone:
+			if self.zone is not None:
 				if not self.zone.update():
 					self.zone = None
 			self.nodeManagerIdentifier = self.nodeManager.identifier
@@ -1099,9 +1099,18 @@ class Zone(textInfos.offsets.Offsets):
 	def __init__(self, rule):
 		self.ruleManager = rule.markerManager
 		self.name = rule.name
+		super(Zone, self).__init__(startOffset=None, endOffset=None)
 		self.update()
 	
+	def __bool__(self):  # Python 3
+		return self.startOffset is not None and self.endOffset is not None
+	
+	def __nonzero__(self):  # Python 2
+		return self.__bool__()
+	
 	def __repr__(self):
+		if not self:
+			return u"<Zone {} (invalidated)>".format(repr(self.name))
 		return u"<Zone {} at ({}, {})>".format(
 			repr(self.name), self.startOffset, self.endOffset
 		)
@@ -1115,21 +1124,25 @@ class Zone(textInfos.offsets.Offsets):
 		)
 	
 	def containsNode(self, node):
+		if not self:
+			return False
 		return self.startOffset <= node.offset < self.endOffset
 	
 	def isTextInfoAtStart(self, info):
 		if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
 			raise ValueError(u"Not supported {}".format(type(info)))
-		return info._startOffset == self.startOffset
+		return self and info._startOffset == self.startOffset
 	
 	def isTextInfoAtEnd(self, info):
 		if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
 			raise ValueError(u"Not supported {}".format(type(info)))
-		return info._endOffset == self.endOffset
+		return self and info._endOffset == self.endOffset
 	
 	def restrictTextInfo(self, info):
 		if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
 			raise ValueError(u"Not supported {}".format(type(info)))
+		if not self:
+			return False
 		res = False
 		if info._startOffset < self.startOffset:
 			res = True
@@ -1149,12 +1162,15 @@ class Zone(textInfos.offsets.Offsets):
 		rule = self.ruleManager.getQueryByName(self.name)
 		if not rule:
 			# The WebModule might have been edited and the rule deleted.
+			self.startOffset = self.endOffset = None
 			return False
 		results = rule.getResults()
 		if not results:
+			self.startOffset = self.endOffset = None
 			return False
 		node = results[0].node
 		if not node:
+			self.startOffset = self.endOffset = None
 			return False
 		self.startOffset = node.offset
 		self.endOffset = node.offset + node.size
