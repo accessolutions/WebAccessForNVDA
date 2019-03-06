@@ -25,7 +25,7 @@ WebAccess overlay classes
 
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.03.05"
+__version__ = "2019.03.06"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -62,31 +62,41 @@ def getDynamicClass(superCls, overlayCls):
 	return dynCls
 
 
-class IgnorePassThroughScriptWrapper(object):
+class ScriptWrapper(object):
 	"""
-	Wrap a script to ignore `TreeInterceptor.passThrough` by default.
+	Wrap a script to help controlling its metadata or its execution.
 	"""
-	ignoreTreeInterceptorPassThrough = True
-	
-	def __init__(self, script):
+	def __init__(self, script, override=None, **defaults):
 		self.script = script
+		self.override = override
+		self.defaults = defaults
 	
 	def __getattribute__(self, name):
 		# Pass existing wrapped script attributes such as __doc__, __name__,
 		# category, ignoreTreeInterceptorPassThrough or resumeSayAllMode.
-		# This allows for a script to *not* ignoreTreeInterceptorPassThrough,
-		# despite being wrapped.
-		# Additionally, scriptHandler.executeScript looks at script.__func__ to
+		# Note: scriptHandler.executeScript looks at script.__func__ to
 		# prevent recursion.
-		if name not in ("__class__", "script"):
+		if name not in ("__class__", "script", "override", "defaults"):
+			if self.override:
+				try:
+					return getattr(self.override, name)
+				except AttributeError:
+					pass
 			try:
 				return getattr(self.script, name)
 			except AttributeError:
 				pass
+			try:
+				return self.defaults[name]
+			except KeyError:
+				pass
 		return object.__getattribute__(self, name)
 	
- 	def __call__(self, gesture):
- 		self.script(gesture)
+	def __call__(self, gesture):
+		if self.override and self.override(gesture):
+			# The override returned True, do not execute the original script.
+			return
+		self.script(gesture)
 
 
 class IterNodesByTypeHitZoneBorder(StopIteration):
@@ -385,15 +395,48 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		cursorManager.CursorManager._lastFindText = text
 		cursorManager.CursorManager._lastCaseSensitivity = caseSensitive
 	
+	def getAlternativeScript(self, gesture, script):
+		
+		class Break(Exception):
+			"""Block-level break."""
+		
+		try:
+			mgr = self.webAccess.ruleManager
+			if not mgr:
+				raise Break()
+			webModule = mgr.webApp
+			if not webModule:
+				raise Break()
+			try:
+				funcName = script.__name__
+			except AttributeError:
+				raise Break()
+			if not funcName.startswith("script_"):
+				raise Break()
+			scriptName = funcName[len("script_"):]
+			overrideName = "override_{scriptName}".format(**locals())
+			try:
+				override = getattr(webModule, overrideName)
+			except AttributeError:
+				raise Break()
+			return ScriptWrapper(script, override)
+		except Break:
+			pass
+		return super(WebAccessBmdti, self).getAlternativeScript(gesture, script)
+	
 	def getScript(self, gesture):
 		mgr = self.webAccess.ruleManager
 		if mgr:
 			func = mgr.getScript(gesture)
 			if func:
-				return IgnorePassThroughScriptWrapper(func)
+				return ScriptWrapper(
+					func, ignoreTreeInterceptorPassThrough=True
+				)
 			func = mgr.webApp.getScript(gesture)
 			if func:
-				return IgnorePassThroughScriptWrapper(func)
+				return ScriptWrapper(
+					func, ignoreTreeInterceptorPassThrough=True
+				)
 		return super(WebAccessBmdti, self).getScript(gesture)
 	
 	def script_disablePassThrough(self, gesture):
