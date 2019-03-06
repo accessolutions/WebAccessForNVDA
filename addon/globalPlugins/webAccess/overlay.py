@@ -25,7 +25,7 @@ WebAccess overlay classes
 
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.01.18"
+__version__ = "2019.03.05"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -64,15 +64,29 @@ def getDynamicClass(superCls, overlayCls):
 
 class IgnorePassThroughScriptWrapper(object):
 	"""
-	Wrap a script function to ignore `TreeInterceptor.passThrough`.
+	Wrap a script to ignore `TreeInterceptor.passThrough` by default.
 	"""
 	ignoreTreeInterceptorPassThrough = True
 	
-	def __init__(self, func):
-		self._func = func
+	def __init__(self, script):
+		self.script = script
 	
-	def __call__(self, gesture):
-		self._func(gesture)
+	def __getattribute__(self, name):
+		# Pass existing wrapped script attributes such as __doc__, __name__,
+		# category, ignoreTreeInterceptorPassThrough or resumeSayAllMode.
+		# This allows for a script to *not* ignoreTreeInterceptorPassThrough,
+		# despite being wrapped.
+		# Additionally, scriptHandler.executeScript looks at script.__func__ to
+		# prevent recursion.
+		if name not in ("__class__", "script"):
+			try:
+				return getattr(self.script, name)
+			except AttributeError:
+				pass
+		return object.__getattribute__(self, name)
+	
+ 	def __call__(self, gesture):
+ 		self.script(gesture)
 
 
 class IterNodesByTypeHitZoneBorder(StopIteration):
