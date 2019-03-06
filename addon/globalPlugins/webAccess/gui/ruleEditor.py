@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.01.21"
+__version__ = "2019.03.06"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -467,6 +467,7 @@ class RulePropertiesEditor(wx.Dialog):
 			ruleTypes.ZONE,
 			(
 				"formMode",
+				"skip",
 				"sayName",
 				"customName",
 				"customValue",
@@ -987,6 +988,11 @@ class RuleEditor(wx.Dialog):
 				self.ruleTypeCombo.Selection
 			)
 		self.data["type"] = ruleType
+		if "rule" not in self.context:
+			if ruleType == ruleTypes.ZONE:
+				self.data["skip"] = True
+			elif ruleType == ruleTypes.MARKER:
+				self.data["skip"] = False
 		for control, types in (
 			(
 				self.actionsBox, (

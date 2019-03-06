@@ -427,25 +427,27 @@ class MarkerManager(baseObject.ScriptableObject):
 					types.append(result.markerQuery.name)
 			return types
 
-	def getNextResult(self, ruleType=None, name=None):
-		return self._getIncrementalResult(ruleType=ruleType, name=None)
-	
-	def getPreviousResult(self, ruleType=None, name=None):
-		return self._getIncrementalResult(
-			previous=True,
-			ruleType=ruleType,
-			name=None
-		)
-	
 	def _getIncrementalResult(
 		self,
 		previous=False,
-		info=None,
+		relative=True,
+		caret=None,
 		types=None,
 		name=None,
 		respectZone=False,
 		honourSkip=True,
 	):
+		if honourSkip:
+			caret = caret.copy()
+			caret.expand(textInfos.UNIT_CHARACTER)
+			skippedZones = []
+			for result in self.markerResults:
+				query = result.markerQuery
+				if not query.skip or query.type != ruleTypes.ZONE:
+					continue
+				zone = Zone(result)
+				if not zone.containsTextInfo(caret):
+					skippedZones.append(zone)
 		for result in (
 			reversed(self.markerResults)
 			if previous else self.markerResults
@@ -456,17 +458,24 @@ class MarkerManager(baseObject.ScriptableObject):
 			if name:
 				if query.name != name:
 					continue
-			elif honourSkip and query.skip:
-				continue
+			elif honourSkip:
+				if query.skip:
+					continue
+				if any(
+					zone
+					for zone in skippedZones
+					if zone.containsResult(result)
+				):
+					continue
 			if (
 				hasattr(result, "node")
 				and (
-					info is None
+					not relative
 					or (
 						not previous
-						and info._startOffset < result.node.offset
+						and caret._startOffset < result.node.offset
 					)
-					or (previous and info._startOffset > result.node.offset)
+					or (previous and caret._startOffset > result.node.offset)
 				)
 				and (
 					not respectZone
@@ -518,17 +527,18 @@ class MarkerManager(baseObject.ScriptableObject):
 		
 		# If not found after/before the current position, and cycle is True,
 		# return the first/last result.
-		for positioned in ((True, False) if cycle else (True,)):
+		for relative in ((True, False) if cycle else (True,)):
 			result = self._getIncrementalResult(
 				previous=previous,
-				info=info if positioned else None,
+				caret=info,
+				relative=relative,
 				types=types,
 				name=name,
 				respectZone=respectZone,
 				honourSkip=honourSkip
 			)
 			if result:
-				if not positioned:
+				if not relative:
 					playWebAppSound("loop")
 					sleep(0.2)
 				break
@@ -567,7 +577,7 @@ class MarkerManager(baseObject.ScriptableObject):
 		self.update()
 	
 	def script_quickNavToNextLevel1(self, gesture):
-		self.quickNav(types=(ruleTypes.ZONE,))
+		self.quickNav(types=(ruleTypes.ZONE,), honourSkip=False)
 	
 	# Translators: Input help mode message for quickNavToNextLevel1.
 	script_quickNavToNextLevel1.__doc__ = _("Move to next zone.")
@@ -575,7 +585,7 @@ class MarkerManager(baseObject.ScriptableObject):
 	script_quickNavToNextLevel1.category = SCRIPT_CATEGORY
 	
 	def script_quickNavToPreviousLevel1(self, gesture):
-		self.quickNav(previous=True, types=(ruleTypes.ZONE,))
+		self.quickNav(previous=True, types=(ruleTypes.ZONE,), honourSkip=False)
 	
 	# Translators: Input help mode message for quickNavToPreviousLevel1.
 	script_quickNavToPreviousLevel1.__doc__ = _("Move to previous zone.")
@@ -719,7 +729,7 @@ class VirtualMarkerResult(MarkerResult):
 		treeInterceptor.passThrough = query.formMode
 		browseMode.reportPassThrough.last = treeInterceptor.passThrough
 		if query.type == ruleTypes.ZONE:
-			query.markerManager.zone = Zone(query)
+			query.markerManager.zone = Zone(self)
 			# Ensure the focus does not remain on a control out of the zone
 			treeInterceptor.rootNVDAObject.setFocus()
 		elif (
@@ -1096,11 +1106,12 @@ class VirtualMarkerQuery(MarkerQuery):
 
 class Zone(textInfos.offsets.Offsets):
 	
-	def __init__(self, rule):
+	def __init__(self, result):
+		rule = result.markerQuery
 		self.ruleManager = rule.markerManager
 		self.name = rule.name
 		super(Zone, self).__init__(startOffset=None, endOffset=None)
-		self.update()
+		self._update(result)
 	
 	def __bool__(self):  # Python 3
 		return self.startOffset is not None and self.endOffset is not None
@@ -1115,7 +1126,21 @@ class Zone(textInfos.offsets.Offsets):
 			repr(self.name), self.startOffset, self.endOffset
 		)
 	
+	def containsNode(self, node):
+		if not self:
+			return False
+		return self.startOffset <= node.offset < self.endOffset
+	
+	def containsResult(self, result):
+		if not self:
+			return False
+		if hasattr(result, "node"):
+			return self.containsNode(result.node)
+		return False
+	
 	def containsTextInfo(self, info):
+		if not self:
+			return False
 		if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
 			raise ValueError(u"Not supported {}".format(type(info)))
 		return (
@@ -1123,10 +1148,8 @@ class Zone(textInfos.offsets.Offsets):
 			and info._endOffset <= self.endOffset
 		)
 	
-	def containsNode(self, node):
-		if not self:
-			return False
-		return self.startOffset <= node.offset < self.endOffset
+	def getRule(self):
+		return self.ruleManager.getQueryByName(self.name)
 	
 	def isTextInfoAtStart(self, info):
 		if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
@@ -1159,7 +1182,7 @@ class Zone(textInfos.offsets.Offsets):
 		return res
 	
 	def update(self):
-		rule = self.ruleManager.getQueryByName(self.name)
+		rule = self.getRule()
 		if not rule:
 			# The WebModule might have been edited and the rule deleted.
 			self.startOffset = self.endOffset = None
@@ -1168,7 +1191,10 @@ class Zone(textInfos.offsets.Offsets):
 		if not results:
 			self.startOffset = self.endOffset = None
 			return False
-		node = results[0].node
+		return self._update(results[0])
+	
+	def _update(self, result):
+		node = result.node
 		if not node:
 			self.startOffset = self.endOffset = None
 			return False
