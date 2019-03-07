@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.03.06"
+__version__ = "2019.03.07"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -732,11 +732,17 @@ class VirtualMarkerResult(MarkerResult):
 			query.markerManager.zone = Zone(self)
 			# Ensure the focus does not remain on a control out of the zone
 			treeInterceptor.rootNVDAObject.setFocus()
-		elif (
-			query.markerManager.zone and
-			not query.markerManager.zone.containsNode(self.node)
-		):
-			query.markerManager.zone = None
+		else:
+			for result in reversed(query.markerManager.markerResults):
+				if result.markerQuery.type != ruleTypes.ZONE:
+					continue
+				zone = Zone(result)
+				if zone.containsResult(self):
+					if zone != query.markerManager.zone:
+						query.markerManager.zone = zone
+					break
+			else:
+				query.markerManager.zone = None
 		info = treeInterceptor.makeTextInfo(
 			textInfos.offsets.Offsets(self.node.offset, self.node.offset)
 		)
@@ -1115,6 +1121,15 @@ class Zone(textInfos.offsets.Offsets):
 	
 	def __bool__(self):  # Python 3
 		return self.startOffset is not None and self.endOffset is not None
+	
+	def __eq__(self, other):
+		return (
+			isinstance(other, Zone)
+			and other.ruleManager == self.ruleManager
+			and other.name == self.name
+			and other.startOffset == self.startOffset
+			and other.endOffset == self.endOffset
+		)
 	
 	def __nonzero__(self):  # Python 2
 		return self.__bool__()
