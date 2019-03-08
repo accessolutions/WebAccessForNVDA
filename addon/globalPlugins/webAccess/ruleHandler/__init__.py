@@ -22,12 +22,13 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.04.07"
+__version__ = "2021.03.12"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
 from collections import OrderedDict
 from itertools import chain
+from pprint import pformat
 import threading
 import time
 import wx
@@ -37,6 +38,7 @@ import api
 import baseObject
 import browseMode
 import controlTypes
+from core import callLater
 import gui
 import inputCore
 from logHandler import log
@@ -93,37 +95,39 @@ builtinRuleActions["activate"] = pgettext("webAccess.action", "Activate")
 builtinRuleActions["mouseMove"] = pgettext("webAccess.action", "Mouse move")
 
 
-def showCreator(context):
-	return showEditor(context, new=True)
+def showCreator(context, parent=None):
+	context.pop("rule", None)
+	context["new"] = True
+	return showEditor(context, parent=parent)
 
 
-def showEditor(context, new=False):
+def showEditor(context, parent=None):
+	context.get("data", {}).pop("rule", None)
 	from ..gui import ruleEditor
-	if new:
-		if "rule" in context:
-			del context["rule"]
-		if "data" in context:
-			del context["data"]["rule"]
-	return ruleEditor.show(context)
+	return ruleEditor.show(context, parent=parent)
 
 
 def showManager(context):
 	api.processPendingEvents()
 	webModule = context["webModule"]
-	markerManager = webModule.markerManager
-	if not markerManager.isReady:
-		ui.message(u"Marqueurs non disponibles")
+	mgr = webModule.ruleManager
+	if not mgr.isReady:
+		playWebAppSound("keyError")
+		time.sleep(0.2)
+		speech.cancelSpeech()
+		ui.message(_("Not ready"))
+		time.sleep(0.5)
 		return
 	focus = context["focusObject"]
-	context["rule"] = markerManager.getResultAtCaret(focus=focus)
-	from ..gui import rulesManager
-	rulesManager.show(context)
+	context["rule"] = mgr.getResultAtCaret(focus=focus)
+	from ..gui import rulesManager as dlg
+	dlg.show(context)
 
 
-class DefaultMarkerScripts(baseObject.ScriptableObject):
+class DefaultScripts(baseObject.ScriptableObject):
 	
 	def __init__(self, warningMessage):
-		super(DefaultMarkerScripts,self).__init__()
+		super(DefaultScripts, self).__init__()
 		self.warningMessage = warningMessage
 		for ascii in range(ord("a"), ord("z")+1):
 			character = chr(ascii)
@@ -131,122 +135,108 @@ class DefaultMarkerScripts(baseObject.ScriptableObject):
 
 	def script_notAssigned(self, gesture):
 		playWebAppSound("keyError")
-		time.sleep(0.2)
-		ui.message(self.warningMessage)
+		callLater(200, ui.message, self.warningMessage)
 
 	__gestures = {}
 
 
-class MarkerManager(baseObject.ScriptableObject):
+class RuleManager(baseObject.ScriptableObject):
 	
 	def __init__(self, webModule):
-		super(MarkerManager,self).__init__()
+		super(RuleManager, self).__init__()
 		self._ready = False
 		self._webModule = weakref.ref(webModule)
 		self._nodeManager = None
 		self.nodeManagerIdentifier = None
 		self.lock = threading.RLock()
-		self.layers = OrderedDict()
-		self.layersIndex = {}
-		self.rules = self.markerQueries = []
-		self.results = self.markerResults = []
+		self._layers = OrderedDict()
+		self._layersIndex = {}
+		self._rules = {}
+		self._results = []
 		self._mutatedControlsById = {}
 		self._mutatedControlsByOffset = []
 		self.triggeredIdentifiers = {}
 		self.lastAutoMoveto = None
 		self.lastAutoMovetoTime = 0
-		self.defaultMarkerScripts = DefaultMarkerScripts(u"Aucun marqueur associé à cette touche")
+		self.defaultScripts = DefaultScripts(u"Aucun marqueur associé à cette touche")
 		self.timerCheckAutoAction = None
 		self.zone = None
 	
 	def _get_webModule(self):
 		return self._webModule()
 	
-	def _get_webApp(self):
-		return self.webModule
-	
 	def _get_nodeManager(self):
 		return self._nodeManager and self._nodeManager()
 	
 	def dump(self, layer):
-		return [rule.dump() for rule in self.layers.get(layer, [])]
+		return {name: rule.dump() for name, rule in self._layers[layer].items()}
 	
 	def load(self, layer, index, data):
 		self.unload(layer)
-		self.layers[layer] = []
-		if index is not None:
-			for otherIndex, otherLayer in enumerate(list(self.layers.keys())):
-				if otherIndex >= index:
-					self.layers.move_to_end(otherLayer)
-		self.layersIndex = dict(
-			((layerName, layerIndex) for layerIndex, layerName in enumerate(self.layers.keys()))
-		)
-		for ruleData in data:
-			self.loadRule(layer, index, ruleData)
+		self._initLayer(layer, index)
+		for ruleName, ruleData in data.items():
+			self._loadRule(layer, ruleName, ruleData)
 	
-	def loadRule(self, layer, index, data):
+	def _initLayer(self, layer, index):
+		self._layers[layer] = {}
+		if index is not None:
+			for otherIndex, otherLayer in enumerate(list(self._layers.keys())):
+				if otherIndex >= index:
+					self._layers.move_to_end(otherLayer)
+		self._layersIndex = dict(
+			((layerName, layerIndex) for layerIndex, layerName in enumerate(self._layers.keys()))
+		)
+	
+	def loadRule(self, layer, name, data):
+		if layer not in self._layers:
+			self._initLayer(layer, index)
+		self._loadRule(self, layer, name, data)
+	
+	def _loadRule(self, layer, name, data):
 		rule = self.webModule.createRule(data)
 		rule.layer = layer
-		self.layers[layer].append(rule)
-		startIndex = endIndex = None
-		rules = []
-		for candidateIndex, candidateRule in enumerate(self.rules):
-			if candidateRule == rule.name:
-				rules.append(rule)
-				if startIndex is None:
-					startIndex = candidateIndex
-			elif startIndex is not None:
-				endIndex = candidateIndex
-				break
-		if index is None:
-			rules.append(rule)
-		else:
-			for otherIndex, otherRule in enumerate(rules):
-				if otherIndex >= list(self.layers.keys()).index(otherRule.layer):
-					rules.insert(otherIndex, rule)
-					break
-			else:
-				rules.append(rule)
-		if startIndex is not None:
-			self.rules[startIndex:endIndex] = rules
-		else:
-			self.rules.append(rule)
+		self._layers[layer][name] = rule
+		self._rules.setdefault(name, OrderedDict())[layer] = rule
 	
 	def unload(self, layer):
-		for index in range(len(self.results)):
-			if self.results[index].rule.layer == layer:
-				del self.results[index]
-		for index in range(len(self.rules)):
-			if self.rules[index].layer == layer:
-				del self.rules[index]
-		self.layers.pop(layer, None)
+		for index in range(len(self._results)):
+			if self._results[index].rule.layer == layer:
+				del self._results[index]
+		for ruleLayers in self._rules:
+			ruleLayers.pop(layer, None)
+		self._layers.pop(layer, None)
 
 	def removeRule(self, rule):
 		self.removeResults(rule)
-		for index, candidate in enumerate(self.rules):
-			if candidate is rule:
-				del self.rules[index]
-		layer = self.layers[rule.layer]
-		del layer[layer.index(rule)]
+		self._rules.pop(rule.name, None)
+		self._layers[rule.layer].pop(rule.name, None)
+	
+	def getRules(self, layer=None):
+		if layer not in (None, False):
+			return tuple(self._layers[layer].values())
+		return tuple([
+			rule
+			for ruleLayers in self._rules.values()
+			for rule in ruleLayers.values() 
+		])
 	
 	def getRule(self, name, layer=None):
 		if layer is None:
-			for layer in self.layers.keys():
-				if layer != "user" or len(self.layers) == 1:
+			for layer in self._layers.keys():
+				if layer != "user" or len(self._layers) == 1:
 					break
-		for rule in self.rules:
-			if rule.name != name:
-				continue
-			if layer is None or self.layersIndex[layer] >= self.layersIndex[rule.layer]:
-				return rule
+		ruleLayers = self._rules[name]
+		if layer not in (None, False):
+			return ruleLayers[layer]
+		try:
+			return next(iter(ruleLayers.values()))
+		except StopIteration:
+			raise LookupError({"name": name, "layer": layer})
 
-	def getRules(self):
-		return self.rules
-	
 	def getResults(self):
 		if not self.isReady:
 			return []
-		return self.markerResults
+		return self._results
 	
 	def getResultsByName(self, name, layer=None):
 		return list(self.iterResultsByName(name, layer=layer))
@@ -255,40 +245,18 @@ class MarkerManager(baseObject.ScriptableObject):
 		if not self.isReady:
 			return
 		if layer is None:
-			for layer in self.layers.keys():
-				if layer != "user" or len(self.layers) == 1:
+			for layer in self._layers.keys():
+				if layer != "user" or len(self._layers) == 1:
 					break
-		for result in self.results:
+		for result in self.getResults():
 			rule = result.rule
 			if rule.name != name:
 				continue
-			elif layer is None or self.layersIndex[layer] >= self.layersIndex[rule.layer]:
+			elif (
+				layer not in (None, False)
+				or self._layersIndex[layer] >= self._layersIndex[rule.layer]
+			):
 				yield result
-	
-	def getPrioritizedResultsByName(self, name, layer=None):
-		"""
-		This is a temporary measure, allowing to get prioritized results
-		during the update.
-		This will no longer be necessary once multi criteria sets rules will
-		be implemented, as rule names will be unique again.
-		"""
-		results = []
-		rules = []
-		for rule in self.rules:
-			if rule.name != name:
-				continue
-			elif layer is None or self.layersIndex[layer] >= self.layersIndex[rule.layer]:
-				rules.append(rule)
-		for rule in sorted(
-			rules,
-			key=lambda rule: rule.priority if rule.priority is not None else -1
-		):
-			results.extend(rule.getResults())
-			if rule.priority is None:
-				continue
-			if results:
-				break
-		return results
 	
 	def iterMutatedControls(self, direction="next", offset=None):
 		for entry in (
@@ -315,55 +283,39 @@ class MarkerManager(baseObject.ScriptableObject):
 		return self._mutatedControlsById.get(controlId)
 	
 	def removeResults(self, rule):
-		for index, result in enumerate(self.results):
+		for index, result in enumerate(self._results):
 			if result.rule is rule:
-				del self.results[index]
-
+				del self._results[index]
+	
 	def getActions(self):
 		actions = builtinRuleActions.copy()
 		prefix = "action_"
-		for key in dir(self.webApp):
+		for key in dir(self.webModule):
 			if key[:len(prefix)] == prefix:
 				actionId = key[len(prefix):]
-				actionLabel = getattr(self.webApp, key).__doc__ or actionId
+				actionLabel = getattr(self.webModule, key).__doc__ or actionId
 				# Prefix to denote customized action
 				actionLabel = "*" + actionLabel
 				actions.setdefault(actionId, actionLabel)
 		return actions
 				
-	def getMarkerScript(self, gesture, globalMapScripts):
-		func = scriptHandler._getObjScript(self, gesture, globalMapScripts)
-		if func:
-			return func
-		pmList = self.getResults() + self.getQueries()
-		for result in pmList:
-			func = scriptHandler._getObjScript(result, gesture, globalMapScripts)
-			if func:
-				return func
-		func = scriptHandler._getObjScript(self.defaultMarkerScripts, gesture, globalMapScripts)
-		if func:
-			return func
-		return None
-	
 	def getScript(self, gesture):
-		func = super(MarkerManager, self).getScript(gesture)
+		func = super(RuleManager, self).getScript(gesture)
 		if func is not None:
 			return func
-		for layer in reversed(list(self.layers.keys())):
+		for layer in reversed(list(self._layers.keys())):
 			for result in self.getResults():
 				if result.rule.layer != layer:
 					continue
 				func = result.getScript(gesture)
 				if func is not None:
 					return func
-		for layer in reversed(list(self.layers.keys())):
-			for rule in self.getRules():
-				if rule.layer != layer:
-					continue
+		for rules in reversed(list(self._layers.values())):
+			for rule in rules.values():
 				func = rule.getScript(gesture)
 				if func is not None:
 					return func
-		return self.defaultMarkerScripts.getScript(gesture)
+		return self.defaultScripts.getScript(gesture)
 	
 	def _get_isReady(self):
 		if not self._ready or not self.nodeManager or not self.nodeManager.isReady or self.nodeManager.identifier != self.nodeManagerIdentifier:
@@ -379,11 +331,12 @@ class MarkerManager(baseObject.ScriptableObject):
 			pass
 		self.timerCheckAutoAction = None
 		self._nodeManager = None
-		del self.markerResults[:]
+		del self._results[:]
 		self._mutatedControlsById.clear()
 		self._mutatedControlsByOffset[:] = []
-		for q in self.markerQueries:
-			q.resetResults()
+		for ruleLayers in self._rules.values():
+			for rule in ruleLayers.values():
+				rule.resetResults()
 	
 	def update(self, nodeManager=None, force=False):
 		if self.webModule is None:
@@ -405,39 +358,26 @@ class MarkerManager(baseObject.ScriptableObject):
 				self._ready = True
 				return False
 			t = logTimeStart()
-			self.markerResults[:] = []
+			self._results[:] = []
 			self._mutatedControlsById.clear()
-			self._mutatedControlsByOffset[:] = []
-			for query in self.markerQueries:
-				query.resetResults()
+			self._mutatedControlsByOffset.clear()
+			for ruleLayers in self._rules.values():
+				for rule in ruleLayers.values():
+					rule.resetResults()
 			
-			# This is a temporary measure, no longer necessary once multi
-			# criteria sets rules will be implemented, as rule names will be
-			# unique again.
-			for name, layer in list(OrderedDict((
-				(rule.name, rule.layer)
-				for rule in sorted(
-					self.markerQueries,
-					key=lambda rule: (
-						0 if rule.type in (
-							ruleTypes.PAGE_TITLE_1, ruleTypes.PAGE_TITLE_2
-						) else 1
-					)
-			))).items()):
-				results = self.getPrioritizedResultsByName(name, layer=layer)
-			# for query in sorted(
-			# 	self.markerQueries,
-			# 	key=lambda query: (
-			# 		0 if query.type in (
-			# 			ruleTypes.PAGE_TITLE_1, ruleTypes.PAGE_TITLE_2
-			# 		) else 1
-			# 	)
-			# ):
-			# 	results = query.getResults()
-				self.markerResults += results
-				self.markerResults.sort()
-
-			for result in self.markerResults:
+			results = self._results
+			for rule in sorted(
+				[rule for ruleLayers in self._rules.values() for rule in ruleLayers.values()],
+				key=lambda rule: (
+					0 if rule.type in (
+						ruleTypes.PAGE_TITLE_1, ruleTypes.PAGE_TITLE_2
+					) else 1
+				)
+			):
+				results.extend(rule.getResults())
+			results.sort()
+			
+			for result in results:
 				if not result.rule.mutation:
 					continue
 				try:
@@ -448,7 +388,6 @@ class MarkerManager(baseObject.ScriptableObject):
 				entry = self._mutatedControlsById.get(controlId)
 				if entry is None:
 					entry = MutatedControl(result)
-					#entry = MutatedControl.fromResult(result)
 					self._mutatedControlsById[controlId] = entry
 					self._mutatedControlsByOffset.append(entry)
 				else:
@@ -463,9 +402,9 @@ class MarkerManager(baseObject.ScriptableObject):
 			if self.isReady:
 				webAppScheduler.scheduler.send(eventName="markerManagerUpdated", markerManager=self)
 				self.timerCheckAutoAction = threading.Timer(
-					1, # Accepts floating point number for sub-second precision
+					1,  # Accepts floating point number for sub-second precision
 					self.checkAutoAction
-					)
+				)
 				self.timerCheckAutoAction.start()				
 				return True
 			else:
@@ -477,9 +416,10 @@ class MarkerManager(baseObject.ScriptableObject):
 			# This instance has been terminated
 			return
 		title = self.getPageTitle()
-		if title != self.webApp.activePageTitle:
-			self.webApp.activePageTitle = title
-			webAppScheduler.scheduler.send(eventName="webApp", name="webApp_pageChanged", obj=title, webApp=self.webApp)
+		webModule = self.webModule
+		if title != webModule.activePageTitle:
+			webModule.activePageTitle = title
+			webAppScheduler.scheduler.send(eventName="webApp", name="webApp_pageChanged", obj=title, webApp=webModule)
 			return True
 		return False
 	
@@ -493,12 +433,12 @@ class MarkerManager(baseObject.ScriptableObject):
 				return
 			funcMoveto = None
 			firstCancelSpeech = True
-			for result in self.markerResults:
-				if result.markerQuery.autoAction:
+			for result in self.getResults():
+				if result.rule.autoAction:
 					controlIdentifier = result.node.controlIdentifier
 					# check only 100 first characters
 					text = result.node.getTreeInterceptorText()[:100]
-					autoActionName = result.markerQuery.autoAction
+					autoActionName = result.rule.autoAction
 					func = getattr(result, "script_%s" % autoActionName)
 					lastText = self.triggeredIdentifiers.get(controlIdentifier)
 					if (lastText is None or text != lastText):
@@ -531,7 +471,7 @@ class MarkerManager(baseObject.ScriptableObject):
 									u'Error in rule "{rule}" while executing'
 									u' autoAction "{autoAction}"'
 								).format(
-									rule=result.markerQuery.name,
+									rule=result.rule.name,
 									autoAction=autoActionName
 								))
 			if funcMoveto is not None:
@@ -564,16 +504,16 @@ class MarkerManager(baseObject.ScriptableObject):
 		return " - ".join(parts)
 	
 	def _getPageTitle1(self):
-		for result in self.markerResults:
-			if result.markerQuery.type == ruleTypes.PAGE_TITLE_1:
+		for result in self.getResults():
+			if result.rule.type == ruleTypes.PAGE_TITLE_1:
 				return result.value
 		from ..webModuleHandler import getWindowTitle
 		windowTitle = getWindowTitle(self.nodeManager.treeInterceptor.rootNVDAObject)
 		return windowTitle or api.getForegroundObject().name
 	
 	def _getPageTitle2(self):
-		for result in self.markerResults:
-			if result.markerQuery.type == ruleTypes.PAGE_TITLE_2:
+		for result in self.getResults():
+			if result.rule.type == ruleTypes.PAGE_TITLE_2:
 				return result.value
 	
 	def getPageTypes(self):
@@ -581,9 +521,9 @@ class MarkerManager(baseObject.ScriptableObject):
 		with self.lock:
 			if not self.isReady:
 				return types
-			for result in self.markerResults:
-				if result.markerQuery.type == ruleTypes.PAGE_TYPE:
-					types.append(result.markerQuery.name)
+			for result in self.getResults():
+				if result.rule.type == ruleTypes.PAGE_TYPE:
+					types.append(result.rule.name)
 			return types
 
 	def _getIncrementalResult(
@@ -600,25 +540,25 @@ class MarkerManager(baseObject.ScriptableObject):
 			caret = caret.copy()
 			caret.expand(textInfos.UNIT_CHARACTER)
 			skippedZones = []
-			for result in self.markerResults:
-				query = result.markerQuery
-				if not query.skip or query.type != ruleTypes.ZONE:
+			for result in self.getResults():
+				rule = result.rule
+				if not rule.skip or rule.type != ruleTypes.ZONE:
 					continue
 				zone = Zone(result)
 				if not zone.containsTextInfo(caret):
 					skippedZones.append(zone)
 		for result in (
-			reversed(self.markerResults)
-			if previous else self.markerResults
+			reversed(self.getResults())
+			if previous else self.getResults()
 		):
-			query = result.markerQuery
-			if types and query.type not in types:
+			rule = result.rule
+			if types and rule.type not in types:
 				continue
 			if name:
-				if query.name != name:
+				if rule.name != name:
 					continue
 			elif honourSkip:
-				if query.skip:
+				if rule.skip:
 					continue
 				if any(
 					zone
@@ -648,7 +588,7 @@ class MarkerManager(baseObject.ScriptableObject):
 							# If respecting zone restriction or iterating
 							# backwards relative to the caret position,
 							# avoid returning the current zone itself.
-							self.zone.name == result.markerQuery.name
+							self.zone.name == result.rule.name
 							and self.zone.startOffset == result.node.offset
 						)
 					)
@@ -681,7 +621,7 @@ class MarkerManager(baseObject.ScriptableObject):
 	def iterResultsAtTextInfo(self, info):
 		if not self.isReady:
 			return
-		if not self.markerResults:
+		if not self.getResults():
 			return
 		if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
 			raise ValueError(u"Not supported {}".format(type(info)))
@@ -692,9 +632,9 @@ class MarkerManager(baseObject.ScriptableObject):
 # 	def iterResultsAtOffset(self, offset):
 # 		if not self.isReady:
 # 			return
-# 		if not self.markerResults:
+# 		if not self.results:
 # 			return
-		for r in reversed(self.markerResults):
+		for r in reversed(self.getResults()):
 			if (
 				hasattr(r, "node")
 				and r.node.offset <= offset < r.node.offset + r.node.size 
@@ -899,11 +839,14 @@ class CustomActionDispatcher(object):
 		)
 
 
-class MarkerResult(baseObject.ScriptableObject):
+class Result(baseObject.ScriptableObject):
 	
-	def __init__(self, markerQuery):
-		super(MarkerResult, self).__init__()
-		webModule = markerQuery.markerManager.webApp
+	def __init__(self, criteria):
+		super(Result, self).__init__()
+		self._criteria = weakref.ref(criteria)
+		rule = criteria.rule
+		self._rule = weakref.ref(rule)
+		webModule = rule.ruleManager.webModule
 		prefix = "action_"
 		for key in dir(webModule):
 			if key.startswith(prefix):
@@ -917,22 +860,21 @@ class MarkerResult(baseObject.ScriptableObject):
 				dispatcher.webModules.add(webModule)
 				setattr(self.__class__, scriptAttrName, dispatcher)
 				setattr(self, scriptAttrName, dispatcher.__get__(self))
-		self._rule = weakref.ref(markerQuery)
-		self.bindGestures(markerQuery.gestures)
+		self.bindGestures(rule.gestures)
+	
+	def _get_criteria(self):
+		return self._criteria()
+	
+	def _get_name(self):
+		return self.rule.name
 	
 	def _get_rule(self):
 		return self._rule()
 	
-	def _get_markerQuery(self):
-		return self.rule
-	
-	def check(self):
+	def _get_value(self):
 		raise NotImplementedError
 	
-	def _get_name(self):
-		return self.markerQuery.name
-	
-	def _get_value(self):
+	def check(self):
 		raise NotImplementedError
 	
 	def script_moveto(self, gesture):
@@ -959,59 +901,60 @@ class MarkerResult(baseObject.ScriptableObject):
 			+ [
 				inputCore.getDisplayTextForGestureIdentifier(identifier)[1]
 				for identifier in self._gestureMap.keys()
-				]
-			)
+			]
+		)
 
 
-class VirtualMarkerResult(MarkerResult):
+class SingleNodeResult(Result):
 	
-	def __init__(self, markerQuery, node, context, index):
-		super(VirtualMarkerResult ,self).__init__(markerQuery)
-		self.node = node
+	def __init__(self, criteria, node, context, index):
+		super(SingleNodeResult, self).__init__(criteria)
+		self._node = weakref.ref(node)
 		self.context = context
 		self.index = index
 	
-	_cache_value = False
+	def _get_node(self):
+		return self._node()
 	
 	def _get_value(self):
 		return \
-			self.markerQuery.customValue \
+			self.rule.customValue \
 			or self.node.getTreeInterceptorText()
 	
 	def script_moveto(self, gesture, fromQuickNav=False, fromSpeak=False):
 		if self.node.nodeManager is None:
 			return
-		query = self.markerQuery
+		rule = self.rule
 		reason = nodeHandler.REASON_FOCUS
 		if not fromQuickNav:
 			reason = nodeHandler.REASON_SHORTCUT
 		if fromSpeak:
 			# Translators: Speak rule name on "Move to" action
 			speech.speakMessage(_(u"Move to {ruleName}").format(
-				ruleName=query.label)
+				ruleName=rule.label)
 			)
-		elif self.markerQuery.sayName:
-			speech.speakMessage(query.label)
+		elif rule.sayName:
+			speech.speakMessage(rule.label)
 		treeInterceptor = self.node.nodeManager.treeInterceptor
 		if not treeInterceptor or not treeInterceptor.isReady:
 			return
-		treeInterceptor.passThrough = query.formMode
+		treeInterceptor.passThrough = rule.formMode
 		browseMode.reportPassThrough.last = treeInterceptor.passThrough
-		if query.type == ruleTypes.ZONE:
-			query.markerManager.zone = Zone(self)
+		if rule.type == ruleTypes.ZONE:
+			rule.ruleManager.zone = Zone(self)
 			# Ensure the focus does not remain on a control out of the zone
 			treeInterceptor.rootNVDAObject.setFocus()
 		else:
-			for result in reversed(query.markerManager.markerResults):
-				if result.markerQuery.type != ruleTypes.ZONE:
+			for result in reversed(rule.ruleManager.results):
+				if result.rule.type != ruleTypes.ZONE:
 					continue
 				zone = Zone(result)
 				if zone.containsResult(self):
-					if zone != query.markerManager.zone:
-						query.markerManager.zone = zone
+					if zone != rule.ruleManager.zone:
+						rule.ruleManager.zone = zone
 					break
 			else:
-				query.markerManager.zone = None
+				rule.ruleManager.zone = None
 		info = treeInterceptor.makeTextInfo(
 			textInfos.offsets.Offsets(self.node.offset, self.node.offset)
 		)
@@ -1036,8 +979,8 @@ class VirtualMarkerResult(MarkerResult):
 	
 	def script_sayall(self, gesture, fromQuickNav=False):
 		speech.cancelSpeech()
-		if self.markerQuery.sayName:
-			speech.speakMessage(self.markerQuery.label)
+		if self.rule.sayName:
+			speech.speakMessage(self.rule.label)
 		treeInterceptor = html.getTreeInterceptor()
 		if not treeInterceptor:
 			return
@@ -1059,26 +1002,26 @@ class VirtualMarkerResult(MarkerResult):
 	def script_activate(self, gesture):
 		if self.node.nodeManager is None:
 			return
-		if not self.markerQuery.markerManager.isReady :
+		if not self.rule.ruleManager.isReady :
 			log.info (u"not ready")
 			return
 		treeInterceptor = self.node.nodeManager.treeInterceptor
-		if self.markerQuery.sayName:
-			speech.speakMessage(self.markerQuery.label)
+		if self.rule.sayName:
+			speech.speakMessage(self.rule.label)
 		self.node.activate()
 		time.sleep(0.1)
 		api.processPendingEvents ()
 		if not treeInterceptor:
 			return
-		treeInterceptor.passThrough = self.markerQuery.formMode
+		treeInterceptor.passThrough = self.rule.formMode
 		browseMode.reportPassThrough.last = treeInterceptor.passThrough 
 	
 	def script_speak(self, gesture):
 		repeat = scriptHandler.getLastScriptRepeatCount() if gesture is not None else 0
 		if repeat == 0:
 			parts = []
-			if self.markerQuery.sayName:
-				parts.append(self.markerQuery.label)
+			if self.rule.sayName:
+				parts.append(self.rule.label)
 			parts.append(self.value)
 			msg = u" - ".join(parts)
 			wx.CallAfter(ui.message, msg)
@@ -1086,12 +1029,13 @@ class VirtualMarkerResult(MarkerResult):
 			self.script_moveto(None, fromSpeak=True)
 	
 	def script_mouseMove(self, gesture):
-		if self.markerQuery.sayName:
-			speech.speakMessage(self.markerQuery.label)
+		rule = self.rule
+		if rule.sayName:
+			speech.speakMessage(rule.label)
 		treeInterceptor = html.getTreeInterceptor()
 		if not treeInterceptor:
 			return
-		treeInterceptor.passThrough = self.markerQuery.formMode
+		treeInterceptor.passThrough = rule.formMode
 		browseMode.reportPassThrough.last = treeInterceptor.passThrough 
 		self.node.mouseMove()
 	
@@ -1104,104 +1048,82 @@ class VirtualMarkerResult(MarkerResult):
 		return self.node.offset < other.node.offset
 	
 	def getTitle(self):
-		return self.markerQuery.label + " - " + self.node.innerText
+		return self.rule.label + " - " + self.node.innerText
 
 
-Result = VirtualMarkerResult
-
-
-class MarkerQuery(baseObject.ScriptableObject):
+class Criteria(baseObject.AutoPropertyObject):
 	
-	def __init__(self, markerManager):
-		super(MarkerQuery,self).__init__()
-		self._ruleManager = weakref.ref(markerManager)
-		self.name = None
-		self.type = None
-		self.skip = False
-		self.results = None
+	def __init__(self, rule, data):
+		self._rule = weakref.ref(rule)
+		self.load(data)
+	
+	def _get_layer(self):
+		return self.rule.layer
+	
+	def _get_multiple(self):
+		return self.rule.multiple
+	
+	def _get_rule(self):
+		return self._rule()
 	
 	def _get_ruleManager(self):
-		return self._ruleManager()
+		return self.rule.ruleManager
 	
-	def _get_markerManager(self):
-		return self.ruleManager
-	
-	def resetResults(self):
-		self.results = None
-	
-	def getResults(self):
-		if self.results is None:
-			self.results = tuple(self._iterResults())
-		return self.results
-	
-	def _iterResults(self):
-		raise NotImplementedError()
-	
-	def dump(self):
-		return None
-	
-	def getDisplayString(self):
-		return u" ".join(
-			[self.name]
-			+ [
-				inputCore.getDisplayTextForGestureIdentifier(identifier)[1]
-				for identifier in self._gestureMap.keys()
-			]
-		)
-	
-	def script_notFound(self, gesture):
-		speech.speakMessage(_(u"{ruleName} not found").format(
-			ruleName=self.label)
-		)
-
-
-class VirtualMarkerQuery(MarkerQuery):
-	
-	def __init__(self, markerManager, dic):
-		super(VirtualMarkerQuery,self).__init__(markerManager)
-		self.dic = dic
-		self.name = dic["name"]
-		self.type = dic["type"]
-		self.contextPageTitle = dic.get("contextPageTitle", "")
-		self.contextPageType = dic.get("contextPageType", "")
-		self.contextParent = dic.get("contextParent", "")
-		self.priority = dic.get("priority")
-		self.index = dic.get("index")
-		self.mutation = None
-		if "mutation" in dic:
-			try:
-				self.mutation = MUTATIONS[dic["mutation"]]
-			except LookupError:
-				log.exception((
-					u"Unexpected mutation template id \"{mutation}\" "
-					u"in rule \"{rule}\"."
-				).format(mutation=dic["mutation"], rule=self.name))
-		self.gestures = dic.get("gestures", {})
-		gesturesMap = {}
-		for gestureIdentifier in self.gestures.keys():
-			gesturesMap[gestureIdentifier] = "notFound"
-		self.bindGestures(gesturesMap)
-		self.autoAction = dic.get("autoAction")
-		self.multiple = dic.get("multiple", False)
-		self.formMode = dic.get("formMode", False)
-		self.skip = dic.get("skip", False)
-		self.sayName = dic.get("sayName", True)
-		self.customName = dic.get("customName")
-		self.customValue = dic.get("customValue")
-		self.comment = dic.get("comment")
-		self.createWidget = dic.get("createWidget", False)
-	
-	# TODO: Thoroughly check this wasn't used anywhere
-	# In Python 3, all classes defining __eq__ must also define __hash__
-# 	def __eq__(self, other):
-# 		return self.dic == other.dic
-	
-	def _get_label(self):
-		return self.customName or self.name
+	def load(self, data):
+		data = data.copy()
+		self.name = data.pop("name", None)
+		self.notes = data.pop("notes", None)
+		self.contextPageTitle = data.pop("contextPageTitle", None)
+		self.contextPageType = data.pop("contextPageType", None)
+		self.contextParent = data.pop("contextParent", None)
+		self.text = data.pop("text", None)
+		self.role = data.pop("role", None)
+		self.tag = data.pop("tag", None)
+		self.id = data.pop("id", None)
+		self.className = data.pop("className", None)
+		self.states = data.pop("states", None)
+		self.src = data.pop("src", None)
+		self.relativePath = data.pop("relativePath", None)
+		self.index = data.pop("index", None)
+		self.sayName = data.pop("sayName", None)
+		self.customName = data.pop("customName", None)
+		self.customValue = data.pop("customValue", None)
+		if data:
+			raise ValueError(
+				u"Unexpected attribute"
+				+ (u"s" if len(data) > 1 else u"")
+				+ u": "
+				+ u", ".join(data.keys())
+			)
 	
 	def dump(self):
-		return self.dic.copy()
+		data = OrderedDict()
 		
+		def setIfNotDefault(dic, key, value, default=None):
+			if value is not None:
+				dic[key] = value
+		
+		def setIfNotNoneOrEmptyString(dic, key, value):
+			if value and value.strip():
+				dic[key] = value
+		
+		setIfNotNoneOrEmptyString(data, "contextPageTitle", self.contextPageTitle)
+		setIfNotNoneOrEmptyString(data, "contextPageType", self.contextPageType)
+		setIfNotNoneOrEmptyString(data, "contextParent", self.contextParent)
+		setIfNotNoneOrEmptyString(data, "text", self.text)
+		setIfNotDefault(data, "role", self.role)
+		setIfNotNoneOrEmptyString(data, "tag", self.tag)
+		setIfNotNoneOrEmptyString(data, "id", self.id)
+		setIfNotNoneOrEmptyString(data, "className", self.className)
+		setIfNotNoneOrEmptyString(data, "src", self.src)
+		setIfNotNoneOrEmptyString(data, "relativePath", self.relativePath)
+		setIfNotDefault(data, "index", self.index)
+		setIfNotDefault(data, "sayName", self.sayName)
+		setIfNotDefault(data, "customName", self.customName)
+		setIfNotDefault(data, "customValue", self.customValue)
+		
+		return data
+	
 	def checkContextPageTitle(self):
 		"""
 		Check whether the current page satisfies `contextPageTitle`.
@@ -1224,7 +1146,7 @@ class VirtualMarkerQuery(MarkerQuery):
 			expr = expr[1:]
 		# TODO: contextPageTitle: Handle '1:' and '2:' prefixes
 		# TODO: contextPageTitle: Handle '*' partial match
-		candidate = self.markerManager._getPageTitle()
+		candidate = self.rule.ruleManager._getPageTitle()
 		if expr == candidate:
 			return not exclude
 		return exclude
@@ -1254,16 +1176,10 @@ class VirtualMarkerQuery(MarkerQuery):
 					log.error((
 						u"In rule \"{rule}\".contextPageType: "
 						u"Rule not found: \"{pageType}\""
-					).format(rule=self.name, pageType=name))
+					).format(rule=self.rule.name, pageType=name))
 					return False
 				
-				# This is a temporary measure, no longer necessary once multi
-				# criteria sets rules will be implemented, as rule names will
-				# be unique again.
-				results = self.ruleManager.getPrioritizedResultsByName(
-					rule.name, layer=self.layer
-				)
-				# results = rule.getResults()
+				results = rule.getResults()
 				if results:
 					nodes = [result.node for result in results]
 					if exclude:
@@ -1278,19 +1194,12 @@ class VirtualMarkerQuery(MarkerQuery):
 		return True
 	
 	def createResult(self, node, context, index):
-		return VirtualMarkerResult(self, node, context, index)
+		return SingleNodeResult(self, node, context, index)
 	
-	def _iterResults(self, widget=False):
+	def iterResults(self):
 		t = logTimeStart()
-		dic = self.dic
-		text = dic.get("text")
-# 		if text is not None:
-# 			if text[0:1] == "#":
-# 				# use the named method in the webApp script instead of the query dictionnary
-# 				funcName ="getResults_" + text[1:]
-# 				func = getattr(self.markerManager.webApp, funcName)
-# 				if func is not None:
-# 					return func(self)
+		mgr = self.rule.ruleManager
+		text = self.text
 		if not self.checkContextPageTitle():
 			return
 		if not self.checkContextPageType():
@@ -1300,7 +1209,7 @@ class VirtualMarkerQuery(MarkerQuery):
 		rootNodes = set()  # Set of possible parent nodes
 		excludedNodes = set()  # Set of excluded parent nodes
 		multipleContext = None  # Will be later set to either `True` or `False`
-		for expr in self.contextParent.split("&"):
+		for expr in (self.contextParent or "").split("&"):
 			expr = expr.strip()
 			if not expr:
 				continue
@@ -1314,7 +1223,7 @@ class VirtualMarkerQuery(MarkerQuery):
 				name = name.strip()
 				if not name:
 					continue
-				rule = self.ruleManager.getRule(name, layer=self.layer)
+				rule = mgr.getRule(name, layer=self.layer)
 				if rule is None:
 					log.error((
 						u"In rule \"{rule}\".contextParent: "
@@ -1326,13 +1235,7 @@ class VirtualMarkerQuery(MarkerQuery):
 						multipleContext = True
 				else:
 					multipleContext = False
-				# This is a temporary measure, no longer necessary once multi
-				# criteria sets rules will be implemented, as rule names will
-				# be unique again.
-				results = self.ruleManager.getPrioritizedResultsByName(
-					rule.name, layer=self.layer
-				)
-				# results = rule.getResults()
+				results = rule.getResults()
 				if results:
 					nodes = [result.node for result in results]
 					if exclude:
@@ -1355,17 +1258,15 @@ class VirtualMarkerQuery(MarkerQuery):
 			if not newRootNodes:
 				return
 			rootNodes = newRootNodes
-		kwargs = getSimpleSearchKwargs(dic)
+		kwargs = getSimpleSearchKwargs(self)
 		if excludedNodes:
 			kwargs["exclude"] = excludedNodes
 		limit = None
 		if not self.multiple:
 			limit = self.index or 1
 		
-		nodes = []
-		results = []
 		index = 0
-		for root in rootNodes or (self.ruleManager.nodeManager.mainNode,):
+		for root in rootNodes or (mgr.nodeManager.mainNode,):
 			rootLimit = limit
 			if multipleContext:
 				index = 0
@@ -1384,15 +1285,127 @@ class VirtualMarkerQuery(MarkerQuery):
 				) if root is not self.ruleManager.nodeManager.mainNode else None
 				yield self.createResult(node, context, index)
 				if not self.multiple and not multipleContext:
-					return
+					return 
 
 
-def getSimpleSearchKwargs(criteriaDic, raiseOnUnsupported=False):
+class Rule(baseObject.ScriptableObject):
+	
+	def __init__(self, ruleManager, data):
+		super(Rule, self).__init__()
+		self.layer = None
+		self._ruleManager = weakref.ref(ruleManager)
+		self._results = None
+		self.load(data)
+	
+	def _get_label(self):
+		return self.customName or self.name
+	
+	def _get_ruleManager(self):
+		return self._ruleManager()
+	
+	def dump(self):
+		
+		def setIfNotDefault(dic, key, value, default=None):
+			if value is not None:
+				dic[key] = value
+		
+		data = OrderedDict()
+		data["name"] = self.name
+		data["type"] = self.type
+		if self.criteria:
+			items = data["criteria"] = []
+			for criteria in self.criteria:
+				items.append(criteria.dump())
+		setIfNotDefault(data, "mutation", self.mutation)
+		setIfNotDefault(data, "gestures", self.gestures, {})
+		setIfNotDefault(data, "autoAction", self.autoAction)
+		setIfNotDefault(data, "multiple", self.multiple)
+		setIfNotDefault(data, "formMode", self.formMode, False)
+		setIfNotDefault(data, "skip", self.skip, False)
+		setIfNotDefault(data, "sayName", self.sayName, True)
+		setIfNotDefault(data, "customName", self.customName)
+		setIfNotDefault(data, "customValue", self.customValue)
+		setIfNotDefault(data, "comment", self.comment)
+		
+		return data
+	
+	def load(self, data):
+		data = data.copy()
+		self.name = data.pop("name")
+		self.type = data.pop("type")
+		self.criteria = [Criteria(self, criteria) for criteria in data.pop("criteria")]
+		self.mutation = None
+		mutation = data.pop("mutation", None)
+		if mutation:
+			try:
+				self.mutation = MUTATIONS[mutation]
+			except LookupError:
+				log.exception((
+					u"Unexpected mutation template id \"{mutation}\" "
+					u"in rule \"{rule}\"."
+				).format(mutation=mutation, rule=self.name))
+		self.gestures = data.pop("gestures", {})
+		gesturesMap = {}
+		for gestureIdentifier in self.gestures.keys():
+			gesturesMap[gestureIdentifier] = "notFound"
+		self.bindGestures(gesturesMap)
+		self.autoAction = data.pop("autoAction", None)
+		self.multiple = data.pop("multiple", False)
+		self.formMode = data.pop("formMode", False)
+		self.skip = data.pop("skip", False)
+		self.sayName = data.pop("sayName", True)
+		self.customName = data.pop("customName", None)
+		self.customValue = data.pop("customValue", None)
+		self.comment = data.pop("comment", None)
+		self.createWidget = data.pop("createWidget", False)
+		if data:
+			raise ValueError(
+				u"Unexpected attribute"
+				+ (u"s" if len(data) > 1 else u"")
+				+ u": "
+				+ u", ".join(data.keys())
+			)
+	
+	def resetResults(self):
+		self._results = None
+	
+	def getDisplayString(self):
+		return u" ".join(
+			[self.name]
+			+ [
+				inputCore.getDisplayTextForGestureIdentifier(identifier)[1]
+				for identifier in self._gestureMap.keys()
+			]
+		)
+	
+	def script_notFound(self, gesture):
+		speech.speakMessage(_(u"{ruleName} not found").format(
+			ruleName=self.label)
+		)
+	
+	def getResults(self):
+		if self._results is None:
+			self._results = self._getResults()
+		return self._results
+	
+	def _getResults(self):
+		t = logTimeStart()
+		for criteria in self.criteria:
+			results = list(criteria.iterResults())
+			if results:
+				return results
+		return []
+
+
+def getSimpleSearchKwargs(criteria, raiseOnUnsupported=False):
 	kwargs = {}
-	for prop, expr in criteriaDic.items():
+	for prop, expr in criteria.dump().items():
+		if prop in ("contextPageTitle", "contextPageType", "contextParent"):
+			continue
 		if prop not in [
 			"className",
 			"id",
+			"relativePath",
 			"role",
 			"src",
 			"states",
@@ -1405,6 +1418,9 @@ def getSimpleSearchKwargs(criteriaDic, raiseOnUnsupported=False):
 				)
 			continue
 		if not expr:
+			continue
+		if prop == "relativePath":
+			kwargs["relativePath"] = expr
 			continue
 		if isinstance(expr, int):
 			expr = str(expr)
@@ -1450,17 +1466,13 @@ def getSimpleSearchKwargs(criteriaDic, raiseOnUnsupported=False):
 					index=andIndex
 				)
 				kwargs[key] = values
-	kwargs["relativePath"] = criteriaDic.get("relativePath")
 	return kwargs
-
-
-Rule = VirtualMarkerQuery
 
 
 class Zone(textInfos.offsets.Offsets, TrackedObject):
 	
 	def __init__(self, result):
-		rule = result.markerQuery
+		rule = result.rule
 		self._ruleManager = weakref.ref(rule.ruleManager)
 		self.name = rule.name
 		super(Zone, self).__init__(startOffset=None, endOffset=None)

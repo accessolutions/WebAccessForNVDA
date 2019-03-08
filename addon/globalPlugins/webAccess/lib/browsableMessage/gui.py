@@ -188,5 +188,5 @@ class WebViewDialog(wx.Dialog):
 				if className == u"Internet Explorer_Server":
 					winUser.setFocus(hwnd)
 					return
-		except:
+		except Exception:
 			log.exception()

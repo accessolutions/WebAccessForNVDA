@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.01.05"
+__version__ = "2021.03.12"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -66,7 +66,7 @@ class WebAppScheduler(threading.Thread):
 		while not self.stop:
 			try:
 				event = self.queue.get(True, 0.5)
-			except:
+			except queue.Empty:
 				event = {"eventName": "timeout"}
 			if isinstance(event, dict):
 				eventName = event.pop("eventName")
@@ -76,8 +76,8 @@ class WebAppScheduler(threading.Thread):
 				if func:
 					try:
 						func(**event)
-					except Exception as e:
-						log.exception("Error executing event %s : %s" % (eventName, e))
+					except Exception:
+						log.exception("Error executing event {}".format(eventName))
 
 				else:
 					log.info(u"event %s is not found" % eventName)

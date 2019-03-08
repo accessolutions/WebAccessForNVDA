@@ -22,7 +22,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.02.10"
+__version__ = "2021.03.12"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>"
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
@@ -46,6 +46,20 @@ import ui
 from ..webModuleHandler import WebModule, getEditableWebModule, getUrl, getWindowTitle, save
 
 
+try:
+	from gui import guiHelper
+except ImportError:
+	# NVDA < 2016.4
+	from ..backports.nvda_2016_4 import gui_guiHelper as guiHelper
+
+
+try:
+	from gui.dpiScalingHelper import DpiScalingHelperMixin
+except ImportError:
+	# NVDA < 2019.1
+	from ..backports.gui_dpiScalingHelper import DpiScalingHelperMixin
+
+
 addonHandler.initTranslation()
 
 
@@ -62,13 +76,15 @@ def promptOverwrite():
 		style=wx.YES_NO|wx.ICON_WARNING,
 		) == wx.YES
 
+
 def show(context):
 	gui.mainFrame.prePopup()
 	result = Dialog(gui.mainFrame).ShowModal(context)
 	gui.mainFrame.postPopup()
 	return result == wx.ID_OK
 
-class Dialog(wx.Dialog):
+
+class Dialog(wx.Dialog, DpiScalingHelperMixin):
 
 	# Singleton
 	_instance = None
@@ -84,92 +100,71 @@ class Dialog(wx.Dialog):
 		
 		super(Dialog, self).__init__(
 			parent,
-			style=wx.DEFAULT_DIALOG_STYLE|wx.MAXIMIZE_BOX|wx.RESIZE_BORDER,
+			style=wx.DEFAULT_DIALOG_STYLE | wx.MAXIMIZE_BOX | wx.RESIZE_BORDER,
 		)
 
-		vSizer = wx.BoxSizer(wx.VERTICAL)
-
-		hSizer = wx.BoxSizer(wx.HORIZONTAL)
-		# Translators: The label of a field to enter the name of the web module
-		hSizer.Add(
-			wx.StaticText(self, label=_("Web module name:")),
-			flag=wx.ALL,
-			border=4
+		mainSizer = wx.BoxSizer(wx.VERTICAL)
+		gbSizer = wx.GridBagSizer()
+		mainSizer.Add(
+			gbSizer,
+			proportion=1,
+			flag=wx.EXPAND | wx.ALL,
+			border=guiHelper.BORDER_FOR_DIALOGS
 		)
+		
+		row = 0
+		# Translators: The label for a field in the WebModule editor
+		item = wx.StaticText(self, label=_("Web module name:"))
+		gbSizer.Add(item, pos=(row, 0))
+		gbSizer.Add((guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item = self.webModuleName = wx.TextCtrl(self)
-		hSizer.Add(
-			item,
-			proportion=1,
-			flag=wx.ALL,
-			border=4,
-		)
-		vSizer.Add(hSizer, flag=wx.EXPAND)
+		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 		
-		hSizer = wx.BoxSizer(wx.HORIZONTAL)
-		# Translators: The label of a field to enter the webModule URL
-		hSizer.Add(
-			wx.StaticText(self, label=_("URL:")),
-			flag=wx.ALL,
-			border=4
-			)
+		row += 1
+		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(row, 0))
+		
+		row += 1
+		# Translators: The label for a field in the WebModule editor
+		item = wx.StaticText(self, label=_("URL:"))
+		gbSizer.Add(item, pos=(row, 0))
+		gbSizer.Add((guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item = self.webModuleUrl = wx.ComboBox(self, choices=[])
-		hSizer.Add(
-			item,
-			proportion=1,
-			flag=wx.ALL,
-			border=4,
-		)
-		vSizer.Add(hSizer, flag=wx.EXPAND)
-
-		hSizer = wx.BoxSizer(wx.HORIZONTAL)
-		# Translators: The label of a field to enter the window title
-		hSizer.Add(
-			wx.StaticText(self, label=_("Window title:")),
-			flag=wx.ALL,
-			border=4
-		)
-		item = self.webModuleWindowTitle = wx.ComboBox(self, choices=[])
-		hSizer.Add(
-			item,
-			proportion=1,
-			flag=wx.ALL,
-			border=4,
-		)
-		vSizer.Add(hSizer, flag=wx.EXPAND)
+		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 		
-		hSizer = wx.BoxSizer(wx.HORIZONTAL)
-		# Translators: The label of a field to enter the window title
-		hSizer.Add(
-			wx.StaticText(self, label=_("Help (in Markdown):")),
-			flag=wx.ALL,
-			border=4
-		)
-		item = self.help = wx.TextCtrl(self, style=wx.TE_MULTILINE, size=(-1, 300))
-		hSizer.Add(
-			item,
-			proportion=1,
-			flag=wx.ALL,
-			border=4,
-		)
-		vSizer.Add(hSizer, flag=wx.EXPAND)
+		row += 1
+		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(row, 0))
+		
+		row += 1
+		# Translators: The label for a field in the WebModule editor
+		item = wx.StaticText(self, label=_("Window title:"))
+		gbSizer.Add(item, pos=(row, 0))
+		gbSizer.Add((guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
+		item = self.webModuleWindowTitle = wx.ComboBox(self, choices=[])
+		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 
-		vSizer.Add(
+		row += 1
+		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(row, 0))
+		
+		row += 1
+		# Translators: The label for a field in the WebModule editor
+		item = wx.StaticText(self, label=_("Help (in Markdown):"))
+		gbSizer.Add(item, pos=(row, 0))
+		gbSizer.Add((guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
+		item = self.help = wx.TextCtrl(self, style=wx.TE_MULTILINE)
+		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
+
+		gbSizer.AddGrowableCol(2)
+		gbSizer.AddGrowableRow(row)
+		
+		mainSizer.Add(
 			self.CreateSeparatedButtonSizer(wx.OK | wx.CANCEL),
 			flag=wx.EXPAND | wx.TOP | wx.DOWN,
 			border=4
 		)
-		
-		hSizer = wx.BoxSizer(wx.HORIZONTAL)
-		hSizer.Add(
-			vSizer,
-			proportion=1,
-			flag=wx.EXPAND | wx.ALL,
-			border=4
-		)
-		
 		self.Bind(wx.EVT_BUTTON, self.onOk, id=wx.ID_OK)
 		self.Bind(wx.EVT_BUTTON, self.onCancel, id=wx.ID_CANCEL)
-		self.Sizer = hSizer
+		#self.Sizer = mainSizer
+		self.SetSizerAndFit(mainSizer)
 	
 	def initData(self, context):
 		self.context = context

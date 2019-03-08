@@ -22,7 +22,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.04.07"
+__version__ = "2021.03.12"
 __author__ = u"Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
@@ -36,8 +36,8 @@ import inputCore
 import queueHandler
 
 from ..ruleHandler import (
-	MarkerQuery,
-	MarkerResult,
+	Rule,
+	Result,
 	Zone,
 	builtinRuleActions,
 	ruleTypes,
@@ -104,12 +104,12 @@ def getRuleLabel(rule):
 def getRules(ruleManager):
 	webModule = ruleManager.webModule
 	if not webModule.isReadOnly():
-		layer = webModule._getWritableLayer()
-		return ruleManager.layers.get(layer.name, [])
+		layer = webModule._getWritableLayer().name
 	elif config.conf["webAccess"]["devMode"]:
-		return ruleManager.getRules()
+		layer = None
 	else:
 		return []
+	return ruleManager.getRules(layer=layer)
 
 
 def rule_getResults_safe(rule):
@@ -122,7 +122,7 @@ def rule_getResults_safe(rule):
 def getRulesByGesture(ruleManager, filter=None, active=False):
 	gestures = {}
 	noGesture = []
-	
+
 	for rule in getRules(ruleManager):
 		if filter and filter not in rule.name:
 			continue
@@ -449,10 +449,10 @@ class Dialog(wx.Dialog):
 		obj = self.getSelectedObject()
 		if not obj:
 			return None
-		elif isinstance(obj, MarkerQuery):
+		elif isinstance(obj, Rule):
 			return obj
-		elif isinstance(obj, MarkerResult):
-			return obj.markerQuery
+		elif isinstance(obj, Result):
+			return obj.rule
 		return None
 	
 	def refreshRuleList(self, selectName=None, selectObj=None):
@@ -474,8 +474,8 @@ class Dialog(wx.Dialog):
 		shared = SharedScope()
 		shared.selectTreeItem = None
 		selectRule = None
-		if selectObj and isinstance(selectObj, MarkerResult):
-			selectRule = selectObj.markerQuery
+		if selectObj and isinstance(selectObj, Result):
+			selectRule = selectObj.rule
 		
 		def addToTree(parent, tids):
 			for tid in tids:
@@ -539,9 +539,9 @@ class Dialog(wx.Dialog):
 			wx.Bell()
 			return
 		result = None
-		if isinstance(obj, MarkerResult):
+		if isinstance(obj, Result):
 			result = obj
-		elif isinstance(obj, MarkerQuery):
+		elif isinstance(obj, Rule):
 			result = next(iter(rule_getResults_safe(obj)), None)
 		if not result:
 			wx.Bell()
@@ -588,7 +588,7 @@ class Dialog(wx.Dialog):
 			return
 		context = self.context.copy()  # Shallow copy
 		context["rule"] = rule
-		if showEditor(context):
+		if showEditor(context, parent=self):
 			self.Close()
 			return
 # 			# Pass the eventually changed rule name
@@ -597,7 +597,7 @@ class Dialog(wx.Dialog):
 	
 	def onRuleNew(self, evt):
 		context = self.context.copy()  # Shallow copy
-		if showCreator(context):
+		if showCreator(context, parent=self):
 			self.Close()
 			return
 # 			self.refreshRuleList(context["data"]["rule"]["name"])

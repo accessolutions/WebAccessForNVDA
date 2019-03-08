@@ -54,7 +54,7 @@ Monkey-patched NVDA functions:
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.02.05"
+__version__ = "2021.03.12"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
@@ -348,12 +348,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 					else:
 						msg += u"n'est pas None"
 				elif \
-						focusModule.markerManager.nodeManager is not \
+						focusModule.ruleManager.nodeManager is not \
 						focus.treeInterceptor.nodeManager:
 					diverged = True
 					msg += os.linesep
 					msg += u"NodeManagers différents"
-				elif focusModule.markerManager.nodeManager is None:
+				elif focusModule.ruleManager.nodeManager is None:
 					msg += os.linesep
 					msg += u"NodeManagers None"
 					
@@ -625,6 +625,28 @@ def showWebModulesLoadErrors():
 			style=wx.ICON_WARNING,
 			parent=gui.mainFrame
 		)
+
+
+def notifyError(logMsg, exc_info=True):
+		log.exception(logMsg, exc_info=exc_info)
+		import gui
+		gui.messageBox(
+			_("An error occured. See NVDA log for more details."),
+			style=wx.ICON_ERROR
+		)
+
+
+def guarded(func):
+	
+	def wrapper(*args, **kwargs):
+		try:
+			return func(*args, **kwargs)
+		except Exception:
+			notifyError("Uncaught error while processing {!r}(args={!r}, kwargs={!r}".format(
+				func, args, kwargs
+			))
+	
+	return wrapper
 
 
 if (2018, 1) <= nvdaVersion < (2019, 2, 1):

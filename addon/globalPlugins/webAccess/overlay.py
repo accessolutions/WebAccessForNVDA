@@ -26,7 +26,7 @@ WebAccess overlay classes
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.04.07"
+__version__ = "2021.03.12"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 

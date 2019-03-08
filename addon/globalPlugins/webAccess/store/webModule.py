@@ -24,7 +24,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.02.10"
+__version__ = "2021.03.12"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -33,6 +33,7 @@ import errno
 import imp
 import os
 import os.path
+from pprint import pformat
 import re
 import sys
 
@@ -58,7 +59,7 @@ except ImportError:
 
 class WebModuleJsonFileDataStore(Store):
 	
-	def __init__(self, name, basePath, dirName="webModules"):
+	def __init__(self, name, basePath, dirName="webModulesMC"):
 		super(WebModuleJsonFileDataStore, self).__init__(name=name)
 		self.basePath = basePath
 		self.path = os.path.join(basePath, dirName)
@@ -134,19 +135,13 @@ class WebModuleJsonFileDataStore(Store):
 				if e.errno == errno.EINVAL:
 					raise MalformedRefError(
 						u"Invalid path: {path}".format(path=path)
-						)
-				# Parent directory not found, will get created on write
-				elif e.errno == errno.ESRCH:
-					os.mkdir(self.path)
-					pass
+					)
 				# File not found, as expected
 				elif e.errno == errno.ENOENT:
 					pass
 				# Houston?
 				else:
 					raise
-			if not os.path.lexists(self.path):
-				os.mkdir(self.path)
 		return path			
 		
 	def getNewRef(self, item):
@@ -201,6 +196,9 @@ class WebModuleJsonFileDataStore(Store):
 	
 	def write(self, path, data):
 		try:
+			dir = os.path.dirname(path)
+			if not os.path.isdir(dir):
+				os.makedirs(dir)
 			with open(path, "w") as f:
 				json.dump(data, f, indent=4)
 		except Exception:
@@ -327,6 +325,7 @@ class WebModuleStore(DispatchStore):
 					if self._isUserConfig(alternative):
 						userRef = alternative
 						break
+		log.info(f"ref={ref!r} ({ref}), keyRef={keyRef!r} ({keyRef})")
 		ctor = getWebModuleFactory(keyRef)
 		item = ctor()
 		layers = []

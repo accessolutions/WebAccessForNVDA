@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2020 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.11.23"
+__version__ = "2021.03.12"
 __authors__ = (
 	u"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
 	u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
@@ -251,12 +251,12 @@ class NodeManager(baseObject.ScriptableObject):
 			return False
 		try:
 			info = self.treeInterceptor.makeTextInfo(textInfos.POSITION_LAST)
-		except:
+		except Exception:
 			self._ready = False
 			return False
 		try:
 			size = info._endOffset + 1
-		except:
+		except Exception:
 			self._ready = False
 			return False
 		if size == self.treeInterceptorSize:
@@ -297,7 +297,7 @@ class NodeManager(baseObject.ScriptableObject):
 		self._curNode = self.caretNode = self.getCaretNode()
 		try:
 			info = self.treeInterceptor.makeTextInfo(textInfos.POSITION_LAST)
-		except:
+		except Exception:
 			self._ready = False
 			return False
 		size = info._endOffset + 1
@@ -365,7 +365,7 @@ class NodeManager(baseObject.ScriptableObject):
 		try:
 			info = self.treeInterceptor.makeTextInfo(textInfos.POSITION_CARET)
 			return self.searchOffset(info._startOffset)
-		except:
+		except Exception:
 			return None
 
 	def getCurrentNode(self):
@@ -825,12 +825,12 @@ class NodeField(TrackedObject):
 					while True:
 						try:
 							node = node.children[0]
-						except:
+						except Exception:
 							while True:
 								try:
 									node = node.parent.children[node.index + 1]
 									break
-								except:
+								except Exception:
 									node = node.parent
 									if node is None:
 										return None
@@ -841,7 +841,7 @@ class NodeField(TrackedObject):
 				elif step == "d":
 					try:
 						node = node.children[0]
-					except:
+					except Exception:
 						return None
 				elif step == "l":
 					if node.index == 0 or node.parent is None:
@@ -850,7 +850,7 @@ class NodeField(TrackedObject):
 				elif step == "r":
 					try:
 						node = node.parent.children[node.index + 1]
-					except:
+					except Exception:
 						return None
 				elif step == "c" or step.isupper():
 					assert searchKwargs is None
@@ -931,7 +931,7 @@ class NodeField(TrackedObject):
 		obj = info.NVDAObjectAtStart
 		try:
 			(left, top, width, height) = obj.location
-		except:
+		except Exception:
 			ui.message(u"Impossible de déplacer la souris à cet emplacement")
 			return False
 		x = left + (width / 2)
@@ -1021,7 +1021,7 @@ class NodeField(TrackedObject):
 			txt = self.text
 			try:
 				txt = self.customText
-			except:
+			except Exception:
 				pass
 		log.info("Txt is %s" % txt)
 		if len(txt) > 0:

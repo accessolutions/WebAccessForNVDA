@@ -24,7 +24,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.02.10"
+__version__ = "2021.03.12"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -439,16 +439,18 @@ def getWebModuleFactory(name):
 		if nvdaVersion < (2019, 3):
 			# Python 2.x can't properly handle unicode module names, so convert them.
 			name = name.encode("mbcs")
-			mod = __import__("webModules.{}".format(name), globals(), locals(), ("webModules",))
+			mod = __import__("webModulesMC.{}".format(name), globals(), locals(), ("webModulesMC",))
 		else:
 			import importlib
-			mod = importlib.import_module("webModules.{}".format(name), package="webModules")
+			mod = importlib.import_module("webModulesMC.{}".format(name), package="webModulesMC")
 	except Exception:
-		log.exception("Could not import custom module webModules.{}".format(name))
+		log.exception("Could not import custom module webModulesMC.{}".format(name))
 	if not mod:
 		return WebModule
 	apiVersion = getattr(mod, "API_VERSION", None)
+	log.info(f"apiVersion (str): {apiVersion!r}")
 	apiVersion = version.parse(apiVersion or "")
+	log.info(f"apiVersion (obj): {apiVersion!r} ({apiVersion})")
 	if apiVersion != WebModule.API_VERSION:
 		raise InvalidApiVersion(apiVersion)
 	ctor = getattr(mod, "WebModule", None)
@@ -467,7 +469,7 @@ def hasCustomModule(name):
 		# Python 2.x can't properly handle unicode module names, so convert them.
 		name = name.encode("mbcs")
 	return any(
-		importer.find_module("webModules.{}".format(name))
+		importer.find_module("webModulesMC.{}".format(name))
 		for importer in _importers
 		if importer
 	)
@@ -478,14 +480,14 @@ def initialize():
 	global _importers
 	
 	import imp
-	webModules = imp.new_module("webModules")
+	webModules = imp.new_module("webModulesMC")
 	webModules.__path__ = list()
 	import sys
-	sys.modules["webModules"] = webModules
+	sys.modules["webModulesMC"] = webModules
 	config.addConfigDirsToPythonPackagePath(webModules)
 	if nvdaVersion < (2019, 1) and not config.conf["webAccess"]["disableUserConfig"]:
-		webModules.__path__.insert(0, os.path.join(globalVars.appArgs.configPath, "webModules"))
-	_importers = list(pkgutil.iter_importers("webModules.__init__"))
+		webModules.__path__.insert(0, os.path.join(globalVars.appArgs.configPath, "webModulesMC"))
+	_importers = list(pkgutil.iter_importers("webModulesMC.__init__"))
 	
 	from ..store.webModule import WebModuleStore
 	store = WebModuleStore()
@@ -494,7 +496,7 @@ def initialize():
 def terminate():
 	import sys
 	try:
-		del sys.modules["webModules"]
+		del sys.modules["webModulesMC"]
 	except KeyError:
 		pass
 	_importers = None

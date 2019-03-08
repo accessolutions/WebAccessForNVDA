@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2016.12.23"
+__version__ = "2021.03.12"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
  
@@ -54,31 +54,18 @@ class Menu(wx.Menu):
 			webModule = context["webModule"] if "webModule" in context else None
 			
 			if webModule is not None:
-				hasMarkerManager = hasattr(webModule, "markerManager")
 				item = self.Append(
 					wx.ID_ANY,
 					# Translators: Web Access menu item label.
 					_("&New rule..."))
 				self.Bind(wx.EVT_MENU, self.OnRuleCreate, item)
-				item.Enable(hasMarkerManager)
-	
-			if \
-					webModule is not None \
-					and hasattr(webModule, "markerManager"):
-				#item = self.Append(
-				#	wx.ID_ANY,
-				#	# Translators: Web Access menu item label.
-				#	_("Edit current rule..."))
-				#self.Bind(wx.EVT_MENU, self.OnRuleEdit, item)
-				## TODO: Implement direct access
-				#item.Enable(False)
-				
+			
+			if webModule is not None:
 				item = self.Append(
 					wx.ID_ANY,
 					# Translators: Web Access menu item label.
 					_("Manage &rules..."))
 				self.Bind(wx.EVT_MENU, self.OnRulesManager, item)
-				item.Enable(hasMarkerManager)
 				self.AppendSeparator()
 			
 			if webModule is None:
