@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.03.07"
+__version__ = "2019.03.08"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -504,7 +504,10 @@ class MarkerManager(baseObject.ScriptableObject):
 			return None
 		offset = info._startOffset
 		for r in reversed(self.markerResults):
-			if hasattr(r, "node") and offset >= r.node.offset:
+			if (
+				hasattr(r, "node")
+				and r.node.offset <= offset < r.node.offset + r.node.size 
+			):
 				return r
 		return None
 	

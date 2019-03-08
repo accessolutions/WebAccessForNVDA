@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.12.31"
+__version__ = "2019.03.08"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
@@ -48,22 +48,11 @@ def show(context):
 
 class Dialog(wx.Dialog):
 
-	_instance = None
-
-	def __new__(cls, *args, **kwargs):
-		# Make this a singleton.
-		if Dialog._instance is None:
-			return super(Dialog, cls).__new__(cls, *args, **kwargs)
-		return Dialog._instance
-
 	def __init__(self, parent):
-		if Dialog._instance is not None:
-			return
-		Dialog._instance = self
 		super(Dialog, self).__init__(
 			parent,
 			style=wx.DEFAULT_DIALOG_STYLE | wx.MAXIMIZE_BOX | wx.RESIZE_BORDER,
-			)
+		)
 
 		# Colors and margins
 		mainPadding = 10
