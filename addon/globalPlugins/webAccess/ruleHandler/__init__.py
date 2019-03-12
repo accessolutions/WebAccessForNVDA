@@ -892,6 +892,7 @@ class VirtualMarkerQuery(MarkerQuery):
 		self.sayName = dic.get("sayName", True)
 		self.customName = dic.get("customName")
 		self.customValue = dic.get("customValue")
+		self.comment = dic.get("comment")
 		self.createWidget = dic.get("createWidget", False)
 	
 	def __eq__(self, other):
