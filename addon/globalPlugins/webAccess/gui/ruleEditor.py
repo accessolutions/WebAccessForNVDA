@@ -123,6 +123,11 @@ class RuleContextEditor(wx.Dialog):
 			"contextParent",
 			pgettext("webAccess.ruleContext", u"&Parent element:")
 		),
+		(
+			# Translator: Field label on the RuleContextEditor dialog.
+			"priority",
+			pgettext("webAccess.ruleContext", u"Pri&ority:")
+		),
 	))
 	
 	@classmethod
@@ -169,6 +174,11 @@ class RuleContextEditor(wx.Dialog):
 		item = self.parentCombo = wx.ComboBox(self)
 		fgSizer.Add(item, flag=wx.EXPAND)
 
+		item = wx.StaticText(self, label=self.FIELDS["priority"])
+		fgSizer.Add(item)
+		item = self.priorityText = wx.TextCtrl(self, size=(350, -1))
+		fgSizer.Add(item, flag=wx.EXPAND)
+
 		fgSizer.AddGrowableCol(1)
 		
 		mainSizer.Add(
@@ -204,6 +214,8 @@ class RuleContextEditor(wx.Dialog):
 				parents.insert(0, query.name)
 		self.parentCombo.Set(parents)
 		self.parentCombo.Value = data.get("contextParent", "")
+		
+		self.priorityText.Value = str(data.get("priority", ""))
 	
 	def onOk(self, evt):
 		data = dict()
@@ -211,6 +223,21 @@ class RuleContextEditor(wx.Dialog):
 		setIfNotEmpty(data, "contextPageTitle", self.pageTitleCombo.Value)
 		setIfNotEmpty(data, "contextPageType", self.pageTypeCombo.Value)
 		setIfNotEmpty(data, "contextParent", self.parentCombo.Value)
+		
+		priority = self.priorityText.Value
+		if priority.strip():
+			try:
+				priority = int(priority)
+			except ValueError:
+				gui.messageBox(
+					message=_("Priority, if set, must be a positive integer."),
+					caption=_("Error"),
+					style=wx.OK | wx.ICON_ERROR,
+					parent=self
+				)
+				self.priorityText.SetFocus()
+				return
+			data["priority"] = priority
 		
 		updateAndDeleteMissing(self.FIELDS, data, self.data)
 

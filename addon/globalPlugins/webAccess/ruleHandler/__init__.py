@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.03.08"
+__version__ = "2019.03.12"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -212,7 +212,26 @@ class MarkerManager(baseObject.ScriptableObject):
 			if r.markerQuery.name == name:
 				results.append(r)
 		return results
-
+	
+	def getPrioritizedResultsByName(self, name):
+		"""
+		This is a temporary measure, allowing to get prioritized results
+		during the update.
+		This will no longer be necessary once multi criteria sets rules will
+		be implemented, as rule names will be unique again.
+		"""
+		results = []
+		for rule in sorted(
+			(rule for rule in self.markerQueries if rule.name == name),
+			key=lambda rule: rule.priority
+		):
+			results.extend(rule.getResults())
+			if rule.priority is None:
+				continue
+			if results:
+				break
+		return results
+	
 	def removeResults(self, query):
 		for i in range(len(self.markerResults), 0, -1):
 			if self.markerResults[i-1].markerQuery== query:
@@ -289,17 +308,32 @@ class MarkerManager(baseObject.ScriptableObject):
 			for query in self.markerQueries:
 				query.resetResults()
 			
-			for query in sorted(
-				self.markerQueries,
-				key=lambda query: (
-					0 if query.type in (
-						ruleTypes.PAGE_TITLE_1, ruleTypes.PAGE_TITLE_2
-					) else 1
-				)
-			):
-				results = query.getResults()
+			# This is a temporary measure, no longer necessary once multi
+			# criteria sets rules will be implemented, as rule names will be
+			# unique again.
+			for name in list(OrderedDict.fromkeys((
+				rule.name
+				for rule in sorted(
+					self.markerQueries,
+					key=lambda rule: (
+						0 if rule.type in (
+							ruleTypes.PAGE_TITLE_1, ruleTypes.PAGE_TITLE_2
+						) else 1
+					)
+			))).keys()):
+				results = self.getPrioritizedResultsByName(name)
+			# for query in sorted(
+			# 	self.markerQueries,
+			# 	key=lambda query: (
+			# 		0 if query.type in (
+			# 			ruleTypes.PAGE_TITLE_1, ruleTypes.PAGE_TITLE_2
+			# 		) else 1
+			# 	)
+			# ):
+			# 	results = query.getResults()
 				self.markerResults += results
 				self.markerResults.sort()
+			
 			if self.zone is not None:
 				if not self.zone.update():
 					self.zone = None
@@ -884,6 +918,7 @@ class VirtualMarkerQuery(MarkerQuery):
 		self.contextPageTitle = dic.get("contextPageTitle", "")
 		self.contextPageType = dic.get("contextPageType", "")
 		self.contextParent = dic.get("contextParent", "")
+		self.priority = dic.get("priority")
 		self.index = dic.get("index")
 		self.gestures = dic.get("gestures", {})
 		gesturesMap = {}
@@ -1007,7 +1042,14 @@ class VirtualMarkerQuery(MarkerQuery):
 						u"Rule not found: \"{pageType}\""
 					).format(rule=self.name, pageType=name))
 					return False
-				results = query.getResults()
+				
+				# This is a temporary measure, no longer necessary once multi
+				# criteria sets rules will be implemented, as rule names will
+				# be unique again.
+				results = self.markerManager.getPrioritizedResultsByName(
+					query.name
+				)
+				# results = query.getResults()
 				if results:
 					nodes = [result.node for result in results]
 					if exclude:
@@ -1062,7 +1104,13 @@ class VirtualMarkerQuery(MarkerQuery):
 						u"Rule not found: \"{parent}\""
 					).format(rule=self.name, parent=name))
 					return []
-				results = query.getResults()
+				# This is a temporary measure, no longer necessary once multi
+				# criteria sets rules will be implemented, as rule names will
+				# be unique again.
+				results = self.markerManager.getPrioritizedResultsByName(
+					query.name
+				)
+				# results = query.getResults()
 				if results:
 					nodes = [result.node for result in results]
 					if exclude:
