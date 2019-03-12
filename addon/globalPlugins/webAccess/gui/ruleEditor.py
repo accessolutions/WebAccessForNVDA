@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.03.06"
+__version__ = "2019.03.12"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -1150,6 +1150,8 @@ class RuleEditor(wx.Dialog):
 		for key in RulePropertiesEditor.FIELDS:
 			if key not in propertyFieldsForType:
 				safeDelete(data, key)
+		
+		updateOrDeleteIfEmpty(data, "comment", self.comment.Value)
 		
 		unic = True
 		for rule in self.markerManager.getQueries():
