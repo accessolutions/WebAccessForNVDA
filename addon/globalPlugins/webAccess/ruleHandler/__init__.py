@@ -528,6 +528,11 @@ class MarkerManager(baseObject.ScriptableObject):
 		# Search first from the current caret position
 		info = html.getCaretInfo()
 		
+		if info is None:
+			playWebAppSound("keyError")
+			ui.message(_("Not ready"))
+			return
+		
 		# If not found after/before the current position, and cycle is True,
 		# return the first/last result.
 		for relative in ((True, False) if cycle else (True,)):
