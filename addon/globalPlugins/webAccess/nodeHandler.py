@@ -612,19 +612,20 @@ class NodeField(baseObject.AutoPropertyObject):
 				if test == "eq":
 					if self.search_eq(allowedValues, candidateValue):
 						del kwargs[key]
-					else:
-						found = False
+						break
 				elif test == "in":
 					if self.search_in(allowedValues, candidateValue):
 						del kwargs[key]
-					else:
-						found = False
+						break
 				elif test == "notEq":
 					if self.search_eq(allowedValues, candidateValue):
 						return []
 				elif test == "notIn":
 					if self.search_in(allowedValues, candidateValue):
 						return []
+			else:  # no break
+				if test in ("eq", "in"):
+					found = False
 		if found:
 			matches = []
 			text = kwargs.get("in_text", [])
