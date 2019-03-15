@@ -19,7 +19,7 @@ addon_info = {
 	# Translators: Long description to be shown for this add-on on add-on information from add-ons manager
 	"addon_description" : _("""Web application modules support for modern or complex web sites."""),
 	# version
-	"addon_version" : "2019.03.07-dev",
+	"addon_version" : "2019.03.15-dev",
 	# Author(s)
 	"addon_author" : (
 		u"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
@@ -33,7 +33,7 @@ addon_info = {
 	# Minimum NVDA version supported (e.g. "2018.3")
 	"addon_minimumNVDAVersion" : "2016.3",
 	# Last NVDA version supported/tested (e.g. "2018.4", ideally more recent than minimum version)
-	"addon_lastTestedNVDAVersion" : "2018.3.2",
+	"addon_lastTestedNVDAVersion" : "2018.4.1",
 	# Add-on update channel (default is stable or None)
 	"addon_updateChannel" : None,
 }
