@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.03.12"
+__version__ = "2019.03.16"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -152,7 +152,7 @@ class RuleContextEditor(wx.Dialog):
 		
 		mainSizer = wx.BoxSizer(wx.VERTICAL)
 		
-		fgSizer = wx.FlexGridSizer(2, 8, 8)
+		fgSizer = wx.FlexGridSizer(cols=2, vgap=8, hgap=8)
 		mainSizer.Add(fgSizer, proportion=1, flag=wx.EXPAND | wx.ALL, border=8)
 
 		item = self.pageTitleLabel = wx.StaticText(
@@ -309,7 +309,7 @@ class RuleCriteriaEditor(wx.Dialog):
 		
 		mainSizer = wx.BoxSizer(wx.VERTICAL)
 		
-		fgSizer = wx.FlexGridSizer(2, 8, 8)
+		fgSizer = wx.FlexGridSizer(cols=2, vgap=8, hgap=8)
 		mainSizer.Add(fgSizer, proportion=1, flag=wx.EXPAND | wx.ALL, border=8)
 
 		item = wx.StaticText(self, label=self.FIELDS["text"])
@@ -769,7 +769,7 @@ class RuleEditor(wx.Dialog):
 			flag=wx.EXPAND | wx.ALL,
 			border=8
 		)
-		leftSizer = wx.FlexGridSizer(1, 8, 8)
+		leftSizer = wx.FlexGridSizer(cols=1, vgap=8, hgap=8)
 		rightSizer = wx.GridBagSizer(8, 8)
 		columnsSizer.Add(leftSizer, pos=(0, 0), flag=wx.EXPAND)
 		columnsSizer.Add(
@@ -783,7 +783,7 @@ class RuleEditor(wx.Dialog):
 		columnsSizer.AddGrowableRow(0)
 		
 		# Header section
-		headerSizer = wx.FlexGridSizer(2, 8, 8)
+		headerSizer = wx.FlexGridSizer(cols=2, vgap=8, hgap=8)
 		leftSizer.Add(headerSizer, flag=wx.EXPAND)
 
 		item = wx.StaticText(self, label=_(u"Rule &type:"))
