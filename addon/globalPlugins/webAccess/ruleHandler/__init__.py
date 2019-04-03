@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.03.12"
+__version__ = "2019.04.03"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -812,12 +812,19 @@ class VirtualMarkerResult(MarkerResult):
 		treeInterceptor = html.getTreeInterceptor()
 		if not treeInterceptor:
 			return
-		speechOff()
-		treeInterceptor.passThrough = False
-		browseMode.reportPassThrough.last = treeInterceptor.passThrough 
-		self.node.moveto()
-		html.speakLine()
-		speechOn()
+		speechMode = speech.speechMode
+		try:
+			speech.speechMode = speech.speechMode_off
+			treeInterceptor.passThrough = False
+			browseMode.reportPassThrough.last = treeInterceptor.passThrough 
+			self.node.moveto()
+			html.speakLine()
+			api.processPendingEvents()
+		except:
+			log.exception("Error during script_sayall")
+			return
+		finally:
+			speech.speechMode = speechMode
 		sayAllHandler.readText(sayAllHandler.CURSOR_CARET)
 	
 	def script_activate(self, gesture):
