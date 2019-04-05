@@ -91,8 +91,8 @@ def showManager(context):
 	if not markerManager.isReady:
 		ui.message(u"Marqueurs non disponibles")
 		return
-	focusObject = context["focusObject"]
-	context["rule"] = markerManager.getCurrentResult(focusObject=focusObject)
+	focus = context["focusObject"]
+	context["rule"] = markerManager.getResultAtCaret(focus=focus)
 	from ..gui import rulesManager
 	rulesManager.show(context)
 
@@ -532,22 +532,41 @@ class MarkerManager(baseObject.ScriptableObject):
 				return result
 		return None
 	
-	def getCurrentResult(self, focusObject=None):
+	def getResultAtCaret(self, focus=None):
+		return next(self.iterResultsAtCaret(focus), None)
+	
+	def iterResultsAtCaret(self, focus=None):
+		if focus is None:
+			focus = api.getFocusObject()
+		try:
+			info = focus.treeInterceptor.makeTextInfo(textInfos.POSITION_CARET)
+		except AttributeError:
+			return
+		for result in self.iterResultsAtTextInfo(info):
+			yield result
+	
+	def iterResultsAtObject(self, obj):
+		try:
+			info = obj.treeInterceptor.makeTextInfo(obj)
+		except AttributeError:
+			return
+		for result in self.iterResultsAtTextInfo(info):
+			yield result
+	
+	def iterResultsAtTextInfo(self, info):
 		if not self.isReady:
-			return None
+			return
 		if len(self.markerResults) < 1:
-			return None
-		info = html.getCaretInfo(focusObject=focusObject)
-		if info is None:
-			return None
+			return
+		if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
+			raise ValueError(u"Not supported {}".format(type(info)))
 		offset = info._startOffset
 		for r in reversed(self.markerResults):
 			if (
 				hasattr(r, "node")
 				and r.node.offset <= offset < r.node.offset + r.node.size 
 			):
-				return r
-		return None
+				yield r
 	
 	def quickNav(
 		self,
