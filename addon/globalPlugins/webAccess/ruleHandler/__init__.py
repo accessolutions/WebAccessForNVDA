@@ -239,13 +239,16 @@ class MarkerManager(baseObject.ScriptableObject):
 				del self.markerResults[i-1]
 
 	def getActions(self):
-		dic = builtinRuleActions.copy()
+		actions = builtinRuleActions.copy()
 		prefix = "action_"
 		for key in dir(self.webApp):
 			if key[:len(prefix)] == prefix:
-				actionName = key[len(prefix):]
-				dic[actionName] = actionName
-		return dic
+				actionId = key[len(prefix):]
+				actionLabel = getattr(self.webApp, key).__doc__ or actionId
+				# Prefix to denote customized action
+				actionLabel = "*" + actionLabel
+				actions.setdefault(actionId, actionLabel)
+		return actions
 				
 	def getMarkerScript(self, gesture, globalMapScripts):
 		func = scriptHandler._getObjScript(self, gesture, globalMapScripts)
