@@ -902,7 +902,7 @@ class VirtualMarkerResult(MarkerResult):
 			return
 		focusObject = api.getFocusObject()
 		try:
-			nodeObject = self.node.getNvdaObject()
+			nodeObject = self.node.getNVDAObject()
 		except:
 			nodeObject = None
 		if nodeObject == focusObject and focusObject is not None:
