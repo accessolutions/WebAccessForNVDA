@@ -970,7 +970,7 @@ class VirtualMarkerResult(MarkerResult):
 		self.node.mouseMove()
 	
 	def getTextInfo(self):
-		return self.node.getTextInfo.copy()
+		return self.node.getTextInfo()
 	
 	def __lt__(self, other):
 		return self.node.offset < other.node.offset
