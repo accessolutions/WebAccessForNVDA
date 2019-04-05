@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.04.03"
+__version__ = "2019.04.05"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -42,6 +42,7 @@ import speech
 import textInfos
 import textInfos.offsets
 import ui
+import weakref
 
 from .. import nodeHandler
 from ..webAppLib import *
@@ -609,10 +610,7 @@ class MarkerManager(baseObject.ScriptableObject):
 				msg += _("Press escape to cancel zone restriction.")
 			ui.message(msg)
 			return
-		if hasattr(self.webApp, "event_movetoFromQuickNav"):
-			self.webApp.event_movetoFromQuickNav(result)
-		else:
-			result.script_moveto(None, fromQuickNav=True)
+		result.script_moveto(None, fromQuickNav=True)
 	
 	def script_refreshMarkers(self, gesture):
 		ui.message(u"refresh markers")
@@ -688,16 +686,99 @@ class MarkerManager(baseObject.ScriptableObject):
 	}
 
 
+class CustomActionDispatcher(object):
+	"""
+	Execute a custom action, eventually overriding a standard action.
+	"""
+	def __init__(self, actionId, standardFunc):
+		self.actionId = actionId
+		self.standardFunc = standardFunc
+		self.webModules = weakref.WeakSet()
+		self.instance = None
+	
+	def __get__(self, obj, type=None):
+		if obj is None:
+			return self
+		bound = CustomActionDispatcher(self.actionId, self.standardFunc)
+		bound.instance = obj
+		return bound
+	
+	def __getattribute__(self, name):
+		# Pass functions attributes such as __doc__, __name__,
+		# category, ignoreTreeInterceptorPassThrough or resumeSayAllMode.
+		# Note: scriptHandler.executeScript looks at script.__func__ to
+		# prevent recursion.
+		if name not in (
+			"__call__",
+			"__class__",
+			"__get__",
+			"actionId",
+			"getCustomFunc",
+			"instance",
+			"standardFunc",
+			"webModules",
+		):
+			def funcs():
+				if self.instance:
+					yield self.getCustomFunc()
+				else:
+					for webModule in self.webModules:
+						yield self.getCustomFunc(webModule)
+				yield self.standardFunc
+			for func in funcs():
+				if not func:
+					continue
+				try:
+					return getattr(func, name)
+				except AttributeError:
+					pass
+		return object.__getattribute__(self, name)
+	
+	def __call__(self, *args, **kwargs):
+		if self.instance:
+			args = (self.instance,) + args
+			func = self.getCustomFunc()
+			if func:
+				if self.standardFunc:
+					kwargs["script"] = self.standardFunc.__get__(self.instance)
+			else:
+				func = self.standardFunc
+		else:
+			func = self.standardFunc
+		if not func:
+			raise NotImplementedError
+		func(*args, **kwargs)
+	
+	def getCustomFunc(self, webModule=None):
+		if webModule is None:
+			if self.instance is None:
+				return None
+			webModule = self.instance.markerQuery.markerManager.webApp
+		return getattr(
+			webModule,
+			"action_{self.actionId}".format(**locals()),
+			None
+		)
+
+
 class MarkerResult(baseObject.ScriptableObject):
 	
 	def __init__(self, markerQuery):
-		super(MarkerResult,self).__init__()
+		super(MarkerResult, self).__init__()
+		webModule = markerQuery.markerManager.webApp
 		prefix = "action_"
-		for key in dir(markerQuery.markerManager.webApp):
-			if key[:len(prefix)] == prefix:
-				actionName = key[len(prefix):]
-				func = lambda self, gesture, actionName=actionName: getattr(self.markerQuery.markerManager.webApp, "action_%s" % actionName)(self)
-				setattr(self.__class__, "script_%s" % actionName, func)
+		for key in dir(webModule):
+			if key.startswith(prefix):
+				actionId = key[len(prefix):]
+				scriptAttrName = "script_%s" % actionId
+				scriptFunc = getattr(self.__class__, scriptAttrName, None)
+				if isinstance(scriptFunc, CustomActionDispatcher):
+					scriptFunc.webModules.add(webModule)
+					continue
+				dispatcher = CustomActionDispatcher(actionId, scriptFunc)
+				dispatcher.webModules.add(webModule)
+				setattr(self.__class__, scriptAttrName, dispatcher)
+				setattr(self, scriptAttrName, dispatcher.__get__(self))
 		self.markerQuery = markerQuery
 		self.bindGestures(markerQuery.gestures)
 	
