@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.04.05"
+__version__ = "2019.04.08"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -149,12 +149,12 @@ class MarkerManager(baseObject.ScriptableObject):
 	def __init__(self, webApp):
 		super(MarkerManager,self).__init__()
 		self._ready = False
-		self.webApp = webApp
+		self.webModule = self.webApp = webApp
 		self.nodeManager = None
 		self.nodeManagerIdentifier = None
-		self.markerQueries = []
 		self.lock = threading.RLock()
-		self.markerResults = []
+		self.rules = self.markerQueries = []
+		self.results = self.markerResults = []
 		self.triggeredIdentifiers = {}
 		self.lastAutoMoveto = None
 		self.lastAutoMovetoTime = 0
@@ -164,8 +164,8 @@ class MarkerManager(baseObject.ScriptableObject):
 		self.zone = None
 
 	def setQueriesData(self, queryData):
-		self.markerQueries = []
-		self.markerResults = [] 
+		self.markerQueries[:] = []
+		self.markerResults[:] = []
 		for qd in queryData:
 			query = VirtualMarkerQuery(self, qd)
 			self.addQuery(query)
@@ -174,7 +174,7 @@ class MarkerManager(baseObject.ScriptableObject):
 		queryData = []
 		for query in self.markerQueries:
 			queryData.append(query.getData())
-		return queryData 
+		return queryData
 	
 	def addQuery(self, query):
 		for q in self.markerQueries:
@@ -308,7 +308,7 @@ class MarkerManager(baseObject.ScriptableObject):
 				self._ready = True
 				return False
 			t = logTimeStart()
-			self.markerResults = []
+			self.markerResults[:] = []
 			for query in self.markerQueries:
 				query.resetResults()
 			
@@ -801,7 +801,7 @@ class MarkerResult(baseObject.ScriptableObject):
 				dispatcher.webModules.add(webModule)
 				setattr(self.__class__, scriptAttrName, dispatcher)
 				setattr(self, scriptAttrName, dispatcher.__get__(self))
-		self.markerQuery = markerQuery
+		self.rule = self.markerQuery = markerQuery
 		self.bindGestures(markerQuery.gestures)
 	
 	def check(self):
@@ -983,7 +983,7 @@ class MarkerQuery(baseObject.ScriptableObject):
 	
 	def __init__(self, markerManager):
 		super(MarkerQuery,self).__init__()
-		self.markerManager = markerManager
+		self.ruleManager = self.markerManager = markerManager
 		self.name = None
 		self.type = None
 		self.skip = False
@@ -1275,6 +1275,9 @@ class VirtualMarkerQuery(MarkerQuery):
 			if not self.multiple:
 				break
 		return results
+
+
+Rule = VirtualMarkerQuery
 
 
 class Zone(textInfos.offsets.Offsets):

@@ -23,7 +23,7 @@
 
 from __future__ import absolute_import
 
-__version__ = "2018.10.19"
+__version__ = "2018.04.08"
 
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
@@ -36,6 +36,7 @@ import gui
 from logHandler import log
 import ui
 
+from .webModule import WebModule
 from ..store import webModule as store
 from ..store import DuplicateRefError
 from ..store import MalformedRefError

@@ -25,7 +25,7 @@ WebAccess overlay classes
 
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.03.06"
+__version__ = "2019.04.08"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -114,12 +114,18 @@ class WebAccessBmdtiHelper(object):
 	@property
 	def ruleManager(self):
 		# TODO: WIP on new coupling
+		try:
+			return self.webModule.ruleManager
+		except AttributeError:
+			return None
+	
+	@property
+	def webModule(self):
+		# TODO: WIP on new coupling
 		from . import getWebApp, webAccessEnabled
 		if not webAccessEnabled:
 			return None
-		webModule = getWebApp(self.treeInterceptor.rootNVDAObject)
-		if webModule:
-			return webModule.markerManager
+		return getWebApp(self.treeInterceptor.rootNVDAObject)		
 	
 	@property
 	def zone(self):
@@ -401,10 +407,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			"""Block-level break."""
 		
 		try:
-			mgr = self.webAccess.ruleManager
-			if not mgr:
-				raise Break()
-			webModule = mgr.webApp
+			webModule = self.webAccess.webModule
 			if not webModule:
 				raise Break()
 			try:
@@ -432,7 +435,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 				return ScriptWrapper(
 					func, ignoreTreeInterceptorPassThrough=True
 				)
-			func = mgr.webApp.getScript(gesture)
+			func = self.webAccess.webModule.getScript(gesture)
 			if func:
 				return ScriptWrapper(
 					func, ignoreTreeInterceptorPassThrough=True

@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2019.01.10"
+__version__ = "2019.04.08"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -71,7 +71,7 @@ class WebModule(baseObject.ScriptableObject):
 		self.widgetManager = widgets.WidgetManager(self)
 		self.activeWidget = None
 		self.presenter = presenter.Presenter(self)
-		self.markerManager = ruleHandler.MarkerManager(self)
+		self.ruleManager = self.markerManager = ruleHandler.MarkerManager(self)
 
 		self.load(data)
 		if self.name is None:
@@ -340,12 +340,12 @@ class WebModule(baseObject.ScriptableObject):
 			if api.copyToClip(title):
 				ui.message(_("%s copied to clipboard") % title)
 
-	def script_sayWebAppName(self, gesture):
+	def script_sayWebModuleName(self, gesture):
 		# Translators: Speak name of current web module
 		ui.message(_(u"Current web module is: {name}").format(name=self.name))
 
 	__gestures = {
 		"kb:nvda+t": "title",
-		"kb:nvda+shift+t": "sayWebAppName",
+		"kb:nvda+shift+t": "sayWebModuleName",
 	}
 	
