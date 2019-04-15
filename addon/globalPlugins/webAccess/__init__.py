@@ -634,8 +634,8 @@ def hook_findScript(gesture, searchWebApp=True):
 		from browseMode import BrowseModeTreeInterceptor
 		if isinstance(treeInterceptor,BrowseModeTreeInterceptor):
 			func=treeInterceptor.getAlternativeScript(gesture,func)
-			if func and (not treeInterceptor.passThrough or getattr(func,"ignoreTreeInterceptorPassThrough",False)) and (useInternalBrowser is False or getattr(activeWebApp, 'activeWidget', None) is None):
-				return func
+		if func and (not treeInterceptor.passThrough or getattr(func,"ignoreTreeInterceptorPassThrough",False)) and (useInternalBrowser is False or getattr(activeWebApp, 'activeWidget', None) is None):
+			return func
 
 	# NVDAObject level.
 	func = scriptHandler._getObjScript(focus, gesture, globalMapScripts)
