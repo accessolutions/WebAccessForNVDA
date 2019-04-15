@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2019.04.08"
+__version__ = "2019.04.11"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -50,8 +50,17 @@ from ..ruleHandler import ruleTypes
 from ..webAppLib import *
 
 
+class NewerFormatVersion(version.InvalidVersion):
+	pass
+
+
+class InvalidApiVersion(version.InvalidVersion):
+	pass
+
+
 class WebModule(baseObject.ScriptableObject):
 	
+	API_VERSION = version.parse("0.1")
 	FORMAT_VERSION_STR = "0.4-dev"
 	FORMAT_VERSION = version.parse(FORMAT_VERSION_STR)
 	
@@ -250,7 +259,7 @@ class WebModule(baseObject.ScriptableObject):
 					gestures[key] = value				
 		
 		if formatVersion > self.FORMAT_VERSION:
-			raise version.InvalidVersion(
+			raise NewerFormatVersion(
 				"WebModule format version not supported: {ver}".format(
 					ver=formatVersion
 				)

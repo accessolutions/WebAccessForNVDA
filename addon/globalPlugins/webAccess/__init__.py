@@ -49,7 +49,7 @@ Overridden NVDA functions:
 
 from __future__ import absolute_import
 
-__version__ = "2019.01.14"
+__version__ = "2019.04.11"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -90,7 +90,6 @@ from . import nodeHandler
 from . import overlay
 from . import presenter
 from . import webAppLib
-from .packaging import version
 from .webAppLib import *
 from .webAppScheduler import WebAppScheduler
 from . import webModuleHandler
@@ -770,32 +769,71 @@ def showWebModulesLoadErrors():
 	webModuleHandler.getWebModules(errors=errors)
 	if not errors:
 		return
-	invalidVersionRefsStr = []
+	
+	class Case(object):
+		__slots__ = ("excType", "msgSingular", "msgPlural", "refs")
+		def __init__(self, *args):
+			self.excType, self.msgSingular, self.msgPlural = args
+			self.refs = []
+	
+	cases = (
+		Case(
+			webModuleHandler.NewerFormatVersion,
+			_(
+				"This web module has been created by a newer version of "
+				"Web Access for NVDA and could not be loaded:"
+			),
+			_(
+				"These web modules have been created by a newer version of "
+				"Web Access for NVDA and could not be loaded:"
+			)
+		),
+		Case(
+			webModuleHandler.InvalidApiVersion,
+			_(
+				"This Python web module uses a different API version of "
+				"Web Access for NVDA and could not be loaded:"
+			),
+			_(
+				"These Python web modules use a different API version of "
+				"Web Access for NVDA and could not be loaded:"
+			)
+		),
+		Case(
+			None,
+			_(
+				"An unexpected error occurred while attempting to load this "
+				"web module:"
+			),
+			_(
+				"An unexpected error occurred while attempting to load these "
+				"web modules:"
+			)
+		)
+	)
 	for ref, exc_info in errors:
-		if isinstance(exc_info[1], version.InvalidVersion):
-			if isinstance(ref, tuple):
-				label = ref[-1]
-				if len(ref) > 2 and ref[0] == "addons":
-					label = u"{webModuleName} ({addonName})".format(
-						webModuleName=ref[-1],
-						addonName=ref[1]
-					)
-			else:
-				label = ref
-			invalidVersionRefsStr.append(label)
-	msg = None
-	if len(invalidVersionRefsStr) == 1:
-		msg = _(
-			"This web module has been created by a newer version of "
-			"Web Access for NVDA and could not be loaded:"
-		)
-	elif len(invalidVersionRefsStr) > 1:
-		msg = _(
-			"These web modules have been created by a newer version of "
-			"Web Access for NVDA and could not be loaded:"
-		)
-	if msg:
-		msg = os.linesep.join([msg] + invalidVersionRefsStr)
+		if isinstance(ref, tuple):
+			label = ref[-1]
+			if len(ref) > 2 and ref[0] == "addons":
+				label = u"{webModuleName} ({addonName})".format(
+					webModuleName=ref[-1],
+					addonName=ref[1]
+				)
+		else:
+			label = ref
+		for case in cases:
+			if not case.excType or isinstance(exc_info[1], case.excType):
+				case.refs.append(label)
+				break
+	parts = []
+	for case in cases:
+		if case.refs:
+			parts.append("\n".join(
+				[case.msgSingular if len(case.refs) == 1 else case.msgPlural]
+				+ case.refs
+			))
+	if parts:
+		msg = "\n\n".join(parts)
 		wx.CallAfter(
 			gui.messageBox,
 			message=msg,

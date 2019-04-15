@@ -21,7 +21,7 @@
 
 """Web Access data store."""
 
-__version__ = "2018.10.19"
+__version__ = "2019.04.11"
 
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
@@ -66,6 +66,7 @@ class Store(object):
 							ref=ref
 						)
 					)
+				continue
 			if item is None:
 				log.warning(
 					u"No item retrieved for ref: {ref}".format(ref=ref)
