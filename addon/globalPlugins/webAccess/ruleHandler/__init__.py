@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.04.08"
+__version__ = "2019.04.11"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -516,13 +516,17 @@ class MarkerManager(baseObject.ScriptableObject):
 					or (previous and caret._startOffset > result.node.offset)
 				)
 				and (
-					not respectZone
+					not (respectZone or (previous and relative))
 					or not self.zone
 					or (
-						self.zone.containsNode(result.node)
+						(
+							not respectZone
+							or self.zone.containsNode(result.node)
+						)
 						and not (
-							# If respecting zone restriction, avoid returning
-							# the zone itself.
+							# If respecting zone restriction or iterating
+							# backwards relative to the caret position,
+							# avoid returning the current zone itself.
 							self.zone.name == result.markerQuery.name
 							and self.zone.startOffset == result.node.offset
 						)
@@ -611,8 +615,16 @@ class MarkerManager(baseObject.ScriptableObject):
 			playWebAppSound("keyError")
 			sleep(0.2)
 			if types == (ruleTypes.ZONE,):
-				# Translator: Error message in quickNav (page up/down)
-				ui.message(_("No zone"))
+				if self.zone:
+					if previous:
+						# Translator: Error message in quickNav (page up/down)
+						ui.message(_("No previous zone"))
+					else:
+						# Translator: Error message in quickNav (page up/down)
+						ui.message(_("No next zone"))
+				else:
+					# Translator: Error message in quickNav (page up/down)
+					ui.message(_("No zone"))
 				return
 			if cycle:
 				# Translator: Error message in quickNav (page up/down)
