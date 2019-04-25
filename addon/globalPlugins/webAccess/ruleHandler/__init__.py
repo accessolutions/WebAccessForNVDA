@@ -575,6 +575,7 @@ class MarkerManager(baseObject.ScriptableObject):
 	def quickNav(
 		self,
 		previous=False,
+		position=None,
 		types=None,
 		name=None,
 		respectZone=False,
@@ -586,10 +587,11 @@ class MarkerManager(baseObject.ScriptableObject):
 			ui.message(_("Not ready"))
 			return None
 		
-		# Search first from the current caret position
-		info = html.getCaretInfo()
+		if position is None:
+			# Search first from the current caret position
+			position = html.getCaretInfo()
 		
-		if info is None:
+		if position is None:
 			playWebAppSound("keyError")
 			ui.message(_("Not ready"))
 			return None
@@ -599,7 +601,7 @@ class MarkerManager(baseObject.ScriptableObject):
 		for relative in ((True, False) if cycle else (True,)):
 			result = self._getIncrementalResult(
 				previous=previous,
-				caret=info,
+				caret=position,
 				relative=relative,
 				types=types,
 				name=name,
