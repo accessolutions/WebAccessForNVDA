@@ -584,7 +584,7 @@ class MarkerManager(baseObject.ScriptableObject):
 		if not self.isReady:
 			playWebAppSound("keyError")
 			ui.message(_("Not ready"))
-			return
+			return None
 		
 		# Search first from the current caret position
 		info = html.getCaretInfo()
@@ -592,7 +592,7 @@ class MarkerManager(baseObject.ScriptableObject):
 		if info is None:
 			playWebAppSound("keyError")
 			ui.message(_("Not ready"))
-			return
+			return None
 		
 		# If not found after/before the current position, and cycle is True,
 		# return the first/last result.
@@ -625,7 +625,7 @@ class MarkerManager(baseObject.ScriptableObject):
 				else:
 					# Translator: Error message in quickNav (page up/down)
 					ui.message(_("No zone"))
-				return
+				return False
 			if cycle:
 				# Translator: Error message in quickNav (page up/down)
 				msg = _("No marker")
@@ -643,8 +643,9 @@ class MarkerManager(baseObject.ScriptableObject):
 				# Translators: Hint on how to cancel zone restriction.
 				msg += _("Press escape to cancel zone restriction.")
 			ui.message(msg)
-			return
+			return False
 		result.script_moveto(None, fromQuickNav=True)
+		return True
 	
 	def script_refreshMarkers(self, gesture):
 		ui.message(u"refresh markers")
