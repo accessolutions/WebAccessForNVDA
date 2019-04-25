@@ -90,8 +90,27 @@ class WebModule(baseObject.ScriptableObject):
 	def __str__(self):
 		return u"WebModule {name}".format(
 			name=self.name if self.name is not None else "<noName>"
-			)
-
+		)
+	
+	def chooseNVDAObjectOverlayClasses(self, obj, clsList):
+		"""
+		Choose NVDAObject overlay classes for a given NVDAObject.
+		
+		This works in a similar manner as the methods with the same name in
+		AppModule and GlobalPlugin but comes into play much later: It is
+		called only when the TreeInterceptor is set on the NVDAObject. Hence,
+		if removing a class from the list, beware its earlier presence might
+		have had side effects.
+		
+		Also, this method should return:
+		 - A sequence of the newly classes for which the method
+		   `initOverlayClass` should be called once the object is mutated.
+		 - `True`, if the object should be mutated but no method should
+		   be called.
+		 - Any negative value, if the object should not be mutated at all.
+		"""
+		return False
+	
 	def dump(self):
 		data = {"formatVersion": self.FORMAT_VERSION_STR}
 		

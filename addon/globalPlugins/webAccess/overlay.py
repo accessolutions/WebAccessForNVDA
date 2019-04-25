@@ -25,7 +25,7 @@ WebAccess overlay classes
 
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.04.08"
+__version__ = "2019.04.11"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -45,14 +45,22 @@ import textInfos
 import ui
 
 
+try:
+	from six.moves import xrange
+except ImportError:
+	# NVDA version < 2018.3
+	pass
+
+
 addonHandler.initTranslation()
 
 
 SCRIPT_CATEGORY = "WebAccess"
 
 
-def getDynamicClass(superCls, overlayCls):
-	bases = tuple([overlayCls, superCls])
+def getDynamicClass(bases):
+	if not isinstance(bases, tuple):
+		bases = tuple(bases)
 	cache = NVDAObjects.DynamicNVDAObjectType._dynamicClassCache
 	dynCls = cache.get(bases)
 	if not dynCls:
@@ -61,6 +69,32 @@ def getDynamicClass(superCls, overlayCls):
 		cache[bases] = dynCls
 	return dynCls
 
+def mutateObj(obj, clsList):
+	# Determine the bases for the new class.
+	bases = []
+	for index in xrange(len(clsList)):
+		# A class doesn't need to be a base if it is already implicitly included
+		# by being a superclass of a previous base.
+		if index == 0 or not issubclass(clsList[index - 1], clsList[index]):
+			bases.append(clsList[index])
+	newCls = getDynamicClass(bases)
+	oldMro = frozenset(obj.__class__.__mro__)	
+	# Mutate obj into the new class.
+	obj.__class__ = newCls
+	# Initialise the overlay classes.
+	for cls in reversed(newCls.__mro__):
+		if cls in oldMro:
+			# This class was part of the initially constructed object,
+			# so its constructor would have been called.
+			continue
+		initFunc = cls.__dict__.get("initOverlayClass")
+		if initFunc:
+			initFunc(obj)
+		# Bind gestures specified on the class.
+		try:
+			obj.bindGestures(getattr(cls, "_%s__gestures" % cls.__name__))
+		except AttributeError:
+			pass
 
 class ScriptWrapper(object):
 	"""
@@ -232,13 +266,13 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			break
 		if attr and not isinstance(attr, baseObject.Getter):
 			if issubclass(attr, textInfos.offsets.OffsetsTextInfo):
-				self.TextInfo = getDynamicClass(attr, WebAccessBmdtiTextInfo)
+				self.TextInfo = getDynamicClass((WebAccessBmdtiTextInfo, attr))
 	
 	def _get_TextInfo(self):
 		superCls = super(WebAccessBmdti, self)._get_TextInfo()
 		if not issubclass(superCls, textInfos.offsets.OffsetsTextInfo):
 			return superCls
-		return getDynamicClass(superCls, WebAccessBmdtiTextInfo)
+		return getDynamicClass((WebAccessBmdtiTextInfo, superCls))
 	
 	def _caretMovementScriptHelper(
 		self,
@@ -503,7 +537,31 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 	}
 
 
-class WebAccessDocument(NVDAObjects.NVDAObject):
+class WebAccessObject(NVDAObjects.NVDAObject):
+	
+	def _set_treeInterceptor(self, obj):
+		super(WebAccessObject, self)._set_treeInterceptor(obj)
+		if isinstance(obj, WebAccessBmdti):
+			webModule = obj.webAccess.webModule
+			if not webModule:
+				return
+			clsList = list(self.__class__.__mro__)
+			res = webModule.chooseNVDAObjectOverlayClasses(self, clsList)
+			if not res:
+				return
+			mutateObj(self, clsList)
+			if res is True:
+				return
+			for cls in res:
+				initFunc = getattr(cls, "initOverlayClass")
+				if initFunc:
+					try:
+						initFunc(obj)
+					except:
+						log.exception()
+
+
+class WebAccessDocument(WebAccessObject):
 	
 	def _get_treeInterceptorClass(self):
 		# Might raise NotImplementedError on purpose.
@@ -513,4 +571,4 @@ class WebAccessDocument(NVDAObjects.NVDAObject):
 			browseMode.BrowseModeDocumentTreeInterceptor
 		):
 			return superCls
-		return getDynamicClass(superCls, WebAccessBmdti)
+		return getDynamicClass((WebAccessBmdti, superCls))

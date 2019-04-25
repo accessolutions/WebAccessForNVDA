@@ -78,6 +78,8 @@ import gui
 import inputCore
 from logHandler import log
 import NVDAObjects
+from NVDAObjects.IAccessible.ia2Web import Ia2Web
+from NVDAObjects.IAccessible.MSHTML import MSHTML
 import NVDAObjects.JAB
 import scriptHandler
 import speech
@@ -192,12 +194,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		scheduler.send(eventName="stop")
 		
 	def chooseNVDAObjectOverlayClasses(self, obj, clsList):
-		if obj.role == controlTypes.ROLE_DOCUMENT:
-			clsList.insert(0, overlay.WebAccessDocument)
-		if activeWebApp is None:
-			return
-		if hasattr(activeWebApp, 'chooseNVDAObjectOverlayClasses'):
-			activeWebApp.chooseNVDAObjectOverlayClasses(obj, clsList)
+		if Ia2Web in clsList or MSHTML in clsList:
+			if obj.role == controlTypes.ROLE_DOCUMENT:
+				clsList.insert(0, overlay.WebAccessDocument)
+				return
+			clsList.insert(0, overlay.WebAccessObject)
 	
 	def script_showWebAccessGui(self, gesture):  # @UnusedVariable
 		wx.CallAfter(self.showWebAccessGui)
