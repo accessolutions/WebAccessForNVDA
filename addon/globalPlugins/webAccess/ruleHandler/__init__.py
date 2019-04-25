@@ -580,7 +580,8 @@ class MarkerManager(baseObject.ScriptableObject):
 		name=None,
 		respectZone=False,
 		honourSkip=True,
-		cycle=True
+		cycle=True,
+		quiet=False,
 	):
 		if not self.isReady:
 			playWebAppSound("keyError")
@@ -616,7 +617,9 @@ class MarkerManager(baseObject.ScriptableObject):
 		else:
 			playWebAppSound("keyError")
 			sleep(0.2)
-			if types == (ruleTypes.ZONE,):
+			if quiet:
+				return False
+			elif types == (ruleTypes.ZONE,):
 				if self.zone:
 					if previous:
 						# Translator: Error message in quickNav (page up/down)
