@@ -379,7 +379,6 @@ class MarkerManager(baseObject.ScriptableObject):
 					lastText = self.triggeredIdentifiers.get(controlIdentifier)
 					if (lastText is None or text != lastText):
 						self.triggeredIdentifiers[controlIdentifier] = text
-						speechOn()
 						autoActionName = result.markerQuery.autoAction
 						func = getattr(result, "script_%s" % autoActionName)
 						if autoActionName == "speak":
