@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.03.13"
+__version__ = "2019.04.11"
 __author__ = u"Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
@@ -190,6 +190,11 @@ def getRulesByPosition(markerManager, filter=None, active=False):
 def getRulesByType(markerManager, filter=None, active=False):
 	types = {}
 	for rule in markerManager.getQueries():
+		if (
+			(filter and filter.lower() not in rule.name.lower())
+			or (active and not rule.getResults())
+		):
+			continue
 		types.setdefault(rule.type, []).append(TreeItemData(
 			label=getRuleLabel(rule),
 			obj=rule,
