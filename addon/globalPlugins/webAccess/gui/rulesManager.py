@@ -58,7 +58,7 @@ except AttributeError:
 	TreeCtrl_SetItemData = wx.TreeCtrl.SetItemData
 
 lastGroupBy = "position"
-lastActiveOnly = True
+lastActiveOnly = False
 
 
 addonHandler.initTranslation()
