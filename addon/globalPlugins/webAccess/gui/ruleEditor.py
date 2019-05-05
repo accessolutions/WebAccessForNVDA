@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.03.16"
+__version__ = "2019.04.11"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -1180,20 +1180,31 @@ class RuleEditor(wx.Dialog):
 		
 		updateOrDeleteIfEmpty(data, "comment", self.comment.Value)
 		
-		unic = True
+		synonyms = 0
 		for rule in self.markerManager.getQueries():
 			if name == rule.name and rule != self.rule:
-				unic = False
-		if not unic:
+				synonyms += 1
+				if synonyms >= 2:
+					break
+		if synonyms and "priority" not in data:
+			if synonyms == 1:
+				msg=_(
+					"There is another rule with the same name."
+					"\n\n"
+					"You probably should consider setting a priority."
+				)
+			else:
+				msg=_(
+					"There are other rules with the same name."
+					"\n\n"
+					"You probably should consider setting a priority."
+				)
 			if gui.messageBox(
-				message=_(
-					"There are other rules with the same name, "
-					"will you continue and associate rules ?"
-				),
+				message=msg,
 				caption=_("Warning"),
-				style=wx.ICON_WARNING | wx.YES | wx.NO,
+				style=wx.ICON_WARNING | wx.OK | wx.CANCEL,
 				parent=self
-			) == wx.NO:
+			) == wx.CANCEL:
 				return
 		
 		if self.rule is not None:
