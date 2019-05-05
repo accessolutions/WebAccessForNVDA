@@ -154,8 +154,25 @@ def getRulesByName(markerManager, filter=None, active=False):
 	)
 
 
-def getRulesByPosition(markerManager, filter=None, active=False):
+def getRulesByPosition(markerManager, filter=None, active=True):
+	"""
+	Yield rules by position.
+	
+	As position depends on result, the `active` criteria is ignored.
+	"""
 	Parent = namedtuple("Parent", ("parent", "tid", "zone"))
+	
+	def filterChildlessParent(parent):
+		if (
+			not filter
+			or parent.tid.children
+			or filter.lower() in parent.tid.obj.name.lower()
+		):
+			return False
+		if parent.parent:
+			parent.parent.tid.children.remove(parent)
+		return True
+	
 	parent = None
 	for result in markerManager.getResults():
 		rule = result.markerQuery
@@ -167,15 +184,17 @@ def getRulesByPosition(markerManager, filter=None, active=False):
 		zone = None
 		if rule.type in (ruleTypes.PARENT, ruleTypes.ZONE):
 			zone = Zone(result)
+		elif filter and filter.lower() not in rule.name.lower():
+			continue
 		while parent:
 			if parent.zone.containsResult(result):
 				parent.tid.children.append(tid)
 				if zone:
 					parent = Parent(parent, tid, zone)
 				break
-			else:
+			elif not filterChildlessParent(parent):
 				yield parent.tid
-				parent = parent.parent
+			parent = parent.parent
 		else:  # no parent
 			assert parent is None
 			if zone:
@@ -183,7 +202,8 @@ def getRulesByPosition(markerManager, filter=None, active=False):
 			else:
 				yield tid
 	while parent:
-		yield parent.tid
+		if not filterChildlessParent(parent):
+			yield parent.tid
 		parent = parent.parent
 
 
