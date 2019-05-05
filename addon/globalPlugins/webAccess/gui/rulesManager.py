@@ -290,13 +290,11 @@ class Dialog(wx.Dialog):
 			self,
 			# Translator: A label on the RulesManager dialog.
 			_("&Filter: "),
-			wx.TextCtrl, size=(250, -1)
+			wx.TextCtrl, size=(250, -1), style=wx.TE_PROCESS_ENTER
 		)
 		item = self.filterEdit = labeledCtrlHelper.control
-		item.Bind(
-			wx.EVT_TEXT,
-			lambda evt: self.refreshRuleList()
-		)
+		item.Bind(wx.EVT_TEXT, lambda evt: self.refreshRuleList())
+		item.Bind(wx.EVT_TEXT_ENTER, lambda evt: self.tree.SetFocus())
 		filtersSizer.Add(labeledCtrlHelper.sizer, flag=wx.EXPAND)
 		
 		self.activeOnlyCheckBox = wx.CheckBox(
