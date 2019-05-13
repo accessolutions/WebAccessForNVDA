@@ -78,8 +78,9 @@ import gui
 import inputCore
 from logHandler import log
 import NVDAObjects
-from NVDAObjects.IAccessible.ia2Web import Ia2Web
 from NVDAObjects.IAccessible.MSHTML import MSHTML
+from NVDAObjects.IAccessible.ia2Web import Ia2Web
+from NVDAObjects.IAccessible.mozilla import Mozilla
 import NVDAObjects.JAB
 import scriptHandler
 import speech
@@ -194,7 +195,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		scheduler.send(eventName="stop")
 		
 	def chooseNVDAObjectOverlayClasses(self, obj, clsList):
-		if Ia2Web in clsList or MSHTML in clsList:
+		if any(
+			cls
+			for cls in (Ia2Web, Mozilla, MSHTML)
+			if cls in clsList
+		):
 			if obj.role == controlTypes.ROLE_DOCUMENT:
 				clsList.insert(0, overlay.WebAccessDocument)
 				return
