@@ -196,11 +196,14 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		
 	def chooseNVDAObjectOverlayClasses(self, obj, clsList):
 		if any(
-			cls
+			True
 			for cls in (Ia2Web, Mozilla, MSHTML)
 			if cls in clsList
 		):
-			if obj.role == controlTypes.ROLE_DOCUMENT:
+			if obj.role in (
+				controlTypes.ROLE_DIALOG,
+				controlTypes.ROLE_DOCUMENT,
+			):
 				clsList.insert(0, overlay.WebAccessDocument)
 				return
 			clsList.insert(0, overlay.WebAccessObject)
