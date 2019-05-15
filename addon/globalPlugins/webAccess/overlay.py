@@ -43,6 +43,7 @@ import NVDAObjects
 import speech
 import textInfos
 import ui
+from versionInfo import version_year, version_major
 
 
 try:
@@ -159,7 +160,7 @@ class WebAccessBmdtiHelper(object):
 		from . import getWebApp, webAccessEnabled
 		if not webAccessEnabled:
 			return None
-		return getWebApp(self.treeInterceptor.rootNVDAObject)		
+		return getWebApp(self.treeInterceptor.rootNVDAObject)
 	
 	@property
 	def zone(self):
@@ -559,6 +560,34 @@ class WebAccessObject(NVDAObjects.NVDAObject):
 						initFunc(obj)
 					except:
 						log.exception()
+	
+	if (
+		(version_year == 2017 and version_major >= 3) or version_year > 2017
+	) and (
+		(version_year == 2019 and version_major < 2) or version_year < 2019
+	):
+		# Workaround for NVDA bug #9566, introduced by 393b55b in 2017.3
+		# and later fixed as of c20a503 in 2019.2 
+				
+		def _get_columnNumber(self):
+			res = super(WebAccessObject, self)._get_columnNumber()
+			try:
+				res = int(res)
+			except ValueError:
+				log.exception((
+					u"Cannot convert columnNumber to int: {res}"
+				).format(**locals()))
+			return res
+		
+		def _get_rowNumber(self):
+			res = super(WebAccessObject, self)._get_rowNumber()
+			try:
+				res = int(res)
+			except ValueError:
+				log.exception((
+					u"Cannot convert rowNumber to int: {res}"
+				).format(**locals()))
+			return res
 
 
 class WebAccessDocument(WebAccessObject):
