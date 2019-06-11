@@ -463,14 +463,16 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		return super(WebAccessBmdti, self).getAlternativeScript(gesture, script)
 	
 	def getScript(self, gesture):
-		mgr = self.webAccess.ruleManager
-		if mgr:
-			func = mgr.getScript(gesture)
+		webModule = self.webAccess.webModule
+		if webModule:
+			func = webModule.getScript(gesture)
 			if func:
 				return ScriptWrapper(
 					func, ignoreTreeInterceptorPassThrough=True
 				)
-			func = self.webAccess.webModule.getScript(gesture)
+		mgr = self.webAccess.ruleManager
+		if mgr:
+			func = mgr.getScript(gesture)
 			if func:
 				return ScriptWrapper(
 					func, ignoreTreeInterceptorPassThrough=True

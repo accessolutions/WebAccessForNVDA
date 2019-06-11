@@ -609,33 +609,14 @@ def hook_findScript(gesture, searchWebApp=True):
 	# webApp scripts
 	webApp = focus.getWebApp()
 	if webApp is not None and searchWebApp is True:
-		# Search if a place marker uses this shortcut
+		func = scriptHandler._getObjScript(webApp, gesture, globalMapScripts)
+		if func:
+			return func
 		if webApp.markerManager:
 			func = webApp.markerManager.getMarkerScript(gesture, globalMapScripts)
 			if func:
 				return func
-		func = scriptHandler._getObjScript(webApp.widgetManager, gesture, globalMapScripts)
-		if func:
-			return func
-		activeWidget = getattr(webApp, 'activeWidget', None)
-		if activeWidget is not None:
-			func = scriptHandler._getObjScript(activeWidget, gesture, globalMapScripts)
-			if func:
-				return func
-						
-		func = scriptHandler._getObjScript(webApp, gesture, globalMapScripts)
-		if func:
-			return func
-# 		ti = webApp.treeInterceptor
-# 		if hasattr(ti, 'nodeManager') and (useInternalBrowser is True or activeWidget is not None):
-# 			func = scriptHandler._getObjScript(webApp.presenter, gesture, globalMapScripts)
-# 			if func:
-# 				return func
-# 			func = scriptHandler._getObjScript(ti.nodeManager, gesture, globalMapScripts)
-# 			if func:
-# 				return func
-
-
+	
 	# Tree interceptor level.
 	treeInterceptor = focus.treeInterceptor
 	if treeInterceptor and treeInterceptor.isReady:
