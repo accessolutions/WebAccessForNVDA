@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.12.04"
+__version__ = "2019.01.20"
 
 __authors__ = (
 	u"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
@@ -156,9 +156,10 @@ class NodeManager(baseObject.ScriptableObject):
 		p = self.currentParentNode
 		if not hasattr(p, "format"):
 			raise
-		p.size = len(data)
+		size = len(data)
+		p.size += size
 		p.text = data
-		self.fieldOffset += p.size
+		self.fieldOffset += size
 		self.lastTextNode = p
 
 	def parseXML(self, XMLText):
@@ -397,6 +398,21 @@ class NodeField(baseObject.AutoPropertyObject):
 	
 	customText = ""
 	
+	@classmethod
+	def getDeepest(cls, node1, node2):
+		"""
+		Given two nodes on the same branch, return the one closest to the tip.
+		
+		Returns `None` if the two nodes are not on the same branch. 
+		"""
+		if node1 in node2:
+			return node1
+		if node2 in node1:
+			return node2
+		if node1 == node2:
+			return node1
+		return None
+	
 	def __init__(self, nodeType, attrs, parent, offset, nodeManager):
 		super(NodeField, self).__init__()
 		self.nodeManager = nodeManager
@@ -439,7 +455,10 @@ class NodeField(baseObject.AutoPropertyObject):
 				u"Unexpected nodeType: {nodeType}".format(nodeType=nodeType))
 		self.previousTextNode = nodeManager.lastTextNode
 		if parent is not None:
+			self.index = len(parent.children)
 			parent.children.append(self)
+		else:
+			self.index = 0
 		global countNode
 		countNode = countNode + 1
 
@@ -450,15 +469,15 @@ class NodeField(baseObject.AutoPropertyObject):
 		
 	def __repr__(self):
 		if hasattr(self, "text"):
-			return u"Node text : %s" % self.text
+			return "Node text: %s" % repr(self.text)
 		elif hasattr(self, "control"):
-			return u"Node %s : id=%s, className=%s" % (
+			return "Node %s: id=%s, className=%s" % (
 				self.tag, self.id, self.className
 			)
 		elif hasattr(self, "format"):
-			return u"Node format"
+			return "Node format"
 		else:
-			return u"Node unknown"
+			return "Node unknown"
 		
 	def isReady(self):
 		return self.nodeManager is not None and self.nodeManager.isReady
@@ -531,13 +550,25 @@ class NodeField(baseObject.AutoPropertyObject):
 				return True
 		return False
 
-	def searchNode(self, exclude=None, maxIndex=0, currentIndex=0, **kwargs):
+	def searchNode(
+		self,
+		exclude=None,
+		relativePath=None,
+		maxIndex=0,
+		currentIndex=0,
+		**kwargs
+	):
 		"""
 		Searches the current node and its sub-tree for a match with the given
 		criteria.
 		
 		Keyword arguments:
-		  exclude: If specified, supply a list of children nodes not to explore.
+		  exclude: If specified, set of children nodes not to explore.
+		  relativePath:
+		    If specified, walk the given path from the matched nodes to
+		    determine the final result. If the path cannot be walked, no
+		    result is returned for the matched node.
+		    See `walk` for the path expression syntax.
 		  maxIndex:
 		    If set to 0 (default value), every result found is returned.
 		    If greater than 0, only return the n first results (1 based).
@@ -581,24 +612,26 @@ class NodeField(baseObject.AutoPropertyObject):
 				if test == "eq":
 					if self.search_eq(allowedValues, candidateValue):
 						del kwargs[key]
-					else:
-						found = False
+						break
 				elif test == "in":
 					if self.search_in(allowedValues, candidateValue):
 						del kwargs[key]
-					else:
-						found = False
+						break
 				elif test == "notEq":
 					if self.search_eq(allowedValues, candidateValue):
 						return []
 				elif test == "notIn":
 					if self.search_in(allowedValues, candidateValue):
 						return []
+			else:  # no break
+				if test in ("eq", "in"):
+					found = False
 		if found:
+			matches = []
 			text = kwargs.get("in_text", [])
 			prevText = kwargs.get("in_prevText", "")
 			if text != []:
-				return self.searchString(
+				matches = self.searchString(
 					text,
 					exclude=exclude,
 					maxIndex=maxIndex,
@@ -609,16 +642,25 @@ class NodeField(baseObject.AutoPropertyObject):
 					self.previousTextNode is not None
 					and prevText in self.previousTextNode.text
 				):
-					return [self]
+					matches = [self]
 				else:
 					return []
 			else:
-				return [self]
+				matches = [self]
+			if relativePath:
+				candidates = matches
+				matches = []
+				for candidate in candidates:
+					match = candidate.walk(relativePath)
+					if match:
+						matches.append(match)
+			return matches
 		for child in self.children:
 			if exclude and child in exclude:
 				continue
 			childResult = child.searchNode(
 				exclude=exclude,
+				relativePath=relativePath,
 				maxIndex=maxIndex,
 				currentIndex=currentIndex,
 				**kwargs
@@ -629,6 +671,7 @@ class NodeField(baseObject.AutoPropertyObject):
 				if currentIndex >= maxIndex:
 					break
 		return nodeList
+	
 
 	def searchOffset(self, offset):
 		if hasattr(self, "text"):
@@ -640,6 +683,68 @@ class NodeField(baseObject.AutoPropertyObject):
 				if node:
 					return node
 		return None
+	
+	def walk(self, path):
+		"""
+	    Walk the node tree and return the destination node.
+	    Returns None if the given path cannot be walked.
+	    In the path expression, each character represents a step:
+	      - "b": (before) previous text in the document flow
+	      - "a": (after) next text in the document flow
+	      - "u": (up) parent node
+	      - "d": (down) first child node
+	      - "l": (left) previous sibling node
+	      - "r": (right) next sibling node
+		"""  # noqa
+		node = self
+		for index, step in enumerate(path):
+			if step == "b": # First node with lesser offset
+				node = node.previousTextNode
+			elif step == "a": # First node with greater offset
+				offset = node.offset
+				while True:
+					try:
+						node = node.children[0]
+					except:
+						while True:
+							try:
+								node = node.parent.children[node.index + 1]
+								break
+							except:
+								node = node.parent
+								if node is None:
+									return None
+					if node.offset > offset:
+						break
+			elif step == "u":
+				node = node.parent
+			elif step == "d":
+				try:
+					node = node.children[0]
+				except:
+					return None
+			elif step == "l":
+				if node.index == 0 or node.parent is None:
+					return None
+				node = node.parent.children[node.index - 1]
+			elif step == "r":
+				try:
+					node = node.parent.children[node.index + 1]
+				except:
+					return None
+			else:
+				log.error((
+					u'Invalid step "{step}" at index {index}'
+					u' in path expression: "{path}"'
+				).format(
+					step=step,
+					index=index,
+					path=path
+				))
+				return None
+			if not node:
+				return None
+		return node
 	
 	def firstTextNode(self):
 		return self.searchOffset(self.offset)
@@ -719,18 +824,50 @@ class NodeField(baseObject.AutoPropertyObject):
 		return False
 
 	def __lt__(self, node):
+		"""
+		Compare nodes based on their offset.
+		"""
 		if self.offset < node.offset:
 			return True
 		return False
 
-	def __contains__(self, node):
-		if self == node:
+	def __le__(self, node):
+		"""
+		Compare nodes based on their offset.
+		"""
+		if self.offset <= node.offset:
 			return True
-		if hasattr(self, "children"):
-			for ch in self.children:
-				if ch == node:
-					return True
 		return False
+
+	def __gt__(self, node):
+		"""
+		Compare nodes based on their offset.
+		"""
+		if self.offset > node.offset:
+			return True
+		return False
+
+	def __ge__(self, node):
+		"""
+		Compare nodes based on their offset.
+		"""
+		if self.offset >= node.offset:
+			return True
+		return False
+
+	def __contains__(self, node):
+		"""
+		Check whether the given node belongs to the subtree of this node, based
+		on their offset.
+		"""
+		if self <= node:
+			return False
+		if not self.children:
+			return False
+		lastChild = self.children[-1]
+		if lastChild >= node:
+			return True
+		return node in lastChild
 
 	def __len__(self):
 		return self.size

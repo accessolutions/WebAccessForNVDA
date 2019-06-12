@@ -23,40 +23,53 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2018.12.04"
+__version__ = "2018.12.31"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 __license__ = "GPL"
 
 
 import wx
 
+import addonHandler
 import controlTypes
 import gui
-from logHandler import log
+
+
+addonHandler.initTranslation()
 
 
 def truncText(node):
 	textList = getTextList(node)
-	if len(textList) == 0:
+	if not textList:
 		return ""
 	elif len(textList) == 1:
 		return textList[0]
 	else:
-		t = u"%d %s\r\n" % (
+		desc = u"%d %s\r\n" % (
 			len(textList),
 			pgettext("webAccess.elementDescription", "elements")
 			if len(textList) > 1
 			else pgettext("webAccess.elementDescription", "element")
 		)
-		t += u"        %s %s\r\n" % (
+		textFrom = ""
+		for text in textList:
+			if text and text.strip():
+				textFrom = text.strip()
+				break
+		textTo = ""
+		for text in textList[::-1]:
+			if text and text.strip():
+				textTo = text.strip()
+				break
+		desc += u"        %s %s\r\n" % (
 			pgettext("webAccess.elementDescription", "from:"),
-			(textList[0] or "").strip()
+			textFrom
 		)
-		t += u"        %s %s" % (
+		desc += u"        %s %s" % (
 			pgettext("webAccess.elementDescription", "to:"),
-			(textList[-1] or "").strip()
+			textTo
 		)
-		return t
+		return desc
 
 
 def getTextList(node):
@@ -69,8 +82,8 @@ def getTextList(node):
 			return []
 	elif hasattr(node, "children"):
 		textList = []
-		for chield in node.children:
-			textList += getTextList(chield)
+		for child in node.children:
+			textList += getTextList(child)
 		return textList
 	else:
 		return []
@@ -125,7 +138,7 @@ def getNodeDescription():
 def showElementDescriptionDialog():
 	text = getNodeDescription()
 	global dialog
-	# Evaluate to False when not yet created or already destroyed.
+	# Evaluates to False when not yet created or already destroyed.
 	if not dialog:
 		dialog = ElementDescriptionDialog(gui.mainFrame)
 	dialog.Raise()
@@ -139,7 +152,6 @@ dialog = None
 class ElementDescriptionDialog(wx.Dialog):
 
 	def __init__(self, parent):
-		log.info("__init__")
 		ElementDescriptionDialog._instance = self
 		super(ElementDescriptionDialog, self).__init__(
 			parent, title=_("Element description")
@@ -149,7 +161,7 @@ class ElementDescriptionDialog(wx.Dialog):
 			self,
 			wx.ID_ANY,
 			size=(600, 600),
-			style=wx.TE_MULTILINE | wx.TE_RICH
+			style=wx.TE_MULTILINE | wx.TE_RICH | wx.TE_READONLY
 		)
 		item.Bind(wx.EVT_KEY_DOWN, self.OnOutputKeyDown)
 		mainSizer.Add(item)

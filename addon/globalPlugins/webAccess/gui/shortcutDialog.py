@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,21 +19,20 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.01.03"
-
-__author__ = (
-		"Shirley Noel <shirley.noel@pole-emploi.fr>"
-		)
+__version__ = "2019.01.03"
+__author__ = "Shirley Noel <shirley.noel@pole-emploi.fr>"
 
 
 import wx
 
 import addonHandler
-addonHandler.initTranslation()
 import inputCore
-from logHandler import log
 import gui
+import speech
 import ui
+
+
+addonHandler.initTranslation()
 
 
 def show():
@@ -49,65 +48,64 @@ resultActionData = ""
 
 
 class Dialog(wx.Dialog):
-
-	# Singleton
-	_instance = None
-	def __new__(cls, *args, **kwargs):
-		if Dialog._instance is None:
-			return super(Dialog, cls).__new__(cls, *args, **kwargs)
-		return Dialog._instance
-
-
+	
 	def __init__(self, parent):
-		if Dialog._instance is not None:
-			return
-		Dialog._instance = self
-
 		super(Dialog, self).__init__(
-				parent,
-				style=wx.DEFAULT_DIALOG_STYLE | wx.MAXIMIZE_BOX | wx.RESIZE_BORDER,
-				)
-
+			parent,
+			style=wx.DEFAULT_DIALOG_STYLE | wx.MAXIMIZE_BOX | wx.RESIZE_BORDER,
+		)
+		
 		vSizer = wx.BoxSizer(wx.VERTICAL)
 		gridSizer = wx.GridBagSizer(10, 10)
-
-		gridSizer.Add(wx.StaticText(self, label=_("&Type shortcut")), pos=(0, 0), flag=wx.EXPAND)
-		inputShortcut = self.inputShortcut = wx.TextCtrl(self, value=_("NONE"))
-		self.inputShortcut.Bind(wx.EVT_SET_FOCUS, self.OnFocus)
-		self.inputShortcut.Bind(wx.EVT_KILL_FOCUS, self.OnBlur)
-
+		
+		gridSizer.Add(
+			wx.StaticText(self, label=_("&Type shortcut")),
+			pos=(0, 0),
+			flag=wx.EXPAND
+		)
+		inputShortcut = self.inputShortcut = wx.TextCtrl(
+			self,
+#			style=wx.TE_READONLY | wx.TAB_TRAVERSAL,
+			value=_("NONE")
+		)
+		self.inputShortcut.Bind(wx.EVT_SET_FOCUS, self.onInputShortcutFocus)
+		self.inputShortcut.Bind(wx.EVT_KILL_FOCUS, self.onInputShortcutBlur)
+		
 		gridSizer.Add(inputShortcut, pos=(0, 1), flag=wx.EXPAND)
-
-		gridSizer.Add(wx.StaticText(self, label=_("&Action to execute")), pos=(1, 0), flag=wx.EXPAND)
-
+		
+		gridSizer.Add(
+			wx.StaticText(self, label=_("&Action to execute")),
+			pos=(1, 0),
+			flag=wx.EXPAND
+		)
+		
 		global markerManager
 		choiceAction = self.action = wx.Choice(self)
-		actionsDict = markerManager.getActions ()
+		actionsDict = markerManager.getActions()
 		choiceAction.Append("", "")
 		for action in actionsDict:
 			choiceAction.Append(actionsDict[action], action)
-			
+		
 		gridSizer.Add(choiceAction, pos=(1, 1), flag=wx.EXPAND)
-
+		
 		gridSizer.AddGrowableCol(0)
 		gridSizer.AddGrowableCol(1)
-
+		
 		vSizer.Add(gridSizer, flag=wx.ALL | wx.EXPAND, border=10)
-
+		
 		vSizer.Add(
-				self.CreateSeparatedButtonSizer(wx.OK | wx.CANCEL),
-				flag=wx.EXPAND | wx.TOP | wx.DOWN | wx.RIGHT,
-				border=5
-				)
-
-		self.Bind(wx.EVT_BUTTON, self.OnOk, id=wx.ID_OK)
-		self.Bind(wx.EVT_BUTTON, self.OnCancel, id=wx.ID_CANCEL)
-
+			self.CreateSeparatedButtonSizer(wx.OK | wx.CANCEL),
+			flag=wx.EXPAND | wx.TOP | wx.DOWN | wx.RIGHT,
+			border=5
+		)
+		
+		self.Bind(wx.EVT_BUTTON, self.onOk, id=wx.ID_OK)
+		self.Bind(wx.EVT_BUTTON, self.onCancel, id=wx.ID_CANCEL)
+		
 		vSizer.AddSpacer(5)
 		self.Sizer = vSizer
-
-
-	def InitData(self):
+	
+	def initData(self):
 		self.Title = _("Shortcut dialog")
 		self.isModifierActive = False
 		self.inputShortcut.Value = _("NONE")
@@ -116,75 +114,87 @@ class Dialog(wx.Dialog):
 		resultShortcut = ""
 		global resultActionData
 		resultActionData = ""
-
-
-	def OnFocus(self, evt):
-		inputCore.manager._captureFunc = self.CaptureFunction
-
-
-	def CaptureFunction(self, gesture):
+	
+	def onInputShortcutFocus(self, evt):
+		inputCore.manager._captureFunc = self._captureFunc
+	
+	def _captureFunc(self, gesture):
 		oldValue = self.inputShortcut.Value
-		if not gesture.isModifier:
-			gestureIdentifier = None
-			# search the shortest gesture identifier(without source)
-			for identifier in gesture.identifiers:
-				if gestureIdentifier is None:
-					gestureIdentifier = identifier
-				elif len(identifier) < len(gestureIdentifier):
-					gestureIdentifier = identifier
-
-			oldValue = self.inputShortcut.Value
-			source, main = inputCore.getDisplayTextForGestureIdentifier(gestureIdentifier)
-
-			if gestureIdentifier not in ["kb:tab", "kb:shift+tab", "kb:escape", "kb:enter"] :
-				self.inputShortcut.Value = main
-				global resultShortcut
-				resultShortcut = gestureIdentifier
-				if oldValue != main:
-					wx.CallAfter(ui.message, _(u"Shortcut set to %s" % main))
-			elif gestureIdentifier == "kb:tab":
-				return True
-			elif gestureIdentifier == "kb:shift+tab":
-				return True
-			elif gestureIdentifier == "kb:escape":
-				self.OnCancel(None)
-			elif gestureIdentifier == "kb:enter":
-				speech.cancelSpeech()
-				self.OnOk(None)
+		if gesture.isModifier:
 			return False
-		else:
-			return False
+		gestureIdentifier = None
+		# Search the shortest gesture identifier (without source)
+		for identifier in gesture.normalizedIdentifiers:
+			if gestureIdentifier is None:
+				gestureIdentifier = identifier
+			elif len(identifier) < len(gestureIdentifier):
+				gestureIdentifier = identifier
 
+		source, main = inputCore.getDisplayTextForGestureIdentifier(
+			gestureIdentifier
+		)
 
-	def OnBlur(self, evt):
+		if gestureIdentifier not in [
+			"kb:tab",
+			"kb:shift+tab",
+			"kb:escape",
+			"kb:enter",
+		]:
+			# TODO: Why isn't braille refreshed?
+			self.inputShortcut.Value = main
+			global resultShortcut
+			resultShortcut = gestureIdentifier
+			if oldValue != main:
+				wx.CallAfter(
+					wx.CallLater,
+					100,
+					ui.message,
+					_(u"Shortcut set to %s" % main)
+				)
+		elif gestureIdentifier == "kb:tab":
+			return True
+		elif gestureIdentifier == "kb:shift+tab":
+			return True
+		elif gestureIdentifier == "kb:escape":
+			self.onCancel(None)
+		elif gestureIdentifier == "kb:enter":
+			speech.cancelSpeech()
+			self.onOk(None)
+		return False
+	
+	def onInputShortcutBlur(self, evt):
 		inputCore.manager._captureFunc = None
-
-
-	def OnOk(self, evt):
+	
+	def onOk(self, evt):
 		if resultShortcut == "":
-			gui.messageBox(_("You must define a shortcut"),
-											_("Error"), wx.OK | wx.ICON_ERROR, self)
+			gui.messageBox(
+				_("You must define a shortcut"),
+				_("Error"),
+				wx.OK | wx.ICON_ERROR,
+				self
+			)
 			self.inputShortcut.SetFocus()
 			return
 		if self.action.GetSelection() == -1:
-			gui.messageBox(_("You must define an action"),
-											_("Error"), wx.OK | wx.ICON_ERROR, self)
+			gui.messageBox(
+				_("You must define an action"),
+				_("Error"),
+				wx.OK | wx.ICON_ERROR,
+				self
+			)
 			self.action.SetFocus()
 			return
 		global resultActionData
 		resultActionData = self.action.GetClientData(self.action.Selection)
 		assert self.IsModal()
 		self.EndModal(wx.ID_OK)
-
-
-	def OnCancel(self, evt):
+	
+	def onCancel(self, evt):
 		self.EndModal(wx.ID_CANCEL)
-
-
+	
 	def ShowModal(self):
-		self.InitData()
+		self.initData()
 		self.Fit()
 		self.Center(wx.BOTH | wx.CENTER_ON_SCREEN)
 		self.inputShortcut.SetFocus()
 		return super(Dialog, self).ShowModal()
-

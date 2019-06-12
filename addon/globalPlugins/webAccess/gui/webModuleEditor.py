@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.01.02"
+__version__ = "2018.12.12"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>"
@@ -300,7 +300,7 @@ class Dialog(wx.Dialog):
 
 		url = self.webModuleUrl.Value.strip()
 		windowTitle = self.webModuleWindowTitle.Value.strip()
-		if len(url) < 1 and len(windowTitle) < 1:
+		if not (url or windowTitle):
 			gui.messageBox(
 				_("You must specify an URL or window name"),
 				_("Error"),
@@ -312,7 +312,7 @@ class Dialog(wx.Dialog):
 		
 		data = self.data
 		data["name"] = name
-		data["url"] = url.split(", ")
+		data["url"] = [item.strip() for item in url.split(",")]
 		data["windowTitle"] = windowTitle
 		
 		assert self.IsModal()

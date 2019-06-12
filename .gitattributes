@@ -1,3 +1,6 @@
+# Set default behaviour, in case users don't have core.autocrlf set.
+* text=auto
+
 # Try to ensure that po files in the repo does not include
 # source code line numbers.
 # Every person expected to commit po files should change their personal config file as described here:

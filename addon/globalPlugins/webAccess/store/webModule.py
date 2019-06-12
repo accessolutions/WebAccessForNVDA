@@ -21,7 +21,7 @@
 
 """Web Module data store."""
 
-__version__ = "2018.10.19"
+__version__ = "2019.04.11"
 
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
@@ -37,7 +37,8 @@ import globalVars
 from logHandler import log
 
 from .. import json
-from ..webModuleHandler.webModule import WebModule
+from ..packaging import version
+from ..webModuleHandler import InvalidApiVersion, WebModule
 from . import DispatchStore
 from . import DuplicateRefError
 from . import MalformedRefError
@@ -249,6 +250,10 @@ class WebModulePythonFileStore(Store):
 				u"Failed to compile module: {name}".format(name=name)
 			)
 			raise
+		apiVersion = getattr(mod, "API_VERSION", None)
+		apiVersion = version.parse(apiVersion or "")
+		if apiVersion != WebModule.API_VERSION:
+			raise InvalidApiVersion(apiVersion)
 		ctor = getattr(mod, "WebModule", None)
 		if ctor is None:
 			msg = (

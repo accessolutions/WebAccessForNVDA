@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2018.12.04"
+__version__ = "2019.04.11"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -46,13 +46,22 @@ from .. import json
 from ..packaging import version
 from .. import presenter
 from .. import ruleHandler
-from ..ruleHandler import contextTypes
+from ..ruleHandler import ruleTypes
 from ..webAppLib import *
+
+
+class NewerFormatVersion(version.InvalidVersion):
+	pass
+
+
+class InvalidApiVersion(version.InvalidVersion):
+	pass
 
 
 class WebModule(baseObject.ScriptableObject):
 	
-	FORMAT_VERSION_STR = "0.3-dev"
+	API_VERSION = version.parse("0.1")
+	FORMAT_VERSION_STR = "0.4-dev"
 	FORMAT_VERSION = version.parse(FORMAT_VERSION_STR)
 	
 	url = None
@@ -71,7 +80,7 @@ class WebModule(baseObject.ScriptableObject):
 		self.widgetManager = widgets.WidgetManager(self)
 		self.activeWidget = None
 		self.presenter = presenter.Presenter(self)
-		self.markerManager = ruleHandler.MarkerManager(self)
+		self.ruleManager = self.markerManager = ruleHandler.MarkerManager(self)
 
 		self.load(data)
 		if self.name is None:
@@ -81,8 +90,27 @@ class WebModule(baseObject.ScriptableObject):
 	def __str__(self):
 		return u"WebModule {name}".format(
 			name=self.name if self.name is not None else "<noName>"
-			)
-
+		)
+	
+	def chooseNVDAObjectOverlayClasses(self, obj, clsList):
+		"""
+		Choose NVDAObject overlay classes for a given NVDAObject.
+		
+		This works in a similar manner as the methods with the same name in
+		AppModule and GlobalPlugin but comes into play much later: It is
+		called only when the TreeInterceptor is set on the NVDAObject. Hence,
+		if removing a class from the list, beware its earlier presence might
+		have had side effects.
+		
+		Also, this method should return:
+		 - A sequence of the newly classes for which the method
+		   `initOverlayClass` should be called once the object is mutated.
+		 - `True`, if the object should be mutated but no method should
+		   be called.
+		 - Any negative value, if the object should not be mutated at all.
+		"""
+		return False
+	
 	def dump(self):
 		data = {"formatVersion": self.FORMAT_VERSION_STR}
 		
@@ -90,7 +118,7 @@ class WebModule(baseObject.ScriptableObject):
 			"name": self.name,
 			"url": self.url,
 			"windowTitle": self.windowTitle,
-			}
+		}
 		
 		if self.markerManager is None:
 			# Do not risk to erase an existing data file while in an
@@ -98,7 +126,7 @@ class WebModule(baseObject.ScriptableObject):
 			raise Exception(
 				"WebModule has no marker manager: {name}"
 				"".format(name=self.name)
-				)
+			)
 		else:
 			queriesData = self.markerManager.getQueriesData()
 			if len(queriesData) > 0:
@@ -129,21 +157,128 @@ class WebModule(baseObject.ScriptableObject):
 			# TODO: Re-implement custom field labels?
 			if "FieldLabels" in data:
 				log.warning("FieldLabels not supported")
+		
 		formatVersion = version.parse(formatVersion)
+		
+		rules = data.get("Rules", [])
+		
 		if formatVersion < version.parse("0.2"):
-			for rule in data.get("Rules", []):
+			for rule in rules:
 				if "context" in rule:
 					rule["requiresContext"] = rule.pop("context")
 				if "isContext" in rule:
 					if rule.get("isContext"):
-						rule["definesContext"] = contextTypes.PAGE_ID
+						rule["definesContext"] = "pageId"
 					del rule["isContext"]
+		
 		if formatVersion < version.parse("0.3"):
-			for rule in data.get("Rules", []):
+			for rule in rules:
 				if rule.get("autoAction") == "noAction":
 					del rule["autoAction"]
+		
+		if formatVersion < version.parse("0.4"):
+			markerKeys = (
+				"gestures", "autoAction", "skip",
+				"multiple", "formMode", "sayName",
+			)
+			splitTitles = []
+			splitMarkers = []
+			for rule in rules:
+				rule.setdefault("type", ruleTypes.MARKER)
+				if rule.get("definesContext") and rule.get("isPageTitle"):
+						split = rule.copy()
+						del rule["isPageTitle"]
+						split["type"] = ruleTypes.PAGE_TITLE_1
+						split["name"] = u"{} (title)".format(rule["name"])
+						for key in markerKeys:
+							try:
+								del split[key]
+							except KeyError:
+								pass
+						splitTitles.append(split)
+						log.warning((
+							u'Web module \"{module}\" - rule "{rule}": '
+							u'Splitting "isPageTitle" from "definesContext".'
+						).format(
+							module=data.get("WebModule", {}).get("name"),
+							rule=rule.get("name")
+						))
+				elif rule.get("definesContext"):
+					if rule["definesContext"] in ("pageId", "pageType"):
+						rule["type"] = ruleTypes.PAGE_TYPE
+					else:
+						rule["type"] = ruleTypes.PARENT
+					reason = "definesContext"
+				elif rule.get("isPageTitle"):
+					rule["type"] = ruleTypes.PAGE_TITLE_1
+					reason = "isPageTitle"
+				else:
+					reason = None
+				if reason:
+					if (
+						rule.get("gestures")
+						or rule.get("autoAction")
+						or not rule.get("skip", False)
+					):
+						split = rule.copy()
+						del split[reason]
+						split["type"] = ruleTypes.MARKER
+						split["name"] = u"{} (marker)".format(rule["name"])
+						splitMarkers.append(split)
+						log.warning((
+							u'Web module \"{module}\" - rule "{rule}": '
+							u'Splitting "{reason}" from marker.'
+						).format(
+							module=data.get("WebModule", {}).get("name"),
+							rule=rule.get("name"),
+							reason=reason
+						))
+					for key in markerKeys:
+						try:
+							del rule[key]
+						except KeyError:
+							pass
+			
+			rules.extend(splitTitles)
+			rules.extend(splitMarkers)
+
+			for rule in rules:
+				if rule.get("requiresContext"):
+					rule["contextPageType"] = rule["requiresContext"]
+					log.warning(
+						u"Web module \"{module}\" - rule \"{rule}\": "
+						u"Property \"requiresContext\" has been copied to " 
+						u"\"contextPageType\", which is probably not accurate. "
+						u"Please redefine the required context.".format(
+							module=data.get("WebModule", {}).get("name"),
+							rule=rule.get("name")
+						)
+					)
+				
+				for key in (
+					"definesContext",
+					"requiresContext",
+					"isPageTitle"
+				):
+					try:
+						del rule[key]
+					except KeyError:
+						pass
+				
+				# If it is upper-case (as in non-normalized identifiers),
+				# `keyboardHandler.KeyboardInputGesture.getDisplayTextForIdentifier`
+				# does not properly handle the NVDA key. 
+				gestures = rule.get("gestures", {})
+				# Get ready for Python 3: dict.items will return an iterator.
+				for key, value in list(gestures.items()):
+					if "NVDA" not in key:
+						continue
+					del gestures[key]
+					key = key.replace("NVDA", "nvda")
+					gestures[key] = value				
+		
 		if formatVersion > self.FORMAT_VERSION:
-			raise version.InvalidVersion(
+			raise NewerFormatVersion(
 				"WebModule format version not supported: {ver}".format(
 					ver=formatVersion
 				)
@@ -172,10 +307,22 @@ class WebModule(baseObject.ScriptableObject):
 		del items
 		return True
 	
+	_cache_pageTitle = False
+	
 	def _get_pageTitle(self):
-		title = self.markerManager.getPageTitle ()
-		if title is None:
-			title = api.getForegroundObject().windowText
+		title = self.activePageTitle
+		if not title:
+			try:
+				title = self.markerManager.getPageTitle()
+			except:
+				log.exception(
+					u'Error while retrieving page title'
+					u' in WebModule "{}"'.format(
+						self.name
+					)
+				)
+		if not title:
+			title = api.getForegroundObject().name
 		return title
 
 	def getPresentationConfig(self):
@@ -210,24 +357,23 @@ class WebModule(baseObject.ScriptableObject):
 	def claimForJABObject(self, obj):
 		return False
 
-	def script_sayTitle(self, gesture):
-		titleObj = api.getForegroundObject()
-		windowTitle = titleObj.windowText
-		try:
-			webAppTitle = self.pageTitle
-		except Exception, e:
-			log.exception(u"Error retrieving webApp title: %s" % e)
-			webAppTitle = windowTitle
-		if webAppTitle is None or webAppTitle == "":
-			webAppTitle = windowTitle
-		ui.message (webAppTitle)
+	def script_title(self, gesture):
+		title = self.pageTitle
+		repeatCount = scriptHandler.getLastScriptRepeatCount()
+		if repeatCount == 0:
+			ui.message(title)
+		elif repeatCount == 1:
+			speech.speakSpelling(title)
+		else:
+			if api.copyToClip(title):
+				ui.message(_("%s copied to clipboard") % title)
 
-	def script_sayWebAppName(self, gesture):
+	def script_sayWebModuleName(self, gesture):
 		# Translators: Speak name of current web module
 		ui.message(_(u"Current web module is: {name}").format(name=self.name))
 
 	__gestures = {
-		"kb:nvda+t": "sayTitle",
-		"kb:nvda+shift+t": "sayWebAppName",
+		"kb:nvda+t": "title",
+		"kb:nvda+shift+t": "sayWebModuleName",
 	}
 	

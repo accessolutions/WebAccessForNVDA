@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ Overridden NVDA functions:
 
 from __future__ import absolute_import
 
-__version__ = "2018.12.04"
+__version__ = "2019.04.11"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -66,7 +66,6 @@ import time
 import wx
 
 import addonHandler
-addonHandler.initTranslation()
 import api
 import baseObject
 import braille
@@ -79,23 +78,28 @@ import gui
 import inputCore
 from logHandler import log
 import NVDAObjects
+from NVDAObjects.IAccessible.MSHTML import MSHTML
+from NVDAObjects.IAccessible.ia2Web import Ia2Web
+from NVDAObjects.IAccessible.mozilla import Mozilla
 import NVDAObjects.JAB
 import scriptHandler
 import speech
 import tones
 import ui
 import virtualBuffers
-import queueHandler
 
 from . import json
 from . import nodeHandler
+from . import overlay
 from . import presenter
 from . import webAppLib
-from .packaging import version
 from .webAppLib import *
 from .webAppScheduler import WebAppScheduler
 from . import webModuleHandler
 from . import widgets
+
+
+addonHandler.initTranslation()
 
 
 TRACE = lambda *args, **kwargs: None  # @UnusedVariable
@@ -167,7 +171,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		virtualBuffers.VirtualBuffer.save_changeNotify = virtualBuffers.VirtualBuffer.changeNotify
 		virtualBuffers.VirtualBuffer.changeNotify = hook_changeNotify
 		virtualBuffers.VirtualBuffer.save_loadBufferDone = virtualBuffers.VirtualBuffer._loadBufferDone  
-		virtualBuffers.VirtualBuffer._loadBufferDone = hook_loadBufferDone
+		# virtualBuffers.VirtualBuffer._loadBufferDone = hook_loadBufferDone
 		virtualBuffers.VirtualBuffer.save_terminate = virtualBuffers.VirtualBuffer.terminate 
 		virtualBuffers.VirtualBuffer.terminate = hook_terminate
 		
@@ -191,10 +195,18 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		scheduler.send(eventName="stop")
 		
 	def chooseNVDAObjectOverlayClasses(self, obj, clsList):
-		if activeWebApp is None:
-			return
-		if hasattr(activeWebApp, 'chooseNVDAObjectOverlayClasses'):
-			activeWebApp.chooseNVDAObjectOverlayClasses(obj, clsList)
+		if any(
+			True
+			for cls in (Ia2Web, Mozilla, MSHTML)
+			if cls in clsList
+		):
+			if obj.role in (
+				controlTypes.ROLE_DIALOG,
+				controlTypes.ROLE_DOCUMENT,
+			):
+				clsList.insert(0, overlay.WebAccessDocument)
+				return
+			clsList.insert(0, overlay.WebAccessObject)
 	
 	def script_showWebAccessGui(self, gesture):  # @UnusedVariable
 		wx.CallAfter(self.showWebAccessGui)
@@ -227,6 +239,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			webModule = obj.getWebApp()
 			if webModule is not None:
 				context["webModule"] = webModule
+				context["pageTitle"] = webModule.pageTitle
 		menu.show(context)
 	
 	def script_debugWebModule(self, gesture):  # @UnusedVariable
@@ -432,7 +445,8 @@ def getWebApp(self):
 	# Before anything, check if the webApp window title matches the actuel one.
 	if len(obj.windowText) > 0:
 		for app in webModuleHandler.getWebModules():
-			if app.windowTitle is not None and len(app.windowTitle) > 0 and app.windowTitle in obj.windowText:
+			# TODO: Chrome: Retrieve proper window title
+			if app.windowTitle and app.windowTitle in obj.windowText:
 				webApp = app
 				break
 
@@ -580,35 +594,6 @@ def hook_findScript(gesture, searchWebApp=True):
 		if func:
 			return func
 
-	# webApp scripts
-	webApp = focus.getWebApp()
-	if webApp is not None and searchWebApp is True:
-		# Search if a place marker uses this shortcut
-		if webApp.markerManager:
-			func = webApp.markerManager.getMarkerScript(gesture, globalMapScripts)
-			if func:
-				return func
-		func = scriptHandler._getObjScript(webApp.widgetManager, gesture, globalMapScripts)
-		if func:
-			return func
-		activeWidget = getattr(webApp, 'activeWidget', None)
-		if activeWidget is not None:
-			func = scriptHandler._getObjScript(activeWidget, gesture, globalMapScripts)
-			if func:
-				return func
-						
-		func = scriptHandler._getObjScript(webApp, gesture, globalMapScripts)
-		if func:
-			return func
-# 		ti = webApp.treeInterceptor
-# 		if hasattr(ti, 'nodeManager') and (useInternalBrowser is True or activeWidget is not None):
-# 			func = scriptHandler._getObjScript(webApp.presenter, gesture, globalMapScripts)
-# 			if func:
-# 				return func
-# 			func = scriptHandler._getObjScript(ti.nodeManager, gesture, globalMapScripts)
-# 			if func:
-# 				return func
-
 	# App module default scripts.
 	app = focus.appModule
 	if app:
@@ -621,6 +606,17 @@ def hook_findScript(gesture, searchWebApp=True):
 		if func:
 			return func
 
+	# webApp scripts
+	webApp = focus.getWebApp()
+	if webApp is not None and searchWebApp is True:
+		func = scriptHandler._getObjScript(webApp, gesture, globalMapScripts)
+		if func:
+			return func
+		if webApp.markerManager:
+			func = webApp.markerManager.getMarkerScript(gesture, globalMapScripts)
+			if func:
+				return func
+	
 	# Tree interceptor level.
 	treeInterceptor = focus.treeInterceptor
 	if treeInterceptor and treeInterceptor.isReady:
@@ -628,8 +624,8 @@ def hook_findScript(gesture, searchWebApp=True):
 		from browseMode import BrowseModeTreeInterceptor
 		if isinstance(treeInterceptor,BrowseModeTreeInterceptor):
 			func=treeInterceptor.getAlternativeScript(gesture,func)
-			if func and (not treeInterceptor.passThrough or getattr(func,"ignoreTreeInterceptorPassThrough",False)) and (useInternalBrowser is False or getattr(activeWebApp, 'activeWidget', None) is None):
-				return func
+		if func and (not treeInterceptor.passThrough or getattr(func,"ignoreTreeInterceptorPassThrough",False)) and (useInternalBrowser is False or getattr(activeWebApp, 'activeWidget', None) is None):
+			return func
 
 	# NVDAObject level.
 	func = scriptHandler._getObjScript(focus, gesture, globalMapScripts)
@@ -761,37 +757,77 @@ def appModule_nvda_event_NVDAObject_init_patched(self, obj):
 def showWebModulesLoadErrors():
 	errors = []
 	webModuleHandler.getWebModules(errors=errors)
-	if errors:
-		invalidVersionRefsStr = []
-		for ref, exc_info in errors:
-			if isinstance(exc_info[1], version.InvalidVersion):
-				if isinstance(ref, tuple):
-					label = ref[-1]
-					if len(ref) > 2 and ref[0] == "addons":
-						label = u"{webModuleName} ({addonName})".format(
-							webModuleName=ref[-1],
-							addonName=ref[1]
-						)
-				else:
-					label = ref
-				invalidVersionRefsStr.append(label)
-			msg = None
-			if len(invalidVersionRefsStr) == 1:
-				msg = _(
-					"This web module has been created by a newer version of "
-					"Web Access for NVDA and could not be loaded:"
+	if not errors:
+		return
+	
+	class Case(object):
+		__slots__ = ("excType", "msgSingular", "msgPlural", "refs")
+		def __init__(self, *args):
+			self.excType, self.msgSingular, self.msgPlural = args
+			self.refs = []
+	
+	cases = (
+		Case(
+			webModuleHandler.NewerFormatVersion,
+			_(
+				"This web module has been created by a newer version of "
+				"Web Access for NVDA and could not be loaded:"
+			),
+			_(
+				"These web modules have been created by a newer version of "
+				"Web Access for NVDA and could not be loaded:"
+			)
+		),
+		Case(
+			webModuleHandler.InvalidApiVersion,
+			_(
+				"This Python web module uses a different API version of "
+				"Web Access for NVDA and could not be loaded:"
+			),
+			_(
+				"These Python web modules use a different API version of "
+				"Web Access for NVDA and could not be loaded:"
+			)
+		),
+		Case(
+			None,
+			_(
+				"An unexpected error occurred while attempting to load this "
+				"web module:"
+			),
+			_(
+				"An unexpected error occurred while attempting to load these "
+				"web modules:"
+			)
+		)
+	)
+	for ref, exc_info in errors:
+		if isinstance(ref, tuple):
+			label = ref[-1]
+			if len(ref) > 2 and ref[0] == "addons":
+				label = u"{webModuleName} ({addonName})".format(
+					webModuleName=ref[-1],
+					addonName=ref[1]
 				)
-			elif len(invalidVersionRefsStr) > 1:
-				msg = _(
-					"These web modules have been created by a newer version of "
-					"Web Access for NVDA and could not be loaded:"
-				)
-			if msg:
-				msg = os.linesep.join([msg] + invalidVersionRefsStr)
-				wx.CallAfter(
-					gui.messageBox,
-					message=msg,
-					caption=_("Web Access for NVDA"),
-					style=wx.ICON_WARNING,
-					parent=gui.mainFrame
-				)
+		else:
+			label = ref
+		for case in cases:
+			if not case.excType or isinstance(exc_info[1], case.excType):
+				case.refs.append(label)
+				break
+	parts = []
+	for case in cases:
+		if case.refs:
+			parts.append("\n".join(
+				[case.msgSingular if len(case.refs) == 1 else case.msgPlural]
+				+ case.refs
+			))
+	if parts:
+		msg = "\n\n".join(parts)
+		wx.CallAfter(
+			gui.messageBox,
+			message=msg,
+			caption=_("Web Access for NVDA"),
+			style=wx.ICON_WARNING,
+			parent=gui.mainFrame
+		)
