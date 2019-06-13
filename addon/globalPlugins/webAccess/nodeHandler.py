@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.01.20"
+__version__ = "2019.06.13"
 
 __authors__ = (
 	u"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
@@ -432,23 +432,23 @@ class NodeField(baseObject.AutoPropertyObject):
 			self.role = 0
 		elif nodeType == "control":
 			self.control = attrs
-			self.name = self.control.get("name", "")
-			self.role = self.control["role"]
-			self.controlIdentifier = self.control.get("controlIdentifier_ID", 0)
-			self.tag = self.control.get("IAccessible2::attribute_tag")
+			self.name = attrs.get("name", "")
+			self.role = attrs["role"]
+			self.controlIdentifier = attrs.get("controlIdentifier_ID", 0)
+			self.tag = attrs.get("IAccessible2::attribute_tag")
 			if not self.tag:
-				self.tag = self.control.get("IHTMLDOMNode::nodeName", "")
-			self.id = self.control.get("IAccessible2::attribute_id")
+				self.tag = attrs.get("IHTMLDOMNode::nodeName", "")
+			self.id = attrs.get("IAccessible2::attribute_id")
 			if not self.id:
-				self.id = self.control.get("HTMLAttrib::id", "")
-			self.className = self.control.get("IAccessible2::attribute_class")
+				self.id = attrs.get("HTMLAttrib::id", "")
+			self.className = attrs.get("IAccessible2::attribute_class")
 			if not self.className:
-				self.className = self.control.get("HTMLAttrib::class")
+				self.className = attrs.get("HTMLAttrib::class")
 			if not self.className:
-				self.className = self.control.get("HTMLAttrib::className", "")
-			self.src = self.control.get("IAccessible2::attribute_src")
+				self.className = attrs.get("HTMLAttrib::className", "")
+			self.src = attrs.get("IAccessible2::attribute_src")
 			if not self.src:
-				self.src = self.control.get("HTMLAttrib::src", "")
+				self.src = attrs.get("HTMLAttrib::src", "")
 			self.children = []
 		else:
 			raise ValueError(
