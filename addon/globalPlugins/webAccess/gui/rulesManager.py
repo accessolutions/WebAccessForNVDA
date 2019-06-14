@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.04.11"
+__version__ = "2019.06.14"
 __author__ = u"Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
@@ -398,6 +398,9 @@ class Dialog(wx.Dialog):
 		self.refreshRuleList(selectObj=context.get("rule"))
 	
 	def getSelectedObject(self):
+		selection = self.tree.Selection
+		if not selection.IsOk():
+			return None
 		return TreeCtrl_GetItemData(self.tree, self.tree.Selection).obj
 	
 	def getSelectedRule(self):
@@ -460,7 +463,12 @@ class Dialog(wx.Dialog):
 			# the tree before reporting the selection.
 			self.tree.SelectItem(shared.selectTreeItem)
 			return
-		wx.CallAfter(self.tree.Unselect)
+		
+		def unselect():
+			self.tree.Unselect()
+			self.onTreeSelChanged(None)
+		
+		wx.CallAfter(unselect)
 	
 	def onActiveOnlyCheckBox(self, evt):
 		global lastActiveOnly
@@ -559,7 +567,10 @@ class Dialog(wx.Dialog):
 		evt.Skip()
 	
 	def onTreeSelChanged(self, evt):
-		if evt.EventObject is None or evt.EventObject.IsBeingDeleted():
+		if (
+			evt is not None
+			and (evt.EventObject is None or evt.EventObject.IsBeingDeleted())
+		):
 			return
 		rule = self.getSelectedRule()
 		if not rule:
