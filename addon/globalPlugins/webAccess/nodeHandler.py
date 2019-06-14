@@ -605,20 +605,19 @@ class NodeField(baseObject.AutoPropertyObject):
 					found = False
 				continue
 			candidateValue = getattr(self, prop)
-			if candidateValue is None:
-				candidateValues = (None,) 
-			elif prop == "className": 
-				candidateValues = candidateValue.split(" ")
-			elif prop == "states":
-				candidateValues = candidateValue
+			candidateValues = (candidateValue,)
+			if prop == "className":
+				if candidateValue is not None: 
+					candidateValues = candidateValue.split(" ")
+			elif prop in ("role", "states"):
 				try:
 					allowedValues = [int(value) for value in allowedValues]
 				except ValueError:
 					log.error((
 						"Invalid search criterion: {key}={allowedValues!r}"
 					).format(**locals()))
-			else:
-				candidateValues = (candidateValue,)
+				if prop == "states":
+					candidateValues = candidateValue
 			for candidateValue in candidateValues:
 				if test == "eq":
 					if self.search_eq(allowedValues, candidateValue):

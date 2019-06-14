@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2019.06.13"
+__version__ = "2019.06.14"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -276,6 +276,11 @@ class WebModule(baseObject.ScriptableObject):
 					del gestures[key]
 					key = key.replace("NVDA", "nvda")
 					gestures[key] = value				
+		
+		if formatVersion < version.parse("0.5"):
+			for rule in rules:
+				if "role" in rule:
+					rule["role"] = unicode(rule["role"])
 		
 		if formatVersion > self.FORMAT_VERSION:
 			raise NewerFormatVersion(

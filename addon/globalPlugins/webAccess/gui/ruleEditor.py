@@ -83,17 +83,6 @@ def setIfNotEmpty(dic, key, value):
 		dic[key] = value
 
 
-def convRoleIntegerToString(role):
-	return controlTypes.roleLabels.get(role, "")
-
-
-def convRoleStringToInteger(role):
-	for (roleInteger, roleString) in controlTypes.roleLabels.items():
-		if role == roleString:
-			return roleInteger
-	return None
-
-
 def captureValues(expr):
 	"""
 	Yields value, startPos, endPos
@@ -113,6 +102,28 @@ def translateExprValues(expr, func):
 		buf[start:end] = dest
 		offset += len(dest) - len(src)
 	return u"".join(buf)
+
+
+def translateRoleIdToLbl(expr):
+	def translate(value):
+		try:
+			return controlTypes.roleLabels[int(value)]
+		except (KeyError, ValueError):
+			return value
+	return translateExprValues(expr, translate)
+
+
+def translateRoleLblToId(expr):
+	def translate(value):
+		for key, candidate in iteritems(controlTypes.roleLabels):
+			if candidate == value:
+				return unicode(key)
+		return value
+	return translateExprValues(expr, translate)
+
+
+def getRoleLblForInt(role):
+	return controlTypes.roleLabels.get(role, "")
 
 
 def translateStatesIdToLbl(expr):
@@ -357,10 +368,7 @@ class RuleCriteriaEditor(wx.Dialog):
 			if key in data:
 				value = data[key]
 				if key == "role":
-					try:
-						value = controlTypes.roleLabels[value]
-					except KeyError:
-						log.error(u"Unexpected role: {}".format(value))
+					value = translateRoleIdToLbl(value)
 				elif key == "states":
 					value = translateStatesIdToLbl(value)
 				parts.append(u"{} {}".format(stripAccel(label), value))
@@ -458,7 +466,7 @@ class RuleCriteriaEditor(wx.Dialog):
 		classChoices = []
 		srcChoices = []
 		while node is not None:
-			roleChoices.append(convRoleIntegerToString(node.role))
+			roleChoices.append(getRoleLblForInt(node.role))
 			tagChoices.append(node.tag)
 			idChoices.append(node.id)
 			classChoices.append(node.className)
@@ -475,7 +483,7 @@ class RuleCriteriaEditor(wx.Dialog):
 		self.srcCombo.Set(srcChoices)
 		
 		self.searchText.Value = data.get("text", "")
-		self.roleCombo.Value = convRoleIntegerToString(data.get("role"))
+		self.roleCombo.Value = translateRoleIdToLbl(data.get("role", ""))
 		self.tagCombo.Value = data.get("tag", "")
 		self.idCombo.Value = data.get("id", "")
 		self.classCombo.Value = data.get("className", "")
@@ -489,10 +497,32 @@ class RuleCriteriaEditor(wx.Dialog):
 		
 		setIfNotEmpty(data, "text", self.searchText.Value)
 		
-		roleString = self.roleCombo.Value.strip()
-		role = convRoleStringToInteger(roleString)
-		if role is not None:
-			data["role"] = role
+		roleLblExpr = self.roleCombo.Value
+		if roleLblExpr:
+			if not EXPR.match(roleLblExpr):
+				gui.messageBox(
+					message=(
+						_('Syntax error in the field "{field}"')
+					).format(field=stripAccelAndColon(self.FIELDS["role"])),
+					caption=_("Error"),
+					style=wx.OK | wx.ICON_ERROR,
+					parent=self
+				)
+				self.roleCombo.SetFocus()
+				return
+			roleIdExpr = translateRoleLblToId(roleLblExpr)
+			if not EXPR_INT.match(roleIdExpr):
+				gui.messageBox(
+					message=(
+						_('Unknown identifier in the field "{field}"')
+					).format(field=stripAccelAndColon(self.FIELDS["role"])),
+					caption=_("Error"),
+					style=wx.OK | wx.ICON_ERROR,
+					parent=self
+				)
+				self.roleCombo.SetFocus()
+				return
+			data["role"] = roleIdExpr
 		
 		setIfNotEmpty(data, "tag", self.tagCombo.Value)
 		setIfNotEmpty(data, "id", self.idCombo.Value)

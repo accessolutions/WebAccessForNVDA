@@ -1272,10 +1272,7 @@ class VirtualMarkerQuery(MarkerQuery):
 			kwargs["maxIndex"] = self.index or 1
 		kwargs["relativePath"] = dic.get("relativePath")
 		self.addSearchKwargs(kwargs, "text", text)
-		# TODO: Why store role as int and not allow !/|/& ?
-		role = dic.get("role", None)
-		if role:
-			kwargs["eq_role"] = role
+		self.addSearchKwargs(kwargs, "role", dic.get("role"))
 		self.addSearchKwargs(kwargs, "tag", dic.get("tag"))
 		self.addSearchKwargs(kwargs, "id", dic.get("id"))
 		self.addSearchKwargs(kwargs, "className", dic.get("className"))
