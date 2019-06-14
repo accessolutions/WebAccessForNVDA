@@ -1083,18 +1083,20 @@ class VirtualMarkerQuery(MarkerQuery):
 		if prop == "className":
 			expr = expr.replace(" ", "&")
 		for andIndex, expr in enumerate(expr.split("&")):
+			expr = expr.strip()
 			eq = []
 			notEq = []
 			in_ = []
 			notIn = []
 			for expr in expr.split("|"):
+				expr = expr.strip()
 				if not expr:
 					continue
 				if expr[0] == "!":
 					if "*" in expr:
-						notIn.append(expr[1:])
+						notIn.append(expr[1:].strip())
 					else:
-						notEq.append(expr[1:])
+						notEq.append(expr[1:].strip())
 				else:
 					if "*" in expr:
 						in_.append(expr)
