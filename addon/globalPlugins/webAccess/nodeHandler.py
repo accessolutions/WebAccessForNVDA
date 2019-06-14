@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.06.13"
+__version__ = "2019.06.14"
 
 __authors__ = (
 	u"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
@@ -434,6 +434,7 @@ class NodeField(baseObject.AutoPropertyObject):
 			self.control = attrs
 			self.name = attrs.get("name", "")
 			self.role = attrs["role"]
+			self.states = attrs["states"]
 			self.controlIdentifier = attrs.get("controlIdentifier_ID", 0)
 			self.tag = attrs.get("IAccessible2::attribute_tag")
 			if not self.tag:
@@ -604,8 +605,18 @@ class NodeField(baseObject.AutoPropertyObject):
 					found = False
 				continue
 			candidateValue = getattr(self, prop)
-			if prop == "className" and candidateValue is not None:
+			if candidateValue is None:
+				candidateValues = (None,) 
+			elif prop == "className": 
 				candidateValues = candidateValue.split(" ")
+			elif prop == "states":
+				candidateValues = candidateValue
+				try:
+					allowedValues = [int(value) for value in allowedValues]
+				except ValueError:
+					log.error((
+						"Invalid search criterion: {key}={allowedValues!r}"
+					).format(**locals()))
 			else:
 				candidateValues = (candidateValue,)
 			for candidateValue in candidateValues:

@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.04.11"
+__version__ = "2019.06.14"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -37,6 +37,11 @@ from .. import ruleHandler
 from ..ruleHandler import ruleTypes
 from .. import webModuleHandler
 
+try:
+	from six import iteritems
+except ImportError:
+	# NVDA version < 2018.3
+	iteritems = dict.iteritems
 
 addonHandler.initTranslation()
 
@@ -52,10 +57,26 @@ LABEL_ACCEL = re.compile("&(?!&)")
 Compiled pattern used to strip accelerator key indicators from labels.
 """
 
+EXPR = re.compile("^ *!? *[^!&|]+( *[&|] *!? *[^!&|]+)*$")
+"""
+Compiled pattern used to validate expressions.
+"""
+
+EXPR_INT = re.compile("^ *!? *[0-9]+( *[&|] *!? *[0-9]+)* *$")
+"""
+Compiled pattern used to validate expressions whose values are integers.
+"""
+
+EXPR_VALUE = re.compile("(([^!&| ])+( (?=[^!&|]))*)+")
+"""
+Compiled pattern used to capture values in expressions.
+"""
 
 def stripAccel(label):
 	return LABEL_ACCEL.sub("", label)
 
+def stripAccelAndColon(label):
+	return stripAccel(label).rstrip(":").rstrip()
 
 def setIfNotEmpty(dic, key, value):
 	if value and value.strip():
@@ -71,6 +92,52 @@ def convRoleStringToInteger(role):
 		if role == roleString:
 			return roleInteger
 	return None
+
+
+def captureValues(expr):
+	"""
+	Yields value, startPos, endPos
+	"""
+	for match in EXPR_VALUE.finditer(expr):
+		span = match.span()
+		yield expr[span[0]:span[1]], span[0], span[1]
+
+
+def translateExprValues(expr, func):
+	buf = list(expr)
+	offset = 0
+	for src, start, end in captureValues(expr):
+		dest = unicode(func(src))
+		start += offset
+		end += offset
+		buf[start:end] = dest
+		offset += len(dest) - len(src)
+	return u"".join(buf)
+
+
+def translateStatesIdToLbl(expr):
+	def translate(value):
+		try:
+			return controlTypes.stateLabels[int(value)]
+		except (KeyError, ValueError):
+			return value
+	return translateExprValues(expr, translate)
+
+
+def translateStatesLblToId(expr):
+	def translate(value):
+		for key, candidate in iteritems(controlTypes.stateLabels):
+			if candidate == value:
+				return unicode(key)
+		return value
+	return translateExprValues(expr, translate)
+
+
+def getStatesLblExprForSet(states):
+	return " & ".join((
+		controlTypes.stateLabels.get(state, state)
+		for state in states
+	))
 
 
 def safeDelete(dic, key):
@@ -271,7 +338,9 @@ class RuleCriteriaEditor(wx.Dialog):
 		# Translator: Field label on the RuleCriteriaEditor dialog.
 		("className", pgettext("webAccess.ruleCriteria", u"&Class:")),
 		# Translator: Field label on the RuleCriteriaEditor dialog.
-		("src", pgettext("webAccess.ruleCriteria", u"Image &source:")),
+		("states", pgettext("webAccess.ruleCriteria", u"&States:")),
+		# Translator: Field label on the RuleCriteriaEditor dialog.
+		("src", pgettext("webAccess.ruleCriteria", u"Image s&ource:")),
 		(
 			"relativePath",
 			# Translator: Field label on the RuleCriteriaEditor dialog.
@@ -292,6 +361,8 @@ class RuleCriteriaEditor(wx.Dialog):
 						value = controlTypes.roleLabels[value]
 					except KeyError:
 						log.error(u"Unexpected role: {}".format(value))
+				elif key == "states":
+					value = translateStatesIdToLbl(value)
 				parts.append(u"{} {}".format(stripAccel(label), value))
 		if parts:
 			return "\n".join(parts)
@@ -337,6 +408,11 @@ class RuleCriteriaEditor(wx.Dialog):
 		item = self.classCombo = wx.ComboBox(self)
 		fgSizer.Add(item, flag=wx.EXPAND)
 		
+		item = wx.StaticText(self, label=self.FIELDS["states"])
+		fgSizer.Add(item)
+		item = self.statesCombo = wx.ComboBox(self)
+		fgSizer.Add(item, flag=wx.EXPAND)
+		
 		item = wx.StaticText(self, label=self.FIELDS["src"])
 		fgSizer.Add(item)
 		item = self.srcCombo = wx.ComboBox(self)
@@ -376,6 +452,7 @@ class RuleCriteriaEditor(wx.Dialog):
 		if node.previousTextNode is not None:
 			textChoices.append("<" + node.previousTextNode.text)
 		roleChoices = []
+		statesChoices = []
 		tagChoices = []
 		idChoices = []
 		classChoices = []
@@ -385,6 +462,7 @@ class RuleCriteriaEditor(wx.Dialog):
 			tagChoices.append(node.tag)
 			idChoices.append(node.id)
 			classChoices.append(node.className)
+			statesChoices.append(getStatesLblExprForSet(node.states))
 			srcChoices.append(node.src)
 			node = node.parent
 		
@@ -393,6 +471,7 @@ class RuleCriteriaEditor(wx.Dialog):
 		self.tagCombo.Set(tagChoices)
 		self.idCombo.Set(idChoices)
 		self.classCombo.Set(classChoices)
+		self.statesCombo.Set(statesChoices)
 		self.srcCombo.Set(srcChoices)
 		
 		self.searchText.Value = data.get("text", "")
@@ -400,6 +479,7 @@ class RuleCriteriaEditor(wx.Dialog):
 		self.tagCombo.Value = data.get("tag", "")
 		self.idCombo.Value = data.get("id", "")
 		self.classCombo.Value = data.get("className", "")
+		self.statesCombo.Value = translateStatesIdToLbl(data.get("states", ""))
 		self.srcCombo.Value = data.get("src", "")
 		self.relativePathText.Value = str(data.get("relativePath", ""))
 		self.indexText.Value = str(data.get("index", ""))
@@ -417,6 +497,34 @@ class RuleCriteriaEditor(wx.Dialog):
 		setIfNotEmpty(data, "tag", self.tagCombo.Value)
 		setIfNotEmpty(data, "id", self.idCombo.Value)
 		setIfNotEmpty(data, "className", self.classCombo.Value)
+		
+		statesLblExpr = self.statesCombo.Value
+		if statesLblExpr:
+			if not EXPR.match(statesLblExpr):
+				gui.messageBox(
+					message=(
+						_('Syntax error in the field "{field}"')
+					).format(field=stripAccelAndColon(self.FIELDS["states"])),
+					caption=_("Error"),
+					style=wx.OK | wx.ICON_ERROR,
+					parent=self
+				)
+				self.statesCombo.SetFocus()
+				return
+			statesIdExpr = translateStatesLblToId(statesLblExpr)
+			if not EXPR_INT.match(statesIdExpr):
+				gui.messageBox(
+					message=(
+						_('Unknown identifier in the field "{field}"')
+					).format(field=stripAccelAndColon(self.FIELDS["states"])),
+					caption=_("Error"),
+					style=wx.OK | wx.ICON_ERROR,
+					parent=self
+				)
+				self.statesCombo.SetFocus()
+				return
+			data["states"] = statesIdExpr
+		
 		setIfNotEmpty(data, "src", self.srcCombo.Value)
 		setIfNotEmpty(data, "relativePath", self.relativePathText.Value)
 		

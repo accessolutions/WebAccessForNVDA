@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.04.11"
+__version__ = "2019.06.14"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -1277,6 +1277,7 @@ class VirtualMarkerQuery(MarkerQuery):
 		self.addSearchKwargs(kwargs, "tag", dic.get("tag"))
 		self.addSearchKwargs(kwargs, "id", dic.get("id"))
 		self.addSearchKwargs(kwargs, "className", dic.get("className"))
+		self.addSearchKwargs(kwargs, "states", dic.get("states"))
 		self.addSearchKwargs(kwargs, "src", dic.get("src"))
 		
 		results = []
