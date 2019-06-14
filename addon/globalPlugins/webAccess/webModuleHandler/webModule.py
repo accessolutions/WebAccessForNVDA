@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2019.04.11"
+__version__ = "2019.06.13"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -61,7 +61,7 @@ class InvalidApiVersion(version.InvalidVersion):
 class WebModule(baseObject.ScriptableObject):
 	
 	API_VERSION = version.parse("0.1")
-	FORMAT_VERSION_STR = "0.4-dev"
+	FORMAT_VERSION_STR = "0.5-dev"
 	FORMAT_VERSION = version.parse(FORMAT_VERSION_STR)
 	
 	url = None
