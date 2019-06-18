@@ -49,7 +49,7 @@ Overridden NVDA functions:
 
 from __future__ import absolute_import
 
-__version__ = "2019.04.11"
+__version__ = "2019.07.18"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -166,7 +166,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		scheduler.start()
 		
 		baseObject.ScriptableObject.getWebApp = getWebApp
-		scriptHandler.findScript = hook_findScript
+		# scriptHandler.findScript = hook_findScript
 		eventHandler._EventExecuter.gen = hook_eventGen
 		virtualBuffers.VirtualBuffer.save_changeNotify = virtualBuffers.VirtualBuffer.changeNotify
 		virtualBuffers.VirtualBuffer.changeNotify = hook_changeNotify
