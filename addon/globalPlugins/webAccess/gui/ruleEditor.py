@@ -24,7 +24,7 @@ __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
 import re
-import wx.lib.expando
+import wx
 
 import addonHandler
 from collections import OrderedDict
@@ -36,6 +36,12 @@ from logHandler import log
 from .. import ruleHandler
 from ..ruleHandler import ruleTypes
 from .. import webModuleHandler
+
+try:
+	from wx.lib.expando import ExpandoTextCtrl
+except ImportError:
+	# NVDA version < 2018.2
+	from .wx_lib_expando import ExpandoTextCtrl
 
 try:
 	from six import iteritems
@@ -946,7 +952,7 @@ class RuleEditor(wx.Dialog):
 		item.Add(contextSizer, flag=wx.EXPAND | wx.ALL, border=4)
 		leftSizer.Add(item, flag=wx.EXPAND)
 				
-		item = self.contextText = wx.lib.expando.ExpandoTextCtrl(
+		item = self.contextText = ExpandoTextCtrl(
 			contextBox,
 			size=(250, -1),
 			style=wx.TE_PROCESS_ENTER | wx.TE_MULTILINE | wx.TE_READONLY,
@@ -965,7 +971,7 @@ class RuleEditor(wx.Dialog):
 		item = wx.StaticBoxSizer(criteriaBox, orient=wx.VERTICAL)
 		item.Add(criteriaSizer, flag=wx.EXPAND | wx.ALL, border=4)
 		leftSizer.Add(item, flag=wx.EXPAND)
-		item = self.criteriaText = wx.lib.expando.ExpandoTextCtrl(
+		item = self.criteriaText = ExpandoTextCtrl(
 			criteriaBox,
 			size=(250, -1),
 			style=wx.TE_PROCESS_ENTER | wx.TE_MULTILINE | wx.TE_READONLY,
@@ -1030,7 +1036,7 @@ class RuleEditor(wx.Dialog):
 		item = wx.StaticBoxSizer(propertiesBox, orient=wx.VERTICAL)
 		item.Add(propertiesSizer, flag=wx.EXPAND | wx.ALL, border=4)
 		leftSizer.Add(item, flag=wx.EXPAND)
-		item = self.propertiesText = wx.lib.expando.ExpandoTextCtrl(
+		item = self.propertiesText = ExpandoTextCtrl(
 			propertiesBox,
 			size=(250, -1),
 			style=wx.TE_PROCESS_ENTER | wx.TE_MULTILINE | wx.TE_READONLY,
