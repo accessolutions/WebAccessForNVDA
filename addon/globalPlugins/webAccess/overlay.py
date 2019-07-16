@@ -25,10 +25,11 @@ WebAccess overlay classes
 
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.04.11"
+__version__ = "2019.07.16"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
+import weakref
 import wx
 
 import addonHandler
@@ -43,7 +44,9 @@ import NVDAObjects
 import speech
 import textInfos
 import ui
-from versionInfo import version_year, version_major
+import virtualBuffers
+
+from .nvdaVersion import nvdaVersion
 
 
 try:
@@ -184,7 +187,11 @@ class WebAccessBmdtiHelper(object):
 
 class WebAccessBmdtiTextInfo(textInfos.offsets.OffsetsTextInfo):
 	"""
-	An `OffsetTextInfo` enforcing respect of the active zone borders.
+	WebAccess `OffsetTextInfo` overlay.
+	
+	Features:
+	 - Enforce respect of the active zone borders.
+	 - Override attributes of mutated controls.
 	"""
 	def find(self, text, caseSensitive=False, reverse=False):
 		zone = self.obj.webAccess.zone
@@ -247,10 +254,87 @@ class WebAccessBmdtiTextInfo(textInfos.offsets.OffsetsTextInfo):
 		if zone and not zone.containsTextInfo(self):
 			self.obj.webAccess.zone = None
 		super(WebAccessBmdtiTextInfo, self).updateSelection()
+	
+	def _getControlFieldAttribs(self,  docHandle, controlId):
+		info = self.copy()
+		info.expand(textInfos.UNIT_CHARACTER)
+		for field in reversed(info.getTextWithFields()):
+			if (
+				not isinstance(field, textInfos.FieldCommand)
+				or field.command != "controlStart"
+			):
+				continue
+			attrs = field.field
+			if (
+				int(attrs["controlIdentifier_docHandle"]) == docHandle
+				and int(attrs["controlIdentifier_ID"]) == controlId
+			):
+				break
+		else:
+			raise LookupError
+		mgr = self.obj.webAccess.ruleManager
+		if not mgr:
+			return attrs
+		mutated = mgr.getMutatedControl(controlId)
+		if mutated:
+			attrs.update(mutated.attrs)
+		return attrs
+
+	def _getFieldsInRange(self, start, end):
+		fields = super(WebAccessBmdtiTextInfo, self)._getFieldsInRange(
+			start, end
+		)
+		mgr = self.obj.webAccess.ruleManager
+		if not mgr or not mgr.isReady:
+			return fields
+		for field in fields:
+			if (
+				not isinstance(field, textInfos.FieldCommand)
+				or field.command != "controlStart"
+			):
+				continue
+			attrs = field.field
+			controlId = int(attrs["controlIdentifier_ID"])
+			mutated = mgr.getMutatedControl(controlId)
+			if mutated:
+				attrs.update(mutated.attrs)
+		return fields
+
+
+class WebAccessBmdtiQuickNavItem(browseMode.TextInfoQuickNavItem):
+	"""
+	A `TextInfoQuickNavItem` supporting mutated controls.
+	"""
+	def __init__(self, itemType, document, textInfo, controlId):
+		super(WebAccessBmdtiQuickNavItem, self).__init__(
+			itemType, document, textInfo
+		)
+		self.controlId = controlId
+	
+	if nvdaVersion >= (2017, 4):
+		@property
+		def label(self):
+			attrs = {}
+	
+			def propertyGetter(prop):
+				if not attrs:
+					# Lazily fetch the attributes the first time they're needed
+					# that is, in the Elements List dialog.
+					info = self.textInfo.copy()
+					info.expand(textInfos.UNIT_CHARACTER)
+					attrs.update(info._getControlFieldAttribs(
+						self.document.rootDocHandle,
+						self.controlId
+					))
+				return attrs.get(prop)
+	
+			return self._getLabelForProperties(propertyGetter)
 
 
 class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
-	
+	"""
+	WebAccess `BrowseModeDocumentTreeInterceptor` overlay.
+	"""
 	def __init__(self, obj):
 		super(WebAccessBmdti, self).__init__(obj)
 		self.webAccess = WebAccessBmdtiHelper(self)
@@ -334,6 +418,14 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		)
 	
 	def _iterNodesByType(self, itemType, direction="next", pos=None):
+		mgr = self.webAccess.ruleManager
+		if not mgr:
+			for item in super(WebAccessBmdti, self)._iterNodesByType(
+				itemType, direction, pos
+			):
+				yield item
+			return
+		
 		zone = self.webAccess.zone
 		if (
 			zone
@@ -343,8 +435,65 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		):
 			pos = pos.copy()
 			pos.move(textInfos.UNIT_CHARACTER, -1)
-		for item in super(WebAccessBmdti, self)._iterNodesByType(
-			itemType, direction, pos
+		
+		if itemType == "button":
+			search = {"role": controlTypes.ROLE_BUTTON}
+		elif itemType.startswith('heading'):
+			search = {"role": controlTypes.ROLE_HEADING}
+			if itemType[7:].isdigit():
+				# "level" is int in position info,
+				# but text in control field attributes...
+				search["level"] = itemType[7:]
+		elif itemType == "landmark":
+			search = {"landmark": True}
+		elif itemType == "link":
+			search = {"role": controlTypes.ROLE_LINK}
+		elif itemType == "table":
+			search = {"role": controlTypes.ROLE_TABLE}
+		else:
+			search = {}
+		
+		def check(search, info, docHandle, controlId):
+			"""
+			Check whether a control meets the given search criteria.
+			"""
+			attrs = info._getControlFieldAttribs(docHandle, controlId)
+			for key, value in search.items():
+				candidate = attrs.get(key)
+				if isinstance(value, bool):
+					candidate = bool(candidate)
+				if candidate != value:
+					return False
+			return True
+		
+		def iterMutated(mgr, check, search, direction, pos, document):
+			"""
+			Iterate over mutated controls matching the given search criteria.
+			"""
+			if not search:
+				raise StopIteration()
+			for entry in mgr.iterMutatedControls(
+				direction=direction,
+				offset=pos._startOffset if pos is not None else None
+			):
+				info = self.makeTextInfo(textInfos.offsets.Offsets(
+					entry.start, entry.end
+				))
+				controlId = entry.controlId
+				if not check(search, info, document.rootDocHandle, controlId):
+					continue
+				yield WebAccessBmdtiQuickNavItem(
+					itemType, document, info, controlId
+				)
+		
+		for item in browseMode.mergeQuickNavItemIterators(
+			[
+				iterMutated(mgr, check, search, direction, pos, self),
+				super(WebAccessBmdti, self)._iterNodesByType(
+					itemType, direction, pos
+				)
+			],
+			direction
 		):
 			if zone:
 				if item.textInfo._startOffset < zone.startOffset:
@@ -357,6 +506,21 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 						continue
 					else:
 						raise IterNodesByTypeHitZoneBorder
+			if isinstance(item, virtualBuffers.VirtualBufferQuickNavItem):
+				docHandle, controlId = item.vbufFieldIdentifier
+				# Only perform the check if the control has been mutated.
+				if mgr.getMutatedControl(controlId) and not check(
+					search, item.textInfo, docHandle, controlId
+				):
+					continue 
+				if pos is None and itemType == "heading":
+					# Downgrade to the common base class so that the
+					# Elements List dialog can relate nested headings.
+					item.__class__ = browseMode.TextInfoQuickNavItem 
+			elif not isinstance(item, WebAccessBmdtiQuickNavItem):
+				log.error(u"Unexpected QuickNavItem type: {}".format(
+					type(item)
+				))
 			yield item
 		if zone:
 			raise IterNodesByTypeHitZoneBorder
@@ -540,8 +704,79 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 	}
 
 
+class WebAccessObjectHelper(object):
+	"""
+	Utility methods and properties.
+	"""
+	def __init__(self, obj):
+		self.obj = obj
+	
+	@property
+	def ruleManager(self):
+		# TODO: WIP on new coupling
+		try:
+			return self.webModule.ruleManager
+		except AttributeError:
+			return None
+	
+	@property
+	def webModule(self):
+		# TODO: WIP on new coupling
+		if not hasattr(self.obj, "_treeInterceptor"):
+			return None
+		ti = self.obj._treeInterceptor
+		if isinstance(ti, weakref.ReferenceType):
+			ti = ti()
+		if ti is None:
+			return None
+		return ti.webAccess.webModule
+	
+	def getMutatedControlAttribute(self, attr, default=None):
+		mgr = self.ruleManager
+		if not mgr:
+			return default
+		obj = self.obj
+		try:
+			controlId = obj.treeInterceptor.getIdentifierFromNVDAObject(obj)[1]
+		except:
+			log.exception()
+			return default
+		mutated = mgr.getMutatedControl(controlId)
+		if mutated:
+			return mutated.attrs.get(attr, default)
+		return default
+
+
 class WebAccessObject(NVDAObjects.NVDAObject):
 	
+	def initOverlayClass(self):
+		self.webAccess = WebAccessObjectHelper(self) 
+	
+	def _get_name(self):
+		name = super(WebAccessObject, self)._get_name()
+		return self.webAccess.getMutatedControlAttribute("name", name)
+	
+	def _get_positionInfo(self):
+		# "level" is text in control field attributes,
+		# but int in position info...
+		info = super(WebAccessObject, self)._get_positionInfo()
+		level = self.webAccess.getMutatedControlAttribute("level")
+		if level:
+			try:
+				level = int(level)
+			except:
+				log.exception(
+					"Could not convert to int: level={}".format(level)
+				)
+			info["level"] = level
+		return info
+	
+	def _get_role(self, original=False):
+		role = super(WebAccessObject, self)._get_role()
+		if original:
+			return role
+		return self.webAccess.getMutatedControlAttribute("role", role)
+		
 	def _set_treeInterceptor(self, obj):
 		super(WebAccessObject, self)._set_treeInterceptor(obj)
 		if isinstance(obj, WebAccessBmdti):
@@ -563,13 +798,9 @@ class WebAccessObject(NVDAObjects.NVDAObject):
 					except:
 						log.exception()
 	
-	if (
-		(version_year == 2017 and version_major >= 3) or version_year > 2017
-	) and (
-		(version_year == 2019 and version_major < 2) or version_year < 2019
-	):
+	if (2017, 3) <= nvdaVersion < (2019, 2):
 		# Workaround for NVDA bug #9566, introduced by 393b55b in 2017.3
-		# and later fixed as of c20a503 in 2019.2 
+		# and later fixed as of c20a503 in 2019.2
 				
 		def _get_columnNumber(self):
 			res = super(WebAccessObject, self)._get_columnNumber()

@@ -49,7 +49,7 @@ Overridden NVDA functions:
 
 from __future__ import absolute_import
 
-__version__ = "2019.07.18"
+__version__ = "2019.07.16"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -165,7 +165,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		scheduler = WebAppScheduler()
 		scheduler.start()
 		
-		baseObject.ScriptableObject.getWebApp = getWebApp
+		# TODO: WIP on new coupling 
+		# baseObject.ScriptableObject.getWebApp = getWebApp
 		# scriptHandler.findScript = hook_findScript
 		eventHandler._EventExecuter.gen = hook_eventGen
 		virtualBuffers.VirtualBuffer.save_changeNotify = virtualBuffers.VirtualBuffer.changeNotify
@@ -226,7 +227,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			# Translators: Error message when attempting to show the Web Access GUI.
 			ui.message(_("You must be in a web browser to use Web Access."))
 			return
-		if obj.treeInterceptor is None:
+		if obj.treeInterceptor is None or not isinstance(obj, overlay.WebAccessObject):
 			# Translators: Error message when attempting to show the Web Access GUI.
 			ui.message(_("You must be on the web page to use Web Access."))
 			return
@@ -235,11 +236,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		context = {}
 		context["webAccess"] = self
 		context["focusObject"] = obj
-		if hasattr(obj, "getWebApp"):
-			webModule = obj.getWebApp()
-			if webModule is not None:
-				context["webModule"] = webModule
-				context["pageTitle"] = webModule.pageTitle
+		webModule = obj.webAccess.webModule
+		if webModule is not None:
+			context["webModule"] = webModule
+			context["pageTitle"] = webModule.pageTitle
 		menu.show(context)
 	
 	def script_debugWebModule(self, gesture):  # @UnusedVariable
@@ -413,7 +413,12 @@ def getWebApp(self):
 	global activeWebApp
 	global webAccessEnabled
 
-	if not webAccessEnabled or not supportWebApp(self):
+	# TODO: WIP on new coupling
+	if (
+		not webAccessEnabled
+		or not supportWebApp(self)
+		or not isinstance(self, overlay.WebAccessObject)
+	):
 		return None
 	
 	obj = self
@@ -432,9 +437,9 @@ def getWebApp(self):
 				u"".format(
 					webModule=id(obj._webApp),
 					obj=obj,
-					role=obj.role
-					)
+					role=obj._get_role(original=True)
 				)
+			)
 			delattr(obj, "_webApp")
 		else:
 			return obj._webApp
@@ -463,9 +468,9 @@ def getWebApp(self):
 					u"".format(
 						webModule=id(obj._webApp),
 						obj=obj,
-						role=obj.role
-						)
+						role=obj._get_role(original=True)
 					)
+				)
 				delattr(obj, "_webApp")
 			else:
 				webApp = obj._webApp
@@ -473,10 +478,8 @@ def getWebApp(self):
 
 		objList.append(obj)
 
-		# Onr HTML webApps, we extract the URL from the document IAccessible value.
-		if obj.role == controlTypes.ROLE_DOCUMENT:
+		if obj._get_role(original=True) == controlTypes.ROLE_DOCUMENT:
 			try:
-				#log.info (u"obj.IAccessibleChildID : %s" % obj.IAccessibleChildID)
 				url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
 			except: 
 				url = None
@@ -484,6 +487,8 @@ def getWebApp(self):
 				webApp = getWebAppFromUrl(url)
 
 		obj = obj.parent
+		if not isinstance(obj, overlay.WebAccessObject):
+			break
 
 	if webApp is None:
 		obj = self
@@ -495,7 +500,10 @@ def getWebApp(self):
 					and hasattr(obj._webApp, "_outdated") \
 					and obj._webApp._outdated:
 				delattr(obj, "_webApp")
-			webModule = obj.getWebApp()
+			if isinstance(obj, overlay.WebAccessObject):
+				webModule = obj.getWebApp()
+			else:
+				webModule = None
 			TRACE(
 				u"Real focus: obj={obj}, treeInterceptor={treeInterceptor}, "
 				u"{webModule}".format(
@@ -607,7 +615,7 @@ def hook_findScript(gesture, searchWebApp=True):
 			return func
 
 	# webApp scripts
-	webApp = focus.getWebApp()
+	webApp = focus.webAccess.webModule if isinstance(focus, overlay.WebAccessObject) else None
 	if webApp is not None and searchWebApp is True:
 		func = scriptHandler._getObjScript(webApp, gesture, globalMapScripts)
 		if func:
@@ -664,7 +672,7 @@ def hook_eventGen(self, eventName, obj):
 		# log.info("Received event %s on a non-hosted object" % eventName)
 		webAppLoseFocus(obj)
 	else:
-		webApp = obj.getWebApp()
+		webApp = obj.webAccess.webModule if isinstance(obj, overlay.WebAccessObject) else None
 		if webApp is None:
 			if activeWebApp is not None and obj.hasFocus:
 				#log.info("Disabling active webApp event %s" % eventName)

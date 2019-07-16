@@ -61,7 +61,7 @@ class InvalidApiVersion(version.InvalidVersion):
 class WebModule(baseObject.ScriptableObject):
 	
 	API_VERSION = version.parse("0.1")
-	FORMAT_VERSION_STR = "0.5-dev"
+	FORMAT_VERSION_STR = "0.6-dev"
 	FORMAT_VERSION = version.parse(FORMAT_VERSION_STR)
 	
 	url = None
@@ -277,15 +277,20 @@ class WebModule(baseObject.ScriptableObject):
 					key = key.replace("NVDA", "nvda")
 					gestures[key] = value				
 		
+		# Rules: New "states" criterion (#5)
+		# Rules: Ignore more whitespace in criteria expressions (19f772b)
+		# Rules: Support composition of the "role" criterion (#6)
 		if formatVersion < version.parse("0.5"):
 			for rule in rules:
 				if "role" in rule:
 					rule["role"] = unicode(rule["role"])
 		
-		# TODO: Include in data-recovery on imminent next format version bump 
-		for rule in rules:
-			if rule.get("tag"):
-				rule["tag"] = rule["tag"].upper()
+		# Browsers compatibility: Handle "tag" case inconsistency (da96341)
+		# Mutate controls (#9)
+		if formatVersion < version.parse("0.6"):
+			for rule in rules:
+				if rule.get("tag"):
+					rule["tag"] = rule["tag"].upper()
 		
 		if formatVersion > self.FORMAT_VERSION:
 			raise NewerFormatVersion(

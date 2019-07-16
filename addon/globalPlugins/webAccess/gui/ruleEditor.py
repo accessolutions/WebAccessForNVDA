@@ -34,7 +34,7 @@ import inputCore
 from logHandler import log
 
 from .. import ruleHandler
-from ..ruleHandler import ruleTypes
+from ..ruleHandler import mutations, ruleTypes
 from .. import webModuleHandler
 
 try:
@@ -628,7 +628,12 @@ class RulePropertiesEditor(wx.Dialog):
 			"customName",
 			pgettext("webAccess.ruleProperties", u"Custom &name:")
 		),
-		("customValue", None)  # Label depends on rule type),
+		("customValue", None),  # Label depends on rule type)
+		(
+			# Translator: Field label on the RulePropertiesEditor dialog.
+			"mutation",
+			pgettext("webAccess.ruleProperties", u"&Transform:")
+		),
 	))
 	
 	RULE_TYPE_FIELDS = OrderedDict((
@@ -642,6 +647,7 @@ class RulePropertiesEditor(wx.Dialog):
 				"sayName",
 				"customName",
 				"customValue",
+				"mutation",
 			)
 		),
 		(
@@ -653,6 +659,7 @@ class RulePropertiesEditor(wx.Dialog):
 				"sayName",
 				"customName",
 				"customValue",
+				"mutation",
 			)
 		),
 	))
@@ -684,11 +691,13 @@ class RulePropertiesEditor(wx.Dialog):
 				label = cls.getAltFieldLabel(ruleType, key, label)
 				label = stripAccel(label)
 				value = data[key]
-				if isinstance(value, bool):
+				if key == "mutation":
+					value = mutations.mutationLabels.get(value)
+				elif isinstance(value, bool):
 					if value:
-						parts.append(label.strip().strip(":"))
-				else:
-					parts.append(u"{} {}".format(label, value))
+						parts.append(label.strip().strip(":").strip())
+					continue
+				parts.append(u"{} {}".format(label, value))
 		if parts:
 			return "\n".join(parts)
 		else:
@@ -791,7 +800,7 @@ class RulePropertiesEditor(wx.Dialog):
 			border=4
 		)
 		
-		row += 10
+		row += 1
 		item = self.customValueLabel = wx.StaticText(
 			self,
 			label=self.FIELDS["customValue"] or ""
@@ -804,6 +813,30 @@ class RulePropertiesEditor(wx.Dialog):
 			border=4
 		)
 		item = self.customValueText = wx.TextCtrl(self, size=(350, -1))
+		item.Hide()  # Visibility depends on rule type
+		gbSizer.Add(
+			item,
+			pos=(row, 1),
+			flag=wx.EXPAND | wx.TOP | wx.BOTTOM | wx.LEFT,
+			border=4
+		)
+		
+		row += 1
+		item = self.mutationLabel = wx.StaticText(
+			self,
+			label=self.FIELDS["mutation"]
+		)
+		item.Hide()  # Visibility depends on rule type
+		gbSizer.Add(
+			item,
+			pos=(row, 0),
+			flag=wx.TOP | wx.BOTTOM | wx.RIGHT,
+			border=4
+		)
+		item = self.mutationCombo = wx.ComboBox(self, style=wx.CB_READONLY)
+		self.mutationCombo.Append(_("<None>"), "")
+		for key, label in mutations.mutationLabels.items():
+			self.mutationCombo.Append(label, key)
 		item.Hide()  # Visibility depends on rule type
 		gbSizer.Add(
 			item,
@@ -851,6 +884,21 @@ class RulePropertiesEditor(wx.Dialog):
 			)
 			self.customValueLabel.Show()
 			self.customValueText.Show()
+		if "mutation" in fields:
+			mutation = data.get("mutation")
+			if mutation:
+				for index, key in enumerate(mutations.mutationLabels.keys()):
+					if key == mutation:
+						index += 1
+						break
+				else:
+					log.error(u"Unexpected mutation id: {}".format(mutation))
+					index = 0
+			else:
+				index = 0
+			self.mutationCombo.SetSelection(index)
+			self.mutationLabel.Show()
+			self.mutationCombo.Show()
 	
 	def onOk(self, evt):
 		data = OrderedDict()
@@ -872,6 +920,11 @@ class RulePropertiesEditor(wx.Dialog):
 			setIfNotEmpty(data, "customName", self.customNameText.Value)
 		if "customValue" in fields:
 			setIfNotEmpty(data, "customValue", self.customValueText.Value)
+		if "mutation" in fields:
+			if self.mutationCombo.Selection > 0:
+				data["mutation"] = self.mutationCombo.GetClientData(
+					self.mutationCombo.Selection
+				)
 		
 		updateAndDeleteMissing(fields, data, self.data)
 

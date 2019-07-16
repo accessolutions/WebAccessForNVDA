@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,18 +19,19 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.10.21"
+__version__ = "2019.07.16"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
-import wx
 import Queue
 import threading
+import wx
 
 import api
 import textInfos
 
+from .overlay import WebAccessObject
 from .webAppLib import *
 
 
@@ -82,8 +83,10 @@ class WebAppScheduler(threading.Thread):
 		
 	def event_timeout(self):
 		focus = api.getFocusObject()
+		if not isinstance(focus, WebAccessObject):
+			return
 		ti = focus.treeInterceptor
-		webModule = focus.getWebApp()
+		webModule = focus.webAccess.webModule
 		self.send(
 			eventName="updateNodeManager",
 			treeInterceptor=ti,
@@ -122,8 +125,11 @@ class WebAppScheduler(threading.Thread):
 		# Removing older cached references ensures a proper reload.
 		def generator():
 			yield focus
-			if hasattr(focus, "treeInterceptor"):
-				yield focus.treeInterceptor
+			treeInterceptor = focus.treeInterceptor
+			if treeInterceptor:
+				if hasattr(treeInterceptor, "nodeManager"):
+					del treeInterceptor.nodeManager
+				yield treeInterceptor.rootNVDAObject
 			else:
 				log.error("Focus has no treeInterceptor")
 			obj = focus
@@ -140,7 +146,8 @@ class WebAppScheduler(threading.Thread):
 			log.exception("While clearing cached references")
 		# Clear the pending events queue as well.
 		self.queue = Queue.Queue()
-		newWebModule = focus.getWebApp()
+		newWebModule = focus.webAccess.webModule \
+			if isinstance(focus, WebAccessObject) else None
 		newMarkerManager = newWebModule.markerManager \
 			if newWebModule is not None else None
 		TRACE(
@@ -189,7 +196,7 @@ class WebAppScheduler(threading.Thread):
 	def event_checkWebAppManager(self):
 # 		TRACE(u"event_checkWebAppManager")
 		focus = api.getFocusObject()
-		webApp = focus.getWebApp()
+		webApp = focus.webAccess.webModule if isinstance(focus, WebAccessObject) else None
 		TRACE(u"event_checkWebAppManager: webApp={webApp}".format(
 			webApp=id(webApp) if webApp is not None else None
 			))
@@ -293,7 +300,9 @@ class WebAppScheduler(threading.Thread):
 				)
 			)
 		focus = api.getFocusObject()
-		webModule = focus.getWebApp()
+		if not isinstance(focus, WebAccessObject):
+			return
+		webModule = focus.webAccess.webModule
 		useInternalBrowser = False
 	
 		if webModule is not None:

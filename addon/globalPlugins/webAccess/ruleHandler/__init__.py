@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.06.14"
+__version__ = "2019.07.16"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -48,6 +48,7 @@ from .. import nodeHandler
 from ..webAppLib import *
 from .. import webAppScheduler
 from ..widgets import genericCollection
+from . import mutations
 from . import ruleTypes
 
 
@@ -155,6 +156,8 @@ class MarkerManager(baseObject.ScriptableObject):
 		self.lock = threading.RLock()
 		self.rules = self.markerQueries = []
 		self.results = self.markerResults = []
+		self._mutatedControlsById = {}
+		self._mutatedControlsByOffset = []
 		self.triggeredIdentifiers = {}
 		self.lastAutoMoveto = None
 		self.lastAutoMovetoTime = 0
@@ -233,6 +236,30 @@ class MarkerManager(baseObject.ScriptableObject):
 				break
 		return results
 	
+	def iterMutatedControls(self, direction="next", offset=None):
+		for entry in (
+			self._mutatedControlsByOffset
+			if direction == "next" else reversed(self._mutatedControlsByOffset)
+		):
+			if offset is not None:
+				if direction == "next":
+					if entry.start <= offset:
+						continue
+				elif direction == "previous":
+					if entry.start >= offset:
+						continue
+				elif direction == "up":
+					if not (entry.start < offset <= entry.end):
+						continue
+				else:
+					raise ValueError(
+						u"Not supported: direction={}".format(direction)
+					)
+			yield entry
+	
+	def getMutatedControl(self, controlId):
+		return self._mutatedControlsById.get(controlId)
+	
 	def removeResults(self, query):
 		for i in range(len(self.markerResults), 0, -1):
 			if self.markerResults[i-1].markerQuery== query:
@@ -292,6 +319,8 @@ class MarkerManager(baseObject.ScriptableObject):
 			self.timerCheckAutoAction.cancel()
 		self.nodeManager = None
 		del self.markerResults[:]
+		self._mutatedControlsById.clear()
+		self._mutatedControlsByOffset[:] = []
 		for q in self.markerQueries:
 			q.resetResults()
 
@@ -309,6 +338,8 @@ class MarkerManager(baseObject.ScriptableObject):
 				return False
 			t = logTimeStart()
 			self.markerResults[:] = []
+			self._mutatedControlsById.clear()
+			self._mutatedControlsByOffset[:] = []
 			for query in self.markerQueries:
 				query.resetResults()
 			
@@ -337,6 +368,18 @@ class MarkerManager(baseObject.ScriptableObject):
 			# 	results = query.getResults()
 				self.markerResults += results
 				self.markerResults.sort()
+
+			for result in self.markerResults:
+				if not result.rule.mutation:
+					continue
+				controlId = int(result.node.controlIdentifier)
+				entry = self._mutatedControlsById.get(controlId)
+				if entry is None:
+					entry = mutations.MutatedControl(result)
+					self._mutatedControlsById[controlId] = entry
+					self._mutatedControlsByOffset.append(entry)
+				else:
+					entry.apply(result)
 			
 			if self.zone is not None:
 				if not self.zone.update():
@@ -559,11 +602,19 @@ class MarkerManager(baseObject.ScriptableObject):
 	def iterResultsAtTextInfo(self, info):
 		if not self.isReady:
 			return
-		if len(self.markerResults) < 1:
+		if not self.markerResults:
 			return
 		if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
 			raise ValueError(u"Not supported {}".format(type(info)))
 		offset = info._startOffset
+# 		for result in self.iterResultsAtOffset(offset):
+# 			yield result
+# 	
+# 	def iterResultsAtOffset(self, offset):
+# 		if not self.isReady:
+# 			return
+# 		if not self.markerResults:
+# 			return
 		for r in reversed(self.markerResults):
 			if (
 				hasattr(r, "node")
@@ -1047,6 +1098,15 @@ class VirtualMarkerQuery(MarkerQuery):
 		self.contextParent = dic.get("contextParent", "")
 		self.priority = dic.get("priority")
 		self.index = dic.get("index")
+		self.mutation = None
+		if "mutation" in dic:
+			try:
+				self.mutation = mutations.CONTROL_MUTATIONS[dic["mutation"]]
+			except LookupError:
+				log.exception((
+					u"Unexpected mutation template id \"{mutation}\" "
+					u"in rule \"{rule}\"."
+				).format(mutation=dic["mutation"], rule=self.name))
 		self.gestures = dic.get("gestures", {})
 		gesturesMap = {}
 		for gestureIdentifier in self.gestures.keys():
