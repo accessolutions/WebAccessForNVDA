@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.06.14"
+__version__ = "2019.07.16"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -472,12 +472,12 @@ class RuleCriteriaEditor(wx.Dialog):
 		classChoices = []
 		srcChoices = []
 		while node is not None:
-			roleChoices.append(getRoleLblForInt(node.role))
-			tagChoices.append(node.tag)
-			idChoices.append(node.id)
-			classChoices.append(node.className)
-			statesChoices.append(getStatesLblExprForSet(node.states))
-			srcChoices.append(node.src)
+			roleChoices.append(getRoleLblForInt(node.role) or "")
+			tagChoices.append(node.tag or "")
+			idChoices.append(node.id or "")
+			classChoices.append(node.className or "")
+			statesChoices.append(getStatesLblExprForSet(node.states) or "")
+			srcChoices.append(node.src or "")
 			node = node.parent
 		
 		self.searchText.Set(textChoices)
@@ -530,7 +530,7 @@ class RuleCriteriaEditor(wx.Dialog):
 				return
 			data["role"] = roleIdExpr
 		
-		setIfNotEmpty(data, "tag", self.tagCombo.Value)
+		setIfNotEmpty(data, "tag", self.tagCombo.Value.upper())
 		setIfNotEmpty(data, "id", self.idCombo.Value)
 		setIfNotEmpty(data, "className", self.classCombo.Value)
 		

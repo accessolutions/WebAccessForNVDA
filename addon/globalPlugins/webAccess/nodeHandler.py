@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.06.14"
+__version__ = "2019.07.16"
 
 __authors__ = (
 	u"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
@@ -438,18 +438,21 @@ class NodeField(baseObject.AutoPropertyObject):
 			self.controlIdentifier = attrs.get("controlIdentifier_ID", 0)
 			self.tag = attrs.get("IAccessible2::attribute_tag")
 			if not self.tag:
-				self.tag = attrs.get("IHTMLDOMNode::nodeName", "")
+				self.tag = attrs.get("IHTMLDOMNode::nodeName")
+			# tag is reported lowercase in Chrome and FF, but uppercase in IE.
+			if self.tag:
+				self.tag = self.tag.upper()
 			self.id = attrs.get("IAccessible2::attribute_id")
 			if not self.id:
-				self.id = attrs.get("HTMLAttrib::id", "")
+				self.id = attrs.get("HTMLAttrib::id")
 			self.className = attrs.get("IAccessible2::attribute_class")
 			if not self.className:
 				self.className = attrs.get("HTMLAttrib::class")
 			if not self.className:
-				self.className = attrs.get("HTMLAttrib::className", "")
+				self.className = attrs.get("HTMLAttrib::className")
 			self.src = attrs.get("IAccessible2::attribute_src")
 			if not self.src:
-				self.src = attrs.get("HTMLAttrib::src", "")
+				self.src = attrs.get("HTMLAttrib::src")
 			self.children = []
 		else:
 			raise ValueError(

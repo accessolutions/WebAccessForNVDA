@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2019.06.14"
+__version__ = "2019.07.16"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
@@ -281,6 +281,11 @@ class WebModule(baseObject.ScriptableObject):
 			for rule in rules:
 				if "role" in rule:
 					rule["role"] = unicode(rule["role"])
+		
+		# TODO: Include in data-recovery on imminent next format version bump 
+		for rule in rules:
+			if rule.get("tag"):
+				rule["tag"] = rule["tag"].upper()
 		
 		if formatVersion > self.FORMAT_VERSION:
 			raise NewerFormatVersion(
