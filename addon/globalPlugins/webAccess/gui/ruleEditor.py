@@ -353,7 +353,7 @@ class RuleCriteriaEditor(wx.Dialog):
 		# Translator: Field label on the RuleCriteriaEditor dialog.
 		("role", pgettext("webAccess.ruleCriteria", u"&Role:")),
 		# Translator: Field label on the RuleCriteriaEditor dialog.
-		("tag", pgettext("webAccess.ruleCriteria", u"Ta&g:")),
+		("tag", pgettext("webAccess.ruleCriteria", u"T&ag:")),
 		# Translator: Field label on the RuleCriteriaEditor dialog.
 		("id", pgettext("webAccess.ruleCriteria", u"&ID:")),
 		# Translator: Field label on the RuleCriteriaEditor dialog.
@@ -361,7 +361,7 @@ class RuleCriteriaEditor(wx.Dialog):
 		# Translator: Field label on the RuleCriteriaEditor dialog.
 		("states", pgettext("webAccess.ruleCriteria", u"&States:")),
 		# Translator: Field label on the RuleCriteriaEditor dialog.
-		("src", pgettext("webAccess.ruleCriteria", u"Image s&ource:")),
+		("src", pgettext("webAccess.ruleCriteria", u"Ima&ge source:")),
 		(
 			"relativePath",
 			# Translator: Field label on the RuleCriteriaEditor dialog.
@@ -886,7 +886,11 @@ class RulePropertiesEditor(wx.Dialog):
 			self.customValueLabel.Show()
 			self.customValueText.Show()
 		if "mutation" in fields:
-			self.mutationCombo.Append(_("<None>"), "")
+			self.mutationCombo.Append(
+				# Translators: The label when there is no control mutation.
+				pgettext("webAccess.controlMutation", "<None>"),
+				""
+			)
 			for id_ in MUTATIONS_BY_RULE_TYPE.get(ruleType, []):
 				label = mutationLabels.get(id_)
 				if label is None:

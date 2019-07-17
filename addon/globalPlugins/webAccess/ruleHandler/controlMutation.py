@@ -134,39 +134,41 @@ MUTATIONS_BY_RULE_TYPE = OrderedDict((
 
 mutationLabels = OrderedDict((
 	# Translators: The label for a control mutation.
-	("heading.1", pgettext("webAccess.mutation", "Header level 1")),
+	("heading.1", pgettext("webAccess.controlMutation", "Header level 1")),
 	# Translators: The label for a control mutation.
-	("heading.2", pgettext("webAccess.mutation", "Header level 2")),
+	("heading.2", pgettext("webAccess.controlMutation", "Header level 2")),
 	# Translators: The label for a control mutation.
-	("heading.3", pgettext("webAccess.mutation", "Header level 3")),
+	("heading.3", pgettext("webAccess.controlMutation", "Header level 3")),
 	# Translators: The label for a control mutation.
-	("heading.4", pgettext("webAccess.mutation", "Header level 4")),
+	("heading.4", pgettext("webAccess.controlMutation", "Header level 4")),
 	# Translators: The label for a control mutation.
-	("heading.5", pgettext("webAccess.mutation", "Header level 5")),
+	("heading.5", pgettext("webAccess.controlMutation", "Header level 5")),
 	# Translators: The label for a control mutation.
-	("heading.6", pgettext("webAccess.mutation", "Header level 6")),
+	("heading.6", pgettext("webAccess.controlMutation", "Header level 6")),
 	# Translators: The label for a control mutation.
-	("labelled", pgettext("webAccess.mutation", "Add a label")),
+	("labelled", pgettext("webAccess.controlMutation", "Add a label")),
 	(
 		"landmark.region",
 		# Translators: The label for a control mutation.
-		pgettext("webAccess.mutation", "Region")
+		pgettext("webAccess.controlMutation", "Region")
 	),
 	(
 		"landmark.nav.named",
 		# Translators: The label for a control mutation.
-		pgettext("webAccess.mutation", "Navigation (named)")
+		pgettext("webAccess.controlMutation", "Navigation (named)")
 	),
 	(
 		"landmark.nav.unnamed",
 		# Translators: The label for a control mutation.
-		pgettext("webAccess.mutation", "Navigation (unnamed)")
+		pgettext("webAccess.controlMutation", "Navigation (unnamed)")
 	),
 	(
 		"table.data",
-		# Translators: The label for a control mutation.
-		pgettext("webAccess.mutation", "Data table (Internet Explorer only)")
+		pgettext(
+			# Translators: The label for a control mutation.
+			"webAccess.controlMutation", "Data table (Internet Explorer only)"
+		)
 	),
 	# Translators: The label for a control mutation.
-	("table.layout", pgettext("webAccess.mutation", "Layout table")),
+	("table.layout", pgettext("webAccess.controlMutation", "Layout table")),
 ))
