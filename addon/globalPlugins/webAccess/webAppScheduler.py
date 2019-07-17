@@ -19,12 +19,13 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.07.16"
+# Get ready for Python 3
+from __future__ import absolute_import, division, print_function
 
+__version__ = "2019.07.17"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
-import Queue
 import threading
 import wx
 
@@ -33,6 +34,13 @@ import textInfos
 
 from .overlay import WebAccessObject
 from .webAppLib import *
+
+
+try:
+	from six.moves import queue
+except ImportError:
+	# NVDA version < 2018.3
+	import Queue as queue
 
 
 TRACE = lambda *args, **kwargs: None  # @UnusedVariable
@@ -49,7 +57,7 @@ class WebAppScheduler(threading.Thread):
 	def __init__(self):
 		super(WebAppScheduler,self).__init__()
 		self.daemon = True
-		self.queue = Queue.Queue()
+		self.queue = queue.Queue()
 		global scheduler
 		scheduler = self
 		
@@ -68,7 +76,7 @@ class WebAppScheduler(threading.Thread):
 				if func:
 					try:
 						func(**event)
-					except Exception, e:
+					except Exception as e:
 						log.exception("Error executing event %s : %s" % (eventName, e))
 
 				else:
@@ -145,7 +153,7 @@ class WebAppScheduler(threading.Thread):
 		except:
 			log.exception("While clearing cached references")
 		# Clear the pending events queue as well.
-		self.queue = Queue.Queue()
+		self.queue = queue.Queue()
 		newWebModule = focus.webAccess.webModule \
 			if isinstance(focus, WebAccessObject) else None
 		newMarkerManager = newWebModule.markerManager \

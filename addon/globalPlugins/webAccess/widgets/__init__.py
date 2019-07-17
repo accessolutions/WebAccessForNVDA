@@ -91,7 +91,7 @@ class WidgetManager(baseObject.ScriptableObject):
 			caretNode = self.nodeManager.getCaretNode()
 			curNode = self.nodeManager.getCurrentNode()
 			#log.info (u"suite")
-		except Exception, e:
+		except Exception as e:
 			# log.error("Get caret node failed: %s" % e)
 			return False
 		if caretNode is None and curNode is None:

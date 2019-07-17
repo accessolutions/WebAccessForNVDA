@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,8 +21,10 @@
 
 """Web Module data store."""
 
-__version__ = "2019.04.11"
+# Get ready for Python 3
+from __future__ import absolute_import, division, print_function
 
+__version__ = "2019.07.17"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -36,7 +38,6 @@ import re
 import globalVars
 from logHandler import log
 
-from .. import json
 from ..packaging import version
 from ..webModuleHandler import InvalidApiVersion, WebModule
 from . import DispatchStore
@@ -44,6 +45,12 @@ from . import DuplicateRefError
 from . import MalformedRefError
 from . import Store
 from .addons import AddonsStore
+
+
+try:
+	import json
+except ImportError:
+	from .. import json
 
 
 class WebModuleJsonFileStore(Store):
@@ -127,31 +134,11 @@ class WebModuleJsonFileStore(Store):
 		
 	def getData(self, path):
 		try:
-			fd = os.open(path, os.O_RDONLY)
-		except:
-			log.exception(u"Failed to open file: {path}".format(path=path))
-			raise
-		serialized = ""
-		eof = False
-		while not eof:
-			try:
-				s = os.read(fd, 65536)
-			except:
-				log.exception(
-					u"Failed to read from file: {path}".format(path=path)
-				)
-				os.close(fd)
-				raise
-			if s is None or s == "":
-				eof = True
-			else:
-				serialized += s
-		os.close(fd)
-		try:
-			return json.loads(serialized)
+			with open(path, "r") as f:
+				return json.load(f)
 		except:
 			log.exception(
-				u"Failed to parse JSON file: {path}".format(path=path)
+				u"Failed reading file: {path}".format(path=path)
 			)
 			raise
 	
@@ -171,7 +158,7 @@ class WebModuleJsonFileStore(Store):
 		return (
 			hasattr(item, "storeRef")
 			and item.storeRef
-			)
+		)
 	
 	def setRef(self, item, ref):
 		if hasattr(item, "storeRef") and isinstance(item.storeRef, tuple):
@@ -199,25 +186,14 @@ class WebModuleJsonFileStore(Store):
 	
 	def write(self, path, item):
 		data = item.dump()
-		serialized = json.dumps(data, indent=4)
 		try:
-			fd = os.open(path, os.O_WRONLY | os.O_TRUNC | os.O_CREAT)
+			with open(path, "w") as f:
+				json.dump(data, f, indent=4)
 		except:
 			log.exception(
-				u"Failed to open file for writing: {path}".format(path=path)
-				)
+				u"Failed writing file: {path}".format(path=path)
+			)
 			return False
-		bytesWritten = 0
-		while bytesWritten < len(serialized):
-			bytes = os.write(fd, serialized)
-			if bytes == 0:
-				log.warning(
-					u"Failed writing to file: {path}".format(path=path)
-					)
-				return False
-			serialized = serialized[bytes:]
-			bytesWritten += bytes
-		os.close(fd)
 		return True
 	
 	
@@ -348,13 +324,11 @@ class WebModuleStore(DispatchStore):
 				basePath=globalVars.appArgs.configPath
 				),
 			AddonsStore(
-				addonStoreFactory=lambda(addon): (
-					WebModuleFileStore(
+				addonStoreFactory=lambda addon: WebModuleFileStore(
 						name=addon.name,
 						basePath=addon.path,
-						)
-					)
 				)
+			)
 			]
 		super(WebModuleStore, self).__init__(*args, **kwargs)
 	

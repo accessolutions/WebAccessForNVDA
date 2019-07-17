@@ -19,8 +19,10 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.07.16"
+# Get ready for Python 3
+from __future__ import absolute_import, division, print_function
 
+__version__ = "2019.07.17"
 __authors__ = (
 	u"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
 	u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
@@ -829,13 +831,15 @@ class NodeField(baseObject.AutoPropertyObject):
 	def getBraillePresentationString(self):
 		return False
 				
-	def __eq__(self, node):
-		if node is None:
-			return False
-		if self.offset == node.offset:
-			return True
-		return False
-
+	# TODO: Thoroughly check this wasn't used anywhere
+	# In Python 3, all classes defining __eq__ must also define __hash__
+# 	def __eq__(self, node):
+# 		if node is None:
+# 			return False
+# 		if self.offset == node.offset:
+# 			return True
+# 		return False
+	
 	def __lt__(self, node):
 		"""
 		Compare nodes based on their offset.

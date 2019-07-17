@@ -19,9 +19,10 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
+# Get ready for Python 3
+from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.07.16"
-
+__version__ = "2019.07.17"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
@@ -42,12 +43,24 @@ import scriptHandler
 import speech
 import ui
 
-from .. import json
 from ..packaging import version
 from .. import presenter
 from .. import ruleHandler
 from ..ruleHandler import ruleTypes
 from ..webAppLib import *
+
+
+try:
+	import json
+except ImportError:
+	from .. import json
+
+try:
+	from six import string_types, text_type
+except ImportError:
+	# NVDA version < 2018.3
+	string_types = basestring
+	text_type = unicode
 
 
 class NewerFormatVersion(version.InvalidVersion):
@@ -151,7 +164,7 @@ class WebModule(baseObject.ScriptableObject):
 				data["Rules"] = data.pop("PlaceMarkers")
 			# Earlier versions supported only a single URL trigger
 			url = data.get("WebModule", {}).get("url", None)
-			if isinstance(url, basestring):
+			if isinstance(url, string_types):
 				data["WebModule"]["url"] = [url]
 			# Custom labels for certain fields are not supported anymore
 			# TODO: Re-implement custom field labels?
@@ -283,7 +296,7 @@ class WebModule(baseObject.ScriptableObject):
 		if formatVersion < version.parse("0.5"):
 			for rule in rules:
 				if "role" in rule:
-					rule["role"] = unicode(rule["role"])
+					rule["role"] = text_type(rule["role"])
 		
 		# Browsers compatibility: Handle "tag" case inconsistency (da96341)
 		# Mutate controls (#9)

@@ -19,6 +19,9 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
+# Get ready for Python 3
+from __future__ import absolute_import, division, print_function
+
 __version__ = "2019.07.17"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
@@ -48,10 +51,11 @@ except ImportError:
 	from .wx_lib_expando import ExpandoTextCtrl
 
 try:
-	from six import iteritems
+	from six import iteritems, text_type
 except ImportError:
 	# NVDA version < 2018.3
 	iteritems = dict.iteritems
+	text_type = unicode
 
 addonHandler.initTranslation()
 
@@ -106,7 +110,7 @@ def translateExprValues(expr, func):
 	buf = list(expr)
 	offset = 0
 	for src, start, end in captureValues(expr):
-		dest = unicode(func(src))
+		dest = text_type(func(src))
 		start += offset
 		end += offset
 		buf[start:end] = dest
@@ -127,7 +131,7 @@ def translateRoleLblToId(expr):
 	def translate(value):
 		for key, candidate in iteritems(controlTypes.roleLabels):
 			if candidate == value:
-				return unicode(key)
+				return text_type(key)
 		return value
 	return translateExprValues(expr, translate)
 
@@ -149,7 +153,7 @@ def translateStatesLblToId(expr):
 	def translate(value):
 		for key, candidate in iteritems(controlTypes.stateLabels):
 			if candidate == value:
-				return unicode(key)
+				return text_type(key)
 		return value
 	return translateExprValues(expr, translate)
 

@@ -19,6 +19,9 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
+# Get ready for Python 3
+from __future__ import absolute_import, division, print_function
+
 __version__ = "2019.07.17"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
@@ -45,7 +48,11 @@ import ui
 import weakref
 
 from .. import nodeHandler
-from ..webAppLib import *
+from ..webAppLib import (
+	html,
+	logTimeStart,
+	playWebAppSound,
+)
 from .. import webAppScheduler
 from ..widgets import genericCollection
 from .controlMutation import MUTATIONS, MutatedControl
@@ -139,7 +146,7 @@ class DefaultMarkerScripts(baseObject.ScriptableObject):
 
 	def script_notAssigned(self, gesture):
 		playWebAppSound("keyError")
-		sleep(0.2)
+		time.sleep(0.2)
 		ui.message(self.warningMessage)
 
 	__gestures = {}
@@ -662,11 +669,11 @@ class MarkerManager(baseObject.ScriptableObject):
 			if result:
 				if not relative:
 					playWebAppSound("loop")
-					sleep(0.2)
+					time.sleep(0.2)
 				break
 		else:
 			playWebAppSound("keyError")
-			sleep(0.2)
+			time.sleep(0.2)
 			if quiet:
 				return False
 			elif types == (ruleTypes.ZONE,):
@@ -1122,8 +1129,10 @@ class VirtualMarkerQuery(MarkerQuery):
 		self.comment = dic.get("comment")
 		self.createWidget = dic.get("createWidget", False)
 	
-	def __eq__(self, other):
-		return self.dic == other.dic
+	# TODO: Thoroughly check this wasn't used anywhere
+	# In Python 3, all classes defining __eq__ must also define __hash__
+# 	def __eq__(self, other):
+# 		return self.dic == other.dic
 	
 	def _get_label(self):
 		return self.customName or self.name
@@ -1377,6 +1386,9 @@ class Zone(textInfos.offsets.Offsets):
 			and other.startOffset == self.startOffset
 			and other.endOffset == self.endOffset
 		)
+	
+	def __hash__(self):
+		return hash((self.startOffset, self.endOffset))
 	
 	def __nonzero__(self):  # Python 2
 		return self.__bool__()

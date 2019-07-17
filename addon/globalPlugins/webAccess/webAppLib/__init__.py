@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,28 +19,40 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2016.11.18"
+# Get ready for Python 3
+from __future__ import absolute_import, division, print_function
 
+__version__ = "2019.07.17"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
-import html
-import textInfos
-import api
-import speech
+
 import os
-import nvwave
+
+import api
+import braille
+import config
+import controlTypes
 import inputCore
 from keyboardHandler import KeyboardInputGesture, currentModifiers
-import scriptHandler
-import controlTypes
-import time
-import config
-import braille
-import tones
 from logHandler import log
+import mouseHandler
+import nvwave
+import scriptHandler
+import speech
+import textInfos
+import time
+import tones
 import virtualBuffers
 import winUser
-import mouseHandler
+
+from . import html
+
+
+try:
+	from six import string_types
+except ImportError:
+	# NVDA version < 2018.3
+	string_types = basestring
 
 
 def speechOff():
@@ -224,7 +236,7 @@ def searchNameByColor (obj, background):
 					trace (repr(f["background-color"]))
 				except:
 					red = -1
-		elif isinstance (field, basestring):
+		elif isinstance (field, string_types):
 			if red == background and len(field) > 3:
 				return unicode (field)
 	# end of loop

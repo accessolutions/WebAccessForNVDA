@@ -47,10 +47,10 @@ Overridden NVDA functions:
 * scriptHandler.findScript
 """
 
-from __future__ import absolute_import
+# Get ready for Python 3
+from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.07.16"
-
+__version__ = "2019.07.17"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
@@ -88,7 +88,6 @@ import tones
 import ui
 import virtualBuffers
 
-from . import json
 from . import nodeHandler
 from . import overlay
 from . import presenter
@@ -340,7 +339,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		allMsg = u""
 
 		if not diverged:
-			msg = unicode(focusModule.storeRef)
+			try:
+				from six import text_type
+			except ImportError:
+				# NVDA version < 2018.3
+				text_type = unicode
+			msg = text_type(focusModule.storeRef)
 		speech.speakMessage(msg)
 		allMsg += msg + os.linesep
 		

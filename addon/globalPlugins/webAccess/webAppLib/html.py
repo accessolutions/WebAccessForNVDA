@@ -310,7 +310,7 @@ def oneStepTagSearch(dir, focus, nodeType, start):
 			item = next(focus._iterNodesByType(itemType, dir, start))
 		except StopIteration:
 			continue
-		except Exception, e:
+		except Exception as e:
 			log.exception("Generic exception while searching for a %s tag: %s" %(itemType, e))
 			return None
 		# log.info("Found item %s" %(repr(item)))
@@ -356,7 +356,7 @@ def searchTag_2015(nodeType, info=None, id=None, className=None, src=None, text=
 			else:
 				ok = True
 	else:
-	#except Exception, e:
+	#except Exception as e:
 		#log.exception("searchTag exception: %s" % e)
 		return None
 	return info

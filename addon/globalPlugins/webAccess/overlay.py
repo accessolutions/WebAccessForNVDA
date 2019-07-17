@@ -23,9 +23,10 @@
 WebAccess overlay classes
 """
 
+# Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.07.16"
+__version__ = "2019.07.17"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -136,10 +137,6 @@ class ScriptWrapper(object):
 			# The override returned True, do not execute the original script.
 			return
 		self.script(gesture)
-
-
-class IterNodesByTypeHitZoneBorder(StopIteration):
-	pass
 
 
 class WebAccessBmdtiHelper(object):
@@ -472,7 +469,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			Iterate over mutated controls matching the given search criteria.
 			"""
 			if not search:
-				raise StopIteration()
+				return
 			for entry in mgr.iterMutatedControls(
 				direction=direction,
 				offset=pos._startOffset if pos is not None else None
@@ -501,12 +498,12 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 					if direction == "next":
 						continue
 					else:
-						raise IterNodesByTypeHitZoneBorder
+						return
 				elif item.textInfo._startOffset >= zone.endOffset:
 					if direction == "previous":
 						continue
 					else:
-						raise IterNodesByTypeHitZoneBorder
+						return
 			if isinstance(item, virtualBuffers.VirtualBufferQuickNavItem):
 				docHandle, controlId = item.vbufFieldIdentifier
 				# Only perform the check if the control has been mutated.
@@ -523,8 +520,6 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 					type(item)
 				))
 			yield item
-		if zone:
-			raise IterNodesByTypeHitZoneBorder
 	
 	def _quickNavScript(
 		self, gesture, itemType, direction, errorMessage, readUnit
@@ -545,7 +540,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			caretInfo = self.makeTextInfo(textInfos.POSITION_CARET)
 			try:
 				next(self._iterNodesByType("focusable", direction, caretInfo))
-			except IterNodesByTypeHitZoneBorder:
+			except StopIteration:
 				if direction == "next":
 					msg = _("No more focusable element in this zone.")
 				else:
@@ -559,8 +554,6 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 					msg += _("Press escape to cancel zone restriction.")
 				ui.message(msg)
 				return True
-			except StopIteration:
-				pass
 		return super(WebAccessBmdti, self)._tabOverride(direction)
 	
 	def doFindText(self, text, reverse=False, caseSensitive=False):
