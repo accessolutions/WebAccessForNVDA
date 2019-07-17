@@ -41,6 +41,7 @@ import cursorManager
 import gui
 from logHandler import log
 import NVDAObjects
+from NVDAObjects.IAccessible import IAccessible
 import speech
 import textInfos
 import ui
@@ -747,7 +748,7 @@ class WebAccessObjectHelper(object):
 		return default
 
 
-class WebAccessObject(NVDAObjects.NVDAObject):
+class WebAccessObject(IAccessible):
 	
 	def initOverlayClass(self):
 		self.webAccess = WebAccessObjectHelper(self) 
@@ -799,9 +800,10 @@ class WebAccessObject(NVDAObjects.NVDAObject):
 						log.exception()
 	
 	if (2017, 3) <= nvdaVersion < (2019, 2):
-		# Workaround for NVDA bug #9566, introduced by 393b55b in 2017.3
-		# and later fixed as of c20a503 in 2019.2
-				
+		# Workaround for NVDA bug #9566
+		# introduced by #7410 as of 393b55b in 2017.3
+		# fixed by #9562 as of c20a503 in 2019.2
+		
 		def _get_columnNumber(self):
 			res = super(WebAccessObject, self)._get_columnNumber()
 			try:
@@ -821,6 +823,17 @@ class WebAccessObject(NVDAObjects.NVDAObject):
 					u"Cannot convert rowNumber to int: {res}"
 				).format(**locals()))
 			return res
+	
+	if (2018, 4) <= nvdaVersion:
+		# Workaround for NVDA bug #9520
+		# introduced by #8898 as of b02ed2d in 2018.4
+		# fixed by PR #9930 not yet merged
+		
+		def _get_table(self):
+			try:
+				super(WebAccessObject, self)._get_table()
+			except NotImplementedError:
+				return None
 
 
 class WebAccessDocument(WebAccessObject):
