@@ -146,16 +146,16 @@ mutationLabels = OrderedDict((
 	# Translators: The label for a control mutation.
 	("heading.6", pgettext("webAccess.mutation", "Header level 6")),
 	# Translators: The label for a control mutation.
-	("labelled", pgettext("webAccess.mutation", "Labeled after this rule")),
+	("labelled", pgettext("webAccess.mutation", "Add a label")),
 	(
 		"landmark.region",
 		# Translators: The label for a control mutation.
-		pgettext("webAccess.mutation", "Region (named after this rule)")
+		pgettext("webAccess.mutation", "Region")
 	),
 	(
 		"landmark.nav.named",
 		# Translators: The label for a control mutation.
-		pgettext("webAccess.mutation", "Navigation (named after this rule)")
+		pgettext("webAccess.mutation", "Navigation (named)")
 	),
 	(
 		"landmark.nav.unnamed",
