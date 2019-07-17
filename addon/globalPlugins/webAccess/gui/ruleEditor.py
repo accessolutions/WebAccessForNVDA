@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.07.16"
+__version__ = "2019.07.17"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -34,7 +34,11 @@ import inputCore
 from logHandler import log
 
 from .. import ruleHandler
-from ..ruleHandler import mutations, ruleTypes
+from ..ruleHandler import ruleTypes
+from ..ruleHandler.controlMutation import (
+	MUTATIONS_BY_RULE_TYPE,
+	mutationLabels
+)
 from .. import webModuleHandler
 
 try:
@@ -692,7 +696,7 @@ class RulePropertiesEditor(wx.Dialog):
 				label = stripAccel(label)
 				value = data[key]
 				if key == "mutation":
-					value = mutations.mutationLabels.get(value)
+					value = mutationLabels.get(value)
 				elif isinstance(value, bool):
 					if value:
 						parts.append(label.strip().strip(":").strip())
@@ -834,9 +838,6 @@ class RulePropertiesEditor(wx.Dialog):
 			border=4
 		)
 		item = self.mutationCombo = wx.ComboBox(self, style=wx.CB_READONLY)
-		self.mutationCombo.Append(_("<None>"), "")
-		for key, label in mutations.mutationLabels.items():
-			self.mutationCombo.Append(label, key)
 		item.Hide()  # Visibility depends on rule type
 		gbSizer.Add(
 			item,
@@ -885,15 +886,27 @@ class RulePropertiesEditor(wx.Dialog):
 			self.customValueLabel.Show()
 			self.customValueText.Show()
 		if "mutation" in fields:
+			self.mutationCombo.Append(_("<None>"), "")
+			for id_ in MUTATIONS_BY_RULE_TYPE.get(ruleType, []):
+				label = mutationLabels.get(id_)
+				if label is None:
+					log.error("No label for mutation id: {}".format(id_))
+					label = id_
+				self.mutationCombo.Append(label, id_)
 			mutation = data.get("mutation")
 			if mutation:
-				for index, key in enumerate(mutations.mutationLabels.keys()):
-					if key == mutation:
-						index += 1
+				for index in range(1, self.mutationCombo.Count + 1):
+					id_ = self.mutationCombo.GetClientData(index)
+					if id_ == mutation:
 						break
 				else:
-					log.error(u"Unexpected mutation id: {}".format(mutation))
-					index = 0
+					# Allow to bypass mutation choice by rule type
+					label = mutationLabels.get(id_)
+					if label is None:
+						log.error("No label for mutation id: {}".format(id_))
+						label = id_
+					self.mutationCombo.Append(label, id_)
+					index += 1
 			else:
 				index = 0
 			self.mutationCombo.SetSelection(index)

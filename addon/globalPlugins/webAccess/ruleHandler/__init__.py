@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.07.16"
+__version__ = "2019.07.17"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -48,7 +48,7 @@ from .. import nodeHandler
 from ..webAppLib import *
 from .. import webAppScheduler
 from ..widgets import genericCollection
-from . import mutations
+from .controlMutation import MUTATIONS, MutatedControl
 from . import ruleTypes
 
 
@@ -375,7 +375,7 @@ class MarkerManager(baseObject.ScriptableObject):
 				controlId = int(result.node.controlIdentifier)
 				entry = self._mutatedControlsById.get(controlId)
 				if entry is None:
-					entry = mutations.MutatedControl(result)
+					entry = MutatedControl(result)
 					self._mutatedControlsById[controlId] = entry
 					self._mutatedControlsByOffset.append(entry)
 				else:
@@ -1101,7 +1101,7 @@ class VirtualMarkerQuery(MarkerQuery):
 		self.mutation = None
 		if "mutation" in dic:
 			try:
-				self.mutation = mutations.CONTROL_MUTATIONS[dic["mutation"]]
+				self.mutation = MUTATIONS[dic["mutation"]]
 			except LookupError:
 				log.exception((
 					u"Unexpected mutation template id \"{mutation}\" "
