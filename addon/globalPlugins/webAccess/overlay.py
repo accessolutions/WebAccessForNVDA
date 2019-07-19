@@ -26,7 +26,7 @@ WebAccess overlay classes
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.07.17"
+__version__ = "2019.07.19"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -36,6 +36,7 @@ import wx
 import addonHandler
 import baseObject
 import browseMode
+import config
 import controlTypes
 import core
 import cursorManager
@@ -52,10 +53,11 @@ from .nvdaVersion import nvdaVersion
 
 
 try:
+	from six import iteritems
 	from six.moves import xrange
 except ImportError:
 	# NVDA version < 2018.3
-	pass
+	iteritems = dict.iteritems
 
 
 addonHandler.initTranslation()
@@ -299,15 +301,39 @@ class WebAccessBmdtiTextInfo(textInfos.offsets.OffsetsTextInfo):
 		return fields
 
 
-class WebAccessBmdtiQuickNavItem(browseMode.TextInfoQuickNavItem):
+class WebAccessMutatedQuickNavItem(browseMode.TextInfoQuickNavItem):
 	"""
 	A `TextInfoQuickNavItem` supporting mutated controls.
 	"""
 	def __init__(self, itemType, document, textInfo, controlId):
-		super(WebAccessBmdtiQuickNavItem, self).__init__(
+		super(WebAccessMutatedQuickNavItem, self).__init__(
 			itemType, document, textInfo
 		)
 		self.controlId = controlId
+		# Support for `virtualBuffers.VirtualBufferQuickNavItem.isChild`
+		# so that the Elements List dialog can relate nested headings.
+		self.vbufFieldIdentifier = (document.rootDocHandle, controlId)
+
+	@property
+	def obj(self):
+		return self.document.getNVDAObjectFromIdentifier(
+			self.document.rootDocHandle, self.controlId
+		)
+	
+	def isChild(self, parent): 
+		if self.itemType == "heading":
+			try:
+				
+				def getLevel(obj):
+					return int(self.textInfo._getControlFieldAttribs(
+						*self.vbufFieldIdentifier
+					)["level"])
+				
+				if getLevel(self) > getLevel(parent):
+					return True
+			except (AttributeError, KeyError, ValueError, TypeError):
+				return False
+		return super(WebAccessMutatedQuickNavItem, self).isChild(parent)
 	
 	if nvdaVersion >= (2017, 4):
 		@property
@@ -416,14 +442,21 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		)
 	
 	def _iterNodesByType(self, itemType, direction="next", pos=None):
+		superIter = super(WebAccessBmdti, self)._iterNodesByType(
+			itemType, direction, pos
+		)
+		if itemType == "focusable":
+			# `VirtualBuffer._iterNodesByType` does not support yielding
+			# multiple focusable elements: It causes a core freeze.
+			try:
+				yield next(superIter)
+			except StopIteration:
+				return
 		mgr = self.webAccess.ruleManager
 		if not mgr:
-			for item in super(WebAccessBmdti, self)._iterNodesByType(
-				itemType, direction, pos
-			):
+			for item in superIter:
 				yield item
 			return
-		
 		zone = self.webAccess.zone
 		if (
 			zone
@@ -434,63 +467,12 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			pos = pos.copy()
 			pos.move(textInfos.UNIT_CHARACTER, -1)
 		
-		if itemType == "button":
-			search = {"role": controlTypes.ROLE_BUTTON}
-		elif itemType.startswith('heading'):
-			search = {"role": controlTypes.ROLE_HEADING}
-			if itemType[7:].isdigit():
-				# "level" is int in position info,
-				# but text in control field attributes...
-				search["level"] = itemType[7:]
-		elif itemType == "landmark":
-			search = {"landmark": True}
-		elif itemType == "link":
-			search = {"role": controlTypes.ROLE_LINK}
-		elif itemType == "table":
-			search = {"role": controlTypes.ROLE_TABLE}
-		else:
-			search = {}
-		
-		def check(search, info, docHandle, controlId):
-			"""
-			Check whether a control meets the given search criteria.
-			"""
-			attrs = info._getControlFieldAttribs(docHandle, controlId)
-			for key, value in search.items():
-				candidate = attrs.get(key)
-				if isinstance(value, bool):
-					candidate = bool(candidate)
-				if candidate != value:
-					return False
-			return True
-		
-		def iterMutated(mgr, check, search, direction, pos, document):
-			"""
-			Iterate over mutated controls matching the given search criteria.
-			"""
-			if not search:
-				return
-			for entry in mgr.iterMutatedControls(
-				direction=direction,
-				offset=pos._startOffset if pos is not None else None
-			):
-				info = self.makeTextInfo(textInfos.offsets.Offsets(
-					entry.start, entry.end
-				))
-				controlId = entry.controlId
-				if not check(search, info, document.rootDocHandle, controlId):
-					continue
-				yield WebAccessBmdtiQuickNavItem(
-					itemType, document, info, controlId
-				)
-		
+		criteria = self.__getCriteriaForMutatedControlType(itemType)
+		mutatedIter = self.__iterMutatedControlsByCriteria(
+			criteria, itemType, direction, pos
+		)
 		for item in browseMode.mergeQuickNavItemIterators(
-			[
-				iterMutated(mgr, check, search, direction, pos, self),
-				super(WebAccessBmdti, self)._iterNodesByType(
-					itemType, direction, pos
-				)
-			],
+			(mutatedIter, superIter),
 			direction
 		):
 			if zone:
@@ -504,22 +486,258 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 						continue
 					else:
 						return
-			if isinstance(item, virtualBuffers.VirtualBufferQuickNavItem):
-				docHandle, controlId = item.vbufFieldIdentifier
-				# Only perform the check if the control has been mutated.
-				if mgr.getMutatedControl(controlId) and not check(
-					search, item.textInfo, docHandle, controlId
-				):
-					continue 
-				if pos is None and itemType == "heading":
-					# Downgrade to the common base class so that the
-					# Elements List dialog can relate nested headings.
-					item.__class__ = browseMode.TextInfoQuickNavItem 
-			elif not isinstance(item, WebAccessBmdtiQuickNavItem):
-				log.error(u"Unexpected QuickNavItem type: {}".format(
-					type(item)
-				))
+			if not isinstance(item, WebAccessMutatedQuickNavItem):
+				controlId = None
+				if isinstance(item, virtualBuffers.VirtualBufferQuickNavItem):
+					docHandle, controlId = item.vbufFieldIdentifier
+				elif isinstance(item, browseMode.TextInfoQuickNavItem):
+					try:
+						obj = item.textInfo.NVDAObjectAtStart
+						controlId = obj.IA2UniqueID
+					except:
+						log.exception()
+				if controlId is None:
+					log.error((
+						u"Could not determine controlId for item: {}"
+					).format(item))
+				elif mgr.getMutatedControl(controlId):
+					# Avoid iterating twice over mutated controls. 
+					continue
 			yield item
+	
+	def __getCriteriaForMutatedControlType(self, itemType):
+		"""
+		Return the search attributes for matching mutated controls.
+		
+		Adapted from `Gecko_ia2._searchableAttribsForNodeType`
+		
+		See `__mutatedControlMatchesCriteria` for details on criteria format.
+		"""
+		if itemType == "annotation":
+			attrs = {
+				"IAccessible::role": [
+					controlTypes.ROLE_DELETED_CONTENT,
+					controlTypes.ROLE_INSERTED_CONTENT
+				]
+			}
+		elif itemType == "blockQuote":
+			attrs = {
+				"role": [controlTypes.ROLE_BLOCKQUOTE]
+			}
+		elif itemType == "button":
+			attrs = {"role": [controlTypes.ROLE_BUTTON]}
+		elif itemType == "checkBox":
+			attrs = {"role": [controlTypes.ROLE_CHECKBOX]}
+		elif itemType == "comboBox":
+			attrs = {"role": [controlTypes.ROLE_COMBOBOX]}
+		elif itemType == "edit":
+			attrs = [
+				{
+					"role": [controlTypes.ROLE_EDITABLETEXT],
+					"states": [set((controlTypes.STATE_EDITABLE,))]
+				},
+				{
+					"states": [set((controlTypes.STATE_EDITABLE,))],
+					"parent::states::not": [
+						set((controlTypes.STATE_EDITABLE,))
+					]
+				},
+			]
+		elif itemType == "embeddedObject":
+			attrs = [
+				{
+					"tag": ["embed", "object", "applet", "audio", "video"]
+				},
+				{
+					"role": [
+						controlTypes.ROLE_APPLICATION,
+						controlTypes.ROLE_DIALOG
+					]
+				}
+			]
+		elif itemType == "frame":
+			attrs = {"role": [controlTypes.ROLE_INTERNALFRAME]}
+		elif itemType == "focusable":
+			attrs = {
+				"states": [set((controlTypes.STATE_FOCUSABLE,))]
+			}
+		elif itemType == "formField":
+			attrs = [
+				{
+					"role": [
+						controlTypes.ROLE_BUTTON,
+						controlTypes.ROLE_CHECKBOX,
+						controlTypes.ROLE_COMBOBOX,
+						controlTypes.ROLE_LIST,
+						controlTypes.ROLE_MENUBUTTON,
+						controlTypes.ROLE_RADIOBUTTON,
+						controlTypes.ROLE_TOGGLEBUTTON,
+						controlTypes.ROLE_TREEVIEW,
+					],
+					"states::not": [set((controlTypes.STATE_READONLY,))]
+				},
+				{
+					"role": [
+						controlTypes.ROLE_COMBOBOX,
+						controlTypes.ROLE_EDITABLETEXT
+					],
+					"states" : [set((controlTypes.STATE_EDITABLE,))]
+				},
+				{
+					"states": [set((controlTypes.STATE_EDITABLE,))],
+					"parent::states::not": [
+						set((controlTypes.STATE_EDITABLE,))
+					]
+				},
+			]
+		elif itemType == "graphic":
+			attrs = {"role": [controlTypes.ROLE_GRAPHIC]}
+		elif itemType.startswith('heading'):
+			attrs = {"role": [controlTypes.ROLE_HEADING]}
+			if itemType[7:].isdigit():
+				# "level" is int in position info,
+				# but text in control field attributes...
+				attrs["level"] = [itemType[7:]]
+		elif itemType == "landmark":
+			attrs = {"landmark": [True]}
+		elif itemType == "link":
+			attrs = {"role": [controlTypes.ROLE_LINK]}
+		elif itemType == "list":
+			attrs = {"role": [controlTypes.ROLE_LIST]}
+		elif itemType == "listItem":
+			attrs = {"role": [controlTypes.ROLE_LISTITEM]}
+		elif itemType == "radioButton":
+			attrs = {"role": [controlTypes.ROLE_RADIOBUTTON]}
+		elif itemType == "separator":
+			attrs = {"role": [controlTypes.ROLE_SEPARATOR]}
+		elif itemType == "table":
+			attrs = {"role": [controlTypes.ROLE_TABLE]}
+			if not config.conf["documentFormatting"]["includeLayoutTables"]:
+				attrs["table-layout"] = [False]
+		elif itemType == "unvisitedLink":
+			# We can't track this.
+			# Thus, controls mutated to links aren't visited nor unvisited.
+			attrs = {}
+		elif itemType == "visitedLink":
+			# We can't track this.
+			# Thus, controls mutated to links aren't visited nor unvisited.
+			attrs = {}
+		else:
+			attrs = {}
+		return attrs
+	
+	def __iterMutatedControlsByCriteria(
+		self, criteria, itemType, direction="next", pos=None
+	):
+		"""
+		Iterate over mutated controls matching the given search criteria.
+		
+		See `__mutatedControlMatchesCriteria` for details on criteria format.
+		"""
+		mgr = self.webAccess.ruleManager
+		if not mgr:
+			return
+		if not criteria:
+			return
+		for mutated in mgr.iterMutatedControls(
+			direction=direction,
+			offset=pos._startOffset if pos is not None else None
+		):
+			info = mutated.node.getTextInfo()
+			if self.__mutatedControlMatchesCriteria(criteria, mutated, info):
+				yield WebAccessMutatedQuickNavItem(
+					itemType, self, info, mutated.controlId
+				)
+	
+	def __mutatedControlMatchesCriteria(self, criteria, mutated, info=None):
+		"""
+		Check whether a mutated control matches the given criteria.
+		
+		Criteria are expected to be a list of dictionaries.
+		Each item in the list represents a valid match alternative.
+		The control matches if any of these alternatives matches.
+		
+		The dictionary for an alternative maps attribute names to a list of
+		accepted values.
+		Every key in the dictionary must be satisfied for an alternative to
+		match.
+		
+		Possible values for a key are compared against the mutated control
+		field attribute value with the same name, with a few twists:
+		 - Missing control field attribute values are considered to be `None`.
+		 - The key "tag" is checked against the attribute with the same name
+		   on the node corresponding to the mutated control.
+		 - If the key is prefixed with "parent::", the values are checked
+		   against the parent node.
+		 - If a key is suffixed with "::not", no criteria value should match
+		   the candidate control field attribute value for the criteria to be
+		   satisfied. 
+		 - If a possible value is boolean, the corresponding control field
+		   attribute value is first converted to boolean before comparison.
+		   That is, as an example, the criteria value `False` matches a missing
+		   candidate control field attribute value.
+		 - If a possible value is a set, the candidate control field attribute
+		   value is also considered to be a set, and the key matches if the
+		   former is a subset of the latter.
+		   The "::not" key suffix also applies to sets, negating the match.
+		"""
+		if not criteria:
+			return True
+		if isinstance(criteria, dict):
+			criteria = (criteria,)
+		if info is None:
+			info = mutated.node.getTextInfo()
+		docHandle = self.rootDocHandle
+		controlId = mutated.controlId
+		controlAttrs = info._getControlFieldAttribs(docHandle, controlId)
+		controlNode = mutated.node
+		parentAttrs = None  # Fetch lazily as seldom needed
+		parentNode = mutated.node.parent
+		for alternative in criteria:
+			for key, values in iteritems(alternative):
+				if key.endswith("::not"):
+					negate = True
+					key = key[:-len("::not")]
+				else:
+					negate = False
+				if key.startswith("parent::"):
+					key = key[len("parent::"):]
+					if parentAttrs is None:
+						parent = mutated.node.parent
+						parentInfo = parent.getTextInfo()
+						parentAttrs = parentInfo._getControlFieldAttribs(
+							docHandle, int(parent.controlIdentifier)
+						)
+					attrs = parentAttrs
+					node = parentNode
+				else:
+					attrs = controlAttrs
+					node = controlNode
+				if key == "tag":
+					candidate = node.tag
+				else:
+					candidate = attrs.get(key)
+				for value in values:
+					if isinstance(value, set):
+						if value.issubset(candidate or set()) == negate:
+							log.info(u"boom {}, {}, {}".format(value, candidate, negate))
+							break
+						else:
+							log.info(u"yep {}, {}, {}".format(value, candidate, negate))
+						continue
+					if isinstance(value, bool):
+						candidate = bool(candidate)
+					if (candidate != value) != negate:
+						break
+				else:
+					# This attribute matches
+					continue
+				# An attribute did not match in this alternative
+				break
+			else:
+				# All attributes matched in this alternative
+				return True
+		return False
 	
 	def _quickNavScript(
 		self, gesture, itemType, direction, errorMessage, readUnit

@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.07.17"
+__version__ = "2019.07.19"
 __author__ = u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -52,18 +52,26 @@ class MutatedControl(object):
 	"""
 	The effective mutations applied on a control as the result of matched rules.
 	"""
-	__slots__ = ("controlId", "start", "end", "attrs")
+	__slots__ = ("node", "attrs")
 	
 	def __init__(self, result):
 		if not hasattr(result, "node"):
 			raise TypeError("Only node results are supported")
-		node = result.node
-		self.controlId = int(node.controlIdentifier)
-		node = result.node
-		self.start = node.offset
-		self.end = node.offset + node.size
+		self.node = result.node
 		self.attrs = {}
 		self.apply(result)
+	
+	@property
+	def controlId(self):
+		return int(self.node.controlIdentifier)
+	
+	@property
+	def start(self):
+		return self.node.offset
+	
+	@property
+	def end(self):
+		return self.node.offset + self.node.size
 	
 	def apply(self, result):
 		rule = result.rule
