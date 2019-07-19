@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.07.17"
+__version__ = "2019.07.19"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -538,7 +538,7 @@ class RuleCriteriaEditor(wx.Dialog):
 				return
 			data["role"] = roleIdExpr
 		
-		setIfNotEmpty(data, "tag", self.tagCombo.Value.upper())
+		setIfNotEmpty(data, "tag", self.tagCombo.Value.lower())
 		setIfNotEmpty(data, "id", self.idCombo.Value)
 		setIfNotEmpty(data, "className", self.classCombo.Value)
 		

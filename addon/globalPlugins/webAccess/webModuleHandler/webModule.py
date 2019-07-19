@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.07.17"
+__version__ = "2019.07.19"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
@@ -303,7 +303,7 @@ class WebModule(baseObject.ScriptableObject):
 		if formatVersion < version.parse("0.6"):
 			for rule in rules:
 				if rule.get("tag"):
-					rule["tag"] = rule["tag"].upper()
+					rule["tag"] = rule["tag"].lower()
 		
 		if formatVersion > self.FORMAT_VERSION:
 			raise NewerFormatVersion(

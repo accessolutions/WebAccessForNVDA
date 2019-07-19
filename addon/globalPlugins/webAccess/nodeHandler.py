@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.07.17"
+__version__ = "2019.07.19"
 __authors__ = (
 	u"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
 	u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
@@ -443,7 +443,7 @@ class NodeField(baseObject.AutoPropertyObject):
 				self.tag = attrs.get("IHTMLDOMNode::nodeName")
 			# tag is reported lowercase in Chrome and FF, but uppercase in IE.
 			if self.tag:
-				self.tag = self.tag.upper()
+				self.tag = self.tag.lower()
 			self.id = attrs.get("IAccessible2::attribute_id")
 			if not self.id:
 				self.id = attrs.get("HTMLAttrib::id")
