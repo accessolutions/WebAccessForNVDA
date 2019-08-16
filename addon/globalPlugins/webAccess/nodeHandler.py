@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.07.19"
+__version__ = "2019.08.16"
 __authors__ = (
 	u"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
 	u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
@@ -784,7 +784,7 @@ class NodeField(baseObject.AutoPropertyObject):
 		if not self.checkNodeManager():
 			return False
 		info = self.getTextInfo()
-		self.nodeManager.treeInterceptor._activatePosition(info)
+		self.nodeManager.treeInterceptor._activatePosition(info=info)
 
 	def sayAll(self):
 		if self.moveto():

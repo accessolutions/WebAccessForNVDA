@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2016.12.20"
+__version__ = "2019.08.16"
 
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
@@ -189,7 +189,7 @@ def activatePosition (info=None):
 	treeInterceptor = getTreeInterceptor()
 	if info is None:
 		info = getCaretInfo()
-	treeInterceptor._activatePosition(info)
+	treeInterceptor._activatePosition(info=info)
 	
 def searchString(text, info=None, id=None, className=None, src=None, func=None, first=False, reverse=False, maxAncestors=1):
 	treeInterceptor = getTreeInterceptor ()
