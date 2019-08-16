@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.07.17"
+__version__ = "2019.08.16"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -41,6 +41,7 @@ import inputCore
 from logHandler import log
 import queueHandler
 import sayAllHandler
+import scriptHandler
 import speech
 import textInfos
 import textInfos.offsets
