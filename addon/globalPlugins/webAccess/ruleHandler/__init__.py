@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.08.16"
+__version__ = "2019.08.22"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -388,12 +388,12 @@ class MarkerManager(baseObject.ScriptableObject):
 					self._mutatedControlsByOffset.append(entry)
 				else:
 					entry.apply(result)
-			
+
+			self._ready = True
+			self.nodeManagerIdentifier = self.nodeManager.identifier
 			if self.zone is not None:
 				if not self.zone.update():
 					self.zone = None
-			self.nodeManagerIdentifier = self.nodeManager.identifier
-			self._ready = True
 			#logTime("update marker", t)
 			if self.isReady:
 				webAppScheduler.scheduler.send(eventName="markerManagerUpdated", markerManager=self)
@@ -424,19 +424,18 @@ class MarkerManager(baseObject.ScriptableObject):
 			for result in self.markerResults:
 				if result.markerQuery.autoAction:
 					controlIdentifier = result.node.controlIdentifier
-					text = result.node.getTreeInterceptorText()
+					# check only 100 first characters
+					text = result.node.getTreeInterceptorText()[:100]
 					autoActionName = result.markerQuery.autoAction
 					func = getattr(result, "script_%s" % autoActionName)
 					lastText = self.triggeredIdentifiers.get(controlIdentifier)
 					if (lastText is None or text != lastText):
 						self.triggeredIdentifiers[controlIdentifier] = text
-						autoActionName = result.markerQuery.autoAction
-						func = getattr(result, "script_%s" % autoActionName)
 						if autoActionName == "speak":
 							playWebAppSound("errorMessage")
 						elif autoActionName == "moveto": 
 							if lastText is None:
-								# uniquement si c'est un nouveau controlIdentifier
+								# only if it's a new identifier
 								if funcMoveto is None:
 									if func.__name__== self.lastAutoMoveto \
 										and time.time() - self.lastAutoMovetoTime < 4:
@@ -1273,7 +1272,6 @@ class VirtualMarkerQuery(MarkerQuery):
 # 				func = getattr(self.markerManager.webApp, funcName)
 # 				if func is not None:
 # 					return func(self)
-		
 		if not self.checkContextPageTitle():
 			return []
 		if not self.checkContextPageType():
@@ -1332,7 +1330,6 @@ class VirtualMarkerQuery(MarkerQuery):
 			if not newRootNodes:
 				return []
 			rootNodes = newRootNodes
-		
 		kwargs = {}
 		if rootNodes:
 			kwargs["roots"] = rootNodes
@@ -1457,12 +1454,7 @@ class Zone(textInfos.offsets.Offsets):
 		return res
 	
 	def update(self):
-		rule = self.getRule()
-		if not rule:
-			# The WebModule might have been edited and the rule deleted.
-			self.startOffset = self.endOffset = None
-			return False
-		results = rule.getResults()
+		results = self.ruleManager.getResultsByName(self.name)
 		if not results:
 			self.startOffset = self.endOffset = None
 			return False
