@@ -50,12 +50,12 @@ Overridden NVDA functions:
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.07.17"
+__version__ = "2019.09.16"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
 	"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
-	)
+)
 
 
 import os
@@ -89,6 +89,7 @@ import ui
 import virtualBuffers
 
 from . import nodeHandler
+from .nvdaVersion import nvdaVersion
 from . import overlay
 from . import presenter
 from . import webAppLib
@@ -843,3 +844,24 @@ def showWebModulesLoadErrors():
 			style=wx.ICON_WARNING,
 			parent=gui.mainFrame
 		)
+
+
+if nvdaVersion >= (2018, 1):
+	
+	# Workaround for NVDA bug #10227 / PR #10231
+	# "IA2: Do not treat huge base64 data as NVDA might freeze in Google Chrome"
+	
+	ATTRIBS_STRING_BASE64_PATTERN = re.compile(r"base64\\,[A-Za-z0-9+/=]+")
+	ATTRIBS_STRING_BASE64_THRESHOLD = 4096
+
+	def splitIA2Attribs(attribsString):
+		if len(attribsString) >= ATTRIBS_STRING_BASE64_THRESHOLD:
+			attribsString = ATTRIBS_STRING_BASE64_PATTERN.sub("base64,<truncated>", attribsString)
+			if len(attribsString) >= ATTRIBS_STRING_BASE64_THRESHOLD:
+				log.debugWarning(u"IA2 attributes string exceeds threshold: {}".format(attribsString))
+		return splitIA2Attribs.super(attribsString)
+
+	import IAccessibleHandler
+
+	splitIA2Attribs.super = IAccessibleHandler.splitIA2Attribs
+	IAccessibleHandler.splitIA2Attribs = splitIA2Attribs
