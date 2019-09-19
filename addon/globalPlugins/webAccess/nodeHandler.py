@@ -22,16 +22,17 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.08.16"
+__version__ = "2019.09.19"
 __authors__ = (
 	u"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
 	u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 )
 
 
+from ast import literal_eval
 import gc
+import re
 import time
-import winUser
 from xml.parsers import expat
 
 import baseObject
@@ -42,6 +43,7 @@ import NVDAHelper
 import sayAllHandler
 import textInfos
 import ui
+import winUser
 
 from .webAppLib import *
 
@@ -512,6 +514,21 @@ class NodeField(baseObject.AutoPropertyObject):
 		return n
 	
 	def searchString(self, text, exclude=None, maxIndex=0, currentIndex=0):
+		"""Searches the current node and its sub-tree for a match with the given text.
+		
+		Keyword arguments:
+		  text: The text to search for.
+		  exclude:
+		    If specified, set of children nodes not to explore or  True  to not explore
+		    children nodes at all.
+		  maxIndex:
+		    If set to 0 (default value), every result found is returned.
+		    If greater than 0, only return the n first results (1 based).
+		  currentIndex: Used to compare against maxIndex when searching down
+		    sub-trees.
+		
+		Returns a list of the matching nodes.
+		"""  # noqa
 		if not isinstance(text, list):
 			text = [text]
 		if hasattr(self, "text"):
@@ -519,7 +536,7 @@ class NodeField(baseObject.AutoPropertyObject):
 				if t in self.text:
 					return [self]
 			return []
-		elif hasattr(self, "children"):
+		elif exclude is not True and hasattr(self, "children"):
 			result = []
 			for child in self.children:
 				if exclude and child in exclude:
@@ -564,12 +581,12 @@ class NodeField(baseObject.AutoPropertyObject):
 		currentIndex=0,
 		**kwargs
 	):
-		"""
-		Searches the current node and its sub-tree for a match with the given
-		criteria.
+		"""Searches the current node and its sub-tree for a match with the given criteria.
 		
 		Keyword arguments:
-		  exclude: If specified, set of children nodes not to explore.
+		  exclude:
+		    If specified, set of children nodes not to explore or  True  to not explore
+		    children nodes at all.
 		  relativePath:
 		    If specified, walk the given path from the matched nodes to
 		    determine the final result. If the path cannot be walked, no
@@ -591,6 +608,8 @@ class NodeField(baseObject.AutoPropertyObject):
 		
 		Properties `text` and `prevText` are mutually exclusive, are only valid
 		for the `in` test and do not support multiple values.
+		
+		Returns a list of the matching nodes.
 		"""  # noqa
 		global _count
 		nodeList = []
@@ -670,6 +689,8 @@ class NodeField(baseObject.AutoPropertyObject):
 					if match:
 						matches.append(match)
 			return matches
+		if exclude is True:
+			return []
 		for child in self.children:
 			if exclude and child in exclude:
 				continue
@@ -699,9 +720,10 @@ class NodeField(baseObject.AutoPropertyObject):
 					return node
 		return None
 	
+	RELATIVE_PATH_CRITERIA = re.compile(ur"^{[^}]*}")
+	
 	def walk(self, path):
-		"""
-	    Walk the node tree and return the destination node.
+		"""Walk the node tree and return the destination node.
 	    Returns None if the given path cannot be walked.
 	    In the path expression, each character represents a step:
 	      - "b": (before) previous text in the document flow
@@ -710,55 +732,102 @@ class NodeField(baseObject.AutoPropertyObject):
 	      - "d": (down) first child node
 	      - "l": (left) previous sibling node
 	      - "r": (right) next sibling node
+	    Criteria expressions can be checked on the way. They are introduced by the
+	    non-moving step "c" (check) and are formatted as a Python dictionary literal.
+	    Additionally, regular steps can be expressed upper-case, in which case they are
+	    immediately followed by a criteria expression.
+	    They allow to walk in the given direction until the criteria are met.
 		"""  # noqa
 		node = self
+		skipUntil = None
+		searchKwargs = None
 		for index, step in enumerate(path):
-			if step == "b": # First node with lesser offset
-				node = node.previousTextNode
-			elif step == "a": # First node with greater offset
-				offset = node.offset
-				while True:
+			if skipUntil and index < skipUntil:
+				continue
+			while True:
+				if searchKwargs:
+					matches = node.searchNode(
+						exclude=step != "d",  # search sub-tree only when walking down.
+						maxIndex=1,
+						currentIndex=0,
+						**searchKwargs
+					)
+					if matches:
+						node = matches[0]
+						searchKwargs = None
+						break  # continue to the next step
+					if step == "c":
+						return None
+				# No check or no match, keep walking...
+				if step == "b":  # First node with lesser offset
+					node = node.previousTextNode
+					if not node:
+						return None
+					node = node.parent
+				elif step == "a": # First node with greater offset
+					offset = node.offset
+					while True:
+						try:
+							node = node.children[0]
+						except:
+							while True:
+								try:
+									node = node.parent.children[node.index + 1]
+									break
+								except:
+									node = node.parent
+									if node is None:
+										return None
+						if node.offset > offset:
+							break
+				elif step == "u":
+					node = node.parent
+				elif step == "d":
 					try:
 						node = node.children[0]
 					except:
-						while True:
-							try:
-								node = node.parent.children[node.index + 1]
-								break
-							except:
-								node = node.parent
-								if node is None:
-									return None
-					if node.offset > offset:
-						break
-			elif step == "u":
-				node = node.parent
-			elif step == "d":
-				try:
-					node = node.children[0]
-				except:
+						return None
+				elif step == "l":
+					if node.index == 0 or node.parent is None:
+						return None
+					node = node.parent.children[node.index - 1]
+				elif step == "r":
+					try:
+						node = node.parent.children[node.index + 1]
+					except:
+						return None
+				elif step == "c" or step.isupper():
+					assert searchKwargs is None
+					if step.isupper():
+						step = step.lower()
+					index = index + 1
+					match = self.RELATIVE_PATH_CRITERIA.match(path[index:])
+					if not match:
+						log.error((
+							u"Malformed criteria expression in relative path expression "
+							u"at position {index}: {path}"
+						).format(**locals()))
+						return None
+					# TODO: Refactor to break this coupling
+					from .ruleHandler import getSimpleSearchKwargs
+					criteria = literal_eval(match.group())
+					searchKwargs = getSimpleSearchKwargs(criteria)
+					skipUntil = match.end() + 1
+					continue
+				else:
+					log.error((
+						u'Invalid step "{step}" at index {index}'
+						u' in path expression: "{path}"'
+					).format(
+						step=step,
+						index=index,
+						path=path
+					))
 					return None
-			elif step == "l":
-				if node.index == 0 or node.parent is None:
+				if not node:
 					return None
-				node = node.parent.children[node.index - 1]
-			elif step == "r":
-				try:
-					node = node.parent.children[node.index + 1]
-				except:
-					return None
-			else:
-				log.error((
-					u'Invalid step "{step}" at index {index}'
-					u' in path expression: "{path}"'
-				).format(
-					step=step,
-					index=index,
-					path=path
-				))
-				return None
-			if not node:
-				return None
+				if not searchKwargs:
+					break
 		return node
 	
 	def firstTextNode(self):

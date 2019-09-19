@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.08.22"
+__version__ = "2019.09.19"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -1139,53 +1139,7 @@ class VirtualMarkerQuery(MarkerQuery):
 	
 	def getData(self):
 		return self.dic
-	
-	def addSearchKwargs(self, dic, prop, expr):
-		if not expr:
-			return
-		if prop == "text":
-			if expr[0] == "<":
-				dic["in_prevText"] = expr[1:]
-				return
-			dic["in_text"] = expr[1:]
-			return
-		if prop == "className":
-			expr = expr.replace(" ", "&")
-		for andIndex, expr in enumerate(expr.split("&")):
-			expr = expr.strip()
-			eq = []
-			notEq = []
-			in_ = []
-			notIn = []
-			for expr in expr.split("|"):
-				expr = expr.strip()
-				if not expr:
-					continue
-				if expr[0] == "!":
-					if "*" in expr:
-						notIn.append(expr[1:].strip())
-					else:
-						notEq.append(expr[1:].strip())
-				else:
-					if "*" in expr:
-						in_.append(expr)
-					else:
-						eq.append(expr)
-			for test, values in (
-				("eq", eq),
-				("notEq", notEq),
-				("in", in_),
-				("notIn", notIn),
-			):
-				if not values:
-					continue
-				key = "{test}_{prop}#{index}".format(
-					test=test,
-					prop=prop,
-					index=andIndex
-				)
-				dic[key] = values
-	
+		
 	def checkContextPageTitle(self):
 		"""
 		Check whether the current page satisfies `contextPageTitle`.
@@ -1330,7 +1284,7 @@ class VirtualMarkerQuery(MarkerQuery):
 			if not newRootNodes:
 				return []
 			rootNodes = newRootNodes
-		kwargs = {}
+		kwargs = getSimpleSearchKwargs(dic)
 		if rootNodes:
 			kwargs["roots"] = rootNodes
 		if excludedNodes:
@@ -1338,13 +1292,6 @@ class VirtualMarkerQuery(MarkerQuery):
 		if not self.multiple:
 			kwargs["maxIndex"] = self.index or 1
 		kwargs["relativePath"] = dic.get("relativePath")
-		self.addSearchKwargs(kwargs, "text", text)
-		self.addSearchKwargs(kwargs, "role", dic.get("role"))
-		self.addSearchKwargs(kwargs, "tag", dic.get("tag"))
-		self.addSearchKwargs(kwargs, "id", dic.get("id"))
-		self.addSearchKwargs(kwargs, "className", dic.get("className"))
-		self.addSearchKwargs(kwargs, "states", dic.get("states"))
-		self.addSearchKwargs(kwargs, "src", dic.get("src"))
 		
 		results = []
 		nodeList = self.markerManager.nodeManager.searchNode(**kwargs)
@@ -1359,6 +1306,72 @@ class VirtualMarkerQuery(MarkerQuery):
 			if not self.multiple:
 				break
 		return results
+
+
+def getSimpleSearchKwargs(criteriaDic, raiseOnUnsupported=False):
+	kwargs = {}
+	for prop, expr in criteriaDic.items():
+		if prop not in [
+			"className",
+			"id",
+			"role",
+			"src",
+			"states",
+			"tag",
+			"text",
+		]:
+			if raiseOnUnsupported:
+				raise ValueError(
+					u"Unsupported criteria: {prop}={expr!r}".format(**locals())
+				)
+			continue
+		if not expr:
+			continue
+		if isinstance(expr, int):
+			expr = str(expr)
+		if prop == "text":
+			if expr[0] == "<":
+				kwargs["in_prevText"] = expr[1:]
+				continue
+			kwargs["in_text"] = expr[1:]
+			continue
+		if prop == "className":
+			expr = expr.replace(" ", "&")
+		for andIndex, expr in enumerate(expr.split("&")):
+			expr = expr.strip()
+			eq = []
+			notEq = []
+			in_ = []
+			notIn = []
+			for expr in expr.split("|"):
+				expr = expr.strip()
+				if not expr:
+					continue
+				if expr[0] == "!":
+					if "*" in expr:
+						notIn.append(expr[1:].strip())
+					else:
+						notEq.append(expr[1:].strip())
+				else:
+					if "*" in expr:
+						in_.append(expr)
+					else:
+						eq.append(expr)
+			for test, values in (
+				("eq", eq),
+				("notEq", notEq),
+				("in", in_),
+				("notIn", notIn),
+			):
+				if not values:
+					continue
+				key = "{test}_{prop}#{index}".format(
+					test=test,
+					prop=prop,
+					index=andIndex
+				)
+				kwargs[key] = values
+	return kwargs
 
 
 Rule = VirtualMarkerQuery
