@@ -720,7 +720,7 @@ class NodeField(baseObject.AutoPropertyObject):
 					return node
 		return None
 	
-	RELATIVE_PATH_CRITERIA = re.compile(ur"^{[^}]*}")
+	RELATIVE_PATH_CRITERIA = re.compile(u"^{[^}]*}")
 	
 	def walk(self, path):
 		"""Walk the node tree and return the destination node.
