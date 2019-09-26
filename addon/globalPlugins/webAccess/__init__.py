@@ -846,17 +846,20 @@ def showWebModulesLoadErrors():
 		)
 
 
-if nvdaVersion >= (2018, 1):
+if (2018, 1) <= nvdaVersion < (2019, 2, 1):
 	
-	# Workaround for NVDA bug #10227 / PR #10231
+	# Workaround for NVDA bug #10227 / PR #10231 / Fix up #10282
 	# "IA2: Do not treat huge base64 data as NVDA might freeze in Google Chrome"
 	
-	ATTRIBS_STRING_BASE64_PATTERN = re.compile(r"base64\\,[A-Za-z0-9+/=]+")
+	ATTRIBS_STRING_BASE64_PATTERN = re.compile(
+		r"(([^\\](\\\\)*);src:data\\:[^\\;]+\\;base64)\\,[A-Za-z0-9+/=]+"
+	)
+	ATTRIBS_STRING_BASE64_REPL = r"\1<truncated>"
 	ATTRIBS_STRING_BASE64_THRESHOLD = 4096
 
 	def splitIA2Attribs(attribsString):
 		if len(attribsString) >= ATTRIBS_STRING_BASE64_THRESHOLD:
-			attribsString = ATTRIBS_STRING_BASE64_PATTERN.sub("base64,<truncated>", attribsString)
+			attribsString = ATTRIBS_STRING_BASE64_PATTERN.sub(ATTRIBS_STRING_BASE64_REPL, attribsString)
 			if len(attribsString) >= ATTRIBS_STRING_BASE64_THRESHOLD:
 				log.debugWarning(u"IA2 attributes string exceeds threshold: {}".format(attribsString))
 		return splitIA2Attribs.super(attribsString)
