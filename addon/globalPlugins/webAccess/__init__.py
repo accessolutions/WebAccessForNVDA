@@ -50,7 +50,7 @@ Overridden NVDA functions:
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.09.16"
+__version__ = "2019.09.27"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
@@ -852,7 +852,7 @@ if (2018, 1) <= nvdaVersion < (2019, 2, 1):
 	# "IA2: Do not treat huge base64 data as NVDA might freeze in Google Chrome"
 	
 	ATTRIBS_STRING_BASE64_PATTERN = re.compile(
-		r"(([^\\](\\\\)*);src:data\\:[^\\;]+\\;base64)\\,[A-Za-z0-9+/=]+"
+		r"(([^\\](\\\\)*);src:data\\:[^\\;]+\\;base64\\,)[A-Za-z0-9+/=]+"
 	)
 	ATTRIBS_STRING_BASE64_REPL = r"\1<truncated>"
 	ATTRIBS_STRING_BASE64_THRESHOLD = 4096
