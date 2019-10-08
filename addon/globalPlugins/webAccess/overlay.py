@@ -1042,7 +1042,7 @@ class WebAccessObject(IAccessible):
 		
 		def _get_table(self):
 			try:
-				super(WebAccessObject, self)._get_table()
+				return super(WebAccessObject, self)._get_table()
 			except NotImplementedError:
 				return None
 
