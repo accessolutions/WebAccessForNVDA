@@ -26,7 +26,7 @@ WebAccess overlay classes
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.07.19"
+__version__ = "2019.10.09"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -965,13 +965,13 @@ class WebAccessObject(IAccessible):
 		self.webAccess = WebAccessObjectHelper(self) 
 	
 	def _get_name(self):
-		name = super(WebAccessObject, self)._get_name()
+		name = super(WebAccessObject, self).name
 		return self.webAccess.getMutatedControlAttribute("name", name)
 	
 	def _get_positionInfo(self):
 		# "level" is text in control field attributes,
 		# but int in position info...
-		info = super(WebAccessObject, self)._get_positionInfo()
+		info = super(WebAccessObject, self).positionInfo
 		level = self.webAccess.getMutatedControlAttribute("level")
 		if level:
 			try:
@@ -984,7 +984,7 @@ class WebAccessObject(IAccessible):
 		return info
 	
 	def _get_role(self, original=False):
-		role = super(WebAccessObject, self)._get_role()
+		role = super(WebAccessObject, self).role
 		if original:
 			return role
 		return self.webAccess.getMutatedControlAttribute("role", role)
@@ -1016,7 +1016,7 @@ class WebAccessObject(IAccessible):
 		# fixed by #9562 as of c20a503 in 2019.2
 		
 		def _get_columnNumber(self):
-			res = super(WebAccessObject, self)._get_columnNumber()
+			res = super(WebAccessObject, self).columnNumber
 			try:
 				res = int(res)
 			except ValueError:
@@ -1026,7 +1026,7 @@ class WebAccessObject(IAccessible):
 			return res
 		
 		def _get_rowNumber(self):
-			res = super(WebAccessObject, self)._get_rowNumber()
+			res = super(WebAccessObject, self).rowNumber
 			try:
 				res = int(res)
 			except ValueError:
@@ -1042,7 +1042,7 @@ class WebAccessObject(IAccessible):
 		
 		def _get_table(self):
 			try:
-				return super(WebAccessObject, self)._get_table()
+				return super(WebAccessObject, self).table
 			except NotImplementedError:
 				return None
 
