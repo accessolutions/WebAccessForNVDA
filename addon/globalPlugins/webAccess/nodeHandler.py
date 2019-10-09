@@ -783,7 +783,7 @@ class NodeField(baseObject.AutoPropertyObject):
 									node = node.parent
 									if node is None:
 										return None
-						if node.offset > offset:
+						if node.offset > offset or searchKwargs:
 							break
 				elif step == "u":
 					node = node.parent
