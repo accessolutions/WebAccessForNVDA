@@ -22,14 +22,13 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.09.19"
+__version__ = "2019.10.09"
 __authors__ = (
 	u"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
 	u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 )
 
 
-from ast import literal_eval
 import gc
 import re
 import time
@@ -46,6 +45,12 @@ import ui
 import winUser
 
 from .webAppLib import *
+
+
+try:
+	from ast import literal_eval
+except ImportError:  # NVDA < 2018.4
+	from .ast import literal_eval
 
 
 TRACE = lambda *args, **kwargs: None  # noqa: E731
