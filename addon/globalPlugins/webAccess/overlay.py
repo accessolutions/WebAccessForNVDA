@@ -26,7 +26,7 @@ WebAccess overlay classes
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.10.09"
+__version__ = "2019.10.23"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -448,6 +448,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		if itemType == "focusable":
 			# `VirtualBuffer._iterNodesByType` does not support yielding
 			# multiple focusable elements: It causes a core freeze.
+			# TODO: This does not support yielding items made focusable by mutation.
 			try:
 				yield next(superIter)
 			except StopIteration:

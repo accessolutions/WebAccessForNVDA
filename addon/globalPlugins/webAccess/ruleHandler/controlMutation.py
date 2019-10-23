@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.07.19"
+__version__ = "2019.10.23"
 __author__ = u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -86,6 +86,7 @@ class MutatedControl(object):
 
 
 MUTATIONS = {
+	"button": Mutation({"role": controlTypes.ROLE_BUTTON}, False),
 	# "level" is int in position info, but text in control field attributes...
 	"heading.1": Mutation(
 		{"role": controlTypes.ROLE_HEADING, "level": u"1"}, False
@@ -109,6 +110,7 @@ MUTATIONS = {
 	"landmark.region": Mutation({"landmark": "region"}, True),
 	"landmark.nav.named": Mutation({"landmark": "navigation"}, True),
 	"landmark.nav.unnamed": Mutation({"landmark": "navigation"}, False),
+	"link": Mutation({"role": controlTypes.ROLE_LINK}, False),
 	"table.data": Mutation({"table-layout": False}, False),
 	"table.layout": Mutation({"table-layout": True}, False)
 }
@@ -126,6 +128,8 @@ MUTATIONS_BY_RULE_TYPE = OrderedDict((
 			"landmark.region",
 			"landmark.nav.named",
 			"landmark.nav.unnamed",
+			"button",
+			"link",
 			"table.data",
 			"table.layout",
 		]
@@ -143,6 +147,8 @@ MUTATIONS_BY_RULE_TYPE = OrderedDict((
 ))
 
 mutationLabels = OrderedDict((
+	# Translators: The label for a control mutation.
+	("button", pgettext("webAccess.controlMutation", "Button")),
 	# Translators: The label for a control mutation.
 	("heading.1", pgettext("webAccess.controlMutation", "Header level 1")),
 	# Translators: The label for a control mutation.
@@ -172,6 +178,8 @@ mutationLabels = OrderedDict((
 		# Translators: The label for a control mutation.
 		pgettext("webAccess.controlMutation", "Navigation (unnamed)")
 	),
+	# Translators: The label for a control mutation.
+	("link", pgettext("webAccess.controlMutation", "Link")),
 	(
 		"table.data",
 		pgettext(
