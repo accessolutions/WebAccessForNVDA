@@ -145,25 +145,51 @@ class WebAccessBmdtiHelper(object):
 	"""
 	Utility methods and properties.
 	"""
+	WALK_ALL_TREES = False
+	
 	def __init__(self, treeInterceptor):
 		self.treeInterceptor = treeInterceptor
 		self.caretHitZoneBorder = False
+		self._nodeManager = None
+		self._webModule = None
+	
+	@property
+	def nodeManager(self):
+		nodeManager = self._nodeManager
+		if (
+			not nodeManager
+			and (self.WALK_ALL_TREES or self.treeInterceptor.webAccess.webModule)
+		):
+			from .nodeHandler import NodeManager
+			from .webAppScheduler import scheduler
+			nodeManager = self._nodeManager = NodeManager(
+				self.treeInterceptor, scheduler.onNodeMoveto
+			)
+		return nodeManager
 	
 	@property
 	def ruleManager(self):
-		# TODO: WIP on new coupling
-		try:
-			return self.webModule.ruleManager
-		except AttributeError:
+		if not self.webModule:
 			return None
+		return self.webModule.ruleManager
 	
 	@property
 	def webModule(self):
-		# TODO: WIP on new coupling
-		from . import getWebApp, webAccessEnabled
+		from . import supportWebApp, webAccessEnabled
 		if not webAccessEnabled:
 			return None
-		return getWebApp(self.treeInterceptor.rootNVDAObject)
+		if not self._webModule:
+			obj = self.treeInterceptor.rootNVDAObject
+			if not supportWebApp(obj):
+				return None
+			from . import webModuleHandler
+			try:
+				self._webModule = webModuleHandler.getWebModuleForTreeInterceptor(
+					self.treeInterceptor
+				)
+			except:
+				log.exception()
+		return self._webModule
 	
 	@property
 	def zone(self):
@@ -925,22 +951,33 @@ class WebAccessObjectHelper(object):
 		self.obj = obj
 	
 	@property
-	def ruleManager(self):
-		# TODO: WIP on new coupling
-		try:
-			return self.webModule.ruleManager
-		except AttributeError:
+	def nodeManager(self):
+		ti = self.treeInterceptor
+		if not ti:
 			return None
+		return ti.webAccess.nodeManager
 	
 	@property
-	def webModule(self):
-		# TODO: WIP on new coupling
+	def ruleManager(self):
+		ti = self.treeInterceptor
+		if not ti:
+			return None
+		return ti.webAccess.ruleManager
+	
+	@property
+	def treeInterceptor(self):
 		if not hasattr(self.obj, "_treeInterceptor"):
 			return None
 		ti = self.obj._treeInterceptor
 		if isinstance(ti, weakref.ReferenceType):
 			ti = ti()
-		if ti is None:
+		assert isinstance(ti, WebAccessBmdti)
+		return ti
+	
+	@property
+	def webModule(self):
+		ti = self.treeInterceptor
+		if not ti:
 			return None
 		return ti.webAccess.webModule
 	

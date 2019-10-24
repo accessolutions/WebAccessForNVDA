@@ -23,7 +23,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.07.18"
+__version__ = "2019.10.23"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 __license__ = "GPL"
 
@@ -97,11 +97,20 @@ def formatAttributes(dic):
 
 
 def getNodeDescription():
-	from globalPlugins.webAccess.webAppLib import html
-	treeInterceptor = html.getTreeInterceptor()
-	if not (treeInterceptor and hasattr(treeInterceptor, "nodeManager")):
+	import api
+	from ..overlay import WebAccessObject
+	focus = api.getFocusObject()
+	if not (
+		isinstance(focus, WebAccessObject)
+		and focus.webAccess.nodeManager
+	):
 		return _(u"No NodeManager")
-	node = treeInterceptor.nodeManager.getCaretNode()
+	node = focus.webAccess.nodeManager.getCaretNode()
+# 	from globalPlugins.webAccess.webAppLib import html
+# 	treeInterceptor = html.getTreeInterceptor()
+# 	if not (treeInterceptor and hasattr(treeInterceptor, "nodeManager")):
+# 		return _(u"No NodeManager")
+# 	node = treeInterceptor.nodeManager.getCaretNode()
 	node = node.parent
 	obj = node.getNVDAObject()
 	branch = []

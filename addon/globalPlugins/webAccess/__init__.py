@@ -50,7 +50,7 @@ Overridden NVDA functions:
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.09.27"
+__version__ = "2019.10.23"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
@@ -78,6 +78,7 @@ import gui
 import inputCore
 from logHandler import log
 import NVDAObjects
+from NVDAObjects.IAccessible import IAccessible
 from NVDAObjects.IAccessible.MSHTML import MSHTML
 from NVDAObjects.IAccessible.ia2Web import Ia2Web
 from NVDAObjects.IAccessible.mozilla import Mozilla
@@ -165,29 +166,26 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		scheduler = WebAppScheduler()
 		scheduler.start()
 		
-		# TODO: WIP on new coupling 
-		# baseObject.ScriptableObject.getWebApp = getWebApp
-		# scriptHandler.findScript = hook_findScript
-		eventHandler._EventExecuter.gen = hook_eventGen
-		virtualBuffers.VirtualBuffer.save_changeNotify = virtualBuffers.VirtualBuffer.changeNotify
-		virtualBuffers.VirtualBuffer.changeNotify = hook_changeNotify
-		virtualBuffers.VirtualBuffer.save_loadBufferDone = virtualBuffers.VirtualBuffer._loadBufferDone  
-		# virtualBuffers.VirtualBuffer._loadBufferDone = hook_loadBufferDone
-		virtualBuffers.VirtualBuffer.save_terminate = virtualBuffers.VirtualBuffer.terminate 
-		virtualBuffers.VirtualBuffer.terminate = hook_terminate
+		eventHandler._EventExecuter.gen = eventExecuter_gen
+		VirtualBuffer_changeNotify.super = virtualBuffers.VirtualBuffer.changeNotify
+		# This is a classmethod, thus requires binding
+		virtualBuffers.VirtualBuffer.changeNotify = VirtualBuffer_changeNotify.__get__(
+			virtualBuffers.VirtualBuffer
+		)
+		virtualBuffer_loadBufferDone.super = virtualBuffers.VirtualBuffer._loadBufferDone
+		virtualBuffers.VirtualBuffer._loadBufferDone = virtualBuffer_loadBufferDone
+		virtualBuffer_terminate.super = virtualBuffers.VirtualBuffer.terminate 
+		virtualBuffers.VirtualBuffer.terminate = virtualBuffer_terminate
 		
 		# Used to announce the opening of the Web Access menu
-		global mainFrame_prePopup_stock
-		mainFrame_prePopup_stock = gui.mainFrame.prePopup
-		gui.mainFrame.prePopup = mainFrame_prePopup_patched.__get__(gui.mainFrame, gui.MainFrame)
-		global mainFrame_postPopup_stock
-		mainFrame_postPopup_stock = gui.mainFrame.postPopup
-		gui.mainFrame.postPopup = mainFrame_postPopup_patched.__get__(gui.mainFrame, gui.MainFrame)
-		global appModule_nvda_event_NVDAObject_init_stock
+		mainFrame_prePopup.super = gui.mainFrame.prePopup
+		gui.mainFrame.prePopup = mainFrame_prePopup.__get__(gui.mainFrame, gui.MainFrame)
+		mainFrame_postPopup.super = gui.mainFrame.postPopup
+		gui.mainFrame.postPopup = mainFrame_postPopup.__get__(gui.mainFrame, gui.MainFrame)
 		from appModules.nvda import AppModule as NvdaAppModule
-		appModule_nvda_event_NVDAObject_init_stock = NvdaAppModule.event_NVDAObject_init
+		appModule_nvda_event_NVDAObject_init.super = NvdaAppModule.event_NVDAObject_init
 		# The NVDA AppModule should not yet have been instanciated at this stage
-		NvdaAppModule.event_NVDAObject_init = appModule_nvda_event_NVDAObject_init_patched 		
+		NvdaAppModule.event_NVDAObject_init = appModule_nvda_event_NVDAObject_init 		
 
 		log.info("Web Access for NVDA version %s initialized" % getVersion())
 		showWebModulesLoadErrors()
@@ -397,9 +395,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		"kb:nvda+control+e": "showElementDescription",
 	}
 
+
 def getActiveWebApp():
 	global activeWebApp
 	return activeWebApp
+
 
 def webAppLoseFocus(obj):
 	global activeWebApp
@@ -408,260 +408,41 @@ def webAppLoseFocus(obj):
 		activeWebApp = None
 		#log.info("Losing webApp focus for object:\n%s\n" % ("\n".join(obj.devInfo)))
 
+
 def supportWebApp(obj):
 	if obj is None or obj.appModule is None:
 		return None
 	return  obj.appModule.appName in supportedWebAppHosts
 	
 
-def getWebApp(self):
-	global activeWebApp
-	global webAccessEnabled
+def VirtualBuffer_changeNotify(cls, rootDocHandle, rootID):
+	# log.info(u"change notify")
+	# Stock classmethod was stored bound
+	VirtualBuffer_changeNotify.super(rootDocHandle, rootID)
 
-	# TODO: WIP on new coupling
-	if (
-		not webAccessEnabled
-		or not supportWebApp(self)
-		or not isinstance(self, overlay.WebAccessObject)
-	):
-		return None
-	
-	obj = self
-	if isinstance(obj, NVDAObjects.JAB.JAB):
-		# to avoid lock with jab object
-		return
-	
-	outdated = None
 
-	if hasattr(obj, "_webApp"):
-		if hasattr(obj._webApp, "_outdated") and obj._webApp._outdated:
-			outdated = obj._webApp
-			TRACE(
-				u"Removing cached outdated WebModule {webModule} from "
-				u"obj {obj} with role {role}"
-				u"".format(
-					webModule=id(obj._webApp),
-					obj=obj,
-					role=obj._get_role(original=True)
-				)
-			)
-			delattr(obj, "_webApp")
-		else:
-			return obj._webApp
-	
-	webApp = None
-	objList = []
+def virtualBuffer_terminate(self):
+	if isinstance(self, overlay.WebAccessBmdti):
+		self.webAccess._nodeManager = None
+		self.webAccess._webModule = None
+	# Stock method was stored unbound
+	virtualBuffer_terminate.super.__get__(self)()
 
-	# Before anything, check if the webApp window title matches the actuel one.
-	if len(obj.windowText) > 0:
-		for app in webModuleHandler.getWebModules():
-			# TODO: Chrome: Retrieve proper window title
-			if app.windowTitle and app.windowTitle in obj.windowText:
-				webApp = app
-				break
 
-	i = 0
-	while webApp is None and obj is not None and i < 50:
-		i += 1
+def virtualBuffer_loadBufferDone(self, success=True):
+	# log.info(u"load buffer done")
+	# Stock method was stored unbound
+	virtualBuffer_loadBufferDone.super.__get__(self)(success=success)
 
-		if hasattr(obj, '_webApp'):
-			if hasattr(obj._webApp, "_outdated") and obj._webApp._outdated:
-				outdated = outdated or obj._webApp
-				TRACE(
-					u"Removing cached outdated WebModule {webModule} from parent "
-					u"obj {obj} with role {role}"
-					u"".format(
-						webModule=id(obj._webApp),
-						obj=obj,
-						role=obj._get_role(original=True)
-					)
-				)
-				delattr(obj, "_webApp")
-			else:
-				webApp = obj._webApp
-				break
-
-		objList.append(obj)
-
-		if obj._get_role(original=True) == controlTypes.ROLE_DOCUMENT:
-			try:
-				url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
-			except: 
-				url = None
-			if url:
-				webApp = getWebAppFromUrl(url)
-
-		obj = obj.parent
-		if not isinstance(obj, overlay.WebAccessObject):
-			break
-
-	if webApp is None:
-		obj = self
-		# TODO: Remove this awful fix
-		if outdated is not None and obj.role == 0:
-			obj = NVDAObjects.NVDAObject.objectWithFocus()
-			if \
-					hasattr(obj, "_webApp") \
-					and hasattr(obj._webApp, "_outdated") \
-					and obj._webApp._outdated:
-				delattr(obj, "_webApp")
-			if isinstance(obj, overlay.WebAccessObject):
-				webModule = obj.getWebApp()
-			else:
-				webModule = None
-			TRACE(
-				u"Real focus: obj={obj}, treeInterceptor={treeInterceptor}, "
-				u"{webModule}".format(
-				obj=obj,
-				treeInterceptor=obj.treeInterceptor,
-				webModule=u"{webModule} ({id})".format(
-					webModule=webModule, id=id(webModule)
-					) if webModule is not None else None
-				))
-			webApp = webModule
-		else:
-			return None
-
-	for o in objList:
-		o._webApp = webApp
-	
-	activeWebApp = webApp
-	return webApp 
-	# sendWebAppEvent('webApp_loseFocus', self, activeWebApp)
-	# sendWebAppEvent('webApp_gainFocus', self, webApp)
-	# sendWebAppEvent('webApp_pageChanged', wPageTitle, activeWebApp)
-
-@classmethod
-def hook_changeNotify(cls, rootDocHandle, rootID):
-	#log.info (u"change notify")
-	virtualBuffers.VirtualBuffer.save_changeNotify(rootDocHandle, rootID)
-
-def hook_terminate(self):
-	if hasattr(self, "nodeManager"):
-		self.nodeManager.terminate()
-		del self.nodeManager  
-	virtualBuffers.VirtualBuffer.save_terminate(self)
-	
-# TODO: Isn't it dead code?
-# Because 'webApp' instead of '_webApp'
-def hook_loadBufferDone(self, success=True):
-	#log.info (u"load buffer done")
-	self._loadProgressCallLater.Stop()
-	del self._loadProgressCallLater
-	self.isLoading = False
-	if not success:
-		self.passThrough=True
-		return
-	if self._hadFirstGainFocus:
-		# If this buffer has already had focus once while loaded, this is a refresh.
-		# Translators: Reported when a page reloads (example: after refreshing a webpage).
-		speech.speakMessage(_("Refreshed"))
-	focus = api.getFocusObject()
-	if focus.treeInterceptor == self:
-		if hasattr(focus, 'webApp'):
-			firstGainFocus = self._hadFirstGainFocus
-			#self._hadFirstGainFocus = True
-			scheduler.send(eventName="treeInterceptor_gainFocus", treeInterceptor=self, firstGainFocus=firstGainFocus)
-		else:
-			self.event_treeInterceptor_gainFocus()
-
-def hook_findScript(gesture, searchWebApp=True):
-	global activeWebApp
-	global useInternalBrowser
-	global webAccessEnabled
-	global defaultBrowserScripts
-
-	focus = api.getFocusObject()
-	if not focus:
-		return None
-
-	# Import late to avoid circular import.
-	# We need to import this here because this might be the first import of this module
-	# and it might be needed by global maps.
-	import globalCommands
-
-	globalMapScripts = []
-	globalMaps = [inputCore.manager.userGestureMap, inputCore.manager.localeGestureMap]
-	globalMap = braille.handler.display.gestureMap
-	if globalMap:
-		globalMaps.append(globalMap)
-	for globalMap in globalMaps:
-		# Changed from `identifiers` to `normalizedIdentifier in NVDA 2017.4
-		# (new member introduced in NVDA 2017.2)
-		for identifier in \
-				gesture.normalizedIdentifiers \
-				if hasattr(gesture, "normalizedIdentifiers") \
-				else gesture.identifiers:
-			globalMapScripts.extend(globalMap.getScriptsForGesture(identifier))
-			
-	# Gesture specific scriptable object.
-	obj = gesture.scriptableObject
-	if obj:
-		func = scriptHandler._getObjScript(obj, gesture, globalMapScripts)
-		if func:
-			return func
-
-	# Global plugin default scripts.
-	for plugin in globalPluginHandler.runningPlugins:
-		func = scriptHandler._getObjScript(plugin, gesture, globalMapScripts)
-		if func:
-			return func
-
-	# App module default scripts.
-	app = focus.appModule
-	if app:
-		# browsers default scripts.
-		if supportWebApp(focus):
-			func = scriptHandler._getObjScript(defaultBrowserScripts, gesture, globalMapScripts)
-			if func:
-				return func
-		func = scriptHandler._getObjScript(app, gesture, globalMapScripts)
-		if func:
-			return func
-
-	# webApp scripts
-	webApp = focus.webAccess.webModule if isinstance(focus, overlay.WebAccessObject) else None
-	if webApp is not None and searchWebApp is True:
-		func = scriptHandler._getObjScript(webApp, gesture, globalMapScripts)
-		if func:
-			return func
-		if webApp.markerManager:
-			func = webApp.markerManager.getMarkerScript(gesture, globalMapScripts)
-			if func:
-				return func
-	
-	# Tree interceptor level.
-	treeInterceptor = focus.treeInterceptor
-	if treeInterceptor and treeInterceptor.isReady:
-		func = scriptHandler._getObjScript(treeInterceptor, gesture, globalMapScripts)
-		from browseMode import BrowseModeTreeInterceptor
-		if isinstance(treeInterceptor,BrowseModeTreeInterceptor):
-			func=treeInterceptor.getAlternativeScript(gesture,func)
-		if func and (not treeInterceptor.passThrough or getattr(func,"ignoreTreeInterceptorPassThrough",False)) and (useInternalBrowser is False or getattr(activeWebApp, 'activeWidget', None) is None):
-			return func
-
-	# NVDAObject level.
-	func = scriptHandler._getObjScript(focus, gesture, globalMapScripts)
-	if func:
-		return func
-	for obj in reversed(api.getFocusAncestors()):
-		func = scriptHandler._getObjScript(obj, gesture, globalMapScripts)
-		if func and getattr(func, 'canPropagate', False): 
-			return func
-
-	# Global commands.
-	func = scriptHandler._getObjScript(globalCommands.commands, gesture, globalMapScripts)
-	if func:
-		return func
-	return None
 
 def sendWebAppEvent(eventName, obj, webApp=None):
 	if webApp is None:
 		return
 	scheduler.send(eventName="webApp", name=eventName, obj=obj, webApp=webApp)
 
-def hook_eventGen(self, eventName, obj):
-	#log.info("Event %s : %s : %s" % (eventName, obj.name, obj.value))
+
+def eventExecuter_gen(self, eventName, obj):
+	# log.info("Event %s : %s : %s" % (eventName, obj.name, obj.value))
 	global useInternalBrowser
 
 	funcName = "event_%s" % eventName
@@ -719,42 +500,24 @@ def hook_eventGen(self, eventName, obj):
 			return
 		yield func, ()
 
-def getWebAppFromUrl(url):
-	if url is None:
-		return None
-	matchedLen = 0
-	matchedWebApp = None
-	for webApp in webModuleHandler.getWebModules():
-		if webApp.url is None:
-			continue
-		if isinstance(webApp.url, tuple) or isinstance(webApp.url, list):
-			urls = webApp.url
-		else:
-			urls = [webApp.url]
-		for wUrl in urls:
-			if wUrl in url and len(wUrl) > matchedLen:
-				# log.info("Webapp candidate url %s, len %d" % (wUrl, len(wUrl)))
-				matchedWebApp = webApp
-				matchedLen = len(wUrl)
-	return matchedWebApp
 
 # Used to announce the opening of the Web Access menu
-def mainFrame_prePopup_patched(self, contextMenuName=None):
-	global mainFrame_prePopup_stock, popupContextMenuName
+def mainFrame_prePopup(self, contextMenuName=None):
+	global popupContextMenuName
 	popupContextMenuName = contextMenuName
-	mainFrame_prePopup_stock()  # Stock method was stored bound
+	mainFrame_prePopup.super()  # Stock method was stored bound
+
 
 # Used to announce the opening of the Web Access menu
-def mainFrame_postPopup_patched(self):
-	global mainFrame_postPopup_stock, popupContextMenuName
+def mainFrame_postPopup(self):
+	global popupContextMenuName
 	popupContextMenuName = None
-	mainFrame_postPopup_stock()  # Stock method was stored bound
+	mainFrame_postPopup.super()  # Stock method was stored bound
+
 
 # Used to announce the opening of the Web Access menu
-def appModule_nvda_event_NVDAObject_init_patched(self, obj):
-	from appModules.nvda import AppModule as NvdaAppModule
-	global appModule_nvda_event_NVDAObject_init_stock, popupContextMenuName
-	from NVDAObjects.IAccessible import IAccessible
+def appModule_nvda_event_NVDAObject_init(self, obj):
+	global popupContextMenuName
 	if (
 		"popupContextMenuName" in globals()
 		and popupContextMenuName is not None
@@ -764,7 +527,7 @@ def appModule_nvda_event_NVDAObject_init_patched(self, obj):
 		obj.name = popupContextMenuName
 		popupContextMenuName = None
 	# Stock method was stored unbound
-	appModule_nvda_event_NVDAObject_init_stock.__get__(self, NvdaAppModule)(obj)
+	appModule_nvda_event_NVDAObject_init.super.__get__(self)(obj)
 
 
 def showWebModulesLoadErrors():

@@ -23,7 +23,7 @@
 
 from __future__ import absolute_import
 
-__version__ = "2019.04.11"
+__version__ = "2019.10.23"
 
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
@@ -40,6 +40,10 @@ from .webModule import InvalidApiVersion, NewerFormatVersion, WebModule
 from ..store import webModule as store
 from ..store import DuplicateRefError
 from ..store import MalformedRefError
+
+
+_catalog = None
+_webModules = None
 
 
 def create(webModule, focus, force=False):
@@ -71,19 +75,74 @@ def delete(webModule, focus, prompt=True):
 			)
 	return True
 
+
+def getCatalog(refresh=False, errors=None):
+	if not refresh:
+		if _catalog:
+			return _catalog
+	else:
+		global _webModules
+		_webModules = None
+	global _catalog
+	_catalog = list(store.getInstance().catalog(errors=errors))
+	return _catalog
+
+def getWebModuleForTreeInterceptor(treeInterceptor):
+	obj = treeInterceptor.rootNVDAObject
+	windowTitle = _getWindowTitle(obj)
+	if windowTitle:
+		mod = getWebModuleForWindowTitle(windowTitle)
+		if mod:
+			return mod
+	try:
+		url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
+	except: 
+		url = None
+	if url:
+		return getWebModuleForUrl(url)
+	return None
+
+def getWebModuleForWindowTitle(windowTitle):
+	if not windowTitle:
+		return None
+	for ref, meta in getCatalog():
+		if meta.get("windowTitle") == windowTitle:
+			return store.getInstance().get(ref)
+
+def getWebModuleForUrl(url):
+	matchedLen = 0
+	matchedRef = None
+	for ref, meta in getCatalog():
+		urls = meta.get("url")
+		if not urls:
+			continue
+		if not isinstance(urls, (tuple, list)):
+			urls = (urls,)
+		for candidate in urls:
+			if candidate in url and len(candidate) > matchedLen:
+				matchedRef = ref
+				matchedLen = len(candidate)
+	if matchedRef:
+		return store.getInstance().get(matchedRef)
+
+def _getWindowTitle(obj):
+	windowText = obj.windowText
+	if windowText == u"Chrome Legacy Window" and obj.parent:
+		return _getWindowTitle(obj.parent)
+	return windowText
+
+
 def getWebModules(refresh=False, errors=None):
-	if refresh or "_webModuleCache" not in globals():
-		global _webModuleCache
-		if refresh:
-			former = set(_webModuleCache or tuple())
-		_webModuleCache = list(store.getInstance().list(errors))
-		if refresh:
-			newer = set(_webModuleCache)
-			for outdated in (former - newer):
-				# Avoid returning outdated cached versions.
-				# See `globalPlugins.webAccess.getWebApp`
-				outdated._outdated = True
-	return _webModuleCache
+	if not refresh:
+		if _webModules:
+			return _webModules
+	else:
+		global _catalog
+		_catalog = None
+	global _webModules
+	_webModules = list(store.getInstance().list(errors=errors))
+	return _webModules
+
 
 def update(webModule, focus, force=False):
 	updatable, mask = checkUpdatable(webModule)

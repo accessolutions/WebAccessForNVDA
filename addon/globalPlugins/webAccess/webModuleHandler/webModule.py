@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.07.19"
+__version__ = "2019.10.23"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
@@ -73,7 +73,7 @@ class InvalidApiVersion(version.InvalidVersion):
 
 class WebModule(baseObject.ScriptableObject):
 	
-	API_VERSION = version.parse("0.1")
+	API_VERSION = version.parse("0.2")
 	FORMAT_VERSION_STR = "0.6-dev"
 	FORMAT_VERSION = version.parse(FORMAT_VERSION_STR)
 	
