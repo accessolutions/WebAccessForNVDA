@@ -77,6 +77,7 @@ def getDynamicClass(bases):
 		cache[bases] = dynCls
 	return dynCls
 
+
 def mutateObj(obj, clsList):
 	# Determine the bases for the new class.
 	bases = []
@@ -86,7 +87,7 @@ def mutateObj(obj, clsList):
 		if index == 0 or not issubclass(clsList[index - 1], clsList[index]):
 			bases.append(clsList[index])
 	newCls = getDynamicClass(bases)
-	oldMro = frozenset(obj.__class__.__mro__)	
+	oldMro = frozenset(obj.__class__.__mro__)
 	# Mutate obj into the new class.
 	obj.__class__ = newCls
 	# Initialise the overlay classes.
@@ -103,6 +104,7 @@ def mutateObj(obj, clsList):
 			obj.bindGestures(getattr(cls, "_%s__gestures" % cls.__name__))
 		except AttributeError:
 			pass
+
 
 class ScriptWrapper(object):
 	"""
@@ -218,7 +220,7 @@ class WebAccessBmdtiTextInfo(textInfos.offsets.OffsetsTextInfo):
 	Features:
 	 - Enforce respect of the active zone borders.
 	 - Override attributes of mutated controls.
-	"""
+	"""  # noqa: E101
 	def find(self, text, caseSensitive=False, reverse=False):
 		zone = self.obj.webAccess.zone
 		if not zone:
@@ -281,7 +283,7 @@ class WebAccessBmdtiTextInfo(textInfos.offsets.OffsetsTextInfo):
 			self.obj.webAccess.zone = None
 		super(WebAccessBmdtiTextInfo, self).updateSelection()
 	
-	def _getControlFieldAttribs(self,  docHandle, controlId):
+	def _getControlFieldAttribs(self, docHandle, controlId):
 		info = self.copy()
 		info.expand(textInfos.UNIT_CHARACTER)
 		for field in reversed(info.getTextWithFields()):
@@ -346,7 +348,7 @@ class WebAccessMutatedQuickNavItem(browseMode.TextInfoQuickNavItem):
 			self.document.rootDocHandle, self.controlId
 		)
 	
-	def isChild(self, parent): 
+	def isChild(self, parent):
 		if self.itemType == "heading":
 			try:
 				
@@ -528,7 +530,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 						u"Could not determine controlId for item: {}"
 					).format(item))
 				elif mgr.getMutatedControl(controlId):
-					# Avoid iterating twice over mutated controls. 
+					# Avoid iterating twice over mutated controls.
 					continue
 			yield item
 	
@@ -608,7 +610,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 						controlTypes.ROLE_COMBOBOX,
 						controlTypes.ROLE_EDITABLETEXT
 					],
-					"states" : [set((controlTypes.STATE_EDITABLE,))]
+					"states": [set((controlTypes.STATE_EDITABLE,))]
 				},
 				{
 					"states": [set((controlTypes.STATE_EDITABLE,))],
@@ -698,7 +700,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		   against the parent node.
 		 - If a key is suffixed with "::not", no criteria value should match
 		   the candidate control field attribute value for the criteria to be
-		   satisfied. 
+		   satisfied.
 		 - If a possible value is boolean, the corresponding control field
 		   attribute value is first converted to boolean before comparison.
 		   That is, as an example, the criteria value `False` matches a missing
@@ -707,7 +709,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		   value is also considered to be a set, and the key matches if the
 		   former is a subset of the latter.
 		   The "::not" key suffix also applies to sets, negating the match.
-		"""
+		"""  # noqa: E101
 		if not criteria:
 			return True
 		if isinstance(criteria, dict):
@@ -772,7 +774,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		if self.webAccess.zone:
 			errorMessage += " "
 			# Translators: Complement to quickNav error message in zone.
-			errorMessage += _("in this zone.") 
+			errorMessage += _("in this zone.")
 			errorMessage += " "
 			# Translators: Hint on how to cancel zone restriction.
 			errorMessage += _("Press escape to cancel zone restriction.")
@@ -864,7 +866,13 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		except Break:
 			pass
 		if script and not webModule and getattr(script, "passThroughIfNoWebModule", False):
-			script = self.script_passThrough
+			if nvdaVersion >= (2019, 2):
+				script = self.script_passThrough
+			else:
+				script = lambda gesture: gesture.send()
+				script.__name__ = "script_passThrough"
+				# Translators: The description for the passThrough script (back-ported from NVDA 2019.2)
+				script.__doc__ = _("Passes gesture through to the application")
 		return super(WebAccessBmdti, self).getAlternativeScript(gesture, script)
 	
 	def getScript(self, gesture):
@@ -926,9 +934,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 	
 	# Translators: The description for the elementsListInZone script
 	script_elementsListInZone.__doc__ = _("Lists various types of elements in the current zone")
-	
 	script_elementsListInZone.category = SCRCAT_WEBACCESS
-	
 	script_elementsListInZone.ignoreTreeInterceptorPassThrough = True
 	script_elementsListInZone.passThroughIfNoWebModule = True
 	
@@ -1082,7 +1088,7 @@ class WebAccessObjectHelper(object):
 class WebAccessObject(IAccessible):
 	
 	def initOverlayClass(self):
-		self.webAccess = WebAccessObjectHelper(self) 
+		self.webAccess = WebAccessObjectHelper(self)
 	
 	def _get_name(self):
 		name = super(WebAccessObject, self).name
