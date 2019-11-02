@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.09.19"
+__version__ = "2019.11.02"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -709,43 +709,19 @@ class MarkerManager(baseObject.ScriptableObject):
 		result.script_moveto(None, fromQuickNav=True)
 		return True
 	
-	def script_refreshMarkers(self, gesture):
-		ui.message(u"refresh markers")
-		self.update()
-	
-	def script_quickNavToNextLevel1(self, gesture):
+	def quickNavToNextLevel1(self):
 		self.quickNav(types=(ruleTypes.ZONE,), honourSkip=False)
 	
-	# Translators: Input help mode message for quickNavToNextLevel1.
-	script_quickNavToNextLevel1.__doc__ = _("Move to next zone.")
-	
-	script_quickNavToNextLevel1.category = SCRIPT_CATEGORY
-	
-	def script_quickNavToPreviousLevel1(self, gesture):
+	def quickNavToPreviousLevel1(self):
 		self.quickNav(previous=True, types=(ruleTypes.ZONE,), honourSkip=False)
 	
-	# Translators: Input help mode message for quickNavToPreviousLevel1.
-	script_quickNavToPreviousLevel1.__doc__ = _("Move to previous zone.")
-	
-	script_quickNavToPreviousLevel1.category = SCRIPT_CATEGORY
-	
-	def script_quickNavToNextLevel2(self, gesture):
+	def quickNavToNextLevel2(self):
 		self.quickNav(types=(ruleTypes.ZONE, ruleTypes.MARKER))
 	
-	# Translators: Input help mode message for quickNavToNextLevel2.
-	script_quickNavToNextLevel2.__doc__ = _("Move to next global marker.")
-	
-	script_quickNavToNextLevel2.category = SCRIPT_CATEGORY
-	
-	def script_quickNavToPreviousLevel2(self, gesture):
+	def quickNavToPreviousLevel2(self):
 		self.quickNav(previous=True, types=(ruleTypes.ZONE, ruleTypes.MARKER))
 	
-	# Translators: Input help mode message for quickNavToPreviousLevel2.
-	script_quickNavToPreviousLevel2.__doc__ = _("Move to previous global marker.")
-	
-	script_quickNavToPreviousLevel2.category = SCRIPT_CATEGORY
-	
-	def script_quickNavToNextLevel3(self, gesture):
+	def quickNavToNextLevel3(self):
 		self.quickNav(
 			types=(ruleTypes.ZONE, ruleTypes.MARKER),
 			respectZone=True,
@@ -753,12 +729,7 @@ class MarkerManager(baseObject.ScriptableObject):
 			cycle=False
 		)
 	
-	# Translators: Input help mode message for quickNavToNextLevel3.
-	script_quickNavToNextLevel3.__doc__ = _("Move to next local marker.")
-	
-	script_quickNavToNextLevel3.category = SCRIPT_CATEGORY
-	
-	def script_quickNavToPreviousLevel3(self, gesture):
+	def quickNavToPreviousLevel3(self):
 		self.quickNav(
 			previous=True,
 			types=(ruleTypes.ZONE, ruleTypes.MARKER),
@@ -766,21 +737,6 @@ class MarkerManager(baseObject.ScriptableObject):
 			honourSkip=False,
 			cycle=False
 		)
-	
-	# Translators: Input help mode message for quickNavToPreviousLevel3.
-	script_quickNavToPreviousLevel3.__doc__ = _("Move to previous local marker.")
-	
-	script_quickNavToPreviousLevel3.category = SCRIPT_CATEGORY
-	
-	__gestures = {
-		"kb:control+nvda+r": "refreshMarkers",
-		"kb:control+pagedown": "quickNavToNextLevel1",
-		"kb:control+pageup": "quickNavToPreviousLevel1",
-		"kb:pagedown": "quickNavToNextLevel2",
-		"kb:pageup": "quickNavToPreviousLevel2",
-		"kb:shift+pagedown": "quickNavToNextLevel3",
-		"kb:shift+pageup": "quickNavToPreviousLevel3",
-	}
 
 
 class CustomActionDispatcher(object):

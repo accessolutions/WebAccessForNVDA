@@ -26,7 +26,7 @@ WebAccess overlay classes
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.10.23"
+__version__ = "2019.11.02"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -63,7 +63,7 @@ except ImportError:
 addonHandler.initTranslation()
 
 
-SCRIPT_CATEGORY = "WebAccess"
+SCRCAT_WEBACCESS = "WebAccess"
 
 
 def getDynamicClass(bases):
@@ -860,9 +860,11 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 				override = getattr(webModule, overrideName)
 			except AttributeError:
 				raise Break()
-			return ScriptWrapper(script, override)
+			script = ScriptWrapper(script, override)
 		except Break:
 			pass
+		if script and not webModule and getattr(script, "passThroughIfNoWebModule", False):
+			script = self.script_passThrough
 		return super(WebAccessBmdti, self).getAlternativeScript(gesture, script)
 	
 	def getScript(self, gesture):
@@ -913,12 +915,85 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			core.callLater(150, check)
 		wx.CallAfter(run)
 	
+	script_elementsList.__doc__ = \
+		browseMode.BrowseModeDocumentTreeInterceptor.script_elementsList.__doc__
+	script_elementsList.category = \
+		browseMode.BrowseModeDocumentTreeInterceptor.scriptCategory
 	script_elementsList.ignoreTreeInterceptorPassThrough = True
 	
 	def script_elementsListInZone(self, gesture):
 		super(WebAccessBmdti, self).script_elementsList(gesture)
 	
+	# Translators: The description for the elementsListInZone script
+	script_elementsListInZone.__doc__ = _("Lists various types of elements in the current zone")
+	
+	script_elementsListInZone.category = SCRCAT_WEBACCESS
+	
 	script_elementsListInZone.ignoreTreeInterceptorPassThrough = True
+	script_elementsListInZone.passThroughIfNoWebModule = True
+	
+	def script_quickNavToNextResultLevel1(self, gesture):
+		self.webAccess.ruleManager.quickNavToNextLevel1()
+	
+	# Translators: The description for the quickNavToNextResultLevel1 script
+	script_quickNavToNextResultLevel1.__doc__ = _("Move to next zone.")
+	script_quickNavToNextResultLevel1.category = SCRCAT_WEBACCESS
+	script_quickNavToNextResultLevel1.ignoreTreeInterceptorPassThrough = True
+	script_quickNavToNextResultLevel1.passThroughIfNoWebModule = True
+	
+	def script_quickNavToPreviousResultLevel1(self, gesture):
+		self.webAccess.ruleManager.quickNavToPreviousLevel1()
+	
+	# Translators: The description for the quickNavToPreviousResultLevel1 script
+	script_quickNavToPreviousResultLevel1.__doc__ = _("Move to previous zone.")
+	script_quickNavToPreviousResultLevel1.category = SCRCAT_WEBACCESS
+	script_quickNavToPreviousResultLevel1.ignoreTreeInterceptorPassThrough = True
+	script_quickNavToPreviousResultLevel1.passThroughIfNoWebModule = True
+	
+	def script_quickNavToNextResultLevel2(self, gesture):
+		self.webAccess.ruleManager.quickNavToNextLevel2()
+	
+	# Translators: The description for the quickNavToNextResultLevel2 script
+	script_quickNavToNextResultLevel2.__doc__ = _("Move to next global marker.")
+	script_quickNavToNextResultLevel2.category = SCRCAT_WEBACCESS
+	script_quickNavToNextResultLevel2.ignoreTreeInterceptorPassThrough = True
+	script_quickNavToNextResultLevel2.passThroughIfNoWebModule = True
+	
+	def script_quickNavToPreviousResultLevel2(self, gesture):
+		self.webAccess.ruleManager.quickNavToPreviousLevel2()
+	
+	# Translators: The description for the quickNavToPreviousResultLevel2 script
+	script_quickNavToPreviousResultLevel2.__doc__ = _("Move to previous global marker.")
+	script_quickNavToPreviousResultLevel2.category = SCRCAT_WEBACCESS
+	script_quickNavToPreviousResultLevel2.ignoreTreeInterceptorPassThrough = True
+	script_quickNavToPreviousResultLevel2.passThroughIfNoWebModule = True
+	
+	def script_quickNavToNextResultLevel3(self, gesture):
+		self.webAccess.ruleManager.quickNavToNextLevel3()
+	
+	# Translators: The description for the quickNavToNextResultLevel3 script
+	script_quickNavToNextResultLevel3.__doc__ = _("Move to next local marker.")
+	script_quickNavToNextResultLevel3.category = SCRCAT_WEBACCESS
+	script_quickNavToNextResultLevel3.ignoreTreeInterceptorPassThrough = True
+	script_quickNavToNextResultLevel3.passThroughIfNoWebModule = True
+	
+	def script_quickNavToPreviousResultLevel3(self, gesture):
+		self.webAccess.ruleManager.quickNavToPreviousLevel3()
+	
+	# Translators: The description for the quickNavToPreviousResultLevel3 script
+	script_quickNavToPreviousResultLevel3.__doc__ = _("Move to previous local marker.")
+	script_quickNavToPreviousResultLevel3.category = SCRCAT_WEBACCESS
+	script_quickNavToPreviousResultLevel3.ignoreTreeInterceptorPassThrough = True
+	script_quickNavToPreviousResultLevel3.passThroughIfNoWebModule = True
+	
+	def script_refreshResults(self, gesture):
+		ui.message(_("Refresh results"))
+		self.webAccess.ruleManager.update()
+	
+	script_refreshResults.__doc__ = _("Refresh results")
+	script_refreshResults.category = SCRCAT_WEBACCESS
+	script_refreshResults.ignoreTreeInterceptorPassThrough = True
+	script_refreshResults.passThroughIfNoWebModule = True
 	
 	def script_tab(self, gesture):
 		if (
@@ -939,7 +1014,14 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 	script_shiftTab.ignoreTreeInterceptorPassThrough = True
 	
 	__gestures = {
+		"kb:NVDA+shift+f5": "refreshResults",
 		"kb:NVDA+shift+f7": "elementsListInZone",
+		"kb:control+pagedown": "quickNavToNextResultLevel1",
+		"kb:control+pageup": "quickNavToPreviousResultLevel1",
+		"kb:pagedown": "quickNavToNextResultLevel2",
+		"kb:pageup": "quickNavToPreviousResultLevel2",
+		"kb:shift+pagedown": "quickNavToNextResultLevel3",
+		"kb:shift+pageup": "quickNavToPreviousResultLevel3",
 	}
 
 
