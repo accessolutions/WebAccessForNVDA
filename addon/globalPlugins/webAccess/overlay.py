@@ -865,14 +865,17 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			script = ScriptWrapper(script, override)
 		except Break:
 			pass
-		if script and not webModule and getattr(script, "passThroughIfNoWebModule", False):
-			if nvdaVersion >= (2019, 2):
-				script = self.script_passThrough
-			else:
-				script = lambda gesture: gesture.send()
-				script.__name__ = "script_passThrough"
-				# Translators: The description for the passThrough script (back-ported from NVDA 2019.2)
-				script.__doc__ = _("Passes gesture through to the application")
+		if script:
+			if not webModule and getattr(script, "passThroughIfNoWebModule", False):
+				if nvdaVersion >= (2019, 2):
+					script = self.script_passThrough
+				else:
+					script = lambda gesture: gesture.send()
+					script.__name__ = "script_passThrough"
+					# Translators: The description for the passThrough script (back-ported from NVDA 2019.2)
+					script.__doc__ = _("Passes gesture through to the application")
+			if getattr(script, "ignoreSingleLetterNavSetting", False):
+				return script
 		return super(WebAccessBmdti, self).getAlternativeScript(gesture, script)
 	
 	def getScript(self, gesture):
