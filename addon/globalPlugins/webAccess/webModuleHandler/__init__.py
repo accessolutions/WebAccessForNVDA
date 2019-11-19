@@ -23,7 +23,7 @@
 
 from __future__ import absolute_import
 
-__version__ = "2019.10.23"
+__version__ = "2019.11.18"
 
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
@@ -32,6 +32,7 @@ import os
 import wx
 
 import api
+import controlTypes
 import gui
 from logHandler import log
 import ui
@@ -87,6 +88,7 @@ def getCatalog(refresh=False, errors=None):
 	_catalog = list(store.getInstance().catalog(errors=errors))
 	return _catalog
 
+
 def getWebModuleForTreeInterceptor(treeInterceptor):
 	obj = treeInterceptor.rootNVDAObject
 	windowTitle = _getWindowTitle(obj)
@@ -94,13 +96,11 @@ def getWebModuleForTreeInterceptor(treeInterceptor):
 		mod = getWebModuleForWindowTitle(windowTitle)
 		if mod:
 			return mod
-	try:
-		url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
-	except: 
-		url = None
+	url = _getUrl(obj)
 	if url:
 		return getWebModuleForUrl(url)
 	return None
+
 
 def getWebModuleForWindowTitle(windowTitle):
 	if not windowTitle:
@@ -125,11 +125,41 @@ def getWebModuleForUrl(url):
 	if matchedRef:
 		return store.getInstance().get(matchedRef)
 
+
 def _getWindowTitle(obj):
-	windowText = obj.windowText
-	if windowText == u"Chrome Legacy Window" and obj.parent:
-		return _getWindowTitle(obj.parent)
-	return windowText
+	from ..overlay import WebAccessObject
+	if isinstance(obj, WebAccessObject):
+		role = obj._get_role(original=True)
+	else:
+		role = obj.role
+	if role == controlTypes.ROLE_DIALOG:
+		return _getWindowTitle(obj.parent.treeInterceptor.rootNVDAObject)
+	if role != controlTypes.ROLE_DOCUMENT:
+		root = obj.treeInterceptor.rootNVDAObject
+		if root is not obj:
+			return _getWindowTitle(root)
+	if isinstance(obj, WebAccessObject):
+		# This is verified with Firefox, Chrome and IE.
+		return obj._get_name(original=True)
+	# TODO: Implement Edge support
+	return obj.name or getattr(obj, "windowText", None)
+
+
+def _getUrl(obj):
+	try:
+		url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
+	except: 
+		url = None
+	if url:
+		return url
+	try:
+		if obj.parent and obj.parent.treeInterceptor:
+			root = obj.parent.treeInterceptor.rootNVDAObject
+			if root is not obj:
+				return _getUrl(root)
+	except:
+		log.exception()
+	return None
 
 
 def getWebModules(refresh=False, errors=None):

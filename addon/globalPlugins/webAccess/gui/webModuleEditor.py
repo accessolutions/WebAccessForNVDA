@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.12.12"
+__version__ = "2019.11.18"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>"
@@ -247,13 +247,13 @@ class Dialog(wx.Dialog):
 			choice
 			for choice in urlsChoices
 			if not(choice in urlsChoicesSet or urlsChoicesSet.add(choice))
-			]
+		]
 		self.webModuleUrl.SetItems(urlsChoices)
 		self.webModuleUrl.Selection = (
 			urlsChoices.index(selectedUrl)
 			if selectedUrl
 			else 0
-			)
+		)
 		
 		windowTitleChoices = []
 		windowTitleIsFilled = False 
@@ -263,22 +263,23 @@ class Dialog(wx.Dialog):
 				data["windowTitle"]
 				if data["windowTitle"]
 				else ""
-				)
+			)
 		if (
-				webModule is not None
-				and webModule.windowTitle not in windowTitleChoices
-				):
+			webModule is not None
+			and webModule.windowTitle not in windowTitleChoices
+		):
 			windowTitleIsFilled = True
 			windowTitleChoices.append(
 				webModule.windowTitle
 				if webModule.windowTitle
 				else ""
-				)
-			windowTitleFilled = True
+			)
 		if "focusObject" in context:
 			obj = context["focusObject"]
-			if obj.windowText not in windowTitleChoices:
-				windowTitleChoices.append(obj.windowText)
+			from .. import webModuleHandler
+			windowTitle = webModuleHandler._getWindowTitle(obj)
+			if windowTitle and windowTitle not in windowTitleChoices:
+				windowTitleChoices.append(windowTitle)
 		item = self.webModuleWindowTitle
 		item.SetItems(windowTitleChoices)
 		if windowTitleIsFilled:

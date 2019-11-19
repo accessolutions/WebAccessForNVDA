@@ -1093,9 +1093,17 @@ class WebAccessObject(IAccessible):
 	def initOverlayClass(self):
 		self.webAccess = WebAccessObjectHelper(self)
 	
-	def _get_name(self):
-		name = super(WebAccessObject, self).name
-		return self.webAccess.getMutatedControlAttribute("name", name)
+	def _get_name(self, original=False):
+		if original:
+			self.webAccess._original = True
+		try:
+			name = super(WebAccessObject, self).name
+			if original or getattr(self.webAccess, "_original", False):
+				return name
+			return self.webAccess.getMutatedControlAttribute("name", name)
+		finally:
+			if original:
+				self.webAccess._original = False
 	
 	def _get_positionInfo(self):
 		# "level" is text in control field attributes,
@@ -1113,10 +1121,16 @@ class WebAccessObject(IAccessible):
 		return info
 	
 	def _get_role(self, original=False):
-		role = super(WebAccessObject, self).role
 		if original:
-			return role
-		return self.webAccess.getMutatedControlAttribute("role", role)
+			self.webAccess._original = True
+		try:
+			role = super(WebAccessObject, self).role
+			if original or getattr(self.webAccess, "_original", False):
+				return role
+			return self.webAccess.getMutatedControlAttribute("role", role)
+		finally:
+			if original:
+				self.webAccess._original = False
 		
 	def _set_treeInterceptor(self, obj):
 		super(WebAccessObject, self)._set_treeInterceptor(obj)
