@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.11.02"
+__version__ = "2019.11.18"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -489,15 +489,15 @@ class MarkerManager(baseObject.ScriptableObject):
 			]
 			if part
 		]
-		if parts:
-			return " - ".join(parts)
-		# TODO: Failback first to HTML HEAD TITLE
-		return api.getForegroundObject().name
+		return " - ".join(parts)
 	
 	def _getPageTitle1(self):
 		for result in self.markerResults:
 			if result.markerQuery.type == ruleTypes.PAGE_TITLE_1:
 				return result.value
+		from ..webModuleHandler import _getWindowTitle
+		windowTitle = _getWindowTitle(self.nodeManager.treeInterceptor.rootNVDAObject)
+		return windowTitle or api.getForegroundObject().name
 	
 	def _getPageTitle2(self):
 		for result in self.markerResults:
