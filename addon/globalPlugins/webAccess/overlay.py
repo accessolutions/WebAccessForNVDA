@@ -26,7 +26,7 @@ WebAccess overlay classes
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.11.02"
+__version__ = "2019.11.20"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -1057,13 +1057,19 @@ class WebAccessObjectHelper(object):
 	
 	@property
 	def treeInterceptor(self):
-		if not hasattr(self.obj, "_treeInterceptor"):
-			return None
-		ti = self.obj._treeInterceptor
-		if isinstance(ti, weakref.ReferenceType):
-			ti = ti()
-		assert isinstance(ti, WebAccessBmdti)
-		return ti
+		obj = self.obj
+		while True:
+			if not hasattr(obj, "_treeInterceptor"):
+				return None
+			ti = obj._treeInterceptor
+			if isinstance(ti, weakref.ReferenceType):
+				ti = ti()
+			if isinstance(ti, (type(None), WebAccessBmdti)):
+				return ti
+			try:
+				obj = ti.rootNVDAObject.parent
+			except:
+				return None
 	
 	@property
 	def webModule(self):
