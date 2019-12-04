@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 
 from __future__ import absolute_import
 
-__version__ = "2019.11.18"
+__version__ = "2019.12.04"
 
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
@@ -106,7 +106,8 @@ def getWebModuleForWindowTitle(windowTitle):
 	if not windowTitle:
 		return None
 	for ref, meta in getCatalog():
-		if meta.get("windowTitle") == windowTitle:
+		candidate = meta.get("windowTitle")
+		if candidate and candidate in windowTitle:
 			return store.getInstance().get(ref)
 
 def getWebModuleForUrl(url):
