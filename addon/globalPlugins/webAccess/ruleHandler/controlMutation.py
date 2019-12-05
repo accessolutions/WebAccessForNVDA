@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.10.23"
+__version__ = "2019.12.05"
 __author__ = u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -111,6 +111,7 @@ MUTATIONS = {
 	"landmark.nav.named": Mutation({"landmark": "navigation"}, True),
 	"landmark.nav.unnamed": Mutation({"landmark": "navigation"}, False),
 	"link": Mutation({"role": controlTypes.ROLE_LINK}, False),
+	"section": Mutation({"role": controlTypes.ROLE_SECTION}),
 	"table.data": Mutation({"table-layout": False}, False),
 	"table.layout": Mutation({"table-layout": True}, False)
 }
@@ -125,6 +126,7 @@ MUTATIONS_BY_RULE_TYPE = OrderedDict((
 			"heading.5",
 			"heading.6",
 			"labelled",
+			"section",
 			"landmark.region",
 			"landmark.nav.named",
 			"landmark.nav.unnamed",
@@ -137,6 +139,7 @@ MUTATIONS_BY_RULE_TYPE = OrderedDict((
 	(
 		ruleTypes.ZONE, [
 			"labelled",
+			"section",
 			"landmark.region",
 			"landmark.nav.named",
 			"landmark.nav.unnamed",
@@ -163,6 +166,8 @@ mutationLabels = OrderedDict((
 	("heading.6", pgettext("webAccess.controlMutation", "Header level 6")),
 	# Translators: The label for a control mutation.
 	("labelled", pgettext("webAccess.controlMutation", "Add a label")),
+	# Translators: The label for a control mutation.
+	("section", pgettext("webAccess.controlMutation", "Section")),
 	(
 		"landmark.region",
 		# Translators: The label for a control mutation.
