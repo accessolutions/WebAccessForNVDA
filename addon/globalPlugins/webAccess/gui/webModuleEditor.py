@@ -19,51 +19,30 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.11.18"
+__version__ = "2019.12.06"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>"
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 	"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
-	)
+)
 
 
 import itertools
 import os
 import wx
 
+from NVDAObjects import NVDAObject, IAccessible
 import addonHandler
-addonHandler.initTranslation()
-from logHandler import log
 import api
 import controlTypes
 import gui
-from NVDAObjects import NVDAObject, IAccessible
+from logHandler import log
 import ui
 
 
-def getUrlFromObject(obj, depth=20):
-	found = False
-	i = 0
-	url = None
-	while obj is not None and i < depth and found is False:
-		if obj.role == controlTypes.ROLE_DOCUMENT:
-			try:
-				url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
-			except:
-				log.exception("Error searching for url.")
-				obj = obj.parent
-				i += 1
-				continue
-			if url is not None:
-				found = True
-				break
-		i += 1
-		obj = obj.parent
-	if found:
-		return url
-	else:
-		return None
+addonHandler.initTranslation()
+
 
 def promptOverwrite():
 	return wx.MessageBox(
@@ -214,12 +193,15 @@ class Dialog(wx.Dialog):
 				if url_ not in urls:
 					urls.append(url_)
 		if "focusObject" in context:
-			urlFromObject = getUrlFromObject(context["focusObject"])
-			if urlFromObject is None:
-				if webModule is None:
-					ui.message(_("URL not found"))
-			elif urlFromObject not in urls:
-				urls.append(urlFromObject)
+			focus = context["focusObject"]
+			if focus and focus.treeInterceptor and focus.treeInterceptor.rootNVDAObject:
+				from ..webModuleHandler import getUrl
+				urlFromObject = getUrl(focus.treeInterceptor.rootNVDAObject)
+				if not urlFromObject:
+					if not webModule:
+						ui.message(_("URL not found"))
+				elif urlFromObject not in urls:
+					urls.append(urlFromObject)
 		else:
 			log.warn("focusObject not in context")
 		urlsChoices = []
@@ -276,8 +258,8 @@ class Dialog(wx.Dialog):
 			)
 		if "focusObject" in context:
 			obj = context["focusObject"]
-			from .. import webModuleHandler
-			windowTitle = webModuleHandler._getWindowTitle(obj)
+			from ..webModuleHandler import getWindowTitle
+			windowTitle = getWindowTitle(obj)
 			if windowTitle and windowTitle not in windowTitleChoices:
 				windowTitleChoices.append(windowTitle)
 		item = self.webModuleWindowTitle

@@ -91,12 +91,12 @@ def getCatalog(refresh=False, errors=None):
 
 def getWebModuleForTreeInterceptor(treeInterceptor):
 	obj = treeInterceptor.rootNVDAObject
-	windowTitle = _getWindowTitle(obj)
+	windowTitle = getWindowTitle(obj)
 	if windowTitle:
 		mod = getWebModuleForWindowTitle(windowTitle)
 		if mod:
 			return mod
-	url = _getUrl(obj)
+	url = getUrl(obj)
 	if url:
 		return getWebModuleForUrl(url)
 	return None
@@ -127,18 +127,18 @@ def getWebModuleForUrl(url):
 		return store.getInstance().get(matchedRef)
 
 
-def _getWindowTitle(obj):
+def getWindowTitle(obj):
 	from ..overlay import WebAccessObject
 	if isinstance(obj, WebAccessObject):
 		role = obj._get_role(original=True)
 	else:
 		role = obj.role
 	if role == controlTypes.ROLE_DIALOG:
-		return _getWindowTitle(obj.parent.treeInterceptor.rootNVDAObject)
+		return getWindowTitle(obj.parent.treeInterceptor.rootNVDAObject)
 	if role != controlTypes.ROLE_DOCUMENT:
 		root = obj.treeInterceptor.rootNVDAObject
 		if root is not obj:
-			return _getWindowTitle(root)
+			return getWindowTitle(root)
 	if isinstance(obj, WebAccessObject):
 		# This is verified with Firefox, Chrome and IE.
 		return obj._get_name(original=True)
@@ -146,7 +146,7 @@ def _getWindowTitle(obj):
 	return obj.name or getattr(obj, "windowText", None)
 
 
-def _getUrl(obj):
+def getUrl(obj):
 	try:
 		url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
 	except: 
@@ -157,7 +157,7 @@ def _getUrl(obj):
 		if obj.parent and obj.parent.treeInterceptor:
 			root = obj.parent.treeInterceptor.rootNVDAObject
 			if root is not obj:
-				return _getUrl(root)
+				return getUrl(root)
 	except:
 		log.exception()
 	return None

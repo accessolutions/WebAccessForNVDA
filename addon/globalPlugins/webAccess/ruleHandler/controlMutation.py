@@ -111,7 +111,7 @@ MUTATIONS = {
 	"landmark.nav.named": Mutation({"landmark": "navigation"}, True),
 	"landmark.nav.unnamed": Mutation({"landmark": "navigation"}, False),
 	"link": Mutation({"role": controlTypes.ROLE_LINK}, False),
-	"section": Mutation({"role": controlTypes.ROLE_SECTION}),
+	"section": Mutation({"role": controlTypes.ROLE_SECTION}, False),
 	"table.data": Mutation({"table-layout": False}, False),
 	"table.layout": Mutation({"table-layout": True}, False)
 }
