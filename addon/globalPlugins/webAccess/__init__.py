@@ -42,9 +42,14 @@ tables.
 * Presenter: Used to display information using speech and/or braille output
 based on the current context (widget, nodeField, or object).
 
-Overridden NVDA functions:
-* EventExecuter.gen
-* scriptHandler.findScript
+Monkey-patched NVDA functions:
+* appModules.nvda.AppModule.event_NVDAObject_init
+* eventHandler._EventExecuter.gen
+* gui.mainFrame.prePopup
+* gui.mainFrame.postPopup
+* virtualBuffers.VirtualBuffer.changeNotify
+* virtualBuffers.VirtualBuffer._loadBufferDone
+* virtualBuffers.VirtualBuffer.terminate
 """
 
 # Get ready for Python 3
@@ -65,27 +70,20 @@ import sys
 import time
 import wx
 
-import addonHandler
-import api
-import baseObject
-import braille
-import config
-import controlTypes
-import eventHandler
-import globalPluginHandler
-import globalVars
-import gui
-import inputCore
-from logHandler import log
-import NVDAObjects
 from NVDAObjects.IAccessible import IAccessible
 from NVDAObjects.IAccessible.MSHTML import MSHTML
 from NVDAObjects.IAccessible.ia2Web import Ia2Web
 from NVDAObjects.IAccessible.mozilla import Mozilla
-import NVDAObjects.JAB
+import addonHandler
+import api
+import baseObject
+import controlTypes
+import eventHandler
+import globalPluginHandler
+import gui
+from logHandler import log
 import scriptHandler
 import speech
-import tones
 import ui
 import virtualBuffers
 
@@ -97,7 +95,6 @@ from . import webAppLib
 from .webAppLib import *
 from .webAppScheduler import WebAppScheduler
 from . import webModuleHandler
-from . import widgets
 
 
 addonHandler.initTranslation()
