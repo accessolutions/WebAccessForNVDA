@@ -24,7 +24,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.10.23"
+__version__ = "2019.12.09"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -40,7 +40,7 @@ import globalVars
 from logHandler import log
 
 from ..packaging import version
-from ..webModuleHandler import InvalidApiVersion, WebModule
+from ..webModuleHandler import InvalidApiVersion, WebModule, getWebModuleFactory
 from . import DispatchStore
 from . import DuplicateRefError
 from . import MalformedRefError
@@ -54,11 +54,16 @@ except ImportError:
 	from .. import json
 
 
-class WebModuleJsonFileStore(Store):
+
+class Data(dict):
+	pass
+
+
+class WebModuleJsonFileDataStore(Store):
 	
-	def __init__(self, name, path):
-		super(WebModuleJsonFileStore, self).__init__(name=name)
-		self.path = path
+	def __init__(self, name, basePath, dirName="webModules"):
+		super(WebModuleJsonFileDataStore, self).__init__(name=name)
+		self.path = os.path.join(basePath, dirName)
 	
 	def catalog(self, errors=None):
 		if not os.path.isdir(self.path):
@@ -70,8 +75,7 @@ class WebModuleJsonFileStore(Store):
 					continue
 				ref = matches.group(1)
 				try:
-					path = self.getCheckedPath(ref)
-					data = self.getData(path)
+					data = self.get(ref)
 					meta = {}
 					for key in ("windowTitle", "url"):
 						value = data.get("WebModule", data.get("WebApp", {})).get(key)
@@ -102,14 +106,7 @@ class WebModuleJsonFileStore(Store):
 	
 	def get(self, ref):
 		path = self.getCheckedPath(ref)
-		data = self.getData(path)
-		try:
-			item = WebModule(data=data)
-		except:
-			log.exception(
-				u"Failed to load JSON file: {path}".format(path=path)
-				)
-			raise
+		item = Data(self.read(path))
 		self.setRef(item, ref)
 		return item
 	
@@ -151,14 +148,6 @@ class WebModuleJsonFileStore(Store):
 				os.mkdir(self.path)
 		return path			
 		
-	def getData(self, path):
-		try:
-			with open(path, "r") as f:
-				return json.load(f)
-		except:
-			log.exception(u"Failed reading file: {}".format(path))
-			raise
-	
 	def getNewRef(self, item):
 		return item.name
 	
@@ -185,7 +174,7 @@ class WebModuleJsonFileStore(Store):
 	def supports(self, operation, **kwargs):
 		if operation in ["create", "delete", "update"]:
 			return True
-		return super(WebModuleJsonFileStore, self).supports(operation, **kwargs)
+		return super(WebModuleJsonFileDataStore, self).supports(operation, **kwargs)
 	
 	def update(self, item, ref=None, force=False):
 		if not self.hasRef(item):
@@ -201,6 +190,14 @@ class WebModuleJsonFileStore(Store):
 			path = newPath
 		return self.write(path, item)
 	
+	def read(self, path):
+		try:
+			with open(path, "r") as f:
+				return json.load(f)
+		except:
+			log.exception(u"Failed reading file: {}".format(path))
+			raise
+	
 	def write(self, path, item):
 		data = item.dump()
 		try:
@@ -212,137 +209,6 @@ class WebModuleJsonFileStore(Store):
 			)
 			return False
 		return True
-	
-	
-class WebModulePythonFileStore(Store):
-	
-	def __init__(self, name, path):
-		super(WebModulePythonFileStore, self).__init__(name=name)
-		self.path = path
-		self.defaultDataStore = WebModuleJsonFileStore(
-			name=u"{name}/data".format(name=name),
-			path=path,
-			)
-	
-	def catalog(self, errors=None):
-		if not os.path.isdir(self.path):
-			return
-		for f in os.listdir(self.path):
-			if os.path.isfile(os.path.join(self.path, f)):
-				matches = re.match("^(.*)\.py$", f)
-				if not matches:
-					continue
-				ref = matches.group(1)
-				try:
-					dataPath = self.defaultDataStore.getCheckedPath(ref)
-					data = self.defaultDataStore.getData(dataPath)
-					meta = {}
-					for key in ("windowTitle", "url"):
-						value = data.get("WebModule", data.get("WebApp", {})).get(key)
-						if value:
-							meta[key] = value
-				except:
-					if errors:
-						errors.append(ref, sys.exc_info())
-					else:
-						log.exception(
-							u"Error while retrieving item: ref={}".format(ref)
-						)
-					continue
-				yield ref, meta
-	
-	def get(self, ref):
-		path = self.getPathByRef(ref)
-		name = ref
-		try:
-			mod = imp.load_source(name, path)
-		except:
-			log.exception(
-				u"Failed to compile module: {name}".format(name=name)
-			)
-			raise
-		apiVersion = getattr(mod, "API_VERSION", None)
-		apiVersion = version.parse(apiVersion or "")
-		if apiVersion != WebModule.API_VERSION:
-			raise InvalidApiVersion(apiVersion)
-		ctor = getattr(mod, "WebModule", None)
-		if ctor is None:
-			msg = (
-				u"Python module {name} does not provide a 'WebModule' class: "
-				u"{path}".format(name=name, path=path)
-			)
-			log.error(msg)
-			raise AttributeError(msg)
-		kwargs = {}
-		try:
-			dataPath = self.defaultDataStore.getCheckedPath(ref)
-			data = self.defaultDataStore.getData(dataPath)
-			kwargs["data"] = data
-		except:
-			log.exception(u"While loading data for module: {}".format(name))
-			raise
-		try:
-			instance = ctor(**kwargs)
-		except:
-			log.exception(u"Failed to instanciate web module: {}".format(name))
-			raise
-		if not hasattr(instance, "name"):
-			instance.name = name
-		if not hasattr(instance, "dataStore"):
-			instance.dataStore = self.defaultDataStore
-		self.setRef(instance, ref)
-		return instance
-	
-	def getPathByItem(self, item):
-		return self.getPathByRef(self.getRef(item))
-	
-	def getPathByRef(self, ref):
-		return os.path.join(self.path, u"{ref}.py".format(ref=ref))
-	
-	def getRef(self, item):
-		return item.name
-	
-	def setRef(self, item, ref):
-		if hasattr(item, "storeRef") and isinstance(item.storeRef, tuple):
-			ref = item.storeRef[:-1] + (ref,)
-		item.storeRef = ref
-	
-	def update(self, item, ref=None, force=False):
-		return item.dataStore.update(item=item, ref=ref, force=force)
-	
-	def supports(self, operation, **kwargs):
-		if operation == "update":
-			item = kwargs.get("item")
-			if item is not None:
-				return item.dataStore.supports(operation, **kwargs)
-			# This might be wrong if the Python WebModule provides a
-			# readonly custom data store.
-			return self.defaultDataStore.supports(operation, **kwargs)
-		return False
-
-
-class WebModuleFileStore(DispatchStore):
-	
-	def __init__(self, *args, **kwargs):
-		self.basePath = kwargs["basePath"]
-		self.dirName = kwargs["dirName"] if "dirName" in kwargs else "webModules"
-		dirPath = os.path.join(self.basePath, self.dirName)
-		kwargs["stores"] = [
-			# The order of this list is meaningful. See WebModuleStore.catalog
-			WebModulePythonFileStore(name="code", path=dirPath),
-			WebModuleJsonFileStore(name="data", path=dirPath),
-		]
-		super(WebModuleFileStore, self).__init__(*args, **kwargs)
-	
-# 	def __getStores(self):
-# 		dirPath = os.path.join(self.basePath, self.dirName)
-# 		return [
-# 			# The order of this list is meaningful. See WebModuleStore.catalog
-# 			WebModulePythonFileStore(name="code", path=dirPath),
-# 			WebModuleJsonFileStore(name="data", path=dirPath),
-# 			]
-# 	
-# 	stores = property(__getStores)
 
 
 class WebModuleStore(DispatchStore):
@@ -350,32 +216,37 @@ class WebModuleStore(DispatchStore):
 	def __init__(self, *args, **kwargs):
 		kwargs["stores"] = [
 			# The order of this list is meaningful. See WebModuleStore.catalog
-			WebModuleFileStore(
-				name="userConfig",
-				basePath=globalVars.appArgs.configPath
-			),
+			WebModuleJsonFileDataStore(name="userConfig", basePath=globalVars.appArgs.configPath),
 			AddonsStore(
-				addonStoreFactory=lambda addon: WebModuleFileStore(
-						name=addon.name,
-						basePath=addon.path,
+				addonStoreFactory=lambda addon: WebModuleJsonFileDataStore(
+						name=addon.name, basePath=addon.path,
 				)
-			)
+			),
 		]
 		super(WebModuleStore, self).__init__(*args, **kwargs)
 	
 	def catalog(self, errors=None):
 		# Keep only the first occurence of each ref in stores.
 		# Thus, the order of the stores sets precedence.
-		uniqueRefs = set()
+		keyRefs = set()
 		for storeRef, meta in super(WebModuleStore, self).catalog(errors=errors):
-			# Consider only the tail of DispatcherStore refs
-			if isinstance(storeRef, tuple) and (len(storeRef) > 0):
-				uniqueRef = storeRef[-1]
-			else:
-				uniqueRef = storeRef
-			if uniqueRef not in uniqueRefs:
-				uniqueRefs.add(uniqueRef)
+			keyRef = self._getKeyRef(storeRef)
+			if keyRef not in keyRefs:
+				keyRefs.add(keyRef)
 				yield storeRef, meta
+	
+	def get(self, ref):
+		data = super(WebModuleStore, self).get(ref)
+		ctor = None
+		keyRef = self._getKeyRef(ref)
+		ctor = getWebModuleFactory(keyRef)
+		try:
+			item = ctor(data=data)
+		except:
+			log.exception(u"Failed to load JSON file: {ref}: {ctor}: {data}".format(**locals()))
+			raise
+		item.storeRef = data.storeRef
+		return item
 	
 	def supports(self, operation, **kwargs):
 		if operation == "mask":
@@ -387,12 +258,10 @@ class WebModuleStore(DispatchStore):
 			if self.stores.index(newStore) < self.stores.index(currStore):
 				return True
 		return super(WebModuleStore, self).supports(operation, **kwargs)
-
-
-_instance = None
-
-def getInstance():
-	global _instance
-	if _instance is None:
-		_instance = WebModuleStore()
-	return _instance
+	
+	def _getKeyRef(self, storeRef):
+		# Consider only the tail of DispatcherStore refs
+		if isinstance(storeRef, tuple) and (len(storeRef) > 0):
+			return storeRef[-1]
+		else:
+			return storeRef

@@ -50,7 +50,7 @@ Overridden NVDA functions:
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.10.23"
+__version__ = "2019.12.07"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
@@ -186,12 +186,14 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		appModule_nvda_event_NVDAObject_init.super = NvdaAppModule.event_NVDAObject_init
 		# The NVDA AppModule should not yet have been instanciated at this stage
 		NvdaAppModule.event_NVDAObject_init = appModule_nvda_event_NVDAObject_init 		
-
+		
+		webModuleHandler.initialize()
 		log.info("Web Access for NVDA version %s initialized" % getVersion())
 		showWebModulesLoadErrors()
 
 	def terminate(self):
 		scheduler.send(eventName="stop")
+		webModuleHandler.terminate()
 		
 	def chooseNVDAObjectOverlayClasses(self, obj, clsList):
 		if any(
@@ -590,6 +592,8 @@ def showWebModulesLoadErrors():
 		for case in cases:
 			if not case.excType or isinstance(exc_info[1], case.excType):
 				case.refs.append(label)
+				if not case.excType:
+					log.exception(exc_info=exc_info)
 				break
 	parts = []
 	for case in cases:
