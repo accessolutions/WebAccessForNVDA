@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.10.09"
+__version__ = "2019.12.12"
 __authors__ = (
 	u"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
 	u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
@@ -48,8 +48,15 @@ from .webAppLib import *
 
 
 try:
+	from six import unichr
+except ImportError:
+	# NVDA version < 2018.3	
+	pass
+
+try:
 	from ast import literal_eval
-except ImportError:  # NVDA < 2018.4
+except ImportError:
+	# NVDA < 2018.4
 	from .ast import literal_eval
 
 
