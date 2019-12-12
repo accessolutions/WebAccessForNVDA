@@ -23,7 +23,7 @@
 
 from __future__ import absolute_import
 
-__version__ = "2019.12.09"
+__version__ = "2019.12.12"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -139,9 +139,16 @@ def getWindowTitle(obj):
 	else:
 		role = obj.role
 	if role == controlTypes.ROLE_DIALOG:
-		return getWindowTitle(obj.parent.treeInterceptor.rootNVDAObject)
+		try:
+			root = obj.parent.treeInterceptor.rootNVDAObject
+		except AttributeError:
+			return None
+		return getWindowTitle(root)
 	if role != controlTypes.ROLE_DOCUMENT:
-		root = obj.treeInterceptor.rootNVDAObject
+		try:
+			root = obj.treeInterceptor.rootNVDAObject
+		except AttributeError:
+			return None
 		if root is not obj:
 			return getWindowTitle(root)
 	if isinstance(obj, WebAccessObject):
