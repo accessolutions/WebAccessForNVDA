@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.12.06"
+__version__ = "2019.12.13"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -235,7 +235,7 @@ class MarkerManager(baseObject.ScriptableObject):
 		results = []
 		for rule in sorted(
 			(rule for rule in self.markerQueries if rule.name == name),
-			key=lambda rule: rule.priority
+			key=lambda rule: rule.priority if rule.priority is not None else -1
 		):
 			results.extend(rule.getResults())
 			if rule.priority is None:
