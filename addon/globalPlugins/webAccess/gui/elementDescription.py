@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2018.12.31"
+__version__ = "2019.10.23"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 __license__ = "GPL"
 
@@ -97,42 +97,43 @@ def formatAttributes(dic):
 
 
 def getNodeDescription():
-	from globalPlugins.webAccess.webAppLib import html
-	treeInterceptor = html.getTreeInterceptor()
-	if not (treeInterceptor and hasattr(treeInterceptor, "nodeManager")):
+	import api
+	from ..overlay import WebAccessObject
+	focus = api.getFocusObject()
+	if not (
+		isinstance(focus, WebAccessObject)
+		and focus.webAccess.nodeManager
+	):
 		return _(u"No NodeManager")
-	node = treeInterceptor.nodeManager.getCaretNode()
+	node = focus.webAccess.nodeManager.getCaretNode()
+# 	from globalPlugins.webAccess.webAppLib import html
+# 	treeInterceptor = html.getTreeInterceptor()
+# 	if not (treeInterceptor and hasattr(treeInterceptor, "nodeManager")):
+# 		return _(u"No NodeManager")
+# 	node = treeInterceptor.nodeManager.getCaretNode()
 	node = node.parent
 	obj = node.getNVDAObject()
-	s = ""
+	branch = []
 	while node is not None:
-		s += "tag %s\r\n    role %s\r\n" % (
-			node.tag,
-			controlTypes.roleLabels[node.role]
-		)
-		if node.id != "":
-			s += "    id=%s\r\n" % node.id
-		className = ""
-		if node.className != "":
-			className = node.className
-		elif hasattr(node, "HTMLClassName"):
-			className = node.HTMLClassName
-		elif hasattr(obj, "HTMLNode"):
-			className = obj.HTMLNode.attributes.item("class").nodeValue
-			if className is None:
-				className = ""
-			node.HTMLClassName = className
-			node.className = className
-		if className is not None and className != "":
-			s += "    class=%s\r\n" % className
-
-		if node.src != "":
-			s += "    src=%s\r\n" % node.src
-		s += "    text=%s\r\n" % truncText(node)
-		s += "\r\n"
+		parts = []
+		parts.append("tag %s" % node.tag)
+		if node.id is not None:
+			parts.append("    id=%s" % node.id)
+		parts.append("    role %s" % controlTypes.roleLabels[node.role])
+		if node.className:
+			parts.append("    class=%s" % node.className)
+		if node.states:
+			parts.append("    states=%s" % (", ".join(sorted((
+					controlTypes.stateLabels.get(state, state)
+					for state in node.states
+			)))))
+		if node.src:
+			parts.append("    src=%s" % node.src)
+		parts.append("    text=%s" % truncText(node))
+		branch.append("\n".join(parts))
 		node = node.parent
 		obj = obj.parent
-	return s
+	return "\n\n".join(branch)
 		
 	
 def showElementDescriptionDialog():

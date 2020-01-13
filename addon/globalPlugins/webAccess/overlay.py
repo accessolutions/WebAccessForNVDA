@@ -23,40 +23,47 @@
 WebAccess overlay classes
 """
 
+# Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.04.11"
+__version__ = "2019.11.20"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
+import weakref
 import wx
 
 import addonHandler
 import baseObject
 import browseMode
+import config
 import controlTypes
 import core
 import cursorManager
 import gui
 from logHandler import log
 import NVDAObjects
+from NVDAObjects.IAccessible import IAccessible
 import speech
 import textInfos
 import ui
-from versionInfo import version_year, version_major
+import virtualBuffers
+
+from .nvdaVersion import nvdaVersion
 
 
 try:
+	from six import iteritems
 	from six.moves import xrange
 except ImportError:
 	# NVDA version < 2018.3
-	pass
+	iteritems = dict.iteritems
 
 
 addonHandler.initTranslation()
 
 
-SCRIPT_CATEGORY = "WebAccess"
+SCRCAT_WEBACCESS = "WebAccess"
 
 
 def getDynamicClass(bases):
@@ -70,6 +77,7 @@ def getDynamicClass(bases):
 		cache[bases] = dynCls
 	return dynCls
 
+
 def mutateObj(obj, clsList):
 	# Determine the bases for the new class.
 	bases = []
@@ -79,7 +87,7 @@ def mutateObj(obj, clsList):
 		if index == 0 or not issubclass(clsList[index - 1], clsList[index]):
 			bases.append(clsList[index])
 	newCls = getDynamicClass(bases)
-	oldMro = frozenset(obj.__class__.__mro__)	
+	oldMro = frozenset(obj.__class__.__mro__)
 	# Mutate obj into the new class.
 	obj.__class__ = newCls
 	# Initialise the overlay classes.
@@ -96,6 +104,7 @@ def mutateObj(obj, clsList):
 			obj.bindGestures(getattr(cls, "_%s__gestures" % cls.__name__))
 		except AttributeError:
 			pass
+
 
 class ScriptWrapper(object):
 	"""
@@ -134,33 +143,55 @@ class ScriptWrapper(object):
 		self.script(gesture)
 
 
-class IterNodesByTypeHitZoneBorder(StopIteration):
-	pass
-
-
 class WebAccessBmdtiHelper(object):
 	"""
 	Utility methods and properties.
 	"""
+	WALK_ALL_TREES = False
+	
 	def __init__(self, treeInterceptor):
 		self.treeInterceptor = treeInterceptor
 		self.caretHitZoneBorder = False
+		self._nodeManager = None
+		self._webModule = None
+	
+	@property
+	def nodeManager(self):
+		nodeManager = self._nodeManager
+		if (
+			not nodeManager
+			and (self.WALK_ALL_TREES or self.treeInterceptor.webAccess.webModule)
+		):
+			from .nodeHandler import NodeManager
+			from .webAppScheduler import scheduler
+			nodeManager = self._nodeManager = NodeManager(
+				self.treeInterceptor, scheduler.onNodeMoveto
+			)
+		return nodeManager
 	
 	@property
 	def ruleManager(self):
-		# TODO: WIP on new coupling
-		try:
-			return self.webModule.ruleManager
-		except AttributeError:
+		if not self.webModule:
 			return None
+		return self.webModule.ruleManager
 	
 	@property
 	def webModule(self):
-		# TODO: WIP on new coupling
-		from . import getWebApp, webAccessEnabled
+		from . import supportWebApp, webAccessEnabled
 		if not webAccessEnabled:
 			return None
-		return getWebApp(self.treeInterceptor.rootNVDAObject)
+		if not self._webModule:
+			obj = self.treeInterceptor.rootNVDAObject
+			if not supportWebApp(obj):
+				return None
+			from . import webModuleHandler
+			try:
+				self._webModule = webModuleHandler.getWebModuleForTreeInterceptor(
+					self.treeInterceptor
+				)
+			except:
+				log.exception()
+		return self._webModule
 	
 	@property
 	def zone(self):
@@ -184,8 +215,12 @@ class WebAccessBmdtiHelper(object):
 
 class WebAccessBmdtiTextInfo(textInfos.offsets.OffsetsTextInfo):
 	"""
-	An `OffsetTextInfo` enforcing respect of the active zone borders.
-	"""
+	WebAccess `OffsetTextInfo` overlay.
+	
+	Features:
+	 - Enforce respect of the active zone borders.
+	 - Override attributes of mutated controls.
+	"""  # noqa: E101
 	def find(self, text, caseSensitive=False, reverse=False):
 		zone = self.obj.webAccess.zone
 		if not zone:
@@ -247,10 +282,111 @@ class WebAccessBmdtiTextInfo(textInfos.offsets.OffsetsTextInfo):
 		if zone and not zone.containsTextInfo(self):
 			self.obj.webAccess.zone = None
 		super(WebAccessBmdtiTextInfo, self).updateSelection()
+	
+	def _getControlFieldAttribs(self, docHandle, controlId):
+		info = self.copy()
+		info.expand(textInfos.UNIT_CHARACTER)
+		for field in reversed(info.getTextWithFields()):
+			if (
+				not isinstance(field, textInfos.FieldCommand)
+				or field.command != "controlStart"
+			):
+				continue
+			attrs = field.field
+			if (
+				int(attrs["controlIdentifier_docHandle"]) == docHandle
+				and int(attrs["controlIdentifier_ID"]) == controlId
+			):
+				break
+		else:
+			raise LookupError
+		mgr = self.obj.webAccess.ruleManager
+		if not mgr:
+			return attrs
+		mutated = mgr.getMutatedControl(controlId)
+		if mutated:
+			attrs.update(mutated.attrs)
+		return attrs
+
+	def _getFieldsInRange(self, start, end):
+		fields = super(WebAccessBmdtiTextInfo, self)._getFieldsInRange(
+			start, end
+		)
+		mgr = self.obj.webAccess.ruleManager
+		if not mgr or not mgr.isReady:
+			return fields
+		for field in fields:
+			if (
+				not isinstance(field, textInfos.FieldCommand)
+				or field.command != "controlStart"
+			):
+				continue
+			attrs = field.field
+			controlId = int(attrs["controlIdentifier_ID"])
+			mutated = mgr.getMutatedControl(controlId)
+			if mutated:
+				attrs.update(mutated.attrs)
+		return fields
+
+
+class WebAccessMutatedQuickNavItem(browseMode.TextInfoQuickNavItem):
+	"""
+	A `TextInfoQuickNavItem` supporting mutated controls.
+	"""
+	def __init__(self, itemType, document, textInfo, controlId):
+		super(WebAccessMutatedQuickNavItem, self).__init__(
+			itemType, document, textInfo
+		)
+		self.controlId = controlId
+		# Support for `virtualBuffers.VirtualBufferQuickNavItem.isChild`
+		# so that the Elements List dialog can relate nested headings.
+		self.vbufFieldIdentifier = (document.rootDocHandle, controlId)
+
+	@property
+	def obj(self):
+		return self.document.getNVDAObjectFromIdentifier(
+			self.document.rootDocHandle, self.controlId
+		)
+	
+	def isChild(self, parent):
+		if self.itemType == "heading":
+			try:
+				
+				def getLevel(obj):
+					return int(self.textInfo._getControlFieldAttribs(
+						*self.vbufFieldIdentifier
+					)["level"])
+				
+				if getLevel(self) > getLevel(parent):
+					return True
+			except (AttributeError, KeyError, ValueError, TypeError):
+				return False
+		return super(WebAccessMutatedQuickNavItem, self).isChild(parent)
+	
+	if nvdaVersion >= (2017, 4):
+		@property
+		def label(self):
+			attrs = {}
+	
+			def propertyGetter(prop):
+				if not attrs:
+					# Lazily fetch the attributes the first time they're needed
+					# that is, in the Elements List dialog.
+					info = self.textInfo.copy()
+					info.expand(textInfos.UNIT_CHARACTER)
+					attrs.update(info._getControlFieldAttribs(
+						self.document.rootDocHandle,
+						self.controlId
+					))
+				return attrs.get(prop)
+	
+			return self._getLabelForProperties(propertyGetter)
 
 
 class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
-	
+	"""
+	WebAccess `BrowseModeDocumentTreeInterceptor` overlay.
+	"""
 	def __init__(self, obj):
 		super(WebAccessBmdti, self).__init__(obj)
 		self.webAccess = WebAccessBmdtiHelper(self)
@@ -334,6 +470,22 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		)
 	
 	def _iterNodesByType(self, itemType, direction="next", pos=None):
+		superIter = super(WebAccessBmdti, self)._iterNodesByType(
+			itemType, direction, pos
+		)
+		if itemType == "focusable":
+			# `VirtualBuffer._iterNodesByType` does not support yielding
+			# multiple focusable elements: It causes a core freeze.
+			# TODO: This does not support yielding items made focusable by mutation.
+			try:
+				yield next(superIter)
+			except StopIteration:
+				return
+		mgr = self.webAccess.ruleManager
+		if not mgr:
+			for item in superIter:
+				yield item
+			return
 		zone = self.webAccess.zone
 		if (
 			zone
@@ -343,23 +495,278 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		):
 			pos = pos.copy()
 			pos.move(textInfos.UNIT_CHARACTER, -1)
-		for item in super(WebAccessBmdti, self)._iterNodesByType(
-			itemType, direction, pos
+		
+		criteria = self.__getCriteriaForMutatedControlType(itemType)
+		mutatedIter = self.__iterMutatedControlsByCriteria(
+			criteria, itemType, direction, pos
+		)
+		for item in browseMode.mergeQuickNavItemIterators(
+			(mutatedIter, superIter),
+			direction
 		):
 			if zone:
 				if item.textInfo._startOffset < zone.startOffset:
 					if direction == "next":
 						continue
 					else:
-						raise IterNodesByTypeHitZoneBorder
+						return
 				elif item.textInfo._startOffset >= zone.endOffset:
 					if direction == "previous":
 						continue
 					else:
-						raise IterNodesByTypeHitZoneBorder
+						return
+			if not isinstance(item, WebAccessMutatedQuickNavItem):
+				controlId = None
+				if isinstance(item, virtualBuffers.VirtualBufferQuickNavItem):
+					docHandle, controlId = item.vbufFieldIdentifier
+				elif isinstance(item, browseMode.TextInfoQuickNavItem):
+					try:
+						obj = item.textInfo.NVDAObjectAtStart
+						controlId = obj.IA2UniqueID
+					except:
+						log.exception()
+				if controlId is None:
+					log.error((
+						u"Could not determine controlId for item: {}"
+					).format(item))
+				elif mgr.getMutatedControl(controlId):
+					# Avoid iterating twice over mutated controls.
+					continue
 			yield item
-		if zone:
-			raise IterNodesByTypeHitZoneBorder
+	
+	def __getCriteriaForMutatedControlType(self, itemType):
+		"""
+		Return the search attributes for matching mutated controls.
+		
+		Adapted from `Gecko_ia2._searchableAttribsForNodeType`
+		
+		See `__mutatedControlMatchesCriteria` for details on criteria format.
+		"""
+		if itemType == "annotation":
+			attrs = {
+				"IAccessible::role": [
+					controlTypes.ROLE_DELETED_CONTENT,
+					controlTypes.ROLE_INSERTED_CONTENT
+				]
+			}
+		elif itemType == "blockQuote":
+			attrs = {
+				"role": [controlTypes.ROLE_BLOCKQUOTE]
+			}
+		elif itemType == "button":
+			attrs = {"role": [controlTypes.ROLE_BUTTON]}
+		elif itemType == "checkBox":
+			attrs = {"role": [controlTypes.ROLE_CHECKBOX]}
+		elif itemType == "comboBox":
+			attrs = {"role": [controlTypes.ROLE_COMBOBOX]}
+		elif itemType == "edit":
+			attrs = [
+				{
+					"role": [controlTypes.ROLE_EDITABLETEXT],
+					"states": [set((controlTypes.STATE_EDITABLE,))]
+				},
+				{
+					"states": [set((controlTypes.STATE_EDITABLE,))],
+					"parent::states::not": [
+						set((controlTypes.STATE_EDITABLE,))
+					]
+				},
+			]
+		elif itemType == "embeddedObject":
+			attrs = [
+				{
+					"tag": ["embed", "object", "applet", "audio", "video"]
+				},
+				{
+					"role": [
+						controlTypes.ROLE_APPLICATION,
+						controlTypes.ROLE_DIALOG
+					]
+				}
+			]
+		elif itemType == "frame":
+			attrs = {"role": [controlTypes.ROLE_INTERNALFRAME]}
+		elif itemType == "focusable":
+			attrs = {
+				"states": [set((controlTypes.STATE_FOCUSABLE,))]
+			}
+		elif itemType == "formField":
+			attrs = [
+				{
+					"role": [
+						controlTypes.ROLE_BUTTON,
+						controlTypes.ROLE_CHECKBOX,
+						controlTypes.ROLE_COMBOBOX,
+						controlTypes.ROLE_LIST,
+						controlTypes.ROLE_MENUBUTTON,
+						controlTypes.ROLE_RADIOBUTTON,
+						controlTypes.ROLE_TOGGLEBUTTON,
+						controlTypes.ROLE_TREEVIEW,
+					],
+					"states::not": [set((controlTypes.STATE_READONLY,))]
+				},
+				{
+					"role": [
+						controlTypes.ROLE_COMBOBOX,
+						controlTypes.ROLE_EDITABLETEXT
+					],
+					"states": [set((controlTypes.STATE_EDITABLE,))]
+				},
+				{
+					"states": [set((controlTypes.STATE_EDITABLE,))],
+					"parent::states::not": [
+						set((controlTypes.STATE_EDITABLE,))
+					]
+				},
+			]
+		elif itemType == "graphic":
+			attrs = {"role": [controlTypes.ROLE_GRAPHIC]}
+		elif itemType.startswith('heading'):
+			attrs = {"role": [controlTypes.ROLE_HEADING]}
+			if itemType[7:].isdigit():
+				# "level" is int in position info,
+				# but text in control field attributes...
+				attrs["level"] = [itemType[7:]]
+		elif itemType == "landmark":
+			attrs = {"landmark": [True]}
+		elif itemType == "link":
+			attrs = {"role": [controlTypes.ROLE_LINK]}
+		elif itemType == "list":
+			attrs = {"role": [controlTypes.ROLE_LIST]}
+		elif itemType == "listItem":
+			attrs = {"role": [controlTypes.ROLE_LISTITEM]}
+		elif itemType == "radioButton":
+			attrs = {"role": [controlTypes.ROLE_RADIOBUTTON]}
+		elif itemType == "separator":
+			attrs = {"role": [controlTypes.ROLE_SEPARATOR]}
+		elif itemType == "table":
+			attrs = {"role": [controlTypes.ROLE_TABLE]}
+			if not config.conf["documentFormatting"]["includeLayoutTables"]:
+				attrs["table-layout"] = [False]
+		elif itemType == "unvisitedLink":
+			# We can't track this.
+			# Thus, controls mutated to links aren't visited nor unvisited.
+			attrs = {}
+		elif itemType == "visitedLink":
+			# We can't track this.
+			# Thus, controls mutated to links aren't visited nor unvisited.
+			attrs = {}
+		else:
+			attrs = {}
+		return attrs
+	
+	def __iterMutatedControlsByCriteria(
+		self, criteria, itemType, direction="next", pos=None
+	):
+		"""
+		Iterate over mutated controls matching the given search criteria.
+		
+		See `__mutatedControlMatchesCriteria` for details on criteria format.
+		"""
+		mgr = self.webAccess.ruleManager
+		if not mgr:
+			return
+		if not criteria:
+			return
+		for mutated in mgr.iterMutatedControls(
+			direction=direction,
+			offset=pos._startOffset if pos is not None else None
+		):
+			info = mutated.node.getTextInfo()
+			if self.__mutatedControlMatchesCriteria(criteria, mutated, info):
+				yield WebAccessMutatedQuickNavItem(
+					itemType, self, info, mutated.controlId
+				)
+	
+	def __mutatedControlMatchesCriteria(self, criteria, mutated, info=None):
+		"""
+		Check whether a mutated control matches the given criteria.
+		
+		Criteria are expected to be a list of dictionaries.
+		Each item in the list represents a valid match alternative.
+		The control matches if any of these alternatives matches.
+		
+		The dictionary for an alternative maps attribute names to a list of
+		accepted values.
+		Every key in the dictionary must be satisfied for an alternative to
+		match.
+		
+		Possible values for a key are compared against the mutated control
+		field attribute value with the same name, with a few twists:
+		 - Missing control field attribute values are considered to be `None`.
+		 - The key "tag" is checked against the attribute with the same name
+		   on the node corresponding to the mutated control.
+		 - If the key is prefixed with "parent::", the values are checked
+		   against the parent node.
+		 - If a key is suffixed with "::not", no criteria value should match
+		   the candidate control field attribute value for the criteria to be
+		   satisfied.
+		 - If a possible value is boolean, the corresponding control field
+		   attribute value is first converted to boolean before comparison.
+		   That is, as an example, the criteria value `False` matches a missing
+		   candidate control field attribute value.
+		 - If a possible value is a set, the candidate control field attribute
+		   value is also considered to be a set, and the key matches if the
+		   former is a subset of the latter.
+		   The "::not" key suffix also applies to sets, negating the match.
+		"""  # noqa: E101
+		if not criteria:
+			return True
+		if isinstance(criteria, dict):
+			criteria = (criteria,)
+		if info is None:
+			info = mutated.node.getTextInfo()
+		docHandle = self.rootDocHandle
+		controlId = mutated.controlId
+		controlAttrs = info._getControlFieldAttribs(docHandle, controlId)
+		controlNode = mutated.node
+		parentAttrs = None  # Fetch lazily as seldom needed
+		parentNode = mutated.node.parent
+		for alternative in criteria:
+			for key, values in iteritems(alternative):
+				if key.endswith("::not"):
+					negate = True
+					key = key[:-len("::not")]
+				else:
+					negate = False
+				if key.startswith("parent::"):
+					key = key[len("parent::"):]
+					if parentAttrs is None:
+						parent = mutated.node.parent
+						parentInfo = parent.getTextInfo()
+						parentAttrs = parentInfo._getControlFieldAttribs(
+							docHandle, int(parent.controlIdentifier)
+						)
+					attrs = parentAttrs
+					node = parentNode
+				else:
+					attrs = controlAttrs
+					node = controlNode
+				if key == "tag":
+					candidate = node.tag
+				else:
+					candidate = attrs.get(key)
+				for value in values:
+					if isinstance(value, set):
+						if value.issubset(candidate or set()) == negate:
+							log.info(u"boom {}, {}, {}".format(value, candidate, negate))
+							break
+						else:
+							log.info(u"yep {}, {}, {}".format(value, candidate, negate))
+						continue
+					if isinstance(value, bool):
+						candidate = bool(candidate)
+					if (candidate != value) != negate:
+						break
+				else:
+					# This attribute matches
+					continue
+				# An attribute did not match in this alternative
+				break
+			else:
+				# All attributes matched in this alternative
+				return True
+		return False
 	
 	def _quickNavScript(
 		self, gesture, itemType, direction, errorMessage, readUnit
@@ -367,7 +774,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		if self.webAccess.zone:
 			errorMessage += " "
 			# Translators: Complement to quickNav error message in zone.
-			errorMessage += _("in this zone.") 
+			errorMessage += _("in this zone.")
 			errorMessage += " "
 			# Translators: Hint on how to cancel zone restriction.
 			errorMessage += _("Press escape to cancel zone restriction.")
@@ -380,7 +787,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			caretInfo = self.makeTextInfo(textInfos.POSITION_CARET)
 			try:
 				next(self._iterNodesByType("focusable", direction, caretInfo))
-			except IterNodesByTypeHitZoneBorder:
+			except StopIteration:
 				if direction == "next":
 					msg = _("No more focusable element in this zone.")
 				else:
@@ -394,8 +801,6 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 					msg += _("Press escape to cancel zone restriction.")
 				ui.message(msg)
 				return True
-			except StopIteration:
-				pass
 		return super(WebAccessBmdti, self)._tabOverride(direction)
 	
 	def doFindText(self, text, reverse=False, caseSensitive=False):
@@ -457,9 +862,20 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 				override = getattr(webModule, overrideName)
 			except AttributeError:
 				raise Break()
-			return ScriptWrapper(script, override)
+			script = ScriptWrapper(script, override)
 		except Break:
 			pass
+		if script:
+			if not webModule and getattr(script, "passThroughIfNoWebModule", False):
+				if nvdaVersion >= (2019, 2):
+					script = self.script_passThrough
+				else:
+					script = lambda gesture: gesture.send()
+					script.__name__ = "script_passThrough"
+					# Translators: The description for the passThrough script (back-ported from NVDA 2019.2)
+					script.__doc__ = _("Passes gesture through to the application")
+			if getattr(script, "ignoreSingleLetterNavSetting", False):
+				return script
 		return super(WebAccessBmdti, self).getAlternativeScript(gesture, script)
 	
 	def getScript(self, gesture):
@@ -510,12 +926,83 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			core.callLater(150, check)
 		wx.CallAfter(run)
 	
+	script_elementsList.__doc__ = \
+		browseMode.BrowseModeDocumentTreeInterceptor.script_elementsList.__doc__
+	script_elementsList.category = \
+		browseMode.BrowseModeDocumentTreeInterceptor.scriptCategory
 	script_elementsList.ignoreTreeInterceptorPassThrough = True
 	
 	def script_elementsListInZone(self, gesture):
 		super(WebAccessBmdti, self).script_elementsList(gesture)
 	
+	# Translators: The description for the elementsListInZone script
+	script_elementsListInZone.__doc__ = _("Lists various types of elements in the current zone")
+	script_elementsListInZone.category = SCRCAT_WEBACCESS
 	script_elementsListInZone.ignoreTreeInterceptorPassThrough = True
+	script_elementsListInZone.passThroughIfNoWebModule = True
+	
+	def script_quickNavToNextResultLevel1(self, gesture):
+		self.webAccess.ruleManager.quickNavToNextLevel1()
+	
+	# Translators: The description for the quickNavToNextResultLevel1 script
+	script_quickNavToNextResultLevel1.__doc__ = _("Move to next zone.")
+	script_quickNavToNextResultLevel1.category = SCRCAT_WEBACCESS
+	script_quickNavToNextResultLevel1.ignoreTreeInterceptorPassThrough = True
+	script_quickNavToNextResultLevel1.passThroughIfNoWebModule = True
+	
+	def script_quickNavToPreviousResultLevel1(self, gesture):
+		self.webAccess.ruleManager.quickNavToPreviousLevel1()
+	
+	# Translators: The description for the quickNavToPreviousResultLevel1 script
+	script_quickNavToPreviousResultLevel1.__doc__ = _("Move to previous zone.")
+	script_quickNavToPreviousResultLevel1.category = SCRCAT_WEBACCESS
+	script_quickNavToPreviousResultLevel1.ignoreTreeInterceptorPassThrough = True
+	script_quickNavToPreviousResultLevel1.passThroughIfNoWebModule = True
+	
+	def script_quickNavToNextResultLevel2(self, gesture):
+		self.webAccess.ruleManager.quickNavToNextLevel2()
+	
+	# Translators: The description for the quickNavToNextResultLevel2 script
+	script_quickNavToNextResultLevel2.__doc__ = _("Move to next global marker.")
+	script_quickNavToNextResultLevel2.category = SCRCAT_WEBACCESS
+	script_quickNavToNextResultLevel2.ignoreTreeInterceptorPassThrough = True
+	script_quickNavToNextResultLevel2.passThroughIfNoWebModule = True
+	
+	def script_quickNavToPreviousResultLevel2(self, gesture):
+		self.webAccess.ruleManager.quickNavToPreviousLevel2()
+	
+	# Translators: The description for the quickNavToPreviousResultLevel2 script
+	script_quickNavToPreviousResultLevel2.__doc__ = _("Move to previous global marker.")
+	script_quickNavToPreviousResultLevel2.category = SCRCAT_WEBACCESS
+	script_quickNavToPreviousResultLevel2.ignoreTreeInterceptorPassThrough = True
+	script_quickNavToPreviousResultLevel2.passThroughIfNoWebModule = True
+	
+	def script_quickNavToNextResultLevel3(self, gesture):
+		self.webAccess.ruleManager.quickNavToNextLevel3()
+	
+	# Translators: The description for the quickNavToNextResultLevel3 script
+	script_quickNavToNextResultLevel3.__doc__ = _("Move to next local marker.")
+	script_quickNavToNextResultLevel3.category = SCRCAT_WEBACCESS
+	script_quickNavToNextResultLevel3.ignoreTreeInterceptorPassThrough = True
+	script_quickNavToNextResultLevel3.passThroughIfNoWebModule = True
+	
+	def script_quickNavToPreviousResultLevel3(self, gesture):
+		self.webAccess.ruleManager.quickNavToPreviousLevel3()
+	
+	# Translators: The description for the quickNavToPreviousResultLevel3 script
+	script_quickNavToPreviousResultLevel3.__doc__ = _("Move to previous local marker.")
+	script_quickNavToPreviousResultLevel3.category = SCRCAT_WEBACCESS
+	script_quickNavToPreviousResultLevel3.ignoreTreeInterceptorPassThrough = True
+	script_quickNavToPreviousResultLevel3.passThroughIfNoWebModule = True
+	
+	def script_refreshResults(self, gesture):
+		ui.message(_("Refresh results"))
+		self.webAccess.ruleManager.update()
+	
+	script_refreshResults.__doc__ = _("Refresh results")
+	script_refreshResults.category = SCRCAT_WEBACCESS
+	script_refreshResults.ignoreTreeInterceptorPassThrough = True
+	script_refreshResults.passThroughIfNoWebModule = True
 	
 	def script_tab(self, gesture):
 		if (
@@ -536,12 +1023,121 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 	script_shiftTab.ignoreTreeInterceptorPassThrough = True
 	
 	__gestures = {
+		"kb:NVDA+shift+f5": "refreshResults",
 		"kb:NVDA+shift+f7": "elementsListInZone",
+		"kb:control+pagedown": "quickNavToNextResultLevel1",
+		"kb:control+pageup": "quickNavToPreviousResultLevel1",
+		"kb:pagedown": "quickNavToNextResultLevel2",
+		"kb:pageup": "quickNavToPreviousResultLevel2",
+		"kb:shift+pagedown": "quickNavToNextResultLevel3",
+		"kb:shift+pageup": "quickNavToPreviousResultLevel3",
 	}
 
 
-class WebAccessObject(NVDAObjects.NVDAObject):
+class WebAccessObjectHelper(object):
+	"""
+	Utility methods and properties.
+	"""
+	def __init__(self, obj):
+		self.obj = obj
 	
+	@property
+	def nodeManager(self):
+		ti = self.treeInterceptor
+		if not ti:
+			return None
+		return ti.webAccess.nodeManager
+	
+	@property
+	def ruleManager(self):
+		ti = self.treeInterceptor
+		if not ti:
+			return None
+		return ti.webAccess.ruleManager
+	
+	@property
+	def treeInterceptor(self):
+		obj = self.obj
+		while True:
+			if not hasattr(obj, "_treeInterceptor"):
+				return None
+			ti = obj._treeInterceptor
+			if isinstance(ti, weakref.ReferenceType):
+				ti = ti()
+			if isinstance(ti, (type(None), WebAccessBmdti)):
+				return ti
+			try:
+				obj = ti.rootNVDAObject.parent
+			except:
+				return None
+	
+	@property
+	def webModule(self):
+		ti = self.treeInterceptor
+		if not ti:
+			return None
+		return ti.webAccess.webModule
+	
+	def getMutatedControlAttribute(self, attr, default=None):
+		mgr = self.ruleManager
+		if not mgr:
+			return default
+		obj = self.obj
+		try:
+			controlId = obj.treeInterceptor.getIdentifierFromNVDAObject(obj)[1]
+		except:
+			log.exception()
+			return default
+		mutated = mgr.getMutatedControl(controlId)
+		if mutated:
+			return mutated.attrs.get(attr, default)
+		return default
+
+
+class WebAccessObject(IAccessible):
+	
+	def initOverlayClass(self):
+		self.webAccess = WebAccessObjectHelper(self)
+	
+	def _get_name(self, original=False):
+		if original:
+			self.webAccess._original = True
+		try:
+			name = super(WebAccessObject, self).name
+			if original or getattr(self.webAccess, "_original", False):
+				return name
+			return self.webAccess.getMutatedControlAttribute("name", name)
+		finally:
+			if original:
+				self.webAccess._original = False
+	
+	def _get_positionInfo(self):
+		# "level" is text in control field attributes,
+		# but int in position info...
+		info = super(WebAccessObject, self).positionInfo
+		level = self.webAccess.getMutatedControlAttribute("level")
+		if level:
+			try:
+				level = int(level)
+			except:
+				log.exception(
+					"Could not convert to int: level={}".format(level)
+				)
+			info["level"] = level
+		return info
+	
+	def _get_role(self, original=False):
+		if original:
+			self.webAccess._original = True
+		try:
+			role = super(WebAccessObject, self).role
+			if original or getattr(self.webAccess, "_original", False):
+				return role
+			return self.webAccess.getMutatedControlAttribute("role", role)
+		finally:
+			if original:
+				self.webAccess._original = False
+		
 	def _set_treeInterceptor(self, obj):
 		super(WebAccessObject, self)._set_treeInterceptor(obj)
 		if isinstance(obj, WebAccessBmdti):
@@ -563,16 +1159,13 @@ class WebAccessObject(NVDAObjects.NVDAObject):
 					except:
 						log.exception()
 	
-	if (
-		(version_year == 2017 and version_major >= 3) or version_year > 2017
-	) and (
-		(version_year == 2019 and version_major < 2) or version_year < 2019
-	):
-		# Workaround for NVDA bug #9566, introduced by 393b55b in 2017.3
-		# and later fixed as of c20a503 in 2019.2 
-				
+	if (2017, 3) <= nvdaVersion < (2019, 2):
+		# Workaround for NVDA bug #9566
+		# introduced by #7410 as of 393b55b in 2017.3
+		# fixed by #9562 as of c20a503 in 2019.2
+		
 		def _get_columnNumber(self):
-			res = super(WebAccessObject, self)._get_columnNumber()
+			res = super(WebAccessObject, self).columnNumber
 			try:
 				res = int(res)
 			except ValueError:
@@ -582,7 +1175,7 @@ class WebAccessObject(NVDAObjects.NVDAObject):
 			return res
 		
 		def _get_rowNumber(self):
-			res = super(WebAccessObject, self)._get_rowNumber()
+			res = super(WebAccessObject, self).rowNumber
 			try:
 				res = int(res)
 			except ValueError:
@@ -590,6 +1183,17 @@ class WebAccessObject(NVDAObjects.NVDAObject):
 					u"Cannot convert rowNumber to int: {res}"
 				).format(**locals()))
 			return res
+	
+	if (2018, 4) <= nvdaVersion:
+		# Workaround for NVDA bug #9520
+		# introduced by #8898 as of b02ed2d in 2018.4
+		# fixed by PR #9930 not yet merged
+		
+		def _get_table(self):
+			try:
+				return super(WebAccessObject, self).table
+			except NotImplementedError:
+				return None
 
 
 class WebAccessDocument(WebAccessObject):

@@ -19,8 +19,10 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.01.20"
+# Get ready for Python 3
+from __future__ import absolute_import, division, print_function
 
+__version__ = "2019.12.12"
 __authors__ = (
 	u"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
 	u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
@@ -28,8 +30,8 @@ __authors__ = (
 
 
 import gc
+import re
 import time
-import winUser
 from xml.parsers import expat
 
 import baseObject
@@ -40,8 +42,22 @@ import NVDAHelper
 import sayAllHandler
 import textInfos
 import ui
+import winUser
 
 from .webAppLib import *
+
+
+try:
+	from six import unichr
+except ImportError:
+	# NVDA version < 2018.3	
+	pass
+
+try:
+	from ast import literal_eval
+except ImportError:
+	# NVDA < 2018.4
+	from .ast import literal_eval
 
 
 TRACE = lambda *args, **kwargs: None  # noqa: E731
@@ -432,23 +448,27 @@ class NodeField(baseObject.AutoPropertyObject):
 			self.role = 0
 		elif nodeType == "control":
 			self.control = attrs
-			self.name = self.control.get("name", "")
-			self.role = self.control["role"]
-			self.controlIdentifier = self.control.get("controlIdentifier_ID", 0)
-			self.tag = self.control.get("IAccessible2::attribute_tag")
+			self.name = attrs.get("name", "")
+			self.role = attrs["role"]
+			self.states = attrs["states"]
+			self.controlIdentifier = attrs.get("controlIdentifier_ID", 0)
+			self.tag = attrs.get("IAccessible2::attribute_tag")
 			if not self.tag:
-				self.tag = self.control.get("IHTMLDOMNode::nodeName", "")
-			self.id = self.control.get("IAccessible2::attribute_id")
+				self.tag = attrs.get("IHTMLDOMNode::nodeName")
+			# tag is reported lowercase in Chrome and FF, but uppercase in IE.
+			if self.tag:
+				self.tag = self.tag.lower()
+			self.id = attrs.get("IAccessible2::attribute_id")
 			if not self.id:
-				self.id = self.control.get("HTMLAttrib::id", "")
-			self.className = self.control.get("IAccessible2::attribute_class")
+				self.id = attrs.get("HTMLAttrib::id")
+			self.className = attrs.get("IAccessible2::attribute_class")
 			if not self.className:
-				self.className = self.control.get("HTMLAttrib::class")
+				self.className = attrs.get("HTMLAttrib::class")
 			if not self.className:
-				self.className = self.control.get("HTMLAttrib::className", "")
-			self.src = self.control.get("IAccessible2::attribute_src")
+				self.className = attrs.get("HTMLAttrib::className")
+			self.src = attrs.get("IAccessible2::attribute_src")
 			if not self.src:
-				self.src = self.control.get("HTMLAttrib::src", "")
+				self.src = attrs.get("HTMLAttrib::src")
 			self.children = []
 		else:
 			raise ValueError(
@@ -506,6 +526,21 @@ class NodeField(baseObject.AutoPropertyObject):
 		return n
 	
 	def searchString(self, text, exclude=None, maxIndex=0, currentIndex=0):
+		"""Searches the current node and its sub-tree for a match with the given text.
+		
+		Keyword arguments:
+		  text: The text to search for.
+		  exclude:
+		    If specified, set of children nodes not to explore or  True  to not explore
+		    children nodes at all.
+		  maxIndex:
+		    If set to 0 (default value), every result found is returned.
+		    If greater than 0, only return the n first results (1 based).
+		  currentIndex: Used to compare against maxIndex when searching down
+		    sub-trees.
+		
+		Returns a list of the matching nodes.
+		"""  # noqa
 		if not isinstance(text, list):
 			text = [text]
 		if hasattr(self, "text"):
@@ -513,7 +548,7 @@ class NodeField(baseObject.AutoPropertyObject):
 				if t in self.text:
 					return [self]
 			return []
-		elif hasattr(self, "children"):
+		elif exclude is not True and hasattr(self, "children"):
 			result = []
 			for child in self.children:
 				if exclude and child in exclude:
@@ -558,12 +593,12 @@ class NodeField(baseObject.AutoPropertyObject):
 		currentIndex=0,
 		**kwargs
 	):
-		"""
-		Searches the current node and its sub-tree for a match with the given
-		criteria.
+		"""Searches the current node and its sub-tree for a match with the given criteria.
 		
 		Keyword arguments:
-		  exclude: If specified, set of children nodes not to explore.
+		  exclude:
+		    If specified, set of children nodes not to explore or  True  to not explore
+		    children nodes at all.
 		  relativePath:
 		    If specified, walk the given path from the matched nodes to
 		    determine the final result. If the path cannot be walked, no
@@ -585,6 +620,8 @@ class NodeField(baseObject.AutoPropertyObject):
 		
 		Properties `text` and `prevText` are mutually exclusive, are only valid
 		for the `in` test and do not support multiple values.
+		
+		Returns a list of the matching nodes.
 		"""  # noqa
 		global _count
 		nodeList = []
@@ -604,10 +641,19 @@ class NodeField(baseObject.AutoPropertyObject):
 					found = False
 				continue
 			candidateValue = getattr(self, prop)
-			if prop == "className" and candidateValue is not None:
-				candidateValues = candidateValue.split(" ")
-			else:
-				candidateValues = (candidateValue,)
+			candidateValues = (candidateValue,)
+			if prop == "className":
+				if candidateValue is not None: 
+					candidateValues = candidateValue.split(" ")
+			elif prop in ("role", "states"):
+				try:
+					allowedValues = [int(value) for value in allowedValues]
+				except ValueError:
+					log.error((
+						"Invalid search criterion: {key}={allowedValues!r}"
+					).format(**locals()))
+				if prop == "states":
+					candidateValues = candidateValue
 			for candidateValue in candidateValues:
 				if test == "eq":
 					if self.search_eq(allowedValues, candidateValue):
@@ -655,6 +701,8 @@ class NodeField(baseObject.AutoPropertyObject):
 					if match:
 						matches.append(match)
 			return matches
+		if exclude is True:
+			return []
 		for child in self.children:
 			if exclude and child in exclude:
 				continue
@@ -684,9 +732,10 @@ class NodeField(baseObject.AutoPropertyObject):
 					return node
 		return None
 	
+	RELATIVE_PATH_CRITERIA = re.compile(u"^{[^}]*}")
+	
 	def walk(self, path):
-		"""
-	    Walk the node tree and return the destination node.
+		"""Walk the node tree and return the destination node.
 	    Returns None if the given path cannot be walked.
 	    In the path expression, each character represents a step:
 	      - "b": (before) previous text in the document flow
@@ -695,55 +744,102 @@ class NodeField(baseObject.AutoPropertyObject):
 	      - "d": (down) first child node
 	      - "l": (left) previous sibling node
 	      - "r": (right) next sibling node
+	    Criteria expressions can be checked on the way. They are introduced by the
+	    non-moving step "c" (check) and are formatted as a Python dictionary literal.
+	    Additionally, regular steps can be expressed upper-case, in which case they are
+	    immediately followed by a criteria expression.
+	    They allow to walk in the given direction until the criteria are met.
 		"""  # noqa
 		node = self
+		skipUntil = None
+		searchKwargs = None
 		for index, step in enumerate(path):
-			if step == "b": # First node with lesser offset
-				node = node.previousTextNode
-			elif step == "a": # First node with greater offset
-				offset = node.offset
-				while True:
+			if skipUntil and index < skipUntil:
+				continue
+			while True:
+				if searchKwargs:
+					matches = node.searchNode(
+						exclude=step != "d",  # search sub-tree only when walking down.
+						maxIndex=1,
+						currentIndex=0,
+						**searchKwargs
+					)
+					if matches:
+						node = matches[0]
+						searchKwargs = None
+						break  # continue to the next step
+					if step == "c":
+						return None
+				# No check or no match, keep walking...
+				if step == "b":  # First node with lesser offset
+					node = node.previousTextNode
+					if not node:
+						return None
+					node = node.parent
+				elif step == "a": # First node with greater offset
+					offset = node.offset
+					while True:
+						try:
+							node = node.children[0]
+						except:
+							while True:
+								try:
+									node = node.parent.children[node.index + 1]
+									break
+								except:
+									node = node.parent
+									if node is None:
+										return None
+						if node.offset > offset or searchKwargs:
+							break
+				elif step == "u":
+					node = node.parent
+				elif step == "d":
 					try:
 						node = node.children[0]
 					except:
-						while True:
-							try:
-								node = node.parent.children[node.index + 1]
-								break
-							except:
-								node = node.parent
-								if node is None:
-									return None
-					if node.offset > offset:
-						break
-			elif step == "u":
-				node = node.parent
-			elif step == "d":
-				try:
-					node = node.children[0]
-				except:
+						return None
+				elif step == "l":
+					if node.index == 0 or node.parent is None:
+						return None
+					node = node.parent.children[node.index - 1]
+				elif step == "r":
+					try:
+						node = node.parent.children[node.index + 1]
+					except:
+						return None
+				elif step == "c" or step.isupper():
+					assert searchKwargs is None
+					if step.isupper():
+						step = step.lower()
+					index = index + 1
+					match = self.RELATIVE_PATH_CRITERIA.match(path[index:])
+					if not match:
+						log.error((
+							u"Malformed criteria expression in relative path expression "
+							u"at position {index}: {path}"
+						).format(**locals()))
+						return None
+					# TODO: Refactor to break this coupling
+					from .ruleHandler import getSimpleSearchKwargs
+					criteria = literal_eval(match.group())
+					searchKwargs = getSimpleSearchKwargs(criteria)
+					skipUntil = match.end() + 1
+					continue
+				else:
+					log.error((
+						u'Invalid step "{step}" at index {index}'
+						u' in path expression: "{path}"'
+					).format(
+						step=step,
+						index=index,
+						path=path
+					))
 					return None
-			elif step == "l":
-				if node.index == 0 or node.parent is None:
+				if not node:
 					return None
-				node = node.parent.children[node.index - 1]
-			elif step == "r":
-				try:
-					node = node.parent.children[node.index + 1]
-				except:
-					return None
-			else:
-				log.error((
-					u'Invalid step "{step}" at index {index}'
-					u' in path expression: "{path}"'
-				).format(
-					step=step,
-					index=index,
-					path=path
-				))
-				return None
-			if not node:
-				return None
+				if not searchKwargs:
+					break
 		return node
 	
 	def firstTextNode(self):
@@ -769,7 +865,7 @@ class NodeField(baseObject.AutoPropertyObject):
 		if not self.checkNodeManager():
 			return False
 		info = self.getTextInfo()
-		self.nodeManager.treeInterceptor._activatePosition(info)
+		self.nodeManager.treeInterceptor._activatePosition(info=info)
 
 	def sayAll(self):
 		if self.moveto():
@@ -816,13 +912,15 @@ class NodeField(baseObject.AutoPropertyObject):
 	def getBraillePresentationString(self):
 		return False
 				
-	def __eq__(self, node):
-		if node is None:
-			return False
-		if self.offset == node.offset:
-			return True
-		return False
-
+	# TODO: Thoroughly check this wasn't used anywhere
+	# In Python 3, all classes defining __eq__ must also define __hash__
+# 	def __eq__(self, node):
+# 		if node is None:
+# 			return False
+# 		if self.offset == node.offset:
+# 			return True
+# 		return False
+	
 	def __lt__(self, node):
 		"""
 		Compare nodes based on their offset.

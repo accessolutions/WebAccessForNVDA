@@ -21,7 +21,7 @@
 
 """Web Access data store."""
 
-__version__ = "2019.04.11"
+__version__ = "2019.10.23"
 
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
@@ -41,8 +41,10 @@ class Store(object):
 		return self.name if hasattr(self, "name") \
 			else super(Store, self).__str__(*args, **kwargs)
 	
-	def catalog(self):
-		return []
+	def catalog(self, errors=None):
+		"""Return, or yield, a sequence of tuples (ref, metaData)
+		"""
+		raise NotImplementedError()
 
 	def create(self, item, **kwargs):
 		raise NotImplementedError()
@@ -54,7 +56,7 @@ class Store(object):
 		return None
 	
 	def list(self, errors=None):
-		for ref in self.catalog():
+		for ref, meta in self.catalog(errors=errors):
 			try:
 				item = self.get(ref)
 			except:
@@ -92,10 +94,10 @@ class DispatchStore(Store):
 			self.storeDic = dict()
 		super(DispatchStore, self).__init__(*args, **kwargs)
 
-	def catalog(self):
+	def catalog(self, errors=None):
 		for store in self.stores:
-			for ref in store.catalog():
-				yield self.track(store, ref=ref)["ref"]
+			for ref, meta in store.catalog(errors=errors):
+				yield self.track(store, ref=ref)["ref"], meta
 	
 	def create(self, item, **kwargs):
 		for store in self.getSupportingStores("create", item=item, **kwargs):

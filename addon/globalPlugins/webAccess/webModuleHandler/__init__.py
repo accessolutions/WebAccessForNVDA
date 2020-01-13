@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,27 +23,36 @@
 
 from __future__ import absolute_import
 
-__version__ = "2019.04.11"
-
+__version__ = "2019.12.12"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
 import os
+import pkgutil
 import wx
 
 import api
+import controlTypes
+import config
+import globalVars
 import gui
 from logHandler import log
 import ui
 
 from .webModule import InvalidApiVersion, NewerFormatVersion, WebModule
-from ..store import webModule as store
+from ..packaging import version
+from ..nvdaVersion import nvdaVersion
 from ..store import DuplicateRefError
 from ..store import MalformedRefError
 
 
+_store = None
+_catalog = None
+_webModules = None
+
+
 def create(webModule, focus, force=False):
-	store.getInstance().create(webModule, force=force)
+	_store.create(webModule, force=force)
 	getWebModules(refresh=True)
 	if focus:
 		from .. import webAppScheduler
@@ -55,12 +64,13 @@ def create(webModule, focus, force=False):
 	else:
 		log.error("No focus to update")
 
+
 def delete(webModule, focus, prompt=True):
 	if prompt:
 		from ..gui.webModulesManager import promptDelete
 		if not promptDelete(webModule):
 			return False
-	store.getInstance().delete(webModule)
+	_store.delete(webModule)
 	getWebModules(refresh=True)
 	if focus:
 		from .. import webAppScheduler
@@ -71,26 +81,117 @@ def delete(webModule, focus, prompt=True):
 			)
 	return True
 
+
+def getCatalog(refresh=False, errors=None):
+	global _catalog, _webModules
+	if not refresh:
+		if _catalog:
+			return _catalog
+	else:
+		_webModules = None
+	_catalog = list(_store.catalog(errors=errors))
+	return _catalog
+
+
+def getWebModuleForTreeInterceptor(treeInterceptor):
+	obj = treeInterceptor.rootNVDAObject
+	windowTitle = getWindowTitle(obj)
+	if windowTitle:
+		mod = getWebModuleForWindowTitle(windowTitle)
+		if mod:
+			return mod
+	url = getUrl(obj)
+	if url:
+		return getWebModuleForUrl(url)
+	return None
+
+
+def getWebModuleForWindowTitle(windowTitle):
+	if not windowTitle:
+		return None
+	for ref, meta in getCatalog():
+		candidate = meta.get("windowTitle")
+		if candidate and candidate in windowTitle:
+			return _store.get(ref)
+
+
+def getWebModuleForUrl(url):
+	matchedLen = 0
+	matchedRef = None
+	for ref, meta in getCatalog():
+		urls = meta.get("url")
+		if not urls:
+			continue
+		if not isinstance(urls, (tuple, list)):
+			urls = (urls,)
+		for candidate in urls:
+			if candidate in url and len(candidate) > matchedLen:
+				matchedRef = ref
+				matchedLen = len(candidate)
+	if matchedRef:
+		return _store.get(matchedRef)
+
+
+def getWindowTitle(obj):
+	from ..overlay import WebAccessObject
+	if isinstance(obj, WebAccessObject):
+		role = obj._get_role(original=True)
+	else:
+		role = obj.role
+	if role == controlTypes.ROLE_DIALOG:
+		try:
+			root = obj.parent.treeInterceptor.rootNVDAObject
+		except AttributeError:
+			return None
+		return getWindowTitle(root)
+	if role != controlTypes.ROLE_DOCUMENT:
+		try:
+			root = obj.treeInterceptor.rootNVDAObject
+		except AttributeError:
+			return None
+		if root is not obj:
+			return getWindowTitle(root)
+	if isinstance(obj, WebAccessObject):
+		# This is verified with Firefox, Chrome and IE.
+		return obj._get_name(original=True)
+	# TODO: Implement Edge support
+	return obj.name or getattr(obj, "windowText", None)
+
+
+def getUrl(obj):
+	try:
+		url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
+	except: 
+		url = None
+	if url:
+		return url
+	try:
+		if obj.parent and obj.parent.treeInterceptor:
+			root = obj.parent.treeInterceptor.rootNVDAObject
+			if root is not obj:
+				return getUrl(root)
+	except:
+		log.exception()
+	return None
+
+
 def getWebModules(refresh=False, errors=None):
-	if refresh or "_webModuleCache" not in globals():
-		global _webModuleCache
-		if refresh:
-			former = set(_webModuleCache or tuple())
-		_webModuleCache = list(store.getInstance().list(errors))
-		if refresh:
-			newer = set(_webModuleCache)
-			for outdated in (former - newer):
-				# Avoid returning outdated cached versions.
-				# See `globalPlugins.webAccess.getWebApp`
-				outdated._outdated = True
-	return _webModuleCache
+	global _catalog, _webModules
+	if not refresh:
+		if _webModules:
+			return _webModules
+	else:
+		_catalog = None
+	_webModules = list(_store.list(errors=errors))
+	return _webModules
+
 
 def update(webModule, focus, force=False):
 	updatable, mask = checkUpdatable(webModule)
 	if mask:
 		return create(webModule, focus, force=force)
 	if updatable:
-		store.getInstance().update(webModule, force=force)
+		_store.update(webModule, force=force)
 		ui.message(_("Web module updated."))
 		log.info(u"WebModule updated: {webModule}".format(webModule=webModule))
 	getWebModules(refresh=True)
@@ -103,6 +204,7 @@ def update(webModule, focus, force=False):
 			)
 	return True
 
+
 def checkUpdatable(webModule):
 	"""
 	Check if a WebModule can be updated in place.
@@ -113,17 +215,18 @@ def checkUpdatable(webModule):
 	
 	Returns (isUpdatable, shouldMask)
 	"""
-	store_ = store.getInstance()
-	if store_.supports("update", item=webModule):
+	if _store.supports("update", item=webModule):
 		return True, False
-	if store_.supports("mask", item=webModule):
+	if _store.supports("mask", item=webModule):
 		from ..gui.webModulesManager import promptMask
 		if promptMask(webModule):
 			return False, True
 		return False, False
 
+
 def showCreator(context):
 	showEditor(context, new=True)
+
 
 def showEditor(context, new=False):
 	from ..gui import webModuleEditor
@@ -190,7 +293,77 @@ def showEditor(context, new=False):
 			if new:
 				# Translator: Canceling web module creation.
 				ui.message(_("Cancel"))
+
 	
 def showManager(context):
 	from ..gui import webModulesManager
 	webModulesManager.show(context)
+
+
+def hasCustomModule(name):
+	if nvdaVersion < (2019, 3):
+		# Python 2.x can't properly handle unicode module names, so convert them.
+		name = name.encode("mbcs")
+	return any(
+		importer.find_module("webModules.{}".format(name))
+		for importer in _importers
+	)
+
+
+def getWebModuleFactory(name):
+	if not hasCustomModule(name):
+		return WebModule
+	mod = None
+	try:
+		if nvdaVersion < (2019, 3):
+			# Python 2.x can't properly handle unicode module names, so convert them.
+			name = name.encode("mbcs")
+			mod = __import__("webModules.{}".format(name), globals(), locals(), ("webModules",))
+		else:
+			import importlib
+			mod = importlib.import_module("webModules.{}".format(name), package="webModules")
+	except:
+		log.exception("Could not import custom module webModules.{}".format(name))
+	if not mod:
+		return WebModule
+	apiVersion = getattr(mod, "API_VERSION", None)
+	apiVersion = version.parse(apiVersion or "")
+	if apiVersion != WebModule.API_VERSION:
+		raise InvalidApiVersion(apiVersion)
+	ctor = getattr(mod, "WebModule", None)
+	if ctor is None:
+		msg = u"Python module {} does not provide a 'WebModule' class: {}".format(
+			mod.__name__,
+			getattr(mod, "__file__", None) or getattr(mod, "__path__", None)
+		)
+		log.error(msg)
+		raise AttributeError(msg)
+	return ctor
+
+
+def initialize():
+	global _importers, _store
+	
+	import imp
+	webModules = imp.new_module("webModules")
+	webModules.__path__ = list()
+	import sys
+	sys.modules["webModules"] = webModules
+	config.addConfigDirsToPythonPackagePath(webModules)
+	webModules.__path__.insert(
+		1 if config.conf["development"]["enableScratchpadDir"] else 0,
+		os.path.join(globalVars.appArgs.configPath, "webModules")
+	)
+	_importers = list(pkgutil.iter_importers("webModules.__init__"))
+	
+	from ..store.webModule import WebModuleStore
+	_store = WebModuleStore()
+
+
+def terminate():
+	import sys
+	try:
+		del sys.modules["webModules"]
+	except KeyError:
+		pass
+	_importers = None

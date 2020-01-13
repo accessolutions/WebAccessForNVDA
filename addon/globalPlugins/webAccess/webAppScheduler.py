@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,19 +19,28 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.10.21"
+# Get ready for Python 3
+from __future__ import absolute_import, division, print_function
 
+__version__ = "2019.10.23"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
-import wx
-import Queue
 import threading
+import wx
 
 import api
 import textInfos
 
+from .overlay import WebAccessBmdti, WebAccessObject
 from .webAppLib import *
+
+
+try:
+	from six.moves import queue
+except ImportError:
+	# NVDA version < 2018.3
+	import Queue as queue
 
 
 TRACE = lambda *args, **kwargs: None  # @UnusedVariable
@@ -48,7 +57,7 @@ class WebAppScheduler(threading.Thread):
 	def __init__(self):
 		super(WebAppScheduler,self).__init__()
 		self.daemon = True
-		self.queue = Queue.Queue()
+		self.queue = queue.Queue()
 		global scheduler
 		scheduler = self
 		
@@ -67,7 +76,7 @@ class WebAppScheduler(threading.Thread):
 				if func:
 					try:
 						func(**event)
-					except Exception, e:
+					except Exception as e:
 						log.exception("Error executing event %s : %s" % (eventName, e))
 
 				else:
@@ -82,26 +91,20 @@ class WebAppScheduler(threading.Thread):
 		
 	def event_timeout(self):
 		focus = api.getFocusObject()
-		ti = focus.treeInterceptor
-		webModule = focus.getWebApp()
+		if not (
+			isinstance(focus, WebAccessObject)
+			and focus.webAccess.treeInterceptor
+		):
+			return
 		self.send(
 			eventName="updateNodeManager",
-			treeInterceptor=ti,
-			webApp=webModule
-			)
+			treeInterceptor=focus.webAccess.treeInterceptor,
+		)
 	
 	def fakeNext(self = None):
 		return True
 
 	def event_webApp(self, name=None, obj=None, webApp=None):
-		TRACE(
-			u"event_webApp(name={name}, "
-			u"obj={obj}, webApp={webApp})".format(
-				name=name,
-				obj=id(obj) if obj is not None else None,
-				webApp=id(webApp) if webApp is not None else None 
-				)
-			)
 		funcName = 'event_%s' % name
 		#log.info("webApp %s will handle the event %s" % (webApp.name, name))
 		func = getattr(webApp, funcName, None)
@@ -109,64 +112,25 @@ class WebAppScheduler(threading.Thread):
 			func(obj, self.fakeNext)
 	
 	def event_configurationChanged(self, webModule, focus):
-		TRACE(
-			u"event_configurationChanged("
-			u"webModule={webModule}, focus={focus})".format(
-				webModule=id(webModule) if webModule is not None else None,
-				focus=id(focus) if focus is not None else None
-				)
-			)
-		# The updated WebModule is a new object in the store.
-		# Older references to the WebModule, MarkerManager or
-		# NodeManager should not be used anymore.
-		# Removing older cached references ensures a proper reload.
-		def generator():
-			yield focus
-			if hasattr(focus, "treeInterceptor"):
-				yield focus.treeInterceptor
-			else:
-				log.error("Focus has no treeInterceptor")
-			obj = focus
-			while hasattr(obj, "parent"):
-				obj = obj.parent
-				yield obj
-		try:
-			for obj in generator():
-				if hasattr(obj, "_webApp"):
-					delattr(obj, "_webApp")
-				if hasattr(obj, "nodeManager"):
-					delattr(obj, "nodeManager")
-		except:
-			log.exception("While clearing cached references")
-		# Clear the pending events queue as well.
-		self.queue = Queue.Queue()
-		newWebModule = focus.getWebApp()
-		newMarkerManager = newWebModule.markerManager \
-			if newWebModule is not None else None
-		TRACE(
-			u"event_configurationChanged("
-			u"webModule={webModule}, focus={focus}): "
-			u"newWebModule={newWebModule}"
-			u"newMarkerManager={newMarkerManager}".format(
-				webModule=id(webModule) if webModule is not None else None,
-				focus=id(focus) if focus is not None else None,
-				newWebModule=id(newWebModule)
-					if newWebModule is not None else None,
-				newMarkerManager=id(newMarkerManager)
-					if newMarkerManager is not None else None
-				)
-			)
+		if (
+			webModule
+			and webModule.ruleManager
+			and webModule.ruleManager.nodeManager
+			and webModule.ruleManager.nodeManager.treeInterceptor
+		):
+			ti = webModule.ruleManager.nodeManager.treeInterceptor
+			assert isinstance(ti, WebAccessBmtdti)
+			ti.webAccess._nodeManager = None
+			ti.webAccess._webModule = None
+		if (
+			focus
+			and focus.treeInterceptor
+			and isinstance(focus.treeInterceptor, WebAccessBmdti)
+		):
+			focus.treeInterceptor.webAccess._nodeManager = None
+			focus.treeInterceptor.webAccess._webModule = None
 
 	def event_treeInterceptor_gainFocus(self, treeInterceptor, firstGainFocus):
-		TRACE(
-			u"event_treeInterceptor_gainFocus("
-			u"treeInterceptor: {treeInterceptor}, "
-			u"firstGainFocus: {firstGainFocus})".format(
-				treeInterceptor=id(treeInterceptor)
-					if treeInterceptor is not None else None,
-				firstGainFocus=firstGainFocus
-				)
-			)
 		# TODO: Isn't it dead code?
 		log.error("event_treeInterceptor_gainFocus")
 		hadFirstGainFocus=treeInterceptor._hadFirstGainFocus
@@ -187,21 +151,15 @@ class WebAppScheduler(threading.Thread):
 		self.send(eventName="updateNodeManager", treeInterceptor=treeInterceptor)
 
 	def event_checkWebAppManager(self):
-# 		TRACE(u"event_checkWebAppManager")
+		# TODO: Should not be triggered anymore 
+		log.error(u"event_checkWebAppManager")
 		focus = api.getFocusObject()
-		webApp = focus.getWebApp()
+		webApp = focus.webAccess.webModule if isinstance(focus, WebAccessObject) else None
 		TRACE(u"event_checkWebAppManager: webApp={webApp}".format(
 			webApp=id(webApp) if webApp is not None else None
 			))
 		if webApp:
 			treeInterceptor = focus.treeInterceptor
-			TRACE(
-				u"event_checkWebAppManager: "
-				u"treeInterceptor={treeInterceptor}".format(
-					treeInterceptor=id(treeInterceptor)
-						if treeInterceptor is not None else None
-					)
-				)
 			if treeInterceptor:
 				#webApp.treeInterceptor = treeInterceptor
 				nodeManager = getattr(treeInterceptor, "nodeManager", None)
@@ -215,85 +173,36 @@ class WebAppScheduler(threading.Thread):
 				if nodeManager:
 					webApp.markerManager.update(nodeManager)
 		
-	def event_updateNodeManager(self, treeInterceptor, webApp=None):
-		TRACE(
-			u"event_updateNodeManager("
-			u"treeInterceptor={treeInterceptor}, "
-			u"webApp={webApp})".format(
-				treeInterceptor=id(treeInterceptor)
-					if treeInterceptor is not None else None,
-				webApp=id(webApp) if webApp is not None else None
-				)
-			)
-		if treeInterceptor is None:
+	def event_updateNodeManager(self, treeInterceptor):
+		if not (
+			isinstance(treeInterceptor, WebAccessBmdti)
+			and treeInterceptor.webAccess.nodeManager
+		):
 			return
-		if hasattr(treeInterceptor, "nodeManager"):
-			treeInterceptor.nodeManager.update ()
-		else:
-			from . import nodeHandler
-			treeInterceptor.nodeManager = nodeHandler.NodeManager(treeInterceptor, self.onNodeMoveto)
-# 		if webApp:
-# 			webApp.treeInterceptor = treeInterceptor
+		treeInterceptor.webAccess.nodeManager.update()
 
 	def event_nodeManagerUpdated(self, nodeManager):
-		TRACE(
-			u"event_nodeManagerUpdated("
-			u"nodeManager={nodeManager})".format(
-				nodeManager=id(nodeManager)
-					if nodeManager is not None else None
-				)
-			)
-		self.send(eventName="checkWebAppManager")
+		if not (
+			nodeManager
+			and nodeManager.treeInterceptor
+			and isinstance(nodeManager.treeInterceptor, WebAccessBmdti)
+			and nodeManager.treeInterceptor.webAccess.ruleManager
+		):
+			return
+		nodeManager.treeInterceptor.webAccess.ruleManager.update(nodeManager)
 
 	def event_markerManagerUpdated(self, markerManager):
-		TRACE(
-			u"event_markerManagerUpdated("
-			u"markerManager={markerManager})".format(
-				markerManager=id(markerManager)
-					if markerManager is not None else None
-				)
-			)
 		markerManager.checkPageTitle()
 		# markerManager.checkAutoAction()
 
 	def event_gainFocus(self, obj):
 		pass
 
-	def checkTreeInterceptor(self, eventName):
-		TRACE(
-			u"checkTreeInterceptor(eventName={eventName})".format(
-				eventName=eventName
-				)
-			)
-		obj = api.getFocusObject()
-		if not obj or not hasattr(obj, "treeInterceptor") or obj.treeInterceptor is None:
-			return
-		ti = obj.treeInterceptor
-		if not ti.isReady:
-			return
-			
-		if ti != self.lastTreeInterceptor:
-			self.lastTreeInterceptor = ti
-			log.info("new treeInterceptor")
-			self.lastSize = 0
-		try:
-			info = ti.makeTextInfo(textInfos.POSITION_LAST)
-			size = info._endOffset
-			if size != self.lastSize:
-				self.lastSize = size
-				log.info(u"taille : %d" % size)
-		except Exception:
-			pass
-
 	def onNodeMoveto(self, node, reason):
-		TRACE(
-			u"onNodeMoveto(node={node}, reason={reason})".format(
-				node=id(node) if node is not None else None,
-				reason=reason
-				)
-			)
 		focus = api.getFocusObject()
-		webModule = focus.getWebApp()
+		if not isinstance(focus, WebAccessObject):
+			return
+		webModule = focus.webAccess.webModule
 		useInternalBrowser = False
 	
 		if webModule is not None:

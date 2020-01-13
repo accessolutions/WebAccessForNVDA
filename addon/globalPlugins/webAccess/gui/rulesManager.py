@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.04.11"
+__version__ = "2019.06.14"
 __author__ = u"Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
@@ -42,7 +42,6 @@ from ..ruleHandler import (
 )
 from .. import webModuleHandler
 
-
 try:
 	from six import iteritems
 except ImportError:
@@ -57,11 +56,17 @@ except AttributeError:
 	TreeCtrl_GetItemData = wx.TreeCtrl.GetItemData
 	TreeCtrl_SetItemData = wx.TreeCtrl.SetItemData
 
-lastGroupBy = "position"
-lastActiveOnly = False
+try:
+	from gui import guiHelper
+except ImportError:
+	from ..backports.nvda_2016_4 import gui_guiHelper as guiHelper
 
 
 addonHandler.initTranslation()
+
+
+lastGroupBy = "position"
+lastActiveOnly = False
 
 
 def show(context):
@@ -282,11 +287,11 @@ class Dialog(wx.Dialog):
 		)
 		item.Bind(wx.EVT_RADIOBOX, self.onGroupByRadio)
 		contentsSizer.Add(item, flag=wx.EXPAND)
-		contentsSizer.AddSpacer(gui.guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS)
+		contentsSizer.AddSpacer(guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS)
 		
 		filtersSizer = wx.GridSizer(1, 2, 10, 10)
 		
-		labeledCtrlHelper = gui.guiHelper.LabeledControlHelper(
+		labeledCtrlHelper = guiHelper.LabeledControlHelper(
 			self,
 			# Translator: A label on the RulesManager dialog.
 			_("&Filter: "),
@@ -307,7 +312,7 @@ class Dialog(wx.Dialog):
 		
 		contentsSizer.Add(filtersSizer, flag=wx.EXPAND)
 		contentsSizer.AddSpacer(
-			gui.guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS
+			guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS
 		)
 		
 		item = self.tree = wx.TreeCtrl(
@@ -321,7 +326,7 @@ class Dialog(wx.Dialog):
 		self.treeRoot = item.AddRoot("root")
 		contentsSizer.Add(item, flag=wx.EXPAND, proportion=1)
 		contentsSizer.AddSpacer(
-			gui.guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS
+			guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS
 		)
 
 		ruleCommentLabel = wx.StaticText(self, label="Description")
@@ -331,10 +336,10 @@ class Dialog(wx.Dialog):
 		)
 		contentsSizer.Add(self.ruleComment, flag=wx.EXPAND)
 		contentsSizer.AddSpacer(
-			gui.guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS
+			guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS
 		)
 
-		btnHelper = gui.guiHelper.ButtonHelper(wx.HORIZONTAL)
+		btnHelper = guiHelper.ButtonHelper(wx.HORIZONTAL)
 		item = self.resultMoveToButton = btnHelper.addButton(
 			self,
 			# Translator: The label for a button on the RulesManager dialog.
@@ -370,14 +375,14 @@ class Dialog(wx.Dialog):
 		contentsSizer.Add(btnHelper.sizer, flag=wx.ALIGN_RIGHT)
 		mainSizer.Add(
 			contentsSizer,
-			border=gui.guiHelper.BORDER_FOR_DIALOGS,
+			border=guiHelper.BORDER_FOR_DIALOGS,
 			flag=wx.ALL | wx.EXPAND,
 			proportion=1,
 		)
 		mainSizer.Add(
 			self.CreateSeparatedButtonSizer(wx.CLOSE),
 			flag=wx.EXPAND | wx.BOTTOM,
-			border=gui.guiHelper.BORDER_FOR_DIALOGS
+			border=guiHelper.BORDER_FOR_DIALOGS
 		)
 		mainSizer.Fit(self)
 		self.Sizer = mainSizer
@@ -398,6 +403,9 @@ class Dialog(wx.Dialog):
 		self.refreshRuleList(selectObj=context.get("rule"))
 	
 	def getSelectedObject(self):
+		selection = self.tree.Selection
+		if not selection.IsOk():
+			return None
 		return TreeCtrl_GetItemData(self.tree, self.tree.Selection).obj
 	
 	def getSelectedRule(self):
@@ -460,7 +468,12 @@ class Dialog(wx.Dialog):
 			# the tree before reporting the selection.
 			self.tree.SelectItem(shared.selectTreeItem)
 			return
-		wx.CallAfter(self.tree.Unselect)
+		
+		def unselect():
+			self.tree.Unselect()
+			self.onTreeSelChanged(None)
+		
+		wx.CallAfter(unselect)
 	
 	def onActiveOnlyCheckBox(self, evt):
 		global lastActiveOnly
@@ -559,7 +572,10 @@ class Dialog(wx.Dialog):
 		evt.Skip()
 	
 	def onTreeSelChanged(self, evt):
-		if evt.EventObject is None or evt.EventObject.IsBeingDeleted():
+		if (
+			evt is not None
+			and (evt.EventObject is None or evt.EventObject.IsBeingDeleted())
+		):
 			return
 		rule = self.getSelectedRule()
 		if not rule:

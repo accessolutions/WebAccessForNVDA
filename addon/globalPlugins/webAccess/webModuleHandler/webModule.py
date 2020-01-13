@@ -19,9 +19,10 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
+# Get ready for Python 3
+from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.04.11"
-
+__version__ = "2019.10.23"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
@@ -42,12 +43,24 @@ import scriptHandler
 import speech
 import ui
 
-from .. import json
 from ..packaging import version
 from .. import presenter
 from .. import ruleHandler
 from ..ruleHandler import ruleTypes
 from ..webAppLib import *
+
+
+try:
+	import json
+except ImportError:
+	from .. import json
+
+try:
+	from six import string_types, text_type
+except ImportError:
+	# NVDA version < 2018.3
+	string_types = basestring
+	text_type = unicode
 
 
 class NewerFormatVersion(version.InvalidVersion):
@@ -60,8 +73,8 @@ class InvalidApiVersion(version.InvalidVersion):
 
 class WebModule(baseObject.ScriptableObject):
 	
-	API_VERSION = version.parse("0.1")
-	FORMAT_VERSION_STR = "0.4-dev"
+	API_VERSION = version.parse("0.2")
+	FORMAT_VERSION_STR = "0.6-dev"
 	FORMAT_VERSION = version.parse(FORMAT_VERSION_STR)
 	
 	url = None
@@ -151,7 +164,7 @@ class WebModule(baseObject.ScriptableObject):
 				data["Rules"] = data.pop("PlaceMarkers")
 			# Earlier versions supported only a single URL trigger
 			url = data.get("WebModule", {}).get("url", None)
-			if isinstance(url, basestring):
+			if isinstance(url, string_types):
 				data["WebModule"]["url"] = [url]
 			# Custom labels for certain fields are not supported anymore
 			# TODO: Re-implement custom field labels?
@@ -276,6 +289,21 @@ class WebModule(baseObject.ScriptableObject):
 					del gestures[key]
 					key = key.replace("NVDA", "nvda")
 					gestures[key] = value				
+		
+		# Rules: New "states" criterion (#5)
+		# Rules: Ignore more whitespace in criteria expressions (19f772b)
+		# Rules: Support composition of the "role" criterion (#6)
+		if formatVersion < version.parse("0.5"):
+			for rule in rules:
+				if "role" in rule:
+					rule["role"] = text_type(rule["role"])
+		
+		# Browsers compatibility: Handle "tag" case inconsistency (da96341)
+		# Mutate controls (#9)
+		if formatVersion < version.parse("0.6"):
+			for rule in rules:
+				if rule.get("tag"):
+					rule["tag"] = rule["tag"].lower()
 		
 		if formatVersion > self.FORMAT_VERSION:
 			raise NewerFormatVersion(

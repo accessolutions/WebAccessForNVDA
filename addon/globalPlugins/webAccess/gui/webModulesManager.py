@@ -35,7 +35,10 @@ import gui
 import languageHandler
 from logHandler import log
 
-from . import ListCtrlAutoWidth
+try:
+	from gui.nvdaControls import AutoWidthColumnListCtrl
+except ImportError:
+	from ..backports.nvda_2016_4.gui_nvdaControls import AutoWidthColumnListCtrl
 
 
 def promptDelete(webModule):
@@ -114,7 +117,7 @@ class Dialog(wx.Dialog):
 			label=_("Available Web Modules:"),
 			)
 
-		item = self.modulesList = ListCtrlAutoWidth(
+		item = self.modulesList = AutoWidthColumnListCtrl(
 			self,
 			style=wx.LC_REPORT|wx.LC_SINGLE_SEL,
 			#size=(550,350),

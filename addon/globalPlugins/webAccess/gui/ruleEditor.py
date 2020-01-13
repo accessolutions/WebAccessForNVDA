@@ -19,12 +19,15 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.04.11"
+# Get ready for Python 3
+from __future__ import absolute_import, division, print_function
+
+__version__ = "2019.07.19"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
 import re
-import wx.lib.expando
+import wx
 
 import addonHandler
 from collections import OrderedDict
@@ -35,8 +38,24 @@ from logHandler import log
 
 from .. import ruleHandler
 from ..ruleHandler import ruleTypes
+from ..ruleHandler.controlMutation import (
+	MUTATIONS_BY_RULE_TYPE,
+	mutationLabels
+)
 from .. import webModuleHandler
 
+try:
+	from wx.lib.expando import ExpandoTextCtrl
+except ImportError:
+	# NVDA version < 2018.2
+	from .wx_lib_expando import ExpandoTextCtrl
+
+try:
+	from six import iteritems, text_type
+except ImportError:
+	# NVDA version < 2018.3
+	iteritems = dict.iteritems
+	text_type = unicode
 
 addonHandler.initTranslation()
 
@@ -52,25 +71,98 @@ LABEL_ACCEL = re.compile("&(?!&)")
 Compiled pattern used to strip accelerator key indicators from labels.
 """
 
+EXPR = re.compile("^ *!? *[^!&|]+( *[&|] *!? *[^!&|]+)*$")
+"""
+Compiled pattern used to validate expressions.
+"""
+
+EXPR_INT = re.compile("^ *!? *[0-9]+( *[&|] *!? *[0-9]+)* *$")
+"""
+Compiled pattern used to validate expressions whose values are integers.
+"""
+
+EXPR_VALUE = re.compile("(([^!&| ])+( (?=[^!&|]))*)+")
+"""
+Compiled pattern used to capture values in expressions.
+"""
 
 def stripAccel(label):
 	return LABEL_ACCEL.sub("", label)
 
+def stripAccelAndColon(label):
+	return stripAccel(label).rstrip(":").rstrip()
 
 def setIfNotEmpty(dic, key, value):
 	if value and value.strip():
 		dic[key] = value
 
 
-def convRoleIntegerToString(role):
+def captureValues(expr):
+	"""
+	Yields value, startPos, endPos
+	"""
+	for match in EXPR_VALUE.finditer(expr):
+		span = match.span()
+		yield expr[span[0]:span[1]], span[0], span[1]
+
+
+def translateExprValues(expr, func):
+	buf = list(expr)
+	offset = 0
+	for src, start, end in captureValues(expr):
+		dest = text_type(func(src))
+		start += offset
+		end += offset
+		buf[start:end] = dest
+		offset += len(dest) - len(src)
+	return u"".join(buf)
+
+
+def translateRoleIdToLbl(expr):
+	def translate(value):
+		try:
+			return controlTypes.roleLabels[int(value)]
+		except (KeyError, ValueError):
+			return value
+	return translateExprValues(expr, translate)
+
+
+def translateRoleLblToId(expr):
+	def translate(value):
+		for key, candidate in iteritems(controlTypes.roleLabels):
+			if candidate == value:
+				return text_type(key)
+		return value
+	return translateExprValues(expr, translate)
+
+
+def getRoleLblForInt(role):
 	return controlTypes.roleLabels.get(role, "")
 
 
-def convRoleStringToInteger(role):
-	for (roleInteger, roleString) in controlTypes.roleLabels.items():
-		if role == roleString:
-			return roleInteger
-	return None
+def translateStatesIdToLbl(expr):
+	def translate(value):
+		try:
+			return controlTypes.stateLabels[int(value)]
+		except (KeyError, ValueError):
+			return value
+	return translateExprValues(expr, translate)
+
+
+def translateStatesLblToId(expr):
+	def translate(value):
+		for key, candidate in iteritems(controlTypes.stateLabels):
+			if candidate == value:
+				return text_type(key)
+		return value
+	return translateExprValues(expr, translate)
+
+
+def getStatesLblExprForSet(states):
+	return " & ".join((
+		controlTypes.stateLabels.get(state, state)
+		for state in states
+	))
 
 
 def safeDelete(dic, key):
@@ -265,13 +357,15 @@ class RuleCriteriaEditor(wx.Dialog):
 		# Translator: Field label on the RuleCriteriaEditor dialog.
 		("role", pgettext("webAccess.ruleCriteria", u"&Role:")),
 		# Translator: Field label on the RuleCriteriaEditor dialog.
-		("tag", pgettext("webAccess.ruleCriteria", u"Ta&g:")),
+		("tag", pgettext("webAccess.ruleCriteria", u"T&ag:")),
 		# Translator: Field label on the RuleCriteriaEditor dialog.
 		("id", pgettext("webAccess.ruleCriteria", u"&ID:")),
 		# Translator: Field label on the RuleCriteriaEditor dialog.
 		("className", pgettext("webAccess.ruleCriteria", u"&Class:")),
 		# Translator: Field label on the RuleCriteriaEditor dialog.
-		("src", pgettext("webAccess.ruleCriteria", u"Image &source:")),
+		("states", pgettext("webAccess.ruleCriteria", u"&States:")),
+		# Translator: Field label on the RuleCriteriaEditor dialog.
+		("src", pgettext("webAccess.ruleCriteria", u"Ima&ge source:")),
 		(
 			"relativePath",
 			# Translator: Field label on the RuleCriteriaEditor dialog.
@@ -288,10 +382,9 @@ class RuleCriteriaEditor(wx.Dialog):
 			if key in data:
 				value = data[key]
 				if key == "role":
-					try:
-						value = controlTypes.roleLabels[value]
-					except KeyError:
-						log.error(u"Unexpected role: {}".format(value))
+					value = translateRoleIdToLbl(value)
+				elif key == "states":
+					value = translateStatesIdToLbl(value)
 				parts.append(u"{} {}".format(stripAccel(label), value))
 		if parts:
 			return "\n".join(parts)
@@ -337,6 +430,11 @@ class RuleCriteriaEditor(wx.Dialog):
 		item = self.classCombo = wx.ComboBox(self)
 		fgSizer.Add(item, flag=wx.EXPAND)
 		
+		item = wx.StaticText(self, label=self.FIELDS["states"])
+		fgSizer.Add(item)
+		item = self.statesCombo = wx.ComboBox(self)
+		fgSizer.Add(item, flag=wx.EXPAND)
+		
 		item = wx.StaticText(self, label=self.FIELDS["src"])
 		fgSizer.Add(item)
 		item = self.srcCombo = wx.ComboBox(self)
@@ -376,16 +474,18 @@ class RuleCriteriaEditor(wx.Dialog):
 		if node.previousTextNode is not None:
 			textChoices.append("<" + node.previousTextNode.text)
 		roleChoices = []
+		statesChoices = []
 		tagChoices = []
 		idChoices = []
 		classChoices = []
 		srcChoices = []
 		while node is not None:
-			roleChoices.append(convRoleIntegerToString(node.role))
-			tagChoices.append(node.tag)
-			idChoices.append(node.id)
-			classChoices.append(node.className)
-			srcChoices.append(node.src)
+			roleChoices.append(getRoleLblForInt(node.role) or "")
+			tagChoices.append(node.tag or "")
+			idChoices.append(node.id or "")
+			classChoices.append(node.className or "")
+			statesChoices.append(getStatesLblExprForSet(node.states) or "")
+			srcChoices.append(node.src or "")
 			node = node.parent
 		
 		self.searchText.Set(textChoices)
@@ -393,13 +493,15 @@ class RuleCriteriaEditor(wx.Dialog):
 		self.tagCombo.Set(tagChoices)
 		self.idCombo.Set(idChoices)
 		self.classCombo.Set(classChoices)
+		self.statesCombo.Set(statesChoices)
 		self.srcCombo.Set(srcChoices)
 		
 		self.searchText.Value = data.get("text", "")
-		self.roleCombo.Value = convRoleIntegerToString(data.get("role"))
+		self.roleCombo.Value = translateRoleIdToLbl(data.get("role", ""))
 		self.tagCombo.Value = data.get("tag", "")
 		self.idCombo.Value = data.get("id", "")
 		self.classCombo.Value = data.get("className", "")
+		self.statesCombo.Value = translateStatesIdToLbl(data.get("states", ""))
 		self.srcCombo.Value = data.get("src", "")
 		self.relativePathText.Value = str(data.get("relativePath", ""))
 		self.indexText.Value = str(data.get("index", ""))
@@ -409,14 +511,64 @@ class RuleCriteriaEditor(wx.Dialog):
 		
 		setIfNotEmpty(data, "text", self.searchText.Value)
 		
-		roleString = self.roleCombo.Value.strip()
-		role = convRoleStringToInteger(roleString)
-		if role is not None:
-			data["role"] = role
+		roleLblExpr = self.roleCombo.Value
+		if roleLblExpr:
+			if not EXPR.match(roleLblExpr):
+				gui.messageBox(
+					message=(
+						_('Syntax error in the field "{field}"')
+					).format(field=stripAccelAndColon(self.FIELDS["role"])),
+					caption=_("Error"),
+					style=wx.OK | wx.ICON_ERROR,
+					parent=self
+				)
+				self.roleCombo.SetFocus()
+				return
+			roleIdExpr = translateRoleLblToId(roleLblExpr)
+			if not EXPR_INT.match(roleIdExpr):
+				gui.messageBox(
+					message=(
+						_('Unknown identifier in the field "{field}"')
+					).format(field=stripAccelAndColon(self.FIELDS["role"])),
+					caption=_("Error"),
+					style=wx.OK | wx.ICON_ERROR,
+					parent=self
+				)
+				self.roleCombo.SetFocus()
+				return
+			data["role"] = roleIdExpr
 		
-		setIfNotEmpty(data, "tag", self.tagCombo.Value)
+		setIfNotEmpty(data, "tag", self.tagCombo.Value.lower())
 		setIfNotEmpty(data, "id", self.idCombo.Value)
 		setIfNotEmpty(data, "className", self.classCombo.Value)
+		
+		statesLblExpr = self.statesCombo.Value
+		if statesLblExpr:
+			if not EXPR.match(statesLblExpr):
+				gui.messageBox(
+					message=(
+						_('Syntax error in the field "{field}"')
+					).format(field=stripAccelAndColon(self.FIELDS["states"])),
+					caption=_("Error"),
+					style=wx.OK | wx.ICON_ERROR,
+					parent=self
+				)
+				self.statesCombo.SetFocus()
+				return
+			statesIdExpr = translateStatesLblToId(statesLblExpr)
+			if not EXPR_INT.match(statesIdExpr):
+				gui.messageBox(
+					message=(
+						_('Unknown identifier in the field "{field}"')
+					).format(field=stripAccelAndColon(self.FIELDS["states"])),
+					caption=_("Error"),
+					style=wx.OK | wx.ICON_ERROR,
+					parent=self
+				)
+				self.statesCombo.SetFocus()
+				return
+			data["states"] = statesIdExpr
+		
 		setIfNotEmpty(data, "src", self.srcCombo.Value)
 		setIfNotEmpty(data, "relativePath", self.relativePathText.Value)
 		
@@ -484,7 +636,12 @@ class RulePropertiesEditor(wx.Dialog):
 			"customName",
 			pgettext("webAccess.ruleProperties", u"Custom &name:")
 		),
-		("customValue", None)  # Label depends on rule type),
+		("customValue", None),  # Label depends on rule type)
+		(
+			# Translator: Field label on the RulePropertiesEditor dialog.
+			"mutation",
+			pgettext("webAccess.ruleProperties", u"&Transform:")
+		),
 	))
 	
 	RULE_TYPE_FIELDS = OrderedDict((
@@ -498,6 +655,7 @@ class RulePropertiesEditor(wx.Dialog):
 				"sayName",
 				"customName",
 				"customValue",
+				"mutation",
 			)
 		),
 		(
@@ -509,6 +667,7 @@ class RulePropertiesEditor(wx.Dialog):
 				"sayName",
 				"customName",
 				"customValue",
+				"mutation",
 			)
 		),
 	))
@@ -540,11 +699,13 @@ class RulePropertiesEditor(wx.Dialog):
 				label = cls.getAltFieldLabel(ruleType, key, label)
 				label = stripAccel(label)
 				value = data[key]
-				if isinstance(value, bool):
+				if key == "mutation":
+					value = mutationLabels.get(value)
+				elif isinstance(value, bool):
 					if value:
-						parts.append(label.strip().strip(":"))
-				else:
-					parts.append(u"{} {}".format(label, value))
+						parts.append(label.strip().strip(":").strip())
+					continue
+				parts.append(u"{} {}".format(label, value))
 		if parts:
 			return "\n".join(parts)
 		else:
@@ -647,7 +808,7 @@ class RulePropertiesEditor(wx.Dialog):
 			border=4
 		)
 		
-		row += 10
+		row += 1
 		item = self.customValueLabel = wx.StaticText(
 			self,
 			label=self.FIELDS["customValue"] or ""
@@ -660,6 +821,27 @@ class RulePropertiesEditor(wx.Dialog):
 			border=4
 		)
 		item = self.customValueText = wx.TextCtrl(self, size=(350, -1))
+		item.Hide()  # Visibility depends on rule type
+		gbSizer.Add(
+			item,
+			pos=(row, 1),
+			flag=wx.EXPAND | wx.TOP | wx.BOTTOM | wx.LEFT,
+			border=4
+		)
+		
+		row += 1
+		item = self.mutationLabel = wx.StaticText(
+			self,
+			label=self.FIELDS["mutation"]
+		)
+		item.Hide()  # Visibility depends on rule type
+		gbSizer.Add(
+			item,
+			pos=(row, 0),
+			flag=wx.TOP | wx.BOTTOM | wx.RIGHT,
+			border=4
+		)
+		item = self.mutationCombo = wx.ComboBox(self, style=wx.CB_READONLY)
 		item.Hide()  # Visibility depends on rule type
 		gbSizer.Add(
 			item,
@@ -707,6 +889,37 @@ class RulePropertiesEditor(wx.Dialog):
 			)
 			self.customValueLabel.Show()
 			self.customValueText.Show()
+		if "mutation" in fields:
+			self.mutationCombo.Append(
+				# Translators: The label when there is no control mutation.
+				pgettext("webAccess.controlMutation", "<None>"),
+				""
+			)
+			for id_ in MUTATIONS_BY_RULE_TYPE.get(ruleType, []):
+				label = mutationLabels.get(id_)
+				if label is None:
+					log.error("No label for mutation id: {}".format(id_))
+					label = id_
+				self.mutationCombo.Append(label, id_)
+			mutation = data.get("mutation")
+			if mutation:
+				for index in range(1, self.mutationCombo.Count + 1):
+					id_ = self.mutationCombo.GetClientData(index)
+					if id_ == mutation:
+						break
+				else:
+					# Allow to bypass mutation choice by rule type
+					label = mutationLabels.get(id_)
+					if label is None:
+						log.error("No label for mutation id: {}".format(id_))
+						label = id_
+					self.mutationCombo.Append(label, id_)
+					index += 1
+			else:
+				index = 0
+			self.mutationCombo.SetSelection(index)
+			self.mutationLabel.Show()
+			self.mutationCombo.Show()
 	
 	def onOk(self, evt):
 		data = OrderedDict()
@@ -728,6 +941,11 @@ class RulePropertiesEditor(wx.Dialog):
 			setIfNotEmpty(data, "customName", self.customNameText.Value)
 		if "customValue" in fields:
 			setIfNotEmpty(data, "customValue", self.customValueText.Value)
+		if "mutation" in fields:
+			if self.mutationCombo.Selection > 0:
+				data["mutation"] = self.mutationCombo.GetClientData(
+					self.mutationCombo.Selection
+				)
 		
 		updateAndDeleteMissing(fields, data, self.data)
 
@@ -808,7 +1026,7 @@ class RuleEditor(wx.Dialog):
 		item.Add(contextSizer, flag=wx.EXPAND | wx.ALL, border=4)
 		leftSizer.Add(item, flag=wx.EXPAND)
 				
-		item = self.contextText = wx.lib.expando.ExpandoTextCtrl(
+		item = self.contextText = ExpandoTextCtrl(
 			contextBox,
 			size=(250, -1),
 			style=wx.TE_PROCESS_ENTER | wx.TE_MULTILINE | wx.TE_READONLY,
@@ -827,7 +1045,7 @@ class RuleEditor(wx.Dialog):
 		item = wx.StaticBoxSizer(criteriaBox, orient=wx.VERTICAL)
 		item.Add(criteriaSizer, flag=wx.EXPAND | wx.ALL, border=4)
 		leftSizer.Add(item, flag=wx.EXPAND)
-		item = self.criteriaText = wx.lib.expando.ExpandoTextCtrl(
+		item = self.criteriaText = ExpandoTextCtrl(
 			criteriaBox,
 			size=(250, -1),
 			style=wx.TE_PROCESS_ENTER | wx.TE_MULTILINE | wx.TE_READONLY,
@@ -892,7 +1110,7 @@ class RuleEditor(wx.Dialog):
 		item = wx.StaticBoxSizer(propertiesBox, orient=wx.VERTICAL)
 		item.Add(propertiesSizer, flag=wx.EXPAND | wx.ALL, border=4)
 		leftSizer.Add(item, flag=wx.EXPAND)
-		item = self.propertiesText = wx.lib.expando.ExpandoTextCtrl(
+		item = self.propertiesText = ExpandoTextCtrl(
 			propertiesBox,
 			size=(250, -1),
 			style=wx.TE_PROCESS_ENTER | wx.TE_MULTILINE | wx.TE_READONLY,

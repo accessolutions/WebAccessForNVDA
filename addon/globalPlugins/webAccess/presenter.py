@@ -198,7 +198,7 @@ class Presenter(baseObject.ScriptableObject):
 				else:
 					try:
 						outStr = ctx.getBraillePresentationStringForElement(s)
-					except Exception, e:
+					except Exception as e:
 						log.exception("getBraillePresentationStringForElement failed: %s" % e)
 						outStr = u"sansnom"
 					self.brailleObjects.append(BrailleOffset(ctx, outStr))
@@ -234,7 +234,7 @@ class Presenter(baseObject.ScriptableObject):
 			key = match.group(1)[1:len(match.group(1)) - 1]
 			try:
 				attr = getattr(ctx, key)
-			except Exception, e:
+			except Exception as e:
 				log.error("Failed to extract attribute %s from context %s" %(key, ctx))
 				return False
 			if isinstance(attr, int):
