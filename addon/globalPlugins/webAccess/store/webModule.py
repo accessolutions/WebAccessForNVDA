@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2020 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.12.09"
+__version__ = "2020.01.02"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -83,7 +83,7 @@ class WebModuleJsonFileDataStore(Store):
 							meta[key] = value
 				except:
 					if errors:
-						errors.append(ref, sys.exc_info())
+						errors.append((ref, sys.exc_info()))
 					else:
 						log.exception(
 							u"Error while retrieving item: ref={}".format(ref)
