@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2020 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.12.12"
+__version__ = "2020.02.17"
 __authors__ = (
 	u"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
 	u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
@@ -33,6 +33,7 @@ import gc
 import re
 import time
 from xml.parsers import expat
+import weakref
 
 import baseObject
 import controlTypes
@@ -41,6 +42,7 @@ import mouseHandler
 import NVDAHelper
 import sayAllHandler
 import textInfos
+import treeInterceptorHandler
 import ui
 import winUser
 
@@ -95,7 +97,24 @@ class NodeManager(baseObject.ScriptableObject):
 			return
 		self.callbackNodeMoveto = callbackNodeMoveto
 		self.update()
-		
+	
+	def _get_treeInterceptor(self):
+		if hasattr(self, "_treeInterceptor"):
+			ti = self._treeInterceptor
+			if isinstance(ti, weakref.ReferenceType):
+				ti = ti()
+			if ti and ti in treeInterceptorHandler.runningTable:
+				return ti
+			else:
+				self._treeInterceptor = None
+				return None
+	
+	def _set_treeInterceptor(self, obj):
+		if obj:
+			self._treeInterceptor = weakref.ref(obj)
+		else:
+			self._treeInterceptor = None
+	
 	def terminate(self):
 		for backend in self.backendDict:
 			backend.event_nodeManagerTerminated(self)
@@ -500,7 +519,7 @@ class NodeField(baseObject.AutoPropertyObject):
 			return "Node unknown"
 		
 	def isReady(self):
-		return self.nodeManager is not None and self.nodeManager.isReady
+		return self.nodeManager and self.nodeManager.isReady
 	
 	def checkNodeManager(self):
 		if self.nodeManager is None or not self.nodeManager.isReady:

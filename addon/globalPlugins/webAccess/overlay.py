@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2020 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@ WebAccess overlay classes
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.11.20"
+__version__ = "2020.02.17"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -46,6 +46,7 @@ import NVDAObjects
 from NVDAObjects.IAccessible import IAccessible
 import speech
 import textInfos
+import treeInterceptorHandler
 import ui
 import virtualBuffers
 
@@ -150,23 +151,22 @@ class WebAccessBmdtiHelper(object):
 	WALK_ALL_TREES = False
 	
 	def __init__(self, treeInterceptor):
-		self.treeInterceptor = treeInterceptor
 		self.caretHitZoneBorder = False
 		self._nodeManager = None
+		self._treeInterceptor = weakref.ref(treeInterceptor)
 		self._webModule = None
 	
 	@property
 	def nodeManager(self):
 		nodeManager = self._nodeManager
-		if (
-			not nodeManager
-			and (self.WALK_ALL_TREES or self.treeInterceptor.webAccess.webModule)
-		):
+		ti = self.treeInterceptor
+		if not ti:
+			self._nodeManager = None
+			return None
+		if (not nodeManager and (self.WALK_ALL_TREES or ti.webAccess.webModule)):
 			from .nodeHandler import NodeManager
 			from .webAppScheduler import scheduler
-			nodeManager = self._nodeManager = NodeManager(
-				self.treeInterceptor, scheduler.onNodeMoveto
-			)
+			nodeManager = self._nodeManager = NodeManager(ti, scheduler.onNodeMoveto)
 		return nodeManager
 	
 	@property
@@ -176,22 +176,36 @@ class WebAccessBmdtiHelper(object):
 		return self.webModule.ruleManager
 	
 	@property
+	def treeInterceptor(self):
+		if hasattr(self, "_treeInterceptor"):
+			ti = self._treeInterceptor
+			if isinstance(ti, weakref.ReferenceType):
+				ti = ti()
+			if ti and ti in treeInterceptorHandler.runningTable:
+				return ti
+			else:
+				return None
+	
+	@property
 	def webModule(self):
 		from . import supportWebApp, webAccessEnabled
 		if not webAccessEnabled:
 			return None
-		if not self._webModule:
-			obj = self.treeInterceptor.rootNVDAObject
+		ti = self.treeInterceptor
+		if not ti:
+			self._webModule = None
+			return None
+		webModule = self._webModule
+		if not webModule:
+			obj = ti.rootNVDAObject
 			if not supportWebApp(obj):
 				return None
 			from . import webModuleHandler
 			try:
-				self._webModule = webModuleHandler.getWebModuleForTreeInterceptor(
-					self.treeInterceptor
-				)
+				webModule = self._webModule = webModuleHandler.getWebModuleForTreeInterceptor(ti)
 			except:
 				log.exception()
-		return self._webModule
+		return webModule
 	
 	@property
 	def zone(self):
@@ -1039,7 +1053,7 @@ class WebAccessObjectHelper(object):
 	Utility methods and properties.
 	"""
 	def __init__(self, obj):
-		self.obj = obj
+		self._obj = weakref.ref(obj)
 	
 	@property
 	def nodeManager(self):
@@ -1047,6 +1061,9 @@ class WebAccessObjectHelper(object):
 		if not ti:
 			return None
 		return ti.webAccess.nodeManager
+	
+	def obj(self):
+		return self._obj()
 	
 	@property
 	def ruleManager(self):
