@@ -26,7 +26,7 @@ WebAccess overlay classes
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.02.17"
+__version__ = "2020.02.18"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -1085,6 +1085,7 @@ class WebAccessObjectHelper(object):
 			return None
 		return ti.webAccess.nodeManager
 	
+	@property
 	def obj(self):
 		return self._obj()
 	
