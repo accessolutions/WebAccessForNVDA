@@ -419,6 +419,29 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			if issubclass(attr, textInfos.offsets.OffsetsTextInfo):
 				self.TextInfo = getDynamicClass((WebAccessBmdtiTextInfo, attr))
 	
+	def _get_isAlive(self):
+		isAlive = super(WebAccessBmdti, self).isAlive
+		if isAlive:
+			return isAlive
+		# Due to unidentified race conditions, MSHTML sometimes caches a zero-valued IAccessibleRole
+		# after a trapped COMError and then considers the TreeInterceptor as being dead.
+		# Invalidating the property cache usually fixes the issue.
+		root = self.rootNVDAObject
+		if not root:
+			return isAlive
+		from NVDAObjects.IAccessible.MSHTML import MSHTML
+		if not issubclass(root.APIClass, MSHTML):
+			return isAlive
+		try:
+			del root._propertyCache[type(root).IAccessibleRole.fget]
+		except KeyError:
+			return isAlive
+		except:
+			log.exception()
+		else:
+			isAlive = super(WebAccessBmdti, self).isAlive
+		return isAlive
+	
 	def _get_TextInfo(self):
 		superCls = super(WebAccessBmdti, self)._get_TextInfo()
 		if not issubclass(superCls, textInfos.offsets.OffsetsTextInfo):
