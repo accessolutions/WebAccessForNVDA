@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2020 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 
 from __future__ import absolute_import
 
-__version__ = "2019.12.12"
+__version__ = "2020.02.19"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -151,11 +151,20 @@ def getWindowTitle(obj):
 			return None
 		if root is not obj:
 			return getWindowTitle(root)
+	res = None
 	if isinstance(obj, WebAccessObject):
-		# This is verified with Firefox, Chrome and IE.
-		return obj._get_name(original=True)
-	# TODO: Implement Edge support
-	return obj.name or getattr(obj, "windowText", None)
+		res = obj._get_name(original=True)
+	else:
+		res = obj.name
+	if res:
+		return res
+	try:
+		res = obj.IAccessibleObject.accName(obj.IAccessibleChildID)
+	except:
+		pass
+	if res:
+		return res
+	return getattr(obj, "windowText", None)
 
 
 def getUrl(obj):
