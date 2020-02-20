@@ -23,7 +23,7 @@
 
 from __future__ import absolute_import
 
-__version__ = "2020.02.19"
+__version__ = "2020.02.20"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -316,6 +316,7 @@ def hasCustomModule(name):
 	return any(
 		importer.find_module("webModules.{}".format(name))
 		for importer in _importers
+		if importer
 	)
 
 
