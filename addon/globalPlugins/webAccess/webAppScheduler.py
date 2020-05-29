@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2020 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.10.23"
+__version__ = "2020.05.29"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -192,7 +192,8 @@ class WebAppScheduler(threading.Thread):
 		nodeManager.treeInterceptor.webAccess.ruleManager.update(nodeManager)
 
 	def event_markerManagerUpdated(self, markerManager):
-		markerManager.checkPageTitle()
+		# Doesn't work outside of the main thread for Google Chrome 83
+		wx.CallAfter(markerManager.checkPageTitle)
 		# markerManager.checkAutoAction()
 
 	def event_gainFocus(self, obj):
