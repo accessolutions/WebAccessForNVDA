@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2020 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -55,7 +55,7 @@ Monkey-patched NVDA functions:
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.12.07"
+__version__ = "2020.05.29"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
@@ -495,8 +495,6 @@ def eventExecuter_gen(self, eventName, obj):
 	# NVDAObject level.
 	func = getattr(obj, funcName, None)
 	if func:
-		if obj.name is not None and "http" in obj.name and obj.role in [controlTypes.ROLE_DOCUMENT, controlTypes.ROLE_FRAME]:
-			return
 		yield func, ()
 
 
