@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2020 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.12.13"
+__version__ = "2020.06.15"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -923,6 +923,8 @@ class VirtualMarkerResult(MarkerResult):
 			textInfos.offsets.Offsets(self.node.offset, self.node.offset)
 		)
 		treeInterceptor.selection = info
+		# Refetch the position in case some dynamic content has shrunk as we left it.
+		info = treeInterceptor.selection.copy()
 		if not treeInterceptor.passThrough:
 			info.expand(textInfos.UNIT_LINE)
 			speech.speakTextInfo(
