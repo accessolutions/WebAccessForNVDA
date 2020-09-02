@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.07.19"
+__version__ = "2019.08.31"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -1206,7 +1206,7 @@ class RuleEditor(wx.Dialog):
 			self.ruleTypeCombo.SetSelection(index)
 			self.gestureMapValue = rule.gestures.copy()
 			self.autoActionList.SetSelection(
-				markerManager.getActions().keys().index(
+				list(markerManager.getActions().keys()).index(
 					rule.dic.get("autoAction", "")
 				) + 1  # Empty entry at index 0
 				if "autoAction" in rule.dic else 0
