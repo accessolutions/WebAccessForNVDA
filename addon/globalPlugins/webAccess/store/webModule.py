@@ -24,7 +24,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.01.02"
+__version__ = "2020.10.12"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -39,7 +39,7 @@ import sys
 import globalVars
 from logHandler import log
 
-from ..packaging import version
+from ..lib.packaging import version
 from ..webModuleHandler import InvalidApiVersion, WebModule, getWebModuleFactory
 from . import DispatchStore
 from . import DuplicateRefError
@@ -51,7 +51,7 @@ from .addons import AddonsStore
 try:
 	import json
 except ImportError:
-	from .. import json
+	from ..lib import json
 
 
 
@@ -225,6 +225,12 @@ class WebModuleStore(DispatchStore):
 		]
 		super(WebModuleStore, self).__init__(*args, **kwargs)
 	
+	def alternatives(self, keyRef):
+		return (
+			storeRef for storeRef, meta in super(WebModuleStore, self).catalog()
+			if self._getKeyRef(storeRef) == keyRef
+		)
+	
 	def catalog(self, errors=None):
 		# Keep only the first occurence of each ref in stores.
 		# Thus, the order of the stores sets precedence.
@@ -237,7 +243,6 @@ class WebModuleStore(DispatchStore):
 	
 	def get(self, ref):
 		data = super(WebModuleStore, self).get(ref)
-		ctor = None
 		keyRef = self._getKeyRef(ref)
 		ctor = getWebModuleFactory(keyRef)
 		try:
@@ -246,6 +251,7 @@ class WebModuleStore(DispatchStore):
 			log.exception(u"Failed to load JSON file: {ref}: {ctor}: {data}".format(**locals()))
 			raise
 		item.storeRef = data.storeRef
+		item.alternatives = self.alternatives(keyRef)
 		return item
 	
 	def supports(self, operation, **kwargs):

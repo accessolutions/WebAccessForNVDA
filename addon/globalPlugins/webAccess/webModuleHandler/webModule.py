@@ -38,12 +38,13 @@ import api
 import baseObject
 import braille
 import controlTypes
+import globalVars
 from logHandler import log
 import scriptHandler
 import speech
 import ui
 
-from ..packaging import version
+from ..lib.packaging import version
 from .. import presenter
 from .. import ruleHandler
 from ..ruleHandler import ruleTypes
@@ -53,7 +54,7 @@ from ..webAppLib import *
 try:
 	import json
 except ImportError:
-	from .. import json
+	from ..lib import json
 
 try:
 	from six import string_types, text_type
@@ -80,6 +81,7 @@ class WebModule(baseObject.ScriptableObject):
 	url = None
 	name = None
 	windowTitle = None
+	help = None
 	markerManager = None
 	widgetManager = None
 	activeWidget = None
@@ -130,8 +132,11 @@ class WebModule(baseObject.ScriptableObject):
 		data["WebModule"] = {
 			"name": self.name,
 			"url": self.url,
-			"windowTitle": self.windowTitle,
 		}
+		if self.windowTitle:
+			data["WebModule"]["windowTitle"] = self.windowTitle
+		if self.help:
+			data["WebModule"]["help"] = self.help
 		
 		if self.markerManager is None:
 			# Do not risk to erase an existing data file while in an
@@ -323,11 +328,13 @@ class WebModule(baseObject.ScriptableObject):
 					log.warning(
 						"Unexpected WebModule/url: "
 						"{url}".format(url)
-						)
+					)
 				else:
 					self.url = url
 			if "windowTitle" in item:
 				self.windowTitle = item["windowTitle"]
+			if "help" in item:
+				self.help = item["help"]
 		del item
 		items = data.get("Rules")
 		if items is not None:
@@ -385,6 +392,26 @@ class WebModule(baseObject.ScriptableObject):
 	def claimForJABObject(self, obj):
 		return False
 
+	def script_contextualHelp(self, gesture):
+		if not self.help:
+			# Translators: Presented when requesting a missing contextual help
+			ui.message(_("No contextual help available."))
+			return
+		rootDirs = []
+		for storeRef in self.alternatives:
+			if storeRef[0] == "userConfig":
+				rootDirs.append(globalVars.appArgs.configPath)
+			elif storeRef[0] == "addons":
+				rootDirs.append(os.path.join(globalVars.appArgs.configPath, "addons", storeRef[1]))
+		from ..lib.browsableMessage import browsableMessage
+		browsableMessage(
+			self.help,
+			"markdown",
+			# Translators: Title of the Contextual Help dialog
+			_("Contextual Help"),
+			rootDirs,
+		)
+	
 	def script_title(self, gesture):
 		title = self.pageTitle
 		repeatCount = scriptHandler.getLastScriptRepeatCount()
@@ -401,6 +428,7 @@ class WebModule(baseObject.ScriptableObject):
 		ui.message(_(u"Current web module is: {name}").format(name=self.name))
 
 	__gestures = {
+		"kb:nvda+h": "contextualHelp",
 		"kb:nvda+t": "title",
 		"kb:nvda+shift+t": "sayWebModuleName",
 	}

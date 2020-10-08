@@ -23,7 +23,7 @@
 
 from __future__ import absolute_import
 
-__version__ = "2020.02.20"
+__version__ = "2020.10.08"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -40,7 +40,7 @@ from logHandler import log
 import ui
 
 from .webModule import InvalidApiVersion, NewerFormatVersion, WebModule
-from ..packaging import version
+from ..lib.packaging import version
 from ..nvdaVersion import nvdaVersion
 from ..store import DuplicateRefError
 from ..store import MalformedRefError
@@ -260,7 +260,7 @@ def showEditor(context, new=False):
 							webModule=webModule,
 							focus=context.get("focusObject"),
 							force=force
-							)
+						)
 						# Translators: Confirmation message after web module creation.
 						ui.message(
 							_(
@@ -274,7 +274,7 @@ def showEditor(context, new=False):
 							webModule=webModule,
 							focus=context.get("focusObject"),
 							force=force
-							)
+						)
 					keepShowing = keepTrying = False
 				except DuplicateRefError as e:
 					if webModuleEditor.promptOverwrite():

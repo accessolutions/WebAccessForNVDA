@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.12.06"
+__version__ = "2020.10.08"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>"
@@ -80,7 +80,7 @@ class Dialog(wx.Dialog):
 		super(Dialog, self).__init__(
 			parent,
 			style=wx.DEFAULT_DIALOG_STYLE|wx.MAXIMIZE_BOX|wx.RESIZE_BORDER,
-			)
+		)
 
 		vSizer = wx.BoxSizer(wx.VERTICAL)
 
@@ -90,14 +90,14 @@ class Dialog(wx.Dialog):
 			wx.StaticText(self, label=_("Web module name:")),
 			flag=wx.ALL,
 			border=4
-			)
+		)
 		item = self.webModuleName = wx.TextCtrl(self)
 		hSizer.Add(
 			item,
 			proportion=1,
 			flag=wx.ALL,
 			border=4,
-			)
+		)
 		vSizer.Add(hSizer, flag=wx.EXPAND)
 		
 		hSizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -113,7 +113,7 @@ class Dialog(wx.Dialog):
 			proportion=1,
 			flag=wx.ALL,
 			border=4,
-			)
+		)
 		vSizer.Add(hSizer, flag=wx.EXPAND)
 
 		hSizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -122,29 +122,45 @@ class Dialog(wx.Dialog):
 			wx.StaticText(self, label=_("Window title:")),
 			flag=wx.ALL,
 			border=4
-			)
+		)
 		item = self.webModuleWindowTitle = wx.ComboBox(self, choices=[])
 		hSizer.Add(
 			item,
 			proportion=1,
 			flag=wx.ALL,
 			border=4,
-			)
+		)
+		vSizer.Add(hSizer, flag=wx.EXPAND)
+		
+		hSizer = wx.BoxSizer(wx.HORIZONTAL)
+		# Translators: The label of a field to enter the window title
+		hSizer.Add(
+			wx.StaticText(self, label=_("Help (in Markdown):")),
+			flag=wx.ALL,
+			border=4
+		)
+		item = self.help = wx.TextCtrl(self, style=wx.TE_MULTILINE, size=(-1, 300))
+		hSizer.Add(
+			item,
+			proportion=1,
+			flag=wx.ALL,
+			border=4,
+		)
 		vSizer.Add(hSizer, flag=wx.EXPAND)
 
 		vSizer.Add(
 			self.CreateSeparatedButtonSizer(wx.OK | wx.CANCEL),
-			flag=wx.EXPAND|wx.TOP|wx.DOWN,
+			flag=wx.EXPAND | wx.TOP | wx.DOWN,
 			border=4
-			)
+		)
 		
 		hSizer = wx.BoxSizer(wx.HORIZONTAL)
 		hSizer.Add(
 			vSizer,
 			proportion=1,
-			flag=wx.EXPAND|wx.ALL,
+			flag=wx.EXPAND | wx.ALL,
 			border=4
-			)
+		)
 		
 		self.Bind(wx.EVT_BUTTON, self.OnOk, id=wx.ID_OK)
 		self.Bind(wx.EVT_BUTTON, self.OnCancel, id=wx.ID_CANCEL)
@@ -256,6 +272,7 @@ class Dialog(wx.Dialog):
 				if webModule.windowTitle
 				else ""
 			)
+		self.help.Value = webModule.help if webModule and webModule.help else ""
 		if "focusObject" in context:
 			obj = context["focusObject"]
 			from ..webModuleHandler import getWindowTitle
@@ -277,26 +294,34 @@ class Dialog(wx.Dialog):
 				_("Error"),
 				wx.OK | wx.ICON_ERROR,
 				self
-				)
+			)
 			self.webModuleName.SetFocus()
 			return
 
 		url = self.webModuleUrl.Value.strip()
 		windowTitle = self.webModuleWindowTitle.Value.strip()
+		help = self.help.Value.strip()
 		if not (url or windowTitle):
 			gui.messageBox(
 				_("You must specify an URL or window name"),
 				_("Error"),
 				wx.OK | wx.ICON_ERROR,
 				self,
-				)
+			)
 			self.webModuleUrl.SetFocus()
 			return
 		
 		data = self.data
 		data["name"] = name
 		data["url"] = [item.strip() for item in url.split(",")]
-		data["windowTitle"] = windowTitle
+		if windowTitle:
+			data["windowTitle"] = windowTitle
+		else:
+			data.pop("windowTitle", None)
+		if help:
+			data["help"] = help
+		else:
+			data.pop("help", None)
 		
 		assert self.IsModal()
 		self.EndModal(wx.ID_OK)
