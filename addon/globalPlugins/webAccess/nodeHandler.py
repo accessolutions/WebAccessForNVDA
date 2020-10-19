@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.02.17"
+__version__ = "2020.10.19"
 __authors__ = (
 	u"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
 	u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
@@ -85,10 +85,11 @@ class NodeManager(baseObject.ScriptableObject):
 		self.index = nodeManagerIndex
 		self._ready = False
 		self.identifier = None
-		self.backendDict = {}
+		self.backends = weakref.WeakSet()
 		self.treeInterceptor = treeInterceptor
 		self.treeInterceptorSize = 0
 		self.mainNode = None
+		self._lastTextNode = None
 		self.devNode = None
 		self.callbackNodeMoveto = None
 		self.updating = False
@@ -115,8 +116,14 @@ class NodeManager(baseObject.ScriptableObject):
 		else:
 			self._treeInterceptor = None
 	
+	def _get_lastTextNode(self):
+		return self._lastTextNode and self._lastTextNode()
+	
+	def _set_lastTextNode(self, value):
+		self._lastTextNode = weakref.ref(value) if value is not None else None
+	
 	def terminate(self):
-		for backend in self.backendDict:
+		for backend in self.backends:
 			backend.event_nodeManagerTerminated(self)
 		self._ready = False
 		self.treeInterceptor = None
@@ -313,7 +320,7 @@ class NodeManager(baseObject.ScriptableObject):
 		return True
 
 	def addBackend(self, obj):
-		self.backendDict[obj] = 1
+		self.backends.add(obj)
 	
 	def searchString(self, text):
 		if not self.isReady:
@@ -450,8 +457,8 @@ class NodeField(baseObject.AutoPropertyObject):
 	
 	def __init__(self, nodeType, attrs, parent, offset, nodeManager):
 		super(NodeField, self).__init__()
-		self.nodeManager = nodeManager
-		self.parent = parent
+		self._nodeManager = weakref.ref(nodeManager)
+		self._parent = weakref.ref(parent) if parent is not None else None
 		self.offset = offset
 		self.size = 0
 		self.children = []
@@ -492,7 +499,10 @@ class NodeField(baseObject.AutoPropertyObject):
 		else:
 			raise ValueError(
 				u"Unexpected nodeType: {nodeType}".format(nodeType=nodeType))
-		self.previousTextNode = nodeManager.lastTextNode
+		self._previousTextNode = \
+			weakref.ref(nodeManager.lastTextNode) \
+			if nodeManager.lastTextNode is not None \
+			else None
 		if parent is not None:
 			self.index = len(parent.children)
 			parent.children.append(self)
@@ -505,6 +515,7 @@ class NodeField(baseObject.AutoPropertyObject):
 		# log.info(u"dell node")
 		global countNode
 		countNode = countNode - 1
+		super(NodeField, self).__del__()
 		
 	def __repr__(self):
 		if hasattr(self, "text"):
@@ -517,7 +528,16 @@ class NodeField(baseObject.AutoPropertyObject):
 			return "Node format"
 		else:
 			return "Node unknown"
-		
+	
+	def _get_nodeManager(self):
+		return self._nodeManager and self._nodeManager()
+	
+	def _get_parent(self):
+		return self._parent and self._parent()
+	
+	def _get_previousTextNode(self):
+		return self._previousTextNode and self._previousTextNode()
+	
 	def isReady(self):
 		return self.nodeManager and self.nodeManager.isReady
 	
@@ -534,9 +554,9 @@ class NodeField(baseObject.AutoPropertyObject):
 			for child in self.children:
 				n = n + child.recursiveDelete()
 			self.children = []
-		self.nodeManager = None
-		self.previousTextNode = None
-		self.parent = None
+		self._nodeManager = None
+		self._previousTextNode = None
+		self._parent = None
 		self.format = None
 		self.control = None
 		self.text = None

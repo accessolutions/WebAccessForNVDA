@@ -155,11 +155,11 @@ class DefaultMarkerScripts(baseObject.ScriptableObject):
 
 class MarkerManager(baseObject.ScriptableObject):
 	
-	def __init__(self, webApp):
+	def __init__(self, webModule):
 		super(MarkerManager,self).__init__()
 		self._ready = False
-		self.webModule = self.webApp = webApp
-		self.nodeManager = None
+		self._webModule = weakref.ref(webModule)
+		self._nodeManager = None
 		self.nodeManagerIdentifier = None
 		self.lock = threading.RLock()
 		self.rules = self.markerQueries = []
@@ -173,7 +173,16 @@ class MarkerManager(baseObject.ScriptableObject):
 		self.timerCheckAutoAction = None
 		# webApp.widgetManager.register(MarkerGenericCollection)
 		self.zone = None
-
+	
+	def _get_webModule(self):
+		return self._webModule()
+	
+	def _get_webApp(self):
+		return self.webModule
+	
+	def _get_nodeManager(self):
+		return self._nodeManager and self._nodeManager()
+	
 	def setQueriesData(self, queryData):
 		self.markerQueries[:] = []
 		self.markerResults[:] = []
@@ -325,7 +334,7 @@ class MarkerManager(baseObject.ScriptableObject):
 		self._ready = False
 		if self.timerCheckAutoAction:
 			self.timerCheckAutoAction.cancel()
-		self.nodeManager = None
+		self._nodeManager = None
 		del self.markerResults[:]
 		self._mutatedControlsById.clear()
 		self._mutatedControlsByOffset[:] = []
@@ -336,7 +345,7 @@ class MarkerManager(baseObject.ScriptableObject):
 		with self.lock:
 			self._ready = False
 			if nodeManager is not None:
-				self.nodeManager = nodeManager
+				self._nodeManager = weakref.ref(nodeManager)
 			if self.nodeManager is None or not self.nodeManager.isReady:
 				return False
 			self.nodeManager.addBackend (self)
@@ -753,7 +762,7 @@ class CustomActionDispatcher(object):
 		if obj is None:
 			return self
 		bound = CustomActionDispatcher(self.actionId, self.standardFunc)
-		bound.instance = obj
+		bound.instance = weakref.proxy(obj)  # Avoid cyclic references (cf. NVDA #11499)
 		return bound
 	
 	def __getattribute__(self, name):
@@ -832,8 +841,14 @@ class MarkerResult(baseObject.ScriptableObject):
 				dispatcher.webModules.add(webModule)
 				setattr(self.__class__, scriptAttrName, dispatcher)
 				setattr(self, scriptAttrName, dispatcher.__get__(self))
-		self.rule = self.markerQuery = markerQuery
+		self._rule = weakref.ref(markerQuery)
 		self.bindGestures(markerQuery.gestures)
+	
+	def _get_rule(self):
+		return self._rule()
+	
+	def _get_markerQuery(self):
+		return self.rule
 	
 	def check(self):
 		raise NotImplementedError
@@ -1016,11 +1031,17 @@ class MarkerQuery(baseObject.ScriptableObject):
 	
 	def __init__(self, markerManager):
 		super(MarkerQuery,self).__init__()
-		self.ruleManager = self.markerManager = markerManager
+		self._ruleManager = weakref.ref(markerManager)
 		self.name = None
 		self.type = None
 		self.skip = False
 		self.results = None
+	
+	def _get_ruleManager(self):
+		return self._ruleManager()
+	
+	def _get_markerManager(self):
+		return self.ruleManager
 	
 	def resetResults(self):
 		self.results = None
@@ -1339,10 +1360,14 @@ class Zone(textInfos.offsets.Offsets):
 	
 	def __init__(self, result):
 		rule = result.markerQuery
-		self.ruleManager = rule.markerManager
+		self._ruleManager = weakref.ref(rule.ruleManager)
 		self.name = rule.name
 		super(Zone, self).__init__(startOffset=None, endOffset=None)
 		self._update(result)
+	
+	@property
+	def ruleManager(self):
+		return self._ruleManager()
 	
 	def __bool__(self):  # Python 3
 		return self.startOffset is not None and self.endOffset is not None
