@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.10.23"
+__version__ = "2020.10.19"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
@@ -45,7 +45,7 @@ import speech
 import ui
 
 from ..lib.packaging import version
-from .. import presenter
+# from .. import presenter
 from .. import ruleHandler
 from ..ruleHandler import ruleTypes
 from ..webAppLib import *
@@ -91,10 +91,10 @@ class WebModule(baseObject.ScriptableObject):
 		super(WebModule, self).__init__()
 		self.activePageTitle = None
 		self.activePageIdentifier = None
-		from .. import widgets
-		self.widgetManager = widgets.WidgetManager(self)
+		# from .. import widgets
+		# self.widgetManager = widgets.WidgetManager(self)
 		self.activeWidget = None
-		self.presenter = presenter.Presenter(self)
+		# self.presenter = presenter.Presenter(self)
 		self.ruleManager = self.markerManager = ruleHandler.MarkerManager(self)
 
 		self.load(data)

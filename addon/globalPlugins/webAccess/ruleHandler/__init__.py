@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.06.15"
+__version__ = "2020.10.19"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -171,7 +171,7 @@ class MarkerManager(baseObject.ScriptableObject):
 		self.lastAutoMovetoTime = 0
 		self.defaultMarkerScripts = DefaultMarkerScripts(u"Aucun marqueur associé à cette touche")
 		self.timerCheckAutoAction = None
-		webApp.widgetManager.register(MarkerGenericCollection)
+		# webApp.widgetManager.register(MarkerGenericCollection)
 		self.zone = None
 
 	def setQueriesData(self, queryData):

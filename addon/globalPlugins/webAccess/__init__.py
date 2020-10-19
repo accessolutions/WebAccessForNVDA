@@ -55,7 +55,7 @@ Monkey-patched NVDA functions:
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.05.29"
+__version__ = "2020.10.19"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
@@ -464,8 +464,8 @@ def eventExecuter_gen(self, eventName, obj):
 				webAppLoseFocus(obj)
 		else:
 			# log.info("Getting method %s -> %s" %(webApp.name, funcName))
-			if webApp.widgetManager.claimVirtualBufferWidget(nodeHandler.REASON_FOCUS) is False:
-				webApp.widgetManager.claimObject(obj)
+			# if webApp.widgetManager.claimVirtualBufferWidget(nodeHandler.REASON_FOCUS) is False:
+			# 	webApp.widgetManager.claimObject(obj)
 			if webApp.activeWidget is not None:
 				func = getattr(webApp.activeWidget, funcName, None)
 				if func:

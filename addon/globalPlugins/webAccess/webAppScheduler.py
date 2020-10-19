@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.05.29"
+__version__ = "2020.10.19"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -212,7 +212,7 @@ class WebAppScheduler(threading.Thread):
 				name='node_gainFocus',
 				obj=node, webApp=webModule
 				)
-			webModule.widgetManager.claimVirtualBufferWidget(reason)
+			# webModule.widgetManager.claimVirtualBufferWidget(reason)
 			if useInternalBrowser is True or webModule.activeWidget is not None:
 				beep(300, 30)
 				wx.CallAfter(webModule.presenter.display, node)
