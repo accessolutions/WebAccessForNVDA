@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.10.19"
+__version__ = "2020.10.26"
 __authors__ = (
 	u"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
 	u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
@@ -60,6 +60,12 @@ try:
 except ImportError:
 	# NVDA < 2018.4
 	from .ast import literal_eval
+
+try:
+	from garbageHandler import TrackedObject	
+except ImportError:
+	# NVDA < 2020.3
+	TrackedObject = object
 
 
 TRACE = lambda *args, **kwargs: None  # noqa: E731
@@ -435,8 +441,8 @@ class NodeManager(baseObject.ScriptableObject):
 		"kb:enter": "enter",
 	}
 
-	
-class NodeField(baseObject.AutoPropertyObject):
+
+class NodeField(TrackedObject):
 	
 	customText = ""
 	
@@ -529,13 +535,16 @@ class NodeField(baseObject.AutoPropertyObject):
 		else:
 			return "Node unknown"
 	
-	def _get_nodeManager(self):
+	@property
+	def nodeManager(self):
 		return self._nodeManager and self._nodeManager()
 	
-	def _get_parent(self):
+	@property
+	def parent(self):
 		return self._parent and self._parent()
 	
-	def _get_previousTextNode(self):
+	@property
+	def previousTextNode(self):
 		return self._previousTextNode and self._previousTextNode()
 	
 	def isReady(self):
@@ -1009,7 +1018,8 @@ class NodeField(baseObject.AutoPropertyObject):
 	def __len__(self):
 		return self.size
 	
-	def _get_innerText(self):
+	@property
+	def innerText(self):
 		txt = ""
 		if hasattr(self, "text"):
 			txt = self.text
