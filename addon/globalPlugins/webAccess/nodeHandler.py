@@ -128,6 +128,12 @@ class NodeManager(baseObject.ScriptableObject):
 	def _set_lastTextNode(self, value):
 		self._lastTextNode = weakref.ref(value) if value is not None else None
 	
+	def _get_currentParentNode(self):
+		return self._currentParentNode and self._currentParentNode()
+	
+	def _set_currentParentNode(self, value):
+		self._currentParentNode = weakref.ref(value) if value is not None else None
+	
 	def terminate(self):
 		for backend in self.backends:
 			backend.event_nodeManagerTerminated(self)
