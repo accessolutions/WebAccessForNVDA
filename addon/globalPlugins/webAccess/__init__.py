@@ -49,13 +49,12 @@ Monkey-patched NVDA functions:
 * gui.mainFrame.postPopup
 * virtualBuffers.VirtualBuffer.changeNotify
 * virtualBuffers.VirtualBuffer._loadBufferDone
-* virtualBuffers.VirtualBuffer.terminate
 """
 
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.10.19"
+__version__ = "2020.10.27"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
@@ -171,8 +170,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		)
 		virtualBuffer_loadBufferDone.super = virtualBuffers.VirtualBuffer._loadBufferDone
 		virtualBuffers.VirtualBuffer._loadBufferDone = virtualBuffer_loadBufferDone
-		virtualBuffer_terminate.super = virtualBuffers.VirtualBuffer.terminate 
-		virtualBuffers.VirtualBuffer.terminate = virtualBuffer_terminate
 		
 		# Used to announce the opening of the Web Access menu
 		mainFrame_prePopup.super = gui.mainFrame.prePopup
@@ -418,14 +415,6 @@ def VirtualBuffer_changeNotify(cls, rootDocHandle, rootID):
 	# log.info(u"change notify")
 	# Stock classmethod was stored bound
 	VirtualBuffer_changeNotify.super(rootDocHandle, rootID)
-
-
-def virtualBuffer_terminate(self):
-	if isinstance(self, overlay.WebAccessBmdti):
-		self.webAccess._nodeManager = None
-		self.webAccess._webModule = None
-	# Stock method was stored unbound
-	virtualBuffer_terminate.super.__get__(self)()
 
 
 def virtualBuffer_loadBufferDone(self, success=True):

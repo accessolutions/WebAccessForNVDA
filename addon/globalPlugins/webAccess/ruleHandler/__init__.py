@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.10.19"
+__version__ = "2020.10.27"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -59,6 +59,11 @@ from ..widgets import genericCollection
 from .controlMutation import MUTATIONS, MutatedControl
 from . import ruleTypes
 
+try:
+	from garbageHandler import TrackedObject
+except ImportError:
+	# NVDA < 2020.3
+	TrackedObject = object
 
 addonHandler.initTranslation()
 
@@ -327,28 +332,36 @@ class MarkerManager(baseObject.ScriptableObject):
 			return False
 		return True
 
-	def event_nodeManagerTerminated(self, nodeManager):
-		if self.nodeManager != nodeManager:
-			log.warn(u"nodeManager different than self.nodeManager")
-			return
+	def terminate(self):
+		self._webModule = None
 		self._ready = False
-		if self.timerCheckAutoAction:
+		try:
 			self.timerCheckAutoAction.cancel()
+		except Exception:
+			pass
+		self.timerCheckAutoAction = None
 		self._nodeManager = None
 		del self.markerResults[:]
 		self._mutatedControlsById.clear()
 		self._mutatedControlsByOffset[:] = []
 		for q in self.markerQueries:
 			q.resetResults()
-
+	
 	def update(self, nodeManager=None, force=False):
+		if self.webModule is None:
+			# This instance has been terminated
+			return
 		with self.lock:
 			self._ready = False
+			try:
+				self.timerCheckAutoAction.cancel()
+			except AttributeError:
+				pass
+			self.timerCheckAutoAction = None
 			if nodeManager is not None:
 				self._nodeManager = weakref.ref(nodeManager)
 			if self.nodeManager is None or not self.nodeManager.isReady:
 				return False
-			self.nodeManager.addBackend (self)
 			if not force and self.nodeManagerIdentifier == self.nodeManager.identifier:
 				# already updated
 				self._ready = True
@@ -417,6 +430,9 @@ class MarkerManager(baseObject.ScriptableObject):
 		return False
 		
 	def checkPageTitle(self):
+		if self.webModule is None:
+			# This instance has been terminated
+			return
 		title = self.getPageTitle()
 		if title != self.webApp.activePageTitle:
 			self.webApp.activePageTitle = title
@@ -425,7 +441,11 @@ class MarkerManager(baseObject.ScriptableObject):
 		return False
 	
 	def checkAutoAction(self):
+		self.timerCheckAutoAction = None
 		with self.lock:
+			if self.webModule is None:
+				# This instance has been terminated
+				return
 			if not self.isReady:
 				return
 			funcMoveto = None
@@ -762,7 +782,7 @@ class CustomActionDispatcher(object):
 		if obj is None:
 			return self
 		bound = CustomActionDispatcher(self.actionId, self.standardFunc)
-		bound.instance = weakref.proxy(obj)  # Avoid cyclic references (cf. NVDA #11499)
+		bound.instance = weakref.ref(obj)  # Avoid cyclic references (cf. NVDA #11499)
 		return bound
 	
 	def __getattribute__(self, name):
@@ -780,8 +800,14 @@ class CustomActionDispatcher(object):
 			"standardFunc",
 			"webModules",
 		):
+			if self.instance is not None:
+				instance = self.instance()
+				if instance is None:
+					# The bound instance has been terminated.
+					return object.__getattribute__(self, name)
+			
 			def funcs():
-				if self.instance:
+				if instance:
 					yield self.getCustomFunc()
 				else:
 					for webModule in self.webModules:
@@ -797,12 +823,16 @@ class CustomActionDispatcher(object):
 		return object.__getattribute__(self, name)
 	
 	def __call__(self, *args, **kwargs):
-		if self.instance:
-			args = (self.instance,) + args
+		if self.instance is not None:
+			instance = self.instance()
+			if instance is None:
+				# The bound instance has been terminated.
+				return
+			args = (instance,) + args
 			func = self.getCustomFunc()
 			if func:
 				if self.standardFunc:
-					kwargs["script"] = self.standardFunc.__get__(self.instance)
+					kwargs["script"] = self.standardFunc.__get__(instance)
 			else:
 				func = self.standardFunc
 		else:
@@ -813,9 +843,12 @@ class CustomActionDispatcher(object):
 	
 	def getCustomFunc(self, webModule=None):
 		if webModule is None:
-			if self.instance is None:
-				return None
-			webModule = self.instance.markerQuery.markerManager.webApp
+			if self.instance is not None:
+				instance = self.instance()
+				if instance is None:
+					# The bound instance has been terminated
+					return None
+				webModule = instance.rule.ruleManager.webModule
 		return getattr(
 			webModule,
 			"action_{self.actionId}".format(**locals()),
@@ -1356,7 +1389,7 @@ def getSimpleSearchKwargs(criteriaDic, raiseOnUnsupported=False):
 Rule = VirtualMarkerQuery
 
 
-class Zone(textInfos.offsets.Offsets):
+class Zone(textInfos.offsets.Offsets, TrackedObject):
 	
 	def __init__(self, result):
 		rule = result.markerQuery

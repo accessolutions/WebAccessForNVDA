@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.10.26"
+__version__ = "2020.10.27"
 __authors__ = (
 	u"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
 	u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
@@ -91,7 +91,6 @@ class NodeManager(baseObject.ScriptableObject):
 		self.index = nodeManagerIndex
 		self._ready = False
 		self.identifier = None
-		self.backends = weakref.WeakSet()
 		self.treeInterceptor = treeInterceptor
 		self.treeInterceptorSize = 0
 		self.mainNode = None
@@ -135,8 +134,6 @@ class NodeManager(baseObject.ScriptableObject):
 		self._currentParentNode = weakref.ref(value) if value is not None else None
 	
 	def terminate(self):
-		for backend in self.backends:
-			backend.event_nodeManagerTerminated(self)
 		self._ready = False
 		self.treeInterceptor = None
 		self.treeInterceptorSize = 0
@@ -331,9 +328,6 @@ class NodeManager(baseObject.ScriptableObject):
 			return False
 		return True
 
-	def addBackend(self, obj):
-		self.backends.add(obj)
-	
 	def searchString(self, text):
 		if not self.isReady:
 			return []

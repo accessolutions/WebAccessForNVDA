@@ -102,10 +102,17 @@ class WebModule(baseObject.ScriptableObject):
 			log.error(u"No web module defined in the configuration data: %s" % data)
 			raise Exception("No web module defined in the configuration data.")
 	
+# 	def __del__(self):
+# 		del self.ruleManager, self.markerManager
+# 		super(WebModule, self).__del__()
+	
 	def __str__(self):
 		return u"WebModule {name}".format(
 			name=self.name if self.name is not None else "<noName>"
 		)
+	
+	def terminate(self):
+		self.ruleManager.terminate()
 	
 	def chooseNVDAObjectOverlayClasses(self, obj, clsList):
 		"""

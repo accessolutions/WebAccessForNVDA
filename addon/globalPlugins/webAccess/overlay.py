@@ -26,7 +26,7 @@ WebAccess overlay classes
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.02.18"
+__version__ = "2020.10.27"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -59,6 +59,12 @@ try:
 except ImportError:
 	# NVDA version < 2018.3
 	iteritems = dict.iteritems
+
+try:
+	from garbageHandler import TrackedObject
+except ImportError:
+	# NVDA < 2020.3
+	TrackedObject = object
 
 
 addonHandler.initTranslation()
@@ -144,7 +150,7 @@ class ScriptWrapper(object):
 		self.script(gesture)
 
 
-class WebAccessBmdtiHelper(object):
+class WebAccessBmdtiHelper(TrackedObject):
 	"""
 	Utility methods and properties.
 	"""
@@ -155,6 +161,14 @@ class WebAccessBmdtiHelper(object):
 		self._nodeManager = None
 		self._treeInterceptor = weakref.ref(treeInterceptor)
 		self._webModule = None
+	
+	def terminate(self):
+		if self._webModule is not None:
+			self._webModule.terminate()
+		self._webModule = None
+		if self._nodeManager is not None:
+			self._nodeManager.terminate()
+		self._nodeManager = None
 	
 	@property
 	def nodeManager(self):
@@ -418,6 +432,10 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		if attr and not isinstance(attr, baseObject.Getter):
 			if issubclass(attr, textInfos.offsets.OffsetsTextInfo):
 				self.TextInfo = getDynamicClass((WebAccessBmdtiTextInfo, attr))
+	
+	def terminate(self):
+		self.webAccess.terminate()
+		super(WebAccessBmdti, self).terminate()
 	
 	def _get_isAlive(self):
 		isAlive = super(WebAccessBmdti, self).isAlive
@@ -1071,7 +1089,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 	}
 
 
-class WebAccessObjectHelper(object):
+class WebAccessObjectHelper(TrackedObject):
 	"""
 	Utility methods and properties.
 	"""
