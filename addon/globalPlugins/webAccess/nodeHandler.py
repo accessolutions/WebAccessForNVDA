@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.10.27"
+__version__ = "2020.10.28"
 __authors__ = (
 	u"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
 	u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
@@ -521,7 +521,10 @@ class NodeField(TrackedObject):
 		# log.info(u"dell node")
 		global countNode
 		countNode = countNode - 1
-		super(NodeField, self).__del__()
+		# TrackedObject (NVDA >= 2020.3) defines __del__
+		# object (NVDA < 2020.3) does not.
+		if hasattr(super(NodeField, self), "__del__"):
+			super(NodeField, self).__del__()
 		
 	def __repr__(self):
 		if hasattr(self, "text"):
