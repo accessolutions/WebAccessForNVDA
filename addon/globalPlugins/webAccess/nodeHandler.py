@@ -926,9 +926,9 @@ class NodeField(TrackedObject):
 			return False
 
 	def getNVDAObject(self):
-		info = self.getTextInfo()
-		obj = info.NVDAObjectAtStart
-		return obj
+		if not self.isReady():
+			return None
+		return self.getTextInfo().NVDAObjectAtStart
 
 	def mouseMove(self):
 		if not self.checkNodeManager():
