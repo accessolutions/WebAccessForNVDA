@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.10.28"
+__version__ = "2020.11.18"
 __authors__ = (
 	u"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
 	u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
@@ -779,7 +779,7 @@ class NodeField(TrackedObject):
 		elif hasattr(self, "children"):
 			for child in self.children:
 				node = child.searchOffset(offset)
-				if node:
+				if node is not None:
 					return node
 		return None
 	
@@ -824,7 +824,7 @@ class NodeField(TrackedObject):
 				# No check or no match, keep walking...
 				if step == "b":  # First node with lesser offset
 					node = node.previousTextNode
-					if not node:
+					if node is None:
 						return None
 					node = node.parent
 				elif step == "a": # First node with greater offset
@@ -887,7 +887,7 @@ class NodeField(TrackedObject):
 						path=path
 					))
 					return None
-				if not node:
+				if node is None:
 					return None
 				if not searchKwargs:
 					break
