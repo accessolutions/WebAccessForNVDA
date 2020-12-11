@@ -26,7 +26,7 @@ WebAccess overlay classes
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.10.27"
+__version__ = "2020.11.20"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -804,10 +804,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 				for value in values:
 					if isinstance(value, set):
 						if value.issubset(candidate or set()) == negate:
-							log.info(u"boom {}, {}, {}".format(value, candidate, negate))
 							break
-						else:
-							log.info(u"yep {}, {}, {}".format(value, candidate, negate))
 						continue
 					if isinstance(value, bool):
 						candidate = bool(candidate)
