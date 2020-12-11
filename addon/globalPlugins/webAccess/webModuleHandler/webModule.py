@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.10.19"
+__version__ = "2020.11.19"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
@@ -74,7 +74,8 @@ class InvalidApiVersion(version.InvalidVersion):
 
 class WebModule(baseObject.ScriptableObject):
 	
-	API_VERSION = version.parse("0.2")
+	API_VERSION = version.parse("0.3")
+	
 	FORMAT_VERSION_STR = "0.6-dev"
 	FORMAT_VERSION = version.parse(FORMAT_VERSION_STR)
 	
@@ -348,6 +349,10 @@ class WebModule(baseObject.ScriptableObject):
 			self.markerManager.setQueriesData(items)
 		del items
 		return True
+	
+	
+	def createRule(self, data):
+		return ruleHandler.Rule(self.ruleManager, data)
 	
 	_cache_pageTitle = False
 	

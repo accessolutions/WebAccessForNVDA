@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.10.27"
+__version__ = "2020.11.19"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -192,8 +192,8 @@ class MarkerManager(baseObject.ScriptableObject):
 		self.markerQueries[:] = []
 		self.markerResults[:] = []
 		for qd in queryData:
-			query = VirtualMarkerQuery(self, qd)
-			self.addQuery(query)
+			rule = self.webModule.createRule(qd)
+			self.addQuery(rule)
 
 	def getQueriesData(self):
 		queryData = []
@@ -1060,6 +1060,9 @@ class VirtualMarkerResult(MarkerResult):
 		return self.markerQuery.label + " - " + self.node.innerText
 
 
+Result = VirtualMarkerResult
+
+
 class MarkerQuery(baseObject.ScriptableObject):
 	
 	def __init__(self, markerManager):
@@ -1226,6 +1229,9 @@ class VirtualMarkerQuery(MarkerQuery):
 			if not (found or exclude):
 				return False
 		return True
+	
+	def createResult(self, node, context):
+		return VirtualMarkerResult(self, node, context)
 	
 	def _getResults(self, widget=False):
 		t = logTimeStart()
