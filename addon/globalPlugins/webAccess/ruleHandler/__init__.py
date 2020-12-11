@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.11.19"
+__version__ = "2020.11.23"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -406,6 +406,7 @@ class MarkerManager(baseObject.ScriptableObject):
 				entry = self._mutatedControlsById.get(controlId)
 				if entry is None:
 					entry = MutatedControl(result)
+					#entry = MutatedControl.fromResult(result)
 					self._mutatedControlsById[controlId] = entry
 					self._mutatedControlsByOffset.append(entry)
 				else:
@@ -922,9 +923,10 @@ class MarkerResult(baseObject.ScriptableObject):
 
 class VirtualMarkerResult(MarkerResult):
 	
-	def __init__(self, markerQuery, node):
+	def __init__(self, markerQuery, node, context):
 		super(VirtualMarkerResult ,self).__init__(markerQuery)
 		self.node = node
+		self.context = context
 	
 	_cache_value = False
 	
@@ -1054,6 +1056,8 @@ class VirtualMarkerResult(MarkerResult):
 		return self.node.getTextInfo()
 	
 	def __lt__(self, other):
+		if hasattr(other, "node") is None:
+			return other >= self
 		return self.node.offset < other.node.offset
 	
 	def getTitle(self):
@@ -1084,10 +1088,10 @@ class MarkerQuery(baseObject.ScriptableObject):
 	
 	def getResults(self):
 		if self.results is None:
-			self.results = self._getResults()
+			self.results = tuple(self._iterResults())
 		return self.results
 	
-	def _getResults(self):
+	def _iterResults(self):
 		raise NotImplementedError()
 	
 	def getData(self):
@@ -1233,7 +1237,7 @@ class VirtualMarkerQuery(MarkerQuery):
 	def createResult(self, node, context):
 		return VirtualMarkerResult(self, node, context)
 	
-	def _getResults(self, widget=False):
+	def _iterResults(self, widget=False):
 		t = logTimeStart()
 		dic = self.dic
 		text = dic.get("text")
@@ -1245,13 +1249,14 @@ class VirtualMarkerQuery(MarkerQuery):
 # 				if func is not None:
 # 					return func(self)
 		if not self.checkContextPageTitle():
-			return []
+			return
 		if not self.checkContextPageType():
-			return []
+			return
 
 		# Handle contextParent
 		rootNodes = set()  # Set of possible parent nodes
 		excludedNodes = set()  # Set of excluded parent nodes
+		multipleContext = None  # Will be later set to either `True` or `False`
 		for expr in self.contextParent.split("&"):
 			expr = expr.strip()
 			if not expr:
@@ -1272,7 +1277,12 @@ class VirtualMarkerQuery(MarkerQuery):
 						u"In rule \"{rule}\".contextParent: "
 						u"Rule not found: \"{parent}\""
 					).format(rule=self.name, parent=name))
-					return []
+					return
+				if not exclude and query.multiple:
+					if multipleContext is None:
+						multipleContext = True
+				else:
+					multipleContext = False
 				# This is a temporary measure, no longer necessary once multi
 				# criteria sets rules will be implemented, as rule names will
 				# be unique again.
@@ -1287,7 +1297,7 @@ class VirtualMarkerQuery(MarkerQuery):
 					else:
 						altRootNodes.update(nodes)
 			if not exclude and not altRootNodes:
-				return []
+				return
 			if exclude:
 				continue
 			if not rootNodes:
@@ -1300,30 +1310,38 @@ class VirtualMarkerQuery(MarkerQuery):
 					if node is not None:
 						newRootNodes.add(node)
 			if not newRootNodes:
-				return []
+				return
 			rootNodes = newRootNodes
 		kwargs = getSimpleSearchKwargs(dic)
-		if rootNodes:
-			kwargs["roots"] = rootNodes
 		if excludedNodes:
 			kwargs["exclude"] = excludedNodes
+		limit = None
 		if not self.multiple:
-			kwargs["maxIndex"] = self.index or 1
-		kwargs["relativePath"] = dic.get("relativePath")
+			limit = self.index or 1
 		
+		nodes = []
 		results = []
-		nodeList = self.markerManager.nodeManager.searchNode(**kwargs)
-		#logTime(u"searchNode %s, %d results" % (self.name, len(nodeList)), t)
 		index = 0
-		for node in nodeList:
-			index += 1  # 1-based
-			if self.index and index < self.index:
-				continue
-			r = VirtualMarkerResult(self, node)
-			results.append(r)
-			if not self.multiple:
-				break
-		return results
+		for root in rootNodes or (self.ruleManager.nodeManager.mainNode,):
+			rootLimit = limit
+			if multipleContext:
+				index = 0
+			for node in root.searchNode(limit=rootLimit, **kwargs):
+				index += 1  # 1-based
+				if self.index:
+					if index < self.index:
+						continue
+					elif index > self.index:
+						break
+				if limit is not None and not multipleContext:
+					limit -= 1
+				context = textInfos.offsets.Offsets(
+					startOffset=node.offset,
+					endOffset=node.offset + node.size
+				) if root is not self.ruleManager.nodeManager.mainNode else None
+				yield self.createResult(node, context)
+				if not self.multiple and not multipleContext:
+					return
 
 
 def getSimpleSearchKwargs(criteriaDic, raiseOnUnsupported=False):

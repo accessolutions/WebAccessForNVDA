@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.11.18"
+__version__ = "2020.11.23"
 __authors__ = (
 	u"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
 	u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
@@ -576,7 +576,7 @@ class NodeField(TrackedObject):
 		self.controlIdentifier = None
 		return n
 	
-	def searchString(self, text, exclude=None, maxIndex=0, currentIndex=0):
+	def searchString(self, text, exclude=None, limit=None):
 		"""Searches the current node and its sub-tree for a match with the given text.
 		
 		Keyword arguments:
@@ -584,11 +584,8 @@ class NodeField(TrackedObject):
 		  exclude:
 		    If specified, set of children nodes not to explore or  True  to not explore
 		    children nodes at all.
-		  maxIndex:
-		    If set to 0 (default value), every result found is returned.
-		    If greater than 0, only return the n first results (1 based).
-		  currentIndex: Used to compare against maxIndex when searching down
-		    sub-trees.
+		  limit:
+		    If set, only return the specified number of first results.
 		
 		Returns a list of the matching nodes.
 		"""  # noqa
@@ -607,13 +604,12 @@ class NodeField(TrackedObject):
 				childResult = child.searchString(
 					text,
 					exclude=exclude,
-					maxIndex=maxIndex,
-					currentIndex=currentIndex
+					limit=limit,
 				)
 				result += childResult
-				if maxIndex:
-					currentIndex += len(childResult)
-					if currentIndex >= maxIndex:
+				if limit is not None:
+					limit -= len(childResult)
+					if limit <= 0:
 						break
 			return result
 		return []
@@ -640,8 +636,7 @@ class NodeField(TrackedObject):
 		self,
 		exclude=None,
 		relativePath=None,
-		maxIndex=0,
-		currentIndex=0,
+		limit=None,
 		**kwargs
 	):
 		"""Searches the current node and its sub-tree for a match with the given criteria.
@@ -655,11 +650,8 @@ class NodeField(TrackedObject):
 		    determine the final result. If the path cannot be walked, no
 		    result is returned for the matched node.
 		    See `walk` for the path expression syntax.
-		  maxIndex:
-		    If set to 0 (default value), every result found is returned.
-		    If greater than 0, only return the n first results (1 based).
-		  currentIndex: Used to compare against maxIndex when searching down
-		    sub-trees.
+		  limit:
+		    If set, only return the specified number of first results.
 		  
 		Additional keyword arguments names are of the form:
 		  `test_property[#index]`
@@ -731,8 +723,7 @@ class NodeField(TrackedObject):
 				matches = self.searchString(
 					text,
 					exclude=exclude,
-					maxIndex=maxIndex,
-					currentIndex=currentIndex
+					limit=limit,
 				)
 			elif prevText != "":
 				if (
@@ -751,6 +742,10 @@ class NodeField(TrackedObject):
 					match = candidate.walk(relativePath)
 					if match:
 						matches.append(match)
+						if limit is not None:
+							limit -= 1
+							if limit <= 0:
+								break
 			return matches
 		if exclude is True:
 			return []
@@ -760,14 +755,13 @@ class NodeField(TrackedObject):
 			childResult = child.searchNode(
 				exclude=exclude,
 				relativePath=relativePath,
-				maxIndex=maxIndex,
-				currentIndex=currentIndex,
+				limit=limit,
 				**kwargs
 			)
 			nodeList += childResult
-			if maxIndex:
-				currentIndex += len(childResult)
-				if currentIndex >= maxIndex:
+			if limit is not None:
+				limit -= len(childResult)
+				if limit <= 0:
 					break
 		return nodeList
 	
@@ -811,8 +805,7 @@ class NodeField(TrackedObject):
 				if searchKwargs:
 					matches = node.searchNode(
 						exclude=step != "d",  # search sub-tree only when walking down.
-						maxIndex=1,
-						currentIndex=0,
+						limit=1,
 						**searchKwargs
 					)
 					if matches:
