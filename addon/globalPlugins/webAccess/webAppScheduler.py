@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.10.19"
+__version__ = "2020.11.24"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -119,7 +119,7 @@ class WebAppScheduler(threading.Thread):
 			and webModule.ruleManager.nodeManager.treeInterceptor
 		):
 			ti = webModule.ruleManager.nodeManager.treeInterceptor
-			assert isinstance(ti, WebAccessBmtdti)
+			assert isinstance(ti, WebAccessBmdti)
 			ti.webAccess._nodeManager = None
 			ti.webAccess._webModule = None
 		if (
