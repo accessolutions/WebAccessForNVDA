@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2020 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.01.03"
+__version__ = "2020.12.22"
 __author__ = "Shirley Noel <shirley.noel@pole-emploi.fr>"
 
 
@@ -42,7 +42,7 @@ def show():
 	return result == wx.ID_OK
 
 
-markerManager = None
+ruleManager = None
 resultShortcut = ""
 resultActionData = ""
 
@@ -79,9 +79,9 @@ class Dialog(wx.Dialog):
 			flag=wx.EXPAND
 		)
 		
-		global markerManager
+		global ruleManager
 		choiceAction = self.action = wx.Choice(self)
-		actionsDict = markerManager.getActions()
+		actionsDict = ruleManager.getActions()
 		choiceAction.Append("", "")
 		for action in actionsDict:
 			choiceAction.Append(actionsDict[action], action)

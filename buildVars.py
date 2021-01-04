@@ -31,7 +31,7 @@ addon_info = {
 	# Documentation file name
 	"addon_docFileName" : "readme.html",
 	# Minimum NVDA version supported (e.g. "2018.3")
-	"addon_minimumNVDAVersion" : "2016.3",
+	"addon_minimumNVDAVersion" : "2018.2",
 	# Last NVDA version supported/tested (e.g. "2018.4", ideally more recent than minimum version)
 	"addon_lastTestedNVDAVersion" : "2020.3.0",
 	# Add-on update channel (default is stable or None)

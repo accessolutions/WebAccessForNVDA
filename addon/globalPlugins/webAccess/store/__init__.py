@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2020 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,8 +21,10 @@
 
 """Web Access data store."""
 
-__version__ = "2019.10.23"
+# Keep compatible with Python 2
+from __future__ import absolute_import, division, print_function
 
+__version__ = "2020.12.22"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -152,7 +154,8 @@ class DispatchStore(Store):
 			if store is None:
 				raise Exception(
 					u"Unknown store: {storeKey}".format(storeKey=storeKey)
-					)
+				)
+			self.storeDic[storeKey] = store
 		if hasNestedRef:
 			kwargs["ref"] = ref
 		if item is not None:
@@ -174,11 +177,10 @@ class DispatchStore(Store):
 			raise Exception("At lease one of ref or item should be specified.")
 		storeKey = self.getStoreKey(store)
 		self.storeDic[storeKey] = store
-		if "ref" in kwargs or hasattr(item, "storeRef"):
-			if "ref" in kwargs:
-				ref = kwargs["ref"]
-			else:
-				ref = item.storeRef
+		if "ref" in kwargs:
+			ref = kwargs["ref"]
+		elif hasattr(item, "storeRef"):
+			ref = item.storeRef
 		else:
 			ref = tuple()
 		ref = (storeKey,) + (ref if isinstance(ref, tuple) else (ref,))

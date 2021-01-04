@@ -19,7 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2020.10.08"
+__version__ = "2020.12.22"
 
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>"
@@ -36,9 +36,12 @@ from NVDAObjects import NVDAObject, IAccessible
 import addonHandler
 import api
 import controlTypes
+import config
 import gui
 from logHandler import log
 import ui
+
+from ..webModuleHandler import WebModule, getEditableWebModule, save
 
 
 addonHandler.initTranslation()
@@ -162,52 +165,43 @@ class Dialog(wx.Dialog):
 			border=4
 		)
 		
-		self.Bind(wx.EVT_BUTTON, self.OnOk, id=wx.ID_OK)
-		self.Bind(wx.EVT_BUTTON, self.OnCancel, id=wx.ID_CANCEL)
+		self.Bind(wx.EVT_BUTTON, self.onOk, id=wx.ID_OK)
+		self.Bind(wx.EVT_BUTTON, self.onCancel, id=wx.ID_CANCEL)
 		self.Sizer = hSizer
 	
-	def InitData(self, context):
+	def initData(self, context):
 		self.context = context
-		if "data" not in context:
-			context["data"] = {}
-		if "WebModule" not in context["data"]:
-			data = self.data = context["data"]["WebModule"] = {}
-		else:
-			data = self.data = context["data"]["WebModule"]
-		webModule = context["webModule"] if "webModule" in context else None
-		
+		webModule = context.get("webModule")
 		if webModule is None:
+			new = True
+			webModule = WebModule()
+		else:
+			if any(layer.dirty and layer.storeRef is None for layer in webModule.layers):
+				new = True
+			elif any(layer.storeRef is not None for layer in webModule.layers):
+				new = False
+			else:
+				new = True
+		
+		if new:
 			# Translators: Web module creation dialog title
 			title = _("New Web Module")
 		else:
 			# Translators: Web module edition dialog title
 			title = _("Edit Web Module")
+		if config.conf["webAccess"]["devMode"] and webModule is not None:
+			title += " ({})".format("/".join((layer.name for layer in webModule.layers)))
 		self.Title = title
 		
-		if "name" in data:
-			name = data["name"]
-		elif webModule is not None:
-			name = webModule.name
-		else:
-			name = ""
-		self.webModuleName.Value = name
+		self.webModuleName.Value = (webModule.name or "") if webModule is not None else ""
 		
 		urls = []
 		selectedUrl = None
-		if "url" in data:
-			url = ", ".join(data["url"])
-			selectedUrl = url
-			urls.append(url)
-			for url in itertools.chain([url], data["url"]):
-				if url not in urls:
-					urls.append(url)
-		if webModule is not None:
-			url = ", ".join(webModule.url)
-			if not selectedUrl:
-				selectedUrl = url
-			for url_ in itertools.chain([url], webModule.url):
-				if url_ not in urls:
-					urls.append(url_)
+		if webModule is not None and webModule.url:
+			url = selectedUrl = ", ".join(webModule.url)
+			for candidate in itertools.chain([url], webModule.url):
+				if candidate not in urls:
+					urls.append(candidate)
 		if "focusObject" in context:
 			focus = context["focusObject"]
 			if focus and focus.treeInterceptor and focus.treeInterceptor.rootNVDAObject:
@@ -219,7 +213,7 @@ class Dialog(wx.Dialog):
 				elif urlFromObject not in urls:
 					urls.append(urlFromObject)
 		else:
-			log.warn("focusObject not in context")
+			log.warning("focusObject not in context")
 		urlsChoices = []
 		for url in urls:
 			choice = url
@@ -255,24 +249,9 @@ class Dialog(wx.Dialog):
 		
 		windowTitleChoices = []
 		windowTitleIsFilled = False 
-		if "windowTitle" in data:
+		if webModule is not None and webModule.windowTitle:
 			windowTitleIsFilled = True
-			windowTitleChoices.append(
-				data["windowTitle"]
-				if data["windowTitle"]
-				else ""
-			)
-		if (
-			webModule is not None
-			and webModule.windowTitle not in windowTitleChoices
-		):
-			windowTitleIsFilled = True
-			windowTitleChoices.append(
-				webModule.windowTitle
-				if webModule.windowTitle
-				else ""
-			)
-		self.help.Value = webModule.help if webModule and webModule.help else ""
+			windowTitleChoices.append(webModule.windowTitle)
 		if "focusObject" in context:
 			obj = context["focusObject"]
 			from ..webModuleHandler import getWindowTitle
@@ -285,8 +264,10 @@ class Dialog(wx.Dialog):
 			item.Selection = 0
 		else:
 			item.Value = ""
+		
+		self.help.Value = webModule.help if webModule and webModule.help else ""
 	
-	def OnOk(self, evt):
+	def onOk(self, evt):
 		name = self.webModuleName.Value.strip() 
 		if len(name) < 1:
 			gui.messageBox(
@@ -298,12 +279,12 @@ class Dialog(wx.Dialog):
 			self.webModuleName.SetFocus()
 			return
 
-		url = self.webModuleUrl.Value.strip()
+		url = [url.strip() for url in self.webModuleUrl.Value.split(",") if url.strip()]
 		windowTitle = self.webModuleWindowTitle.Value.strip()
 		help = self.help.Value.strip()
 		if not (url or windowTitle):
 			gui.messageBox(
-				_("You must specify an URL or window name"),
+				_("You must specify at least a URL or a window title."),
 				_("Error"),
 				wx.OK | wx.ICON_ERROR,
 				self,
@@ -311,27 +292,31 @@ class Dialog(wx.Dialog):
 			self.webModuleUrl.SetFocus()
 			return
 		
-		data = self.data
-		data["name"] = name
-		data["url"] = [item.strip() for item in url.split(",")]
-		if windowTitle:
-			data["windowTitle"] = windowTitle
-		else:
-			data.pop("windowTitle", None)
-		if help:
-			data["help"] = help
-		else:
-			data.pop("help", None)
+		context = self.context
+		webModule = context.get("webModule")
+		if webModule is None:
+			webModule = context["webModule"] = WebModule()
+		if webModule.isReadOnly():
+			webModule = getEditableWebModule(webModule)
+			if not webModule:
+				return
+		
+		webModule.name = name
+		webModule.url = url
+		webModule.windowTitle = windowTitle
+		webModule.help = help
+		
+		if not save(webModule, context.get("focusObject")):
+			return
 		
 		assert self.IsModal()
 		self.EndModal(wx.ID_OK)
 
-	def OnCancel(self, evt):
-		self.data.clear()
+	def onCancel(self, evt):
 		self.EndModal(wx.ID_CANCEL)
 		
 	def ShowModal(self, context):
-		self.InitData(context)
+		self.initData(context)
 		self.Fit()
 		self.Center(wx.BOTH | wx.CENTER_ON_SCREEN)
 		self.webModuleName.SetFocus()

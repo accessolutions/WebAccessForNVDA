@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2020 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,8 +19,10 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.10.10"
+# Keep compatible with Python 2
+from __future__ import absolute_import, division, print_function
 
+__version__ = "2020.12.22"
 __author__ = u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -29,6 +31,7 @@ import wx
 
 import addonHandler
 addonHandler.initTranslation()
+import config
 import core
 import globalVars
 import gui
@@ -42,41 +45,40 @@ except ImportError:
 
 
 def promptDelete(webModule):
+	msg = (
+		# Translators: Prompt before deleting a web module.
+		_("Do you really want to delete this web module?")
+		+ os.linesep
+		+ str(webModule.name)
+	)
+	if config.conf["webAccess"]["devMode"]:
+		msg += " ({})".format("/".join((layer.name for layer in webModule.layers)))
 	return gui.messageBox(
 		parent=gui.mainFrame,
-		message=(
-			# Translators: Prompt before deleting a web module.
-			_("Do you really want to delete this web module?")
-			+ os.linesep
-			+ webModule.name
-		),
+		message=msg,
 		style=wx.YES_NO | wx.ICON_WARNING
 	) == wx.YES
 
+
 def promptMask(webModule):
-	msg = None
-	if hasattr(webModule, "storeRef"):
-		log.info(u"Proposing to mask {storeRef}".format(
-			storeRef=webModule.storeRef
-			))
-		try:
-			if webModule.storeRef[0] == "addons":
-				msg = _(
-					u"""This web module comes with the add-on {addon}.
-It cannot be modified at its current location."""
-					).format(addon=webModule.storeRef[1])
-		except:
-			pass
+	ref = webModule.getLayer("addon", raiseIfMissing=True).storeRef
+	if ref[0] != "addons":
+		raise ValueError("ref={!r}".format(ref))
+	addonName = ref[1]
+	for addon in addonHandler.getRunningAddons():
+		if addon.name == addonName:
+			addonSummary = addon.manifest["summary"]
+			break
 	else:
-		log.info(u"Proposing to mask {storeRef}".format(
-			storeRef=webModule.storeRef
-			))
-	if msg is None:
-		msg = _(
-			u"This web module cannot be modified at its current location."
-			)
-	msg += u"\n\n"
-	msg += _(u"Do you want to make a copy in your user configuration?")
+		raise LookupError("addonName={!r}".format(addonName))
+	log.info(u"Proposing to mask {!r} from addon {!r}".format(webModule, addonName))
+	msg = _(
+		u"""This web module comes with the add-on {addonSummary}.
+It cannot be modified at its current location.
+
+Do you want to make a copy in your scratchpad?
+"""
+	).format(addonSummary=addonSummary)
 	return gui.messageBox(
 		parent=gui.mainFrame,
 		message=msg,
@@ -84,10 +86,12 @@ It cannot be modified at its current location."""
 		style=wx.ICON_WARNING | wx.YES | wx.NO
 	) == wx.YES
 
+
 def show(context):
 	gui.mainFrame.prePopup()
 	Dialog(gui.mainFrame).Show(context)
 	gui.mainFrame.postPopup()
+
 
 class Dialog(wx.Dialog):
 	# Singleton
@@ -135,24 +139,24 @@ class Dialog(wx.Dialog):
 		item.resizeLastColumn(50)
 		item.Bind(
 			wx.EVT_LIST_ITEM_FOCUSED,
-			self.OnModulesListItemSelected)
+			self.onModulesListItemSelected)
 		
 		item = self.moduleCreateButton = wx.Button(
 			self,
 			# Translators: The label for a button in the Web Modules Manager
 			label=_("&New web module..."),
 			)
-		item.Bind(wx.EVT_BUTTON, self.OnModuleCreate)
+		item.Bind(wx.EVT_BUTTON, self.onModuleCreate)
 		
 		# Translators: The label for a button in the Web Modules Manager dialog
 		item = self.moduleEditButton = wx.Button(self, label=_("&Edit..."))
 		item.Disable()
-		item.Bind(wx.EVT_BUTTON, self.OnModuleEdit)
+		item.Bind(wx.EVT_BUTTON, self.onModuleEdit)
 		
 		# Translators: The label for a button in the Web Modules Manager dialog
 		item = self.rulesManagerButton = wx.Button(self, label=_("Manage &rules..."))
 		item.Disable()
-		item.Bind(wx.EVT_BUTTON, self.OnRulesManager)
+		item.Bind(wx.EVT_BUTTON, self.onRulesManager)
 		
 		item = self.moduleDeleteButton = wx.Button(
 			self,
@@ -160,7 +164,7 @@ class Dialog(wx.Dialog):
 			# Web Modules Manager dialog
 			label=_("&Delete"))
 		item.Disable()
-		item.Bind(wx.EVT_BUTTON, self.OnModuleDelete)
+		item.Bind(wx.EVT_BUTTON, self.onModuleDelete)
 				
 		vSizer = wx.BoxSizer(wx.VERTICAL)
 		vSizer.Add(self.moduleCreateButton, flag=wx.EXPAND|wx.LEFT|wx.RIGHT, border=4)
@@ -190,20 +194,20 @@ class Dialog(wx.Dialog):
 	def __del__(self):
 		Dialog._instance = None
 	
-	def InitData(self, context):
+	def initData(self, context):
 		self.context = context
 		module = context["webModule"] if "webModule" in context else None
-		self.RefreshModulesList(selectItem=module)
+		self.refreshModulesList(selectItem=module)
 	
-	def OnModuleCreate(self, evt=None):
+	def onModuleCreate(self, evt=None):
 		from .. import webModuleHandler
 		context = dict(self.context)  # Shallow copy
 		webModuleHandler.showCreator(context)
 		if "webModule" in context:
 			module = context["webModule"]
-			self.RefreshModulesList(selectItem=module) 
+			self.refreshModulesList(selectItem=module) 
 	
-	def OnModuleDelete(self, evt=None):
+	def onModuleDelete(self, evt=None):
 		index = self.modulesList.GetFirstSelected()
 		if index < 0:
 			return
@@ -214,9 +218,9 @@ class Dialog(wx.Dialog):
 				webModule=webModule,
 				focus=self.context.get("focusObject")
 				):
-			self.RefreshModulesList()
+			self.refreshModulesList()
 
-	def OnModuleEdit(self, evt=None):
+	def onModuleEdit(self, evt=None):
 		index = self.modulesList.GetFirstSelected()
 		if index < 0:
 			return
@@ -224,9 +228,9 @@ class Dialog(wx.Dialog):
 		context["webModule"] = self.modules[index]
 		from .. import webModuleHandler
 		webModuleHandler.showEditor(context)
-		self.RefreshModulesList(selectIndex=index)
+		self.refreshModulesList(selectIndex=index)
 	
-	def OnModulesListItemSelected(self, evt):
+	def onModulesListItemSelected(self, evt):
 		index = evt.GetIndex()
 		item = self.modules[index] if index >= 0 else None
 		self.moduleEditButton.Enable(item is not None)
@@ -237,7 +241,7 @@ class Dialog(wx.Dialog):
 			)
 		self.moduleDeleteButton.Enable(item is not None)
 	
-	def OnRulesManager(self, evt=None):
+	def onRulesManager(self, evt=None):
 		index = self.modulesList.GetFirstSelected()
 		if index < 0:
 			return
@@ -247,7 +251,7 @@ class Dialog(wx.Dialog):
 		from .. import ruleHandler
 		ruleHandler.showManager(context)
 
-	def RefreshModulesList(self, selectIndex=0, selectItem=None):
+	def refreshModulesList(self, selectIndex=0, selectItem=None):
 		self.modulesList.DeleteAllItems()
 		modules = self.modules = []
 		modulesList = self.modulesList
@@ -289,7 +293,7 @@ class Dialog(wx.Dialog):
 			self.moduleDeleteButton.Disable()
 	
 	def Show(self, context):
-		self.InitData(context)
+		self.initData(context)
 		self.Fit()
 		self.modulesList.SetFocus()
 		self.Center(wx.BOTH | wx.CENTER_ON_SCREEN)

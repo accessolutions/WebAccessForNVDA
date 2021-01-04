@@ -51,10 +51,10 @@ Monkey-patched NVDA functions:
 * virtualBuffers.VirtualBuffer._loadBufferDone
 """
 
-# Get ready for Python 3
+# Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.10.27"
+__version__ = "2020.12.22"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
@@ -158,6 +158,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	
 	def __init__(self):
 		super(globalPluginHandler.GlobalPlugin, self).__init__()
+		from .config import initialize as config_initialize
+		config_initialize()
 		global scheduler
 		scheduler = WebAppScheduler()
 		scheduler.start()
@@ -170,6 +172,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		)
 		virtualBuffer_loadBufferDone.super = virtualBuffers.VirtualBuffer._loadBufferDone
 		virtualBuffers.VirtualBuffer._loadBufferDone = virtualBuffer_loadBufferDone
+		
+		# FIXME:
+		# After the above call to `.config.initialize` which in turn imports
+		# `.gui.settings` it appears that the `gui` name now points to the `.gui` module
+		# rather that NVDA's `gui`… No clue why…
+		import gui
 		
 		# Used to announce the opening of the Web Access menu
 		mainFrame_prePopup.super = gui.mainFrame.prePopup
@@ -188,6 +196,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def terminate(self):
 		scheduler.send(eventName="stop")
 		webModuleHandler.terminate()
+		from .config import terminate as config_terminate
+		config_terminate()
 		
 	def chooseNVDAObjectOverlayClasses(self, obj, clsList):
 		if any(
@@ -455,10 +465,10 @@ def eventExecuter_gen(self, eventName, obj):
 			# log.info("Getting method %s -> %s" %(webApp.name, funcName))
 			# if webApp.widgetManager.claimVirtualBufferWidget(nodeHandler.REASON_FOCUS) is False:
 			# 	webApp.widgetManager.claimObject(obj)
-			if webApp.activeWidget is not None:
-				func = getattr(webApp.activeWidget, funcName, None)
-				if func:
-					yield func,(obj, self.next)
+			# if webApp.activeWidget is not None:
+			# 	func = getattr(webApp.activeWidget, funcName, None)
+			# 	if func:
+			# 		yield func,(obj, self.next)
 			func = getattr(webApp, funcName, None)
 			if func:
 				yield func,(obj, self.next)

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2020 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,10 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.06.14"
+# Keep compatible with Python 2
+from __future__ import absolute_import, division, print_function
+
+__version__ = "2020.12.22"
 __author__ = u"Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
@@ -100,7 +103,7 @@ def getRuleLabel(rule):
 def getRulesByGesture(markerManager, filter=None, active=False):
 	gestures = {}
 	noGesture = []
-	for rule in markerManager.getQueries():
+	for rule in markerManager.getRules():
 		if filter and filter not in rule.name:
 			continue
 		if active and not rule.getResults():
@@ -149,7 +152,7 @@ def getRulesByName(markerManager, filter=None, active=False):
 				obj=rule,
 				children=[]
 			)
-			for rule in markerManager.getQueries()
+			for rule in markerManager.getRules()
 			if (
 				(not filter or filter.lower() in rule.name.lower())
 				and (not active or rule.getResults())
@@ -214,7 +217,7 @@ def getRulesByPosition(markerManager, filter=None, active=True):
 
 def getRulesByType(markerManager, filter=None, active=False):
 	types = {}
-	for rule in markerManager.getQueries():
+	for rule in markerManager.getRules():
 		if (
 			(filter and filter.lower() not in rule.name.lower())
 			or (active and not rule.getResults())
@@ -533,9 +536,10 @@ class Dialog(wx.Dialog):
 			_("Confirm Deletion"),
 			wx.YES | wx.NO | wx.CANCEL | wx.ICON_QUESTION, self
 		) == wx.YES:
-			self.markerManager.removeQuery(rule)
+			self.markerManager.removeRule(rule)
 			webModuleHandler.update(
 				webModule=self.context["webModule"],
+				layer=rule.layer,
 				focus=self.context["focusObject"]
 			)
 			self.refreshRuleList()

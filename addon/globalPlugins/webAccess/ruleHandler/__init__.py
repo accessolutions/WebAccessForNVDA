@@ -19,14 +19,15 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-# Get ready for Python 3
+# Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.11.23"
+__version__ = "2020.12.22"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
 from collections import OrderedDict
+from itertools import chain
 import threading
 import time
 import wx
@@ -111,36 +112,6 @@ def showManager(context):
 	rulesManager.show(context)
 
 
-class MarkerGenericCollection(genericCollection.GenericCollection):
-	
-	@classmethod
-	def useVirtualBuffer(cls):
-		return True
-
-	@classmethod
-	def getInstanceList(cls, webApp, nodeManager):
-		instanceList = []
-		for query in webApp.markerManager.markerQueries:
-			if query.createWidget:
-				resultList = query.getResults(widget=True)
-				nodeList = [] 
-				for result in resultList:
-					nodeList.append(result.node)
-				if len(nodeList) > 0:
-					instance = MarkerGenericCollection(webApp)
-					instance._collection = nodeList
-					instance._query = query
-					instance.name = query.name
-					instance.brailleName = query.name
-					instanceList.append(instance)
-		return instanceList
-
-	def __init__(self, webApp, obj=None):
-		self.supportSearch = True
-		super(MarkerGenericCollection, self).__init__(webApp)
-		self.autoEnter = False
-
-
 class DefaultMarkerScripts(baseObject.ScriptableObject):
 	
 	def __init__(self, warningMessage):
@@ -167,6 +138,8 @@ class MarkerManager(baseObject.ScriptableObject):
 		self._nodeManager = None
 		self.nodeManagerIdentifier = None
 		self.lock = threading.RLock()
+		self.layers = OrderedDict()
+		self.layersIndex = {}
 		self.rules = self.markerQueries = []
 		self.results = self.markerResults = []
 		self._mutatedControlsById = {}
@@ -176,7 +149,6 @@ class MarkerManager(baseObject.ScriptableObject):
 		self.lastAutoMovetoTime = 0
 		self.defaultMarkerScripts = DefaultMarkerScripts(u"Aucun marqueur associé à cette touche")
 		self.timerCheckAutoAction = None
-		# webApp.widgetManager.register(MarkerGenericCollection)
 		self.zone = None
 	
 	def _get_webModule(self):
@@ -188,58 +160,104 @@ class MarkerManager(baseObject.ScriptableObject):
 	def _get_nodeManager(self):
 		return self._nodeManager and self._nodeManager()
 	
-	def setQueriesData(self, queryData):
-		self.markerQueries[:] = []
-		self.markerResults[:] = []
-		for qd in queryData:
-			rule = self.webModule.createRule(qd)
-			self.addQuery(rule)
-
-	def getQueriesData(self):
-		queryData = []
-		for query in self.markerQueries:
-			queryData.append(query.getData())
-		return queryData
+	def dump(self, layer):
+		return [rule.dump() for rule in self.layers.get(layer, [])]
 	
-	def addQuery(self, query):
-		for q in self.markerQueries:
-			if q == query:
-				return
-		self.markerQueries.append(query)
+	def load(self, layer, index, data):
+		self.unload(layer)
+		self.layers[layer] = []
+		if index is not None:
+			for otherIndex, otherLayer in enumerate(list(self.layers.keys())):
+				if otherIndex >= index:
+					self.layers.move_to_end(otherLayer)
+		self.layersIndex = dict(
+			((layerName, layerIndex) for layerIndex, layerName in enumerate(self.layers.keys()))
+		)
+		for ruleData in data:
+			self.loadRule(layer, index, ruleData)
+	
+	def loadRule(self, layer, index, data):
+		rule = self.webModule.createRule(data)
+		rule.layer = layer
+		self.layers[layer].append(rule)
+		startIndex = endIndex = None
+		rules = []
+		for candidateIndex, candidateRule in enumerate(self.rules):
+			if candidateRule == rule.name:
+				rules.append(rule)
+				if startIndex is None:
+					startIndex = candidateIndex
+			elif startIndex is not None:
+				endIndex = candidateIndex
+				break
+		if index is None:
+			rules.append(rule)
+		else:
+			for otherIndex, otherRule in enumerate(rules):
+				if otherIndex >= list(self.layers.keys()).index(otherRule.layer):
+					rules.insert(otherIndex, rule)
+					break
+			else:
+				rules.append(rule)
+		if startIndex is not None:
+			self.rules[startIndex:endIndex] = rules
+		else:
+			self.rules.append(rule)
+	
+	def unload(self, layer):
+		for index in range(len(self.results)):
+			if self.results[index].rule.layer == layer:
+				del self.results[index]
+		for index in range(len(self.rules)):
+			if self.rules[index].layer == layer:
+				del self.rules[index]
+		self.layers.pop(layer, None)
 
-	def removeQuery(self, query):
-		self.removeResults(query)
-		for i in range(len(self.markerQueries), 0, -1):
-			if self.markerQueries[i-1] == query:
-				del self.markerQueries[i-1]
+	def removeRule(self, rule):
+		self.removeResults(rule)
+		for index, candidate in enumerate(self.rules):
+			if candidate is rule:
+				del self.rules[index]
+		layer = self.layers[rule.layer]
+		del layer[layer.index(rule)]
+	
+	def getRule(self, name, layer=None):
+		if layer is None:
+			for layer in self.layers.keys():
+				if layer != "user" or len(self.layers) == 1:
+					break
+		for rule in self.rules:
+			if rule.name != name:
+				continue
+			if layer is None or self.layersIndex[layer] >= self.layersIndex[rule.layer]:
+				return rule
 
-	def getQueryByName(self, name):
-		for q in self.markerQueries:
-			if q.name == name:
-				return q
-		return None
-
-	def getQueries(self):
-		queries = []
-		for q in self.markerQueries:
-			queries.append(q)
-		return queries
+	def getRules(self):
+		return self.rules
 	
 	def getResults(self):
 		if not self.isReady:
 			return []
 		return self.markerResults
 	
-	def getResultsByName(self, name):
-		if not self.isReady:
-			return []
-		results = []
-		for r in self.markerResults:
-			if r.markerQuery.name == name:
-				results.append(r)
-		return results
+	def getResultsByName(self, name, layer=None):
+		return list(self.iterResultsByName(name, layer=layer))
 	
-	def getPrioritizedResultsByName(self, name):
+	def iterResultsByName(self, name, layer=None):
+		if not self.isReady:
+			return
+		if layer is None:
+			for layer in self.layers.keys():
+				if layer != "user" or len(self.layers) == 1:
+					break
+		for result in self.results:
+			rule = result.rule
+			if rule.name != name:
+				continue
+			elif layer is None or self.layersIndex[layer] >= self.layersIndex[rule.layer]:
+				yield result
+	
+	def getPrioritizedResultsByName(self, name, layer=None):
 		"""
 		This is a temporary measure, allowing to get prioritized results
 		during the update.
@@ -247,8 +265,14 @@ class MarkerManager(baseObject.ScriptableObject):
 		be implemented, as rule names will be unique again.
 		"""
 		results = []
+		rules = []
+		for rule in self.rules:
+			if rule.name != name:
+				continue
+			elif layer is None or self.layersIndex[layer] >= self.layersIndex[rule.layer]:
+				rules.append(rule)
 		for rule in sorted(
-			(rule for rule in self.markerQueries if rule.name == name),
+			rules,
 			key=lambda rule: rule.priority if rule.priority is not None else -1
 		):
 			results.extend(rule.getResults())
@@ -282,10 +306,10 @@ class MarkerManager(baseObject.ScriptableObject):
 	def getMutatedControl(self, controlId):
 		return self._mutatedControlsById.get(controlId)
 	
-	def removeResults(self, query):
-		for i in range(len(self.markerResults), 0, -1):
-			if self.markerResults[i-1].markerQuery== query:
-				del self.markerResults[i-1]
+	def removeResults(self, rule):
+		for index, result in enumerate(self.results):
+			if result.rule is rule:
+				del self.results[index]
 
 	def getActions(self):
 		actions = builtinRuleActions.copy()
@@ -317,14 +341,20 @@ class MarkerManager(baseObject.ScriptableObject):
 		func = super(MarkerManager, self).getScript(gesture)
 		if func is not None:
 			return func
-		for result in self.getResults():
-			func = result.getScript(gesture)
-			if func is not None:
-				return func
-		for query in self.getQueries():
-			func = query.getScript(gesture)
-			if func is not None:
-				return func
+		for layer in reversed(list(self.layers.keys())):
+			for result in self.getResults():
+				if result.rule.layer != layer:
+					continue
+				func = result.getScript(gesture)
+				if func is not None:
+					return func
+		for layer in reversed(list(self.layers.keys())):
+			for rule in self.getRules():
+				if rule.layer != layer:
+					continue
+				func = rule.getScript(gesture)
+				if func is not None:
+					return func
 		return self.defaultMarkerScripts.getScript(gesture)
 	
 	def _get_isReady(self):
@@ -376,8 +406,8 @@ class MarkerManager(baseObject.ScriptableObject):
 			# This is a temporary measure, no longer necessary once multi
 			# criteria sets rules will be implemented, as rule names will be
 			# unique again.
-			for name in list(OrderedDict.fromkeys((
-				rule.name
+			for name, layer in list(OrderedDict((
+				(rule.name, rule.layer)
 				for rule in sorted(
 					self.markerQueries,
 					key=lambda rule: (
@@ -385,8 +415,8 @@ class MarkerManager(baseObject.ScriptableObject):
 							ruleTypes.PAGE_TITLE_1, ruleTypes.PAGE_TITLE_2
 						) else 1
 					)
-			))).keys()):
-				results = self.getPrioritizedResultsByName(name)
+			))).items()):
+				results = self.getPrioritizedResultsByName(name, layer=layer)
 			# for query in sorted(
 			# 	self.markerQueries,
 			# 	key=lambda query: (
@@ -1094,7 +1124,7 @@ class MarkerQuery(baseObject.ScriptableObject):
 	def _iterResults(self):
 		raise NotImplementedError()
 	
-	def getData(self):
+	def dump(self):
 		return None
 	
 	def getDisplayString(self):
@@ -1156,7 +1186,7 @@ class VirtualMarkerQuery(MarkerQuery):
 	def _get_label(self):
 		return self.customName or self.name
 	
-	def getData(self):
+	def dump(self):
 		return self.dic
 		
 	def checkContextPageTitle(self):
@@ -1206,8 +1236,8 @@ class VirtualMarkerQuery(MarkerQuery):
 				name = name.strip()
 				if not name:
 					continue
-				query = self.markerManager.getQueryByName(name)
-				if query is None:
+				rule = self.ruleManager.getRule(name, layer=self.layer)
+				if rule is None:
 					log.error((
 						u"In rule \"{rule}\".contextPageType: "
 						u"Rule not found: \"{pageType}\""
@@ -1217,10 +1247,10 @@ class VirtualMarkerQuery(MarkerQuery):
 				# This is a temporary measure, no longer necessary once multi
 				# criteria sets rules will be implemented, as rule names will
 				# be unique again.
-				results = self.markerManager.getPrioritizedResultsByName(
-					query.name
+				results = self.ruleManager.getPrioritizedResultsByName(
+					rule.name, layer=self.layer
 				)
-				# results = query.getResults()
+				# results = rule.getResults()
 				if results:
 					nodes = [result.node for result in results]
 					if exclude:
@@ -1271,14 +1301,14 @@ class VirtualMarkerQuery(MarkerQuery):
 				name = name.strip()
 				if not name:
 					continue
-				query = self.markerManager.getQueryByName(name)
-				if query is None:
+				rule = self.ruleManager.getRule(name, layer=self.layer)
+				if rule is None:
 					log.error((
 						u"In rule \"{rule}\".contextParent: "
 						u"Rule not found: \"{parent}\""
 					).format(rule=self.name, parent=name))
 					return
-				if not exclude and query.multiple:
+				if not exclude and rule.multiple:
 					if multipleContext is None:
 						multipleContext = True
 				else:
@@ -1286,10 +1316,10 @@ class VirtualMarkerQuery(MarkerQuery):
 				# This is a temporary measure, no longer necessary once multi
 				# criteria sets rules will be implemented, as rule names will
 				# be unique again.
-				results = self.markerManager.getPrioritizedResultsByName(
-					query.name
+				results = self.ruleManager.getPrioritizedResultsByName(
+					rule.name, layer=self.layer
 				)
-				# results = query.getResults()
+				# results = rule.getResults()
 				if results:
 					nodes = [result.node for result in results]
 					if exclude:
@@ -1474,7 +1504,7 @@ class Zone(textInfos.offsets.Offsets, TrackedObject):
 		)
 	
 	def getRule(self):
-		return self.ruleManager.getQueryByName(self.name)
+		return self.ruleManager.getRule(self.name)
 	
 	def isTextInfoAtStart(self, info):
 		if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
@@ -1507,11 +1537,12 @@ class Zone(textInfos.offsets.Offsets, TrackedObject):
 		return res
 	
 	def update(self):
-		results = self.ruleManager.getResultsByName(self.name)
-		if not results:
+		try:
+			result = next(self.ruleManager.iterResultsByName(self.name))
+		except StopIteration:
 			self.startOffset = self.endOffset = None
 			return False
-		return self._update(results[0])
+		return self._update(result)
 	
 	def _update(self, result):
 		node = result.node
