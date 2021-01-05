@@ -101,10 +101,22 @@ def getRuleLabel(rule):
 	return label
 
 
+def getRules(ruleManager):
+	webModule = ruleManager.webModule
+	if not webModule.isReadOnly():
+		layer = webModule._getWritableLayer()
+		return ruleManager.layers.get(layer.name, [])
+	elif config.conf["webAccess"]["devMode"]:
+		return ruleManager.getRules()
+	else:
+		return []
+
+
 def getRulesByGesture(ruleManager, filter=None, active=False):
 	gestures = {}
 	noGesture = []
-	for rule in ruleManager.getRules():
+	
+	for rule in getRules(ruleManager):
 		if filter and filter not in rule.name:
 			continue
 		if active and not rule.getResults():
@@ -153,7 +165,7 @@ def getRulesByName(ruleManager, filter=None, active=False):
 				obj=rule,
 				children=[]
 			)
-			for rule in ruleManager.getRules()
+			for rule in getRules(ruleManager)
 			if (
 				(not filter or filter.lower() in rule.name.lower())
 				and (not active or rule.getResults())
@@ -182,9 +194,19 @@ def getRulesByPosition(ruleManager, filter=None, active=True):
 			parent.parent.tid.children.remove(parent)
 		return True
 	
+	webModule = ruleManager.webModule
+	if not webModule.isReadOnly():
+		layer = webModule._getWritableLayer()
+	elif config.conf["webAccess"]["devMode"]:
+		layer = None
+	else:
+		return
+	
 	parent = None
 	for result in ruleManager.getResults():
-		rule = result.markerQuery
+		rule = result.rule
+		if layer is not None and rule.layer != layer.name:
+			continue
 		tid = TreeItemData(
 			label=getRuleLabel(rule),
 			obj=result,
@@ -218,7 +240,7 @@ def getRulesByPosition(ruleManager, filter=None, active=True):
 
 def getRulesByType(ruleManager, filter=None, active=False):
 	types = {}
-	for rule in ruleManager.getRules():
+	for rule in getRules(ruleManager):
 		if (
 			(filter and filter.lower() not in rule.name.lower())
 			or (active and not rule.getResults())
