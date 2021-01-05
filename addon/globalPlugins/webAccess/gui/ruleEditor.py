@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2020 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.12.22"
+__version__ = "2021.01.04"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -1190,15 +1190,22 @@ class RuleEditor(wx.Dialog):
 			self.ruleNameText.Set(self.getQueriesNames())
 		
 		if self.rule is None:
-			self.Title = _(u"New rule")
+			title = _(u"New rule")
+			if config.conf["webAccess"]["devMode"]:
+				webModule = ruleManager.webModule
+				if not webModule.isReadOnly():
+					title += " ({})".format(webModule._getWritableLayer().name)
+				else:
+					title += " ({})".format("/".join((layer.name for layer in webModule.layers)))
+			self.Title = title
 			self.ruleTypeCombo.SetSelection(-1)
 			self.gestureMapValue = {}
 			self.autoActionList.SetSelection(0)
 			self.comment.Value = ""
 		else:
 			title = _("Edit rule")
-			if config.conf["webAccess"]["devMode"]:
-				title += " ({})".format("/".join((layer.name for layer in ruleManager.webModule.layers)))
+			if config.conf["webAccess"]["devMode"] and rule.layer is not None:
+				title += " ({})".format(rule.layer)
 			self.Title = title
 			self.ruleNameText.Value = rule.name
 			for index, key in enumerate(ruleTypes.ruleTypeLabels.keys()):
