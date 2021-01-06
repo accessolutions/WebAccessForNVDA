@@ -22,7 +22,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.01.04"
+__version__ = "2021.01.05"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -48,8 +48,7 @@ from ..webModuleHandler import getEditableWebModule, save
 try:
 	from wx.lib.expando import ExpandoTextCtrl
 except ImportError:
-	# NVDA version < 2018.2
-	from .wx_lib_expando import ExpandoTextCtrl
+	from ..backports.nvda_2018_2.wx_lib_expando import ExpandoTextCtrl
 
 try:
 	from six import iteritems, text_type

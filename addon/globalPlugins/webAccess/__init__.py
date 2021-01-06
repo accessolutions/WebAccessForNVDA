@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2020 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -54,7 +54,7 @@ Monkey-patched NVDA functions:
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.12.22"
+__version__ = "2021.01.05"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
@@ -176,7 +176,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# FIXME:
 		# After the above call to `.config.initialize` which in turn imports
 		# `.gui.settings` it appears that the `gui` name now points to the `.gui` module
-		# rather that NVDA's `gui`… No clue why…
+		# rather that NVDA's `gui`… No clue why… (Confirmed with Python 2 & 3)
 		import gui
 		
 		# Used to announce the opening of the Web Access menu
@@ -245,6 +245,19 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			context["webModule"] = webModule
 			context["pageTitle"] = webModule.pageTitle
 		menu.show(context)
+	
+	def script_showWebAccessSettings(self, gesture):  # @UnusedVariable
+		from .gui.settings import WebAccessSettingsDialog
+		# FIXME:
+		# After the above import, it appears that the `gui` name now points to the `.gui` module
+		# rather that NVDA's `gui`… No clue why… (Confirmed with Python 2 & 3)
+		import gui
+		gui.mainFrame._popupSettingsDialog(WebAccessSettingsDialog)
+	
+	# Translators: Input help mode message for a command.
+	script_showWebAccessSettings.__doc__ = _("Open the Web Access Settings.")
+
+	script_showWebAccessSettings.category = SCRIPT_CATEGORY
 	
 	def script_debugWebModule(self, gesture):  # @UnusedVariable
 		global activeWebApp
@@ -397,7 +410,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	__gestures = {
 		"kb:nvda+w": "showWebAccessGui",
 		"kb:nvda+shift+w": "toggleWebAccessSupport",
-		"kb:nvda+control+w": "debugWebModule",
+		"kb:nvda+control+w": "showWebAccessSettings",
+		"kb:nvda+control+shift+w": "debugWebModule",
 		"kb:nvda+control+e": "showElementDescription",
 	}
 
