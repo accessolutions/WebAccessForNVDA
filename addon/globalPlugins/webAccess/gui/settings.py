@@ -142,3 +142,5 @@ class WebAccessSettingsPanel(SettingsPanel):
 		config.conf["webAccess"]["devMode"] = self.devMode.GetValue()
 		config.conf["webAccess"]["disableUserConfig"] = self.disableUserConfig.GetValue()
 		config.conf["webAccess"]["writeInAddons"] = self.writeInAddons.GetValue()
+		from ..config import handleConfigChange
+		handleConfigChange()

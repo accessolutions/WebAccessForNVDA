@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2020 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.12.22"
+__version__ = "2021.01.05"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -43,6 +43,7 @@ import ui
 from .webModule import InvalidApiVersion, NewerFormatVersion, WebModule, WebModuleDataLayer
 from ..lib.packaging import version
 from ..nvdaVersion import nvdaVersion
+from ..overlay import WebAccessBmdti
 from ..store import DuplicateRefError
 from ..store import MalformedRefError
 
@@ -52,34 +53,14 @@ _catalog = None
 _webModules = None
 
 
-# def create(webModule, focus, force=False):
-# 	store.create(webModule, force=force)
-# 	getWebModules(refresh=True)
-# 	if focus:
-# 		from .. import webAppScheduler
-# 		webAppScheduler.scheduler.send(
-# 			eventName="configurationChanged",
-# 			webModule=webModule,
-# 			focus=focus
-# 			)
-# 	else:
-# 		log.error("No focus to update")
-
-
-def delete(webModule, focus, prompt=True):
+def delete(webModule, prompt=True):
 	if prompt:
 		from ..gui.webModulesManager import promptDelete
 		if not promptDelete(webModule):
 			return False
 	store.delete(webModule)
 	getWebModules(refresh=True)
-	if focus:
-		from .. import webAppScheduler
-		webAppScheduler.scheduler.send(
-			eventName="configurationChanged",
-			webModule=webModule,
-			focus=focus
-		)
+	resetRunningModules()
 	return True
 
 
@@ -196,6 +177,17 @@ def getWebModules(refresh=False, errors=None):
 	return _webModules
 
 
+def resetRunningModules(webModule=None):
+	import treeInterceptorHandler
+	for ti in treeInterceptorHandler.runningTable:
+		if not isinstance(ti, WebAccessBmdti):
+			continue
+		if webModule is not None and ti.webAccess.webModule != webModule:
+			continue
+		ti.webAccess._nodeManager = None
+		ti.webAccess._webModule = None
+
+
 def save(webModule, focus, layerName=None, prompt=True, force=False):
 	if layerName is not None:
 		layer = webModule.getLayer(layerName, raiseIfMissing=True)
@@ -249,13 +241,7 @@ def save(webModule, focus, layerName=None, prompt=True, force=False):
 		getWebModules(refresh=True)
 		return False
 	getWebModules(refresh=True)
-	if focus:
-		from .. import webAppScheduler
-		webAppScheduler.scheduler.send(
-			eventName="configurationChanged",
-			webModule=webModule,
-			focus=focus
-		)
+	resetRunningModules()
 	return True
 
 
@@ -462,10 +448,8 @@ def initialize():
 	import sys
 	sys.modules["webModules"] = webModules
 	config.addConfigDirsToPythonPackagePath(webModules)
-	webModules.__path__.insert(
-		1 if config.conf["development"]["enableScratchpadDir"] else 0,
-		os.path.join(globalVars.appArgs.configPath, "webModules")
-	)
+	if nvdaVersion < (2019, 1) and not config.conf["webAccess"]["disableUserConfig"]:
+		webModules.__path__.insert(0, os.path.join(globalVars.appArgs.configPath, "webModules"))
 	_importers = list(pkgutil.iter_importers("webModules.__init__"))
 	
 	from ..store.webModule import WebModuleStore

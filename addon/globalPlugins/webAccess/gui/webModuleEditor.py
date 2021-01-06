@@ -306,7 +306,7 @@ class Dialog(wx.Dialog):
 		webModule.windowTitle = windowTitle
 		webModule.help = help
 		
-		if not save(webModule, context.get("focusObject")):
+		if not save(webModule):
 			return
 		
 		assert self.IsModal()

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2020 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.12.22"
+__version__ = "2021.01.05"
 __author__ = u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -214,10 +214,7 @@ class Dialog(wx.Dialog):
 		pass
 		webModule = self.modules[index]
 		from .. import webModuleHandler
-		if webModuleHandler.delete(
-				webModule=webModule,
-				focus=self.context.get("focusObject")
-				):
+		if webModuleHandler.delete(webModule=webModule):
 			self.refreshModulesList()
 
 	def onModuleEdit(self, evt=None):
