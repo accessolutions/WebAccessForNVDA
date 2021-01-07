@@ -54,7 +54,7 @@ Monkey-patched NVDA functions:
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.01.05"
+__version__ = "2021.01.07"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
@@ -158,8 +158,16 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	
 	def __init__(self):
 		super(globalPluginHandler.GlobalPlugin, self).__init__()
+
 		from .config import initialize as config_initialize
 		config_initialize()
+		from .gui.settings import initialize as settings_initialize
+		# FIXME:
+		# After the above import, it appears that the `gui` name now points to the `.gui` module
+		# rather that NVDA's `gui`… No clue why… (Confirmed with Python 2 & 3)
+		import gui
+		settings_initialize()
+		
 		global scheduler
 		scheduler = WebAppScheduler()
 		scheduler.start()
@@ -172,12 +180,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		)
 		virtualBuffer_loadBufferDone.super = virtualBuffers.VirtualBuffer._loadBufferDone
 		virtualBuffers.VirtualBuffer._loadBufferDone = virtualBuffer_loadBufferDone
-		
-		# FIXME:
-		# After the above call to `.config.initialize` which in turn imports
-		# `.gui.settings` it appears that the `gui` name now points to the `.gui` module
-		# rather that NVDA's `gui`… No clue why… (Confirmed with Python 2 & 3)
-		import gui
 		
 		# Used to announce the opening of the Web Access menu
 		mainFrame_prePopup.super = gui.mainFrame.prePopup
@@ -198,6 +200,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		webModuleHandler.terminate()
 		from .config import terminate as config_terminate
 		config_terminate()
+		from .gui.settings import terminate as settings_terminate
+		settings_terminate()
 		
 	def chooseNVDAObjectOverlayClasses(self, obj, clsList):
 		if any(
@@ -612,6 +616,7 @@ def showWebModulesLoadErrors():
 			))
 	if parts:
 		msg = "\n\n".join(parts)
+		import gui
 		wx.CallAfter(
 			gui.messageBox,
 			message=msg,

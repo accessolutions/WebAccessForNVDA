@@ -22,7 +22,7 @@
 # Stay compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.01.05"
+__version__ = "2021.01.07"
 __author__ = u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -79,8 +79,6 @@ def initialize():
 	if nvdaVersion >= (2018, 3):
 		# No need anymore to register on post_configProfileSwitch
 		config.post_configReset.register(handleConfigChange)
-	from .gui.settings import initialize as settings_initialize
-	settings_initialize()
 
 def terminate():
 	config.ConfigManager.BASE_ONLY_SECTIONS.remove("webAccess")
@@ -88,5 +86,3 @@ def terminate():
 		config.post_configProfileSwitch.unregister(handleConfigChange)
 		config.post_configReset.unregister(handleConfigChange)
 		config.post_configSave.unregister(handleConfigChange)
-	from .gui.settings import terminate as settings_terminate
-	settings_terminate()
