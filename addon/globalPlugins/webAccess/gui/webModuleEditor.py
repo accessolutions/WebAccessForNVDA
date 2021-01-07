@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,8 +19,10 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2020.12.22"
+# Keep compatible with Python 2
+from __future__ import absolute_import, division, print_function
 
+__version__ = "2021.01.06"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>"
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
@@ -41,7 +43,7 @@ import gui
 from logHandler import log
 import ui
 
-from ..webModuleHandler import WebModule, getEditableWebModule, save
+from ..webModuleHandler import WebModule, getEditableWebModule, getUrl, getWindowTitle, save
 
 
 addonHandler.initTranslation()
@@ -174,7 +176,6 @@ class Dialog(wx.Dialog):
 		webModule = context.get("webModule")
 		if webModule is None:
 			new = True
-			webModule = WebModule()
 		else:
 			if any(layer.dirty and layer.storeRef is None for layer in webModule.layers):
 				new = True
@@ -182,15 +183,24 @@ class Dialog(wx.Dialog):
 				new = False
 			else:
 				new = True
-		
 		if new:
 			# Translators: Web module creation dialog title
 			title = _("New Web Module")
+			if config.conf["webAccess"]["devMode"]:
+				from .. import webModuleHandler
+				try:
+					store = next(iter(webModuleHandler.store.getSupportingStores(
+						"create",
+						item=getEditableWebModule(WebModule(), prompt=False)
+					)))
+					title += " ({})".format("user" if store.name == "userConfig" else store.name)
+				except Exception:
+					log.exception()
 		else:
 			# Translators: Web module edition dialog title
 			title = _("Edit Web Module")
-		if config.conf["webAccess"]["devMode"] and webModule is not None:
-			title += " ({})".format("/".join((layer.name for layer in webModule.layers)))
+			if config.conf["webAccess"]["devMode"]:
+				title += " ({})".format("/".join((layer.name for layer in webModule.layers)))
 		self.Title = title
 		
 		self.webModuleName.Value = (webModule.name or "") if webModule is not None else ""
@@ -205,7 +215,6 @@ class Dialog(wx.Dialog):
 		if "focusObject" in context:
 			focus = context["focusObject"]
 			if focus and focus.treeInterceptor and focus.treeInterceptor.rootNVDAObject:
-				from ..webModuleHandler import getUrl
 				urlFromObject = getUrl(focus.treeInterceptor.rootNVDAObject)
 				if not urlFromObject:
 					if not webModule:
@@ -254,7 +263,6 @@ class Dialog(wx.Dialog):
 			windowTitleChoices.append(webModule.windowTitle)
 		if "focusObject" in context:
 			obj = context["focusObject"]
-			from ..webModuleHandler import getWindowTitle
 			windowTitle = getWindowTitle(obj)
 			if windowTitle and windowTitle not in windowTitleChoices:
 				windowTitleChoices.append(windowTitle)

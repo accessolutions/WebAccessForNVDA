@@ -361,7 +361,7 @@ def getEditableWebModule(webModule, layerName=None, prompt=True):
 		)
 	
 
-def getEditableScratchpadWebModule(webModule, layerName="addon", prompt=True):
+def getEditableScratchpadWebModule(webModule, layerName=None, prompt=True):
 	if not (
 		config.conf["development"]["enableScratchpadDir"]
 		and config.conf["webAccess"]["devMode"]
@@ -376,6 +376,12 @@ def getEditableScratchpadWebModule(webModule, layerName="addon", prompt=True):
 		from ..gui.webModulesManager import promptMask
 		if not promptMask(webModule):
 			return False
+	if not webModule.layers:  # New module
+		webModule.load("scratchpad")
+		webModule.getLayer("scratchpad", raiseIfMissing=True).dirty = False
+		return webModule
+	if layerName is None:
+		layerName = "addon"
 	data = webModule.dump(layerName).data
 	mask = type(webModule)()
 	mask.load("scratchpad", data=data)

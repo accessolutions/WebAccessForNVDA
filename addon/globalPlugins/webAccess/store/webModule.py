@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2020 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.12.22"
+__version__ = "2021.01.06"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -60,6 +60,7 @@ class WebModuleJsonFileDataStore(Store):
 	
 	def __init__(self, name, basePath, dirName="webModules"):
 		super(WebModuleJsonFileDataStore, self).__init__(name=name)
+		self.basePath = basePath
 		self.path = os.path.join(basePath, dirName)
 	
 	def __repr__(self):
@@ -173,7 +174,7 @@ class WebModuleJsonFileDataStore(Store):
 	
 	def supports(self, operation, **kwargs):
 		if operation in ["create", "delete", "mask", "update"]:
-			if self.path.startswith(globalVars.appArgs.configPath):
+			if self.basePath == globalVars.appArgs.configPath:
 				return not config.conf["webAccess"]["disableUserConfig"]
 			return config.conf["webAccess"]["devMode"]
 		return super(WebModuleJsonFileDataStore, self).supports(operation, **kwargs)
@@ -347,9 +348,15 @@ class WebModuleStore(DispatchStore):
 	
 	def getSupportingStores(self, operation, **kwargs):
 		if operation == "create":
-			if not isinstance(kwargs.get("item"), WebModuleDataLayer):
+			item = kwargs.get("item")
+			if isinstance(item, WebModule):
+				if len(item.layers) == 1:
+					item = item.layers[0]
+				else:
+					raise Exception(f"{item!r}")
+			elif not isinstance(item, WebModuleDataLayer):
 				raise TypeError("item={!r}".format(item))
-			layerName = kwargs["item"].name
+			layerName = item.name
 			if layerName == "user":
 				if self.userStore.supports(operation):
 					return (self.userStore,)
