@@ -19,6 +19,9 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
+# Keep compatible with Python 2
+from __future__ import absolute_import, division, print_function
+
 __version__ = "2020.12.22"
 __author__ = "Shirley Noel <shirley.noel@pole-emploi.fr>"
 

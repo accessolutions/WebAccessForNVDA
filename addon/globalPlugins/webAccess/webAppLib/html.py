@@ -19,9 +19,12 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.08.16"
+# Keep compatible with Python 2
+from __future__ import absolute_import, division, print_function
 
+__version__ = "2019.08.16"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
+
 
 import textInfos
 import api
@@ -30,6 +33,7 @@ from NVDAObjects.IAccessible import IAccessible
 import controlTypes
 from logHandler import log
 import virtualBuffers
+
 
 # global variable that stores the last valid document tree interceptor
 documentTreeInterceptor = None

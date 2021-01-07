@@ -21,9 +21,12 @@
 
 """Web Access GUI."""
 
-__version__ = "2016.12.23"
+# Keep compatible with Python 2
+from __future__ import absolute_import, division, print_function
 
+__version__ = "2016.12.23"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
+
  
 import wx
 
