@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2020 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@ WebAccess overlay classes
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.11.20"
+__version__ = "2021.01.11"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -946,6 +946,13 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 					func, ignoreTreeInterceptorPassThrough=True
 				)
 		return super(WebAccessBmdti, self).getScript(gesture)
+	
+	def event_treeInterceptor_gainFocus(self):
+		webModule = self.webAccess.webModule
+		if webModule and hasattr(webModule, "event_treeInterceptor_gainFocus"):
+			if webModule.event_treeInterceptor_gainFocus():
+				return
+		super(WebAccessBmdti, self).event_treeInterceptor_gainFocus()
 	
 	def script_disablePassThrough(self, gesture):
 		if (
