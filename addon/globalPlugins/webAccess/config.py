@@ -22,7 +22,7 @@
 # Stay compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.01.07"
+__version__ = "2021.01.14"
 __author__ = u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -67,22 +67,30 @@ def handleConfigChange():
 
 
 def initialize():
-	config.conf.spec["webAccess"] = CONFIG_SPEC
+	key = "webAccess"
+	config.conf.spec[key] = CONFIG_SPEC
+	# ConfigObj mutates this into a configobj.Section.
+	spec = config.conf.spec[key]
 	# Disallow profiles from overriding the base configuration
-	config.ConfigManager.BASE_ONLY_SECTIONS.add("webAccess")
-	# Validate the section (required only as its been added to BASE_ONLY_SECTIONS)
+	config.ConfigManager.BASE_ONLY_SECTIONS.add(key)
+	# BASE_ONLY_SECTIONS are returned directly from the base config and need to be validated.
 	# See NVDA's config.ConfigManager._initBaseConf
-	config.conf.profiles[0]["webAccess"].configspec = config.conf.spec["webAccess"]
-	config.conf.profiles[0].validate(config.conf.validator, section=config.conf.profiles[0]["webAccess"])
+	baseProfile = config.conf.profiles[0]
+	try:
+		section = baseProfile[key]
+	except KeyError:
+		baseProfile[key] = {}
+		# ConfigObj mutates this into a configobj.Section.
+		section = baseProfile[key]
+	section.configspec = spec
+	baseProfile.validate(config.conf.validator, section=section)
 	# Initialize cache for later comparison
 	handleConfigChange()
 	if nvdaVersion >= (2018, 3):
-		# No need anymore to register on post_configProfileSwitch
 		config.post_configReset.register(handleConfigChange)
+
 
 def terminate():
 	config.ConfigManager.BASE_ONLY_SECTIONS.remove("webAccess")
 	if nvdaVersion >= (2018, 3):
-		config.post_configProfileSwitch.unregister(handleConfigChange)
 		config.post_configReset.unregister(handleConfigChange)
-		config.post_configSave.unregister(handleConfigChange)
