@@ -22,7 +22,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.01.04"
+__version__ = "2021.02.08"
 __author__ = u"Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
@@ -44,7 +44,7 @@ from ..ruleHandler import (
 	showCreator,
 	showEditor,
 )
-from .. import webModuleHandler
+from ..webModuleHandler import getEditableWebModule, save
 
 try:
 	from six import iteritems
@@ -563,11 +563,14 @@ class Dialog(wx.Dialog):
 			_("Confirm Deletion"),
 			wx.YES | wx.NO | wx.CANCEL | wx.ICON_QUESTION, self
 		) == wx.YES:
+			webModule = getEditableWebModule(self.ruleManager.webModule, layerName=rule.layer)
+			if not webModule:
+				return
 			self.ruleManager.removeRule(rule)
-			webModuleHandler.update(
+			save(
 				webModule=self.context["webModule"],
-				layer=rule.layer,
-				focus=self.context["focusObject"]
+				focus=self.context["focusObject"],
+				layerName=rule.layer,
 			)
 			self.refreshRuleList()
 		wx.CallAfter(self.tree.SetFocus)
@@ -615,7 +618,16 @@ class Dialog(wx.Dialog):
 			self.ruleEditButton.Enabled = False
 			self.ruleComment.Value = ""
 		else:
-			self.resultMoveToButton.Enabled = bool(rule.getResults())
+			try:
+				hasResults = bool(rule.getResults())
+			except Exception:
+				self.resultMoveToButton.Enabled = False
+				self.ruleDeleteButton.Enabled = False
+				self.ruleEditButton.Enabled = False
+				self.ruleComment.Value = ""
+				wx.CallLater(10, self.onTreeSelChanged, evt)
+				return
+			self.resultMoveToButton.Enabled = hasResults
 			self.ruleDeleteButton.Enabled = True
 			self.ruleEditButton.Enabled = True
 			self.ruleComment.Value = rule.comment or ""

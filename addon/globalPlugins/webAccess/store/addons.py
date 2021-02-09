@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2020 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.12.22"
+__version__ = "2021.02.04"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -52,10 +52,10 @@ class AddonsStore(DispatchStore):
 	
 	stores = property(__getStores)
 	
-	def update(self, **kwargs):
+	def update(self, *args, **kwargs):
 		if not (config.conf["webAccess"]["devMode"] and config.conf["webAccess"]["writeInAddons"]):
-			return Store.update(self, **kwargs)
-		return super(AddonsStore).update(**kwargs)
+			return Store.update(self, *args, **kwargs)
+		return super(AddonsStore, self).update(*args, **kwargs)
 	
 	def supports(self, operation, **kwargs):
 		if operation in ("create", "mask"):
@@ -72,6 +72,3 @@ class AddonsStore(DispatchStore):
 	# duplicating it into the scratchpad.
 	create = Store.create
 	delete = Store.delete
-	update = Store.update
-	
-	

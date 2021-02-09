@@ -1187,7 +1187,7 @@ class VirtualMarkerQuery(MarkerQuery):
 		return self.customName or self.name
 	
 	def dump(self):
-		return self.dic
+		return self.dic.copy()
 		
 	def checkContextPageTitle(self):
 		"""

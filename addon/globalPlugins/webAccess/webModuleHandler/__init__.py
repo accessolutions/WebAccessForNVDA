@@ -238,6 +238,14 @@ def save(webModule, focus, layerName=None, prompt=True, force=False):
 		log.exception("save(webModule={!r}, focus={!r}, layerName=={!r}, prompt=={!r}, force=={!r}".format(
 			webModule, focus, layerName, prompt, force
 		))
+		if prompt:
+			gui.messageBox(
+				# Translators: The text of a generic error message dialog
+				message=_("An error occured.\n\nPlease consult NVDA's log."),
+				# Translators: The title of an error message dialog
+				caption=_("Web Access for NVDA"),
+				style=wx.OK | wx.ICON_EXCLAMATION
+			)
 		getWebModules(refresh=True)
 		return False
 	getWebModules(refresh=True)
@@ -339,23 +347,39 @@ def getEditableWebModule(webModule, layerName=None, prompt=True):
 	if webModule is not None:
 		return webModule
 	if prompt:
-		msg = _("This web module cannot be saved under the current configuration.")
+		# Translators: An error message upon attempting to save a modification
+		msg = _("This modification cannot be saved under the current configuration.")
 		hints = []
-		if not config.conf["development"]["enableScratchpadDir"] and (layerName is not None or (
-			config.conf["webAccess"]["devMode"]
-			and config.conf["webAccess"]["disableUserConfig"]
-		)):
-			hints.append(_(u"• In the Advanced category, enable loading of the Scratchpad directory"))
-		if not config.conf["webAccess"]["devMode"] and layerName is not None:
-			hints.append(_(u"• In the WebAccess category, enable Developper Mode."))
 		if config.conf["webAccess"]["disableUserConfig"] and layerName is None:
-			hints.append(_(u"• In the WebAccess category, enable the User Configuration."))
+			# Translators: A hint on how to allow to save a modification
+			hints.append(_(u"• In the WebAccess category, enable User WebModules."))
+		if (
+			not config.conf["webAccess"]["devMode"]
+			and layerName not in ("user", None)
+		):
+			# Translators: A hint on how to allow to save a modification
+			hints.append(_(u"• In the WebAccess category, enable Developper Mode."))
+		if (
+			nvdaVersion >= (2019, 1)
+			and not config.conf["development"]["enableScratchpadDir"]
+			and (
+				layerName is None and config.conf["webAccess"]["disableUserConfig"]
+				or layerName not in ("user", None)
+			)
+		):
+			# Translators: A hint on how to allow to save a modification
+			hints.append(_(u"• In the Advanced category, enable loading of the Scratchpad directory"))
 		if hints:
-			msg += os.linesep + os.linesep + _("You may, in NVDA Preferences:")
+			if len(hints) > 1 and config.conf["webAccess"]["disableUserConfig"] and layerName is None:
+				hints.insert(1, _("or"))
+			msg += os.linesep + os.linesep
+			# Translators: An introduction to hints on how to allow to save a modification
+			msg += _("You may, in NVDA Preferences:")
 			for hint in hints:
 				msg += os.linesep + hint
 		gui.messageBox(
 			message=msg,
+			# Translators: The title of an error message dialog
 			caption=_("Error"),
 			style=wx.OK | wx.ICON_EXCLAMATION
 		)

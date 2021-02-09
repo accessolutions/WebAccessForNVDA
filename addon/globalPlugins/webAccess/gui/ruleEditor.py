@@ -1438,11 +1438,12 @@ class RuleEditor(wx.Dialog):
 		layerName = None
 		if self.rule is not None:
 			layerName = self.rule.layer
-			# modification mode, remove old rule
-			self.ruleManager.removeRule(self.rule)
 		webModule = getEditableWebModule(self.ruleManager.webModule, layerName=layerName)
 		if not webModule:
 			return
+		if self.rule is not None:
+			# modification mode, remove old rule
+			self.ruleManager.removeRule(self.rule)
 		if layerName == "addon":
 			if not webModule.getLayer("addon") and webModule.getLayer("scratchpad"):
 				layerName = "scratchpad"
