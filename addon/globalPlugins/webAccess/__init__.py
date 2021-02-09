@@ -54,7 +54,7 @@ Monkey-patched NVDA functions:
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.01.07"
+__version__ = "2021.02.05"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
@@ -150,7 +150,7 @@ def getVersion():
 			addonPath = os.path.abspath(addon.path)
 			if addonPath == thisPath:
 				return addon.manifest["version"]
-	except:
+	except Exception:
 		log.exception("While retrieving addon version")
 
 
@@ -620,6 +620,7 @@ def showWebModulesLoadErrors():
 		wx.CallAfter(
 			gui.messageBox,
 			message=msg,
+			# Translators: The title of an error message dialog
 			caption=_("Web Access for NVDA"),
 			style=wx.ICON_WARNING,
 			parent=gui.mainFrame

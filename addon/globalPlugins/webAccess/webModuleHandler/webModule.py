@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2020 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.12.22"
+__version__ = "2021.02.04"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
@@ -157,7 +157,7 @@ class WebModule(baseObject.ScriptableObject):
 		if not title:
 			try:
 				title = self.markerManager.getPageTitle()
-			except:
+			except Exception:
 				log.exception(
 					u'Error while retrieving page title'
 					u' in WebModule "{}"'.format(

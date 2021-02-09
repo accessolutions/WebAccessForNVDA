@@ -24,7 +24,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.01.05"
+__version__ = "2021.02.04"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -58,7 +58,9 @@ def initialize():
 		global _webAccessMenuItem
 		_webAccessMenuItem = preferencesMenu.Append(
 			wx.ID_ANY,
+			# Translators: An item in NVDA's Preferences menu
 			_("&WebAccess..."),
+			# Translators: The contextual help for an item in NVDA's Preferences menu
 			_("WebAccess Preferences")
 		)
 		sysTrayIcon.Bind(
@@ -83,7 +85,7 @@ class WebAccessSettingsDialog(SettingsDialog):
 	
 	panel = None
 	# Translators: The title of a dialog
-	title = _("WebAccess preferences")
+	title = _("WebAccess Preferences")
 	
 	def makeSettings(self, settingsSizer):
 		panel = self.panel = WebAccessSettingsPanel(self)
@@ -127,7 +129,7 @@ class WebAccessSettingsPanel(SettingsPanel):
 		sHelper = guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
 		item = self.devMode = sHelper.addItem(
 			# Translators: The label for a settings in the WebAccess settings panel
-			wx.CheckBox(self, label=_("&Developper mode"))
+			wx.CheckBox(self, label=_("&Developer mode"))
 		)
 		item.SetValue(config.conf["webAccess"]["devMode"])
 		item = self.disableUserConfig = sHelper.addItem(

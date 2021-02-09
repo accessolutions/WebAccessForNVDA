@@ -24,7 +24,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.01.05"
+__version__ = "2021.02.08"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -142,7 +142,7 @@ def getWindowTitle(obj):
 		return res
 	try:
 		res = obj.IAccessibleObject.accName(obj.IAccessibleChildID)
-	except:
+	except Exception:
 		pass
 	if res:
 		return res
@@ -152,7 +152,7 @@ def getWindowTitle(obj):
 def getUrl(obj):
 	try:
 		url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
-	except: 
+	except Exception:
 		url = None
 	if url:
 		return url
@@ -161,7 +161,7 @@ def getUrl(obj):
 			root = obj.parent.treeInterceptor.rootNVDAObject
 			if root is not obj:
 				return getUrl(root)
-	except:
+	except Exception:
 		log.exception()
 	return None
 
@@ -414,7 +414,7 @@ def getWebModuleFactory(name):
 		else:
 			import importlib
 			mod = importlib.import_module("webModules.{}".format(name), package="webModules")
-	except:
+	except Exception:
 		log.exception("Could not import custom module webModules.{}".format(name))
 	if not mod:
 		return WebModule

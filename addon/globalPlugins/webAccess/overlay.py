@@ -26,7 +26,7 @@ WebAccess overlay classes
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.01.11"
+__version__ = "2021.02.08"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -217,7 +217,7 @@ class WebAccessBmdtiHelper(TrackedObject):
 			from . import webModuleHandler
 			try:
 				webModule = self._webModule = webModuleHandler.getWebModuleForTreeInterceptor(ti)
-			except:
+			except Exception:
 				log.exception()
 		return webModule
 	
@@ -454,7 +454,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			del root._propertyCache[type(root).IAccessibleRole.fget]
 		except KeyError:
 			return isAlive
-		except:
+		except Exception:
 			log.exception()
 		else:
 			isAlive = super(WebAccessBmdti, self).isAlive
@@ -578,7 +578,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 					try:
 						obj = item.textInfo.NVDAObjectAtStart
 						controlId = obj.IA2UniqueID
-					except:
+					except Exception:
 						log.exception()
 				if controlId is None:
 					log.error((
@@ -1055,9 +1055,11 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 	script_quickNavToPreviousResultLevel3.passThroughIfNoWebModule = True
 	
 	def script_refreshResults(self, gesture):
+		# Translators: Notified when manually refreshing results
 		ui.message(_("Refresh results"))
 		self.webAccess.ruleManager.update()
 	
+	# Translators: The description for the refreshResults script
 	script_refreshResults.__doc__ = _("Refresh results")
 	script_refreshResults.category = SCRCAT_WEBACCESS
 	script_refreshResults.ignoreTreeInterceptorPassThrough = True
@@ -1131,7 +1133,7 @@ class WebAccessObjectHelper(TrackedObject):
 				return ti
 			try:
 				obj = ti.rootNVDAObject.parent
-			except:
+			except Exception:
 				return None
 	
 	@property
@@ -1148,7 +1150,7 @@ class WebAccessObjectHelper(TrackedObject):
 		obj = self.obj
 		try:
 			controlId = obj.treeInterceptor.getIdentifierFromNVDAObject(obj)[1]
-		except:
+		except Exception:
 			log.exception()
 			return default
 		mutated = mgr.getMutatedControl(controlId)
@@ -1182,7 +1184,7 @@ class WebAccessObject(IAccessible):
 		if level:
 			try:
 				level = int(level)
-			except:
+			except Exception:
 				log.exception(
 					"Could not convert to int: level={}".format(level)
 				)
@@ -1219,7 +1221,7 @@ class WebAccessObject(IAccessible):
 				if initFunc:
 					try:
 						initFunc(obj)
-					except:
+					except Exception:
 						log.exception()
 	
 	if (2017, 3) <= nvdaVersion < (2019, 2):

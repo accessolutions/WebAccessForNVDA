@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2020 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.12.22"
+__version__ = "2021.02.08"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -514,7 +514,7 @@ class MarkerManager(baseObject.ScriptableObject):
 									func,
 									None
 								) 
-							except:
+							except Exception:
 								log.exception((
 									u'Error in rule "{rule}" while executing'
 									u' autoAction "{autoAction}"'
@@ -1016,7 +1016,7 @@ class VirtualMarkerResult(MarkerResult):
 		focusObject = api.getFocusObject()
 		try:
 			nodeObject = self.node.getNVDAObject()
-		except:
+		except Exception:
 			nodeObject = None
 		if nodeObject == focusObject and focusObject is not None:
 			focusObject.reportFocus()
@@ -1036,7 +1036,7 @@ class VirtualMarkerResult(MarkerResult):
 			self.node.moveto()
 			html.speakLine()
 			api.processPendingEvents()
-		except:
+		except Exception:
 			log.exception("Error during script_sayall")
 			return
 		finally:

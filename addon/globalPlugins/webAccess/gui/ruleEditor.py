@@ -22,7 +22,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.01.05"
+__version__ = "2021.02.08"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -576,7 +576,7 @@ class RuleCriteriaEditor(wx.Dialog):
 		if index.strip():
 			try:
 				index = int(index)
-			except:
+			except Exception:
 				index = 0
 			if index > 0:
 				data["index"] = index

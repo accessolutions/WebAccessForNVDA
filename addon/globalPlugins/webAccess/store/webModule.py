@@ -24,7 +24,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.01.06"
+__version__ = "2021.02.08"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -82,7 +82,7 @@ class WebModuleJsonFileDataStore(Store):
 						value = data.get("WebModule", data.get("WebApp", {})).get(key)
 						if value:
 							meta[key] = value
-				except:
+				except Exception:
 					if errors:
 						errors.append((ref, sys.exc_info()))
 					else:
@@ -195,7 +195,7 @@ class WebModuleJsonFileDataStore(Store):
 		try:
 			with open(path, "r") as f:
 				return json.load(f)
-		except:
+		except Exception:
 			log.exception(u"Failed reading file: {}".format(path))
 			raise
 	
@@ -203,7 +203,7 @@ class WebModuleJsonFileDataStore(Store):
 		try:
 			with open(path, "w") as f:
 				json.dump(data, f, indent=4)
-		except:
+		except Exception:
 			log.exception(
 				u"Failed writing file: {path}".format(path=path)
 			)
