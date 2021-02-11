@@ -22,7 +22,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.01.06"
+__version__ = "2021.02.10"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>"
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
@@ -189,11 +189,14 @@ class Dialog(wx.Dialog):
 			if config.conf["webAccess"]["devMode"]:
 				from .. import webModuleHandler
 				try:
+					guineaPig = getEditableWebModule(WebModule(), prompt=False)
 					store = next(iter(webModuleHandler.store.getSupportingStores(
 						"create",
-						item=getEditableWebModule(WebModule(), prompt=False)
-					)))
-					title += " ({})".format("user" if store.name == "userConfig" else store.name)
+						item=guineaPig
+					))) if guineaPig is not None else None
+					title += " ({})".format(
+						store and ("user" if store.name == "userConfig" else store.name)
+					)
 				except Exception:
 					log.exception()
 		else:

@@ -22,7 +22,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.02.08"
+__version__ = "2021.02.10"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -1459,7 +1459,7 @@ class RuleEditor(wx.Dialog):
 			)
 		ruleManager.loadRule(layerName, None, data)
 		webModule.getLayer(layerName, raiseIfMissing=True).dirty = True
-		if not save(webModule, focus=self.context.get("focusObject"), layerName=layerName):
+		if not save(webModule, layerName=layerName):
 			return
 		
 		assert self.IsModal()

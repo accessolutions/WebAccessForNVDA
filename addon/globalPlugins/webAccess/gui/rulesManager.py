@@ -22,7 +22,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.02.08"
+__version__ = "2021.02.10"
 __author__ = u"Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
@@ -569,7 +569,6 @@ class Dialog(wx.Dialog):
 			self.ruleManager.removeRule(rule)
 			save(
 				webModule=self.context["webModule"],
-				focus=self.context["focusObject"],
 				layerName=rule.layer,
 			)
 			self.refreshRuleList()

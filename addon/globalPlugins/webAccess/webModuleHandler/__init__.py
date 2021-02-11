@@ -24,7 +24,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.02.08"
+__version__ = "2021.02.10"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -188,7 +188,7 @@ def resetRunningModules(webModule=None):
 		ti.webAccess._webModule = None
 
 
-def save(webModule, focus, layerName=None, prompt=True, force=False):
+def save(webModule, layerName=None, prompt=True, force=False):
 	if layerName is not None:
 		layer = webModule.getLayer(layerName, raiseIfMissing=True)
 	else:
@@ -219,7 +219,7 @@ def save(webModule, focus, layerName=None, prompt=True, force=False):
 			return False
 		from ..gui import webModuleEditor
 		if webModuleEditor.promptOverwrite():
-			return save(webModule, focus, layerName=layerName, prompt=prompt, force=True)
+			return save(webModule, layerName=layerName, prompt=prompt, force=True)
 		return False
 	except MalformedRefError:
 		prompt and gui.messageBox(
@@ -235,8 +235,8 @@ def save(webModule, focus, layerName=None, prompt=True, force=False):
 		)
 		return False
 	except Exception:
-		log.exception("save(webModule={!r}, focus={!r}, layerName=={!r}, prompt=={!r}, force=={!r}".format(
-			webModule, focus, layerName, prompt, force
+		log.exception("save(webModule={!r}, layerName=={!r}, prompt=={!r}, force=={!r}".format(
+			webModule, layerName, prompt, force
 		))
 		if prompt:
 			gui.messageBox(
@@ -333,18 +333,21 @@ def showManager(context):
 
 
 def getEditableWebModule(webModule, layerName=None, prompt=True):
-	if layerName is not None:
-		if not webModule.getLayer(layerName).readOnly:
-			return webModule
-		webModule = getEditableScratchpadWebModule(webModule, layerName=layerName, prompt=prompt)
-	else:
-		if not webModule.isReadOnly():
-			return webModule
-		webModule = (
-			getEditableUserConfigWebModule(webModule)
-			or getEditableScratchpadWebModule(webModule, prompt=prompt)
-		)
-	if webModule is not None:
+	try:
+		if layerName is not None:
+			if not webModule.getLayer(layerName).readOnly:
+				return webModule
+			webModule = getEditableScratchpadWebModule(webModule, layerName=layerName, prompt=prompt)
+		else:
+			if not webModule.isReadOnly():
+				return webModule
+			webModule = (
+				getEditableUserConfigWebModule(webModule)
+				or getEditableScratchpadWebModule(webModule, prompt=prompt)
+			)
+	except Exception:
+		log.exception("webModule={!r}, layerName={!r}".format(webModule, layerName))
+	if webModule:
 		return webModule
 	if prompt:
 		# Translators: An error message upon attempting to save a modification
@@ -387,7 +390,7 @@ def getEditableWebModule(webModule, layerName=None, prompt=True):
 
 def getEditableScratchpadWebModule(webModule, layerName=None, prompt=True):
 	if not (
-		config.conf["development"]["enableScratchpadDir"]
+		(config.conf["development"]["enableScratchpadDir"] or nvdaVersion < (2019, 1))
 		and config.conf["webAccess"]["devMode"]
 	):
 		return None
@@ -396,16 +399,18 @@ def getEditableScratchpadWebModule(webModule, layerName=None, prompt=True):
 		if layer.readOnly:
 			return None
 		return webModule
-	if prompt:
-		from ..gui.webModulesManager import promptMask
-		if not promptMask(webModule):
-			return False
 	if not webModule.layers:  # New module
 		webModule.load("scratchpad")
 		webModule.getLayer("scratchpad", raiseIfMissing=True).dirty = False
 		return webModule
 	if layerName is None:
 		layerName = "addon"
+	if layerName != "addon":
+		return None
+	if prompt:
+		from ..gui.webModulesManager import promptMask
+		if not promptMask(webModule):
+			return False
 	data = webModule.dump(layerName).data
 	mask = type(webModule)()
 	mask.load("scratchpad", data=data)

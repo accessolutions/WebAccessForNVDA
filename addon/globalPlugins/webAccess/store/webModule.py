@@ -24,7 +24,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.02.08"
+__version__ = "2021.02.10"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -353,7 +353,7 @@ class WebModuleStore(DispatchStore):
 				if len(item.layers) == 1:
 					item = item.layers[0]
 				else:
-					raise Exception(f"{item!r}")
+					raise Exception("item={!r}".format(item))
 			elif not isinstance(item, WebModuleDataLayer):
 				raise TypeError("item={!r}".format(item))
 			layerName = item.name
@@ -363,7 +363,7 @@ class WebModuleStore(DispatchStore):
 			elif layerName == "scratchpad":
 				if self.scratchpadStore and self.scratchpadStore.supports(operation):
 					return (self.scratchpadStore,)
-			return None
+			return tuple()
 		return super(WebModuleStore, self).getSupportingStores(operation, **kwargs)
 	
 	def update(self, item, layerName=None, ref=None, **kwargs):
