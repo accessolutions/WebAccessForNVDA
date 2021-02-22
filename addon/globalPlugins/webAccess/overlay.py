@@ -26,7 +26,7 @@ WebAccess overlay classes
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.02.08"
+__version__ = "2021.02.10"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -855,7 +855,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 				return True
 		return super(WebAccessBmdti, self)._tabOverride(direction)
 	
-	def doFindText(self, text, reverse=False, caseSensitive=False):
+	def doFindText(self, text, reverse=False, caseSensitive=False, willSayAllResume=False):
 		if not text:
 			return
 		info = self.makeTextInfo(textInfos.POSITION_CARET)
@@ -864,7 +864,8 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			self.selection = info
 			speech.cancelSpeech()
 			info.move(textInfos.UNIT_LINE, 1, endPoint="end")
-			speech.speakTextInfo(info, reason=controlTypes.REASON_CARET)
+			if not willSayAllResume or nvdaVersion < (2020, 4):
+				speech.speakTextInfo(info, reason=controlTypes.REASON_CARET)
 		elif self.webAccess.zone:
 			def ask():
 				if gui.messageBox(
