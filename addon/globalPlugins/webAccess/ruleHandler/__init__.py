@@ -1366,8 +1366,8 @@ class VirtualMarkerQuery(MarkerQuery):
 				if limit is not None and not multipleContext:
 					limit -= 1
 				context = textInfos.offsets.Offsets(
-					startOffset=node.offset,
-					endOffset=node.offset + node.size
+					startOffset=root.offset,
+					endOffset=root.offset + root.size
 				) if root is not self.ruleManager.nodeManager.mainNode else None
 				yield self.createResult(node, context)
 				if not self.multiple and not multipleContext:
