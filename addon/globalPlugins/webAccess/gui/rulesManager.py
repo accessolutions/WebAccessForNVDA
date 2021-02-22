@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,10 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2019.06.14"
+# Keep compatible with Python 2
+from __future__ import absolute_import, division, print_function
+
+__version__ = "2021.02.10"
 __author__ = u"Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
@@ -27,6 +30,7 @@ from collections import namedtuple
 import wx
 
 import addonHandler
+import config
 import gui
 import inputCore
 import queueHandler
@@ -40,7 +44,7 @@ from ..ruleHandler import (
 	showCreator,
 	showEditor,
 )
-from .. import webModuleHandler
+from ..webModuleHandler import getEditableWebModule, save
 
 try:
 	from six import iteritems
@@ -97,10 +101,22 @@ def getRuleLabel(rule):
 	return label
 
 
-def getRulesByGesture(markerManager, filter=None, active=False):
+def getRules(ruleManager):
+	webModule = ruleManager.webModule
+	if not webModule.isReadOnly():
+		layer = webModule._getWritableLayer()
+		return ruleManager.layers.get(layer.name, [])
+	elif config.conf["webAccess"]["devMode"]:
+		return ruleManager.getRules()
+	else:
+		return []
+
+
+def getRulesByGesture(ruleManager, filter=None, active=False):
 	gestures = {}
 	noGesture = []
-	for rule in markerManager.getQueries():
+	
+	for rule in getRules(ruleManager):
 		if filter and filter not in rule.name:
 			continue
 		if active and not rule.getResults():
@@ -141,7 +157,7 @@ def getRulesByGesture(markerManager, filter=None, active=False):
 		)
 
 
-def getRulesByName(markerManager, filter=None, active=False):
+def getRulesByName(ruleManager, filter=None, active=False):
 	return sorted(
 		(
 			TreeItemData(
@@ -149,7 +165,7 @@ def getRulesByName(markerManager, filter=None, active=False):
 				obj=rule,
 				children=[]
 			)
-			for rule in markerManager.getQueries()
+			for rule in getRules(ruleManager)
 			if (
 				(not filter or filter.lower() in rule.name.lower())
 				and (not active or rule.getResults())
@@ -159,7 +175,7 @@ def getRulesByName(markerManager, filter=None, active=False):
 	)
 
 
-def getRulesByPosition(markerManager, filter=None, active=True):
+def getRulesByPosition(ruleManager, filter=None, active=True):
 	"""
 	Yield rules by position.
 	
@@ -178,9 +194,19 @@ def getRulesByPosition(markerManager, filter=None, active=True):
 			parent.parent.tid.children.remove(parent)
 		return True
 	
+	webModule = ruleManager.webModule
+	if not webModule.isReadOnly():
+		layer = webModule._getWritableLayer()
+	elif config.conf["webAccess"]["devMode"]:
+		layer = None
+	else:
+		return
+	
 	parent = None
-	for result in markerManager.getResults():
-		rule = result.markerQuery
+	for result in ruleManager.getResults():
+		rule = result.rule
+		if layer is not None and rule.layer != layer.name:
+			continue
 		tid = TreeItemData(
 			label=getRuleLabel(rule),
 			obj=result,
@@ -212,9 +238,9 @@ def getRulesByPosition(markerManager, filter=None, active=True):
 		parent = parent.parent
 
 
-def getRulesByType(markerManager, filter=None, active=False):
+def getRulesByType(ruleManager, filter=None, active=False):
 	types = {}
-	for rule in markerManager.getQueries():
+	for rule in getRules(ruleManager):
 		if (
 			(filter and filter.lower() not in rule.name.lower())
 			or (active and not rule.getResults())
@@ -391,8 +417,12 @@ class Dialog(wx.Dialog):
 	def initData(self, context):
 		global lastGroupBy, lastActiveOnly
 		self.context = context
-		self.markerManager = context["webModule"].markerManager
-		self.Title = u"Web Module - %s" % self.markerManager.webApp.name
+		ruleManager = self.ruleManager = context["webModule"].ruleManager
+		webModule = ruleManager.webModule
+		title = u"Web Module - {}".format(webModule.name)
+		if config.conf["webAccess"]["devMode"]:
+			title += " ({})".format("/".join((layer.name for layer in webModule.layers)))
+		self.Title = title
 		self.activeOnlyCheckBox.Value = lastActiveOnly
 		self.groupByRadio.Selection = next((
 			index
@@ -425,7 +455,7 @@ class Dialog(wx.Dialog):
 		self.tree.DeleteChildren(self.treeRoot)
 		
 		tids = groupBy.func(
-			self.markerManager,
+			self.ruleManager,
 			filter,
 			active
 		) if groupBy.func else []
@@ -533,10 +563,13 @@ class Dialog(wx.Dialog):
 			_("Confirm Deletion"),
 			wx.YES | wx.NO | wx.CANCEL | wx.ICON_QUESTION, self
 		) == wx.YES:
-			self.markerManager.removeQuery(rule)
-			webModuleHandler.update(
+			webModule = getEditableWebModule(self.ruleManager.webModule, layerName=rule.layer)
+			if not webModule:
+				return
+			self.ruleManager.removeRule(rule)
+			save(
 				webModule=self.context["webModule"],
-				focus=self.context["focusObject"]
+				layerName=rule.layer,
 			)
 			self.refreshRuleList()
 		wx.CallAfter(self.tree.SetFocus)
@@ -584,7 +617,16 @@ class Dialog(wx.Dialog):
 			self.ruleEditButton.Enabled = False
 			self.ruleComment.Value = ""
 		else:
-			self.resultMoveToButton.Enabled = bool(rule.getResults())
+			try:
+				hasResults = bool(rule.getResults())
+			except Exception:
+				self.resultMoveToButton.Enabled = False
+				self.ruleDeleteButton.Enabled = False
+				self.ruleEditButton.Enabled = False
+				self.ruleComment.Value = ""
+				wx.CallLater(10, self.onTreeSelChanged, evt)
+				return
+			self.resultMoveToButton.Enabled = hasResults
 			self.ruleDeleteButton.Enabled = True
 			self.ruleEditButton.Enabled = True
 			self.ruleComment.Value = rule.comment or ""

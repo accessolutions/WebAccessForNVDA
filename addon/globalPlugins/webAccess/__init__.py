@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -49,13 +49,12 @@ Monkey-patched NVDA functions:
 * gui.mainFrame.postPopup
 * virtualBuffers.VirtualBuffer.changeNotify
 * virtualBuffers.VirtualBuffer._loadBufferDone
-* virtualBuffers.VirtualBuffer.terminate
 """
 
-# Get ready for Python 3
+# Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.12.07"
+__version__ = "2021.02.05"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
@@ -113,7 +112,7 @@ SOUND_DIRECTORY = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..",
 
 
 
-supportedWebAppHosts = ['firefox', 'chrome', 'java', 'iexplore', 'microsoftedgecp']
+supportedWebAppHosts = ['firefox', 'chrome', 'java', 'iexplore', 'microsoftedgecp', 'msedge']
 
 activeWebApp = None
 useInternalBrowser = False
@@ -151,7 +150,7 @@ def getVersion():
 			addonPath = os.path.abspath(addon.path)
 			if addonPath == thisPath:
 				return addon.manifest["version"]
-	except:
+	except Exception:
 		log.exception("While retrieving addon version")
 
 
@@ -159,6 +158,16 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	
 	def __init__(self):
 		super(globalPluginHandler.GlobalPlugin, self).__init__()
+
+		from .config import initialize as config_initialize
+		config_initialize()
+		from .gui.settings import initialize as settings_initialize
+		# FIXME:
+		# After the above import, it appears that the `gui` name now points to the `.gui` module
+		# rather that NVDA's `gui`… No clue why… (Confirmed with Python 2 & 3)
+		import gui
+		settings_initialize()
+		
 		global scheduler
 		scheduler = WebAppScheduler()
 		scheduler.start()
@@ -171,8 +180,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		)
 		virtualBuffer_loadBufferDone.super = virtualBuffers.VirtualBuffer._loadBufferDone
 		virtualBuffers.VirtualBuffer._loadBufferDone = virtualBuffer_loadBufferDone
-		virtualBuffer_terminate.super = virtualBuffers.VirtualBuffer.terminate 
-		virtualBuffers.VirtualBuffer.terminate = virtualBuffer_terminate
 		
 		# Used to announce the opening of the Web Access menu
 		mainFrame_prePopup.super = gui.mainFrame.prePopup
@@ -191,6 +198,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def terminate(self):
 		scheduler.send(eventName="stop")
 		webModuleHandler.terminate()
+		from .config import terminate as config_terminate
+		config_terminate()
+		from .gui.settings import terminate as settings_terminate
+		settings_terminate()
 		
 	def chooseNVDAObjectOverlayClasses(self, obj, clsList):
 		if any(
@@ -238,6 +249,19 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			context["webModule"] = webModule
 			context["pageTitle"] = webModule.pageTitle
 		menu.show(context)
+	
+	def script_showWebAccessSettings(self, gesture):  # @UnusedVariable
+		from .gui.settings import WebAccessSettingsDialog
+		# FIXME:
+		# After the above import, it appears that the `gui` name now points to the `.gui` module
+		# rather that NVDA's `gui`… No clue why… (Confirmed with Python 2 & 3)
+		import gui
+		gui.mainFrame._popupSettingsDialog(WebAccessSettingsDialog)
+	
+	# Translators: Input help mode message for a command.
+	script_showWebAccessSettings.__doc__ = _("Open the Web Access Settings.")
+
+	script_showWebAccessSettings.category = SCRIPT_CATEGORY
 	
 	def script_debugWebModule(self, gesture):  # @UnusedVariable
 		global activeWebApp
@@ -390,7 +414,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	__gestures = {
 		"kb:nvda+w": "showWebAccessGui",
 		"kb:nvda+shift+w": "toggleWebAccessSupport",
-		"kb:nvda+control+w": "debugWebModule",
+		"kb:nvda+control+w": "showWebAccessSettings",
+		"kb:nvda+control+shift+w": "debugWebModule",
 		"kb:nvda+control+e": "showElementDescription",
 	}
 
@@ -418,14 +443,6 @@ def VirtualBuffer_changeNotify(cls, rootDocHandle, rootID):
 	# log.info(u"change notify")
 	# Stock classmethod was stored bound
 	VirtualBuffer_changeNotify.super(rootDocHandle, rootID)
-
-
-def virtualBuffer_terminate(self):
-	if isinstance(self, overlay.WebAccessBmdti):
-		self.webAccess._nodeManager = None
-		self.webAccess._webModule = None
-	# Stock method was stored unbound
-	virtualBuffer_terminate.super.__get__(self)()
 
 
 def virtualBuffer_loadBufferDone(self, success=True):
@@ -464,12 +481,12 @@ def eventExecuter_gen(self, eventName, obj):
 				webAppLoseFocus(obj)
 		else:
 			# log.info("Getting method %s -> %s" %(webApp.name, funcName))
-			if webApp.widgetManager.claimVirtualBufferWidget(nodeHandler.REASON_FOCUS) is False:
-				webApp.widgetManager.claimObject(obj)
-			if webApp.activeWidget is not None:
-				func = getattr(webApp.activeWidget, funcName, None)
-				if func:
-					yield func,(obj, self.next)
+			# if webApp.widgetManager.claimVirtualBufferWidget(nodeHandler.REASON_FOCUS) is False:
+			# 	webApp.widgetManager.claimObject(obj)
+			# if webApp.activeWidget is not None:
+			# 	func = getattr(webApp.activeWidget, funcName, None)
+			# 	if func:
+			# 		yield func,(obj, self.next)
 			func = getattr(webApp, funcName, None)
 			if func:
 				yield func,(obj, self.next)
@@ -495,8 +512,6 @@ def eventExecuter_gen(self, eventName, obj):
 	# NVDAObject level.
 	func = getattr(obj, funcName, None)
 	if func:
-		if obj.name is not None and "http" in obj.name and obj.role in [controlTypes.ROLE_DOCUMENT, controlTypes.ROLE_FRAME]:
-			return
 		yield func, ()
 
 
@@ -601,9 +616,11 @@ def showWebModulesLoadErrors():
 			))
 	if parts:
 		msg = "\n\n".join(parts)
+		import gui
 		wx.CallAfter(
 			gui.messageBox,
 			message=msg,
+			# Translators: The title of an error message dialog
 			caption=_("Web Access for NVDA"),
 			style=wx.ICON_WARNING,
 			parent=gui.mainFrame

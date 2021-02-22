@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2020 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.12.12"
+__version__ = "2020.11.23"
 __authors__ = (
 	u"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
 	u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
@@ -33,6 +33,7 @@ import gc
 import re
 import time
 from xml.parsers import expat
+import weakref
 
 import baseObject
 import controlTypes
@@ -41,6 +42,7 @@ import mouseHandler
 import NVDAHelper
 import sayAllHandler
 import textInfos
+import treeInterceptorHandler
 import ui
 import winUser
 
@@ -58,6 +60,12 @@ try:
 except ImportError:
 	# NVDA < 2018.4
 	from .ast import literal_eval
+
+try:
+	from garbageHandler import TrackedObject	
+except ImportError:
+	# NVDA < 2020.3
+	TrackedObject = object
 
 
 TRACE = lambda *args, **kwargs: None  # noqa: E731
@@ -83,10 +91,10 @@ class NodeManager(baseObject.ScriptableObject):
 		self.index = nodeManagerIndex
 		self._ready = False
 		self.identifier = None
-		self.backendDict = {}
 		self.treeInterceptor = treeInterceptor
 		self.treeInterceptorSize = 0
 		self.mainNode = None
+		self._lastTextNode = None
 		self.devNode = None
 		self.callbackNodeMoveto = None
 		self.updating = False
@@ -95,10 +103,37 @@ class NodeManager(baseObject.ScriptableObject):
 			return
 		self.callbackNodeMoveto = callbackNodeMoveto
 		self.update()
-		
+	
+	def _get_treeInterceptor(self):
+		if hasattr(self, "_treeInterceptor"):
+			ti = self._treeInterceptor
+			if isinstance(ti, weakref.ReferenceType):
+				ti = ti()
+			if ti and ti in treeInterceptorHandler.runningTable:
+				return ti
+			else:
+				self._treeInterceptor = None
+				return None
+	
+	def _set_treeInterceptor(self, obj):
+		if obj:
+			self._treeInterceptor = weakref.ref(obj)
+		else:
+			self._treeInterceptor = None
+	
+	def _get_lastTextNode(self):
+		return self._lastTextNode and self._lastTextNode()
+	
+	def _set_lastTextNode(self, value):
+		self._lastTextNode = weakref.ref(value) if value is not None else None
+	
+	def _get_currentParentNode(self):
+		return self._currentParentNode and self._currentParentNode()
+	
+	def _set_currentParentNode(self, value):
+		self._currentParentNode = weakref.ref(value) if value is not None else None
+	
 	def terminate(self):
-		for backend in self.backendDict:
-			backend.event_nodeManagerTerminated(self)
 		self._ready = False
 		self.treeInterceptor = None
 		self.treeInterceptorSize = 0
@@ -293,9 +328,6 @@ class NodeManager(baseObject.ScriptableObject):
 			return False
 		return True
 
-	def addBackend(self, obj):
-		self.backendDict[obj] = 1
-	
 	def searchString(self, text):
 		if not self.isReady:
 			return []
@@ -409,8 +441,8 @@ class NodeManager(baseObject.ScriptableObject):
 		"kb:enter": "enter",
 	}
 
-	
-class NodeField(baseObject.AutoPropertyObject):
+
+class NodeField(TrackedObject):
 	
 	customText = ""
 	
@@ -431,8 +463,8 @@ class NodeField(baseObject.AutoPropertyObject):
 	
 	def __init__(self, nodeType, attrs, parent, offset, nodeManager):
 		super(NodeField, self).__init__()
-		self.nodeManager = nodeManager
-		self.parent = parent
+		self._nodeManager = weakref.ref(nodeManager)
+		self._parent = weakref.ref(parent) if parent is not None else None
 		self.offset = offset
 		self.size = 0
 		self.children = []
@@ -473,7 +505,10 @@ class NodeField(baseObject.AutoPropertyObject):
 		else:
 			raise ValueError(
 				u"Unexpected nodeType: {nodeType}".format(nodeType=nodeType))
-		self.previousTextNode = nodeManager.lastTextNode
+		self._previousTextNode = \
+			weakref.ref(nodeManager.lastTextNode) \
+			if nodeManager.lastTextNode is not None \
+			else None
 		if parent is not None:
 			self.index = len(parent.children)
 			parent.children.append(self)
@@ -486,6 +521,10 @@ class NodeField(baseObject.AutoPropertyObject):
 		# log.info(u"dell node")
 		global countNode
 		countNode = countNode - 1
+		# TrackedObject (NVDA >= 2020.3) defines __del__
+		# object (NVDA < 2020.3) does not.
+		if hasattr(super(NodeField, self), "__del__"):
+			super(NodeField, self).__del__()
 		
 	def __repr__(self):
 		if hasattr(self, "text"):
@@ -498,9 +537,21 @@ class NodeField(baseObject.AutoPropertyObject):
 			return "Node format"
 		else:
 			return "Node unknown"
-		
+	
+	@property
+	def nodeManager(self):
+		return self._nodeManager and self._nodeManager()
+	
+	@property
+	def parent(self):
+		return self._parent and self._parent()
+	
+	@property
+	def previousTextNode(self):
+		return self._previousTextNode and self._previousTextNode()
+	
 	def isReady(self):
-		return self.nodeManager is not None and self.nodeManager.isReady
+		return self.nodeManager and self.nodeManager.isReady
 	
 	def checkNodeManager(self):
 		if self.nodeManager is None or not self.nodeManager.isReady:
@@ -515,9 +566,9 @@ class NodeField(baseObject.AutoPropertyObject):
 			for child in self.children:
 				n = n + child.recursiveDelete()
 			self.children = []
-		self.nodeManager = None
-		self.previousTextNode = None
-		self.parent = None
+		self._nodeManager = None
+		self._previousTextNode = None
+		self._parent = None
 		self.format = None
 		self.control = None
 		self.text = None
@@ -525,7 +576,7 @@ class NodeField(baseObject.AutoPropertyObject):
 		self.controlIdentifier = None
 		return n
 	
-	def searchString(self, text, exclude=None, maxIndex=0, currentIndex=0):
+	def searchString(self, text, exclude=None, limit=None):
 		"""Searches the current node and its sub-tree for a match with the given text.
 		
 		Keyword arguments:
@@ -533,11 +584,8 @@ class NodeField(baseObject.AutoPropertyObject):
 		  exclude:
 		    If specified, set of children nodes not to explore or  True  to not explore
 		    children nodes at all.
-		  maxIndex:
-		    If set to 0 (default value), every result found is returned.
-		    If greater than 0, only return the n first results (1 based).
-		  currentIndex: Used to compare against maxIndex when searching down
-		    sub-trees.
+		  limit:
+		    If set, only return the specified number of first results.
 		
 		Returns a list of the matching nodes.
 		"""  # noqa
@@ -556,13 +604,12 @@ class NodeField(baseObject.AutoPropertyObject):
 				childResult = child.searchString(
 					text,
 					exclude=exclude,
-					maxIndex=maxIndex,
-					currentIndex=currentIndex
+					limit=limit,
 				)
 				result += childResult
-				if maxIndex:
-					currentIndex += len(childResult)
-					if currentIndex >= maxIndex:
+				if limit is not None:
+					limit -= len(childResult)
+					if limit <= 0:
 						break
 			return result
 		return []
@@ -589,8 +636,7 @@ class NodeField(baseObject.AutoPropertyObject):
 		self,
 		exclude=None,
 		relativePath=None,
-		maxIndex=0,
-		currentIndex=0,
+		limit=None,
 		**kwargs
 	):
 		"""Searches the current node and its sub-tree for a match with the given criteria.
@@ -604,11 +650,8 @@ class NodeField(baseObject.AutoPropertyObject):
 		    determine the final result. If the path cannot be walked, no
 		    result is returned for the matched node.
 		    See `walk` for the path expression syntax.
-		  maxIndex:
-		    If set to 0 (default value), every result found is returned.
-		    If greater than 0, only return the n first results (1 based).
-		  currentIndex: Used to compare against maxIndex when searching down
-		    sub-trees.
+		  limit:
+		    If set, only return the specified number of first results.
 		  
 		Additional keyword arguments names are of the form:
 		  `test_property[#index]`
@@ -680,8 +723,7 @@ class NodeField(baseObject.AutoPropertyObject):
 				matches = self.searchString(
 					text,
 					exclude=exclude,
-					maxIndex=maxIndex,
-					currentIndex=currentIndex
+					limit=limit,
 				)
 			elif prevText != "":
 				if (
@@ -700,6 +742,10 @@ class NodeField(baseObject.AutoPropertyObject):
 					match = candidate.walk(relativePath)
 					if match:
 						matches.append(match)
+						if limit is not None:
+							limit -= 1
+							if limit <= 0:
+								break
 			return matches
 		if exclude is True:
 			return []
@@ -709,14 +755,13 @@ class NodeField(baseObject.AutoPropertyObject):
 			childResult = child.searchNode(
 				exclude=exclude,
 				relativePath=relativePath,
-				maxIndex=maxIndex,
-				currentIndex=currentIndex,
+				limit=limit,
 				**kwargs
 			)
 			nodeList += childResult
-			if maxIndex:
-				currentIndex += len(childResult)
-				if currentIndex >= maxIndex:
+			if limit is not None:
+				limit -= len(childResult)
+				if limit <= 0:
 					break
 		return nodeList
 	
@@ -728,7 +773,7 @@ class NodeField(baseObject.AutoPropertyObject):
 		elif hasattr(self, "children"):
 			for child in self.children:
 				node = child.searchOffset(offset)
-				if node:
+				if node is not None:
 					return node
 		return None
 	
@@ -760,8 +805,7 @@ class NodeField(baseObject.AutoPropertyObject):
 				if searchKwargs:
 					matches = node.searchNode(
 						exclude=step != "d",  # search sub-tree only when walking down.
-						maxIndex=1,
-						currentIndex=0,
+						limit=1,
 						**searchKwargs
 					)
 					if matches:
@@ -773,7 +817,7 @@ class NodeField(baseObject.AutoPropertyObject):
 				# No check or no match, keep walking...
 				if step == "b":  # First node with lesser offset
 					node = node.previousTextNode
-					if not node:
+					if node is None:
 						return None
 					node = node.parent
 				elif step == "a": # First node with greater offset
@@ -836,7 +880,7 @@ class NodeField(baseObject.AutoPropertyObject):
 						path=path
 					))
 					return None
-				if not node:
+				if node is None:
 					return None
 				if not searchKwargs:
 					break
@@ -875,9 +919,9 @@ class NodeField(baseObject.AutoPropertyObject):
 			return False
 
 	def getNVDAObject(self):
-		info = self.getTextInfo()
-		obj = info.NVDAObjectAtStart
-		return obj
+		if not self.isReady():
+			return None
+		return self.getTextInfo().NVDAObjectAtStart
 
 	def mouseMove(self):
 		if not self.checkNodeManager():
@@ -970,7 +1014,8 @@ class NodeField(baseObject.AutoPropertyObject):
 	def __len__(self):
 		return self.size
 	
-	def _get_innerText(self):
+	@property
+	def innerText(self):
 		txt = ""
 		if hasattr(self, "text"):
 			txt = self.text

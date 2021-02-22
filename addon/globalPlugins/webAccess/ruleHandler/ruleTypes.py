@@ -19,8 +19,10 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2018.12.14"
+# Keep compatible with Python 2
+from __future__ import absolute_import, division, print_function
 
+__version__ = "2018.12.14"
 __author__ = u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 

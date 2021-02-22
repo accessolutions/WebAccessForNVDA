@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.10.23"
+__version__ = "2021.02.10"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 __license__ = "GPL"
 
@@ -105,31 +105,34 @@ def getNodeDescription():
 		and focus.webAccess.nodeManager
 	):
 		return _(u"No NodeManager")
+	ruleManager = focus.webAccess.ruleManager
+	results = ruleManager.getResults() if ruleManager else []
 	node = focus.webAccess.nodeManager.getCaretNode()
-# 	from globalPlugins.webAccess.webAppLib import html
-# 	treeInterceptor = html.getTreeInterceptor()
-# 	if not (treeInterceptor and hasattr(treeInterceptor, "nodeManager")):
-# 		return _(u"No NodeManager")
-# 	node = treeInterceptor.nodeManager.getCaretNode()
 	node = node.parent
 	obj = node.getNVDAObject()
 	branch = []
 	while node is not None:
 		parts = []
 		parts.append("tag %s" % node.tag)
+		ruleNames = []
+		for result in results:
+			if hasattr(result, "node") and result.node == node:
+				ruleNames.append(result.rule.name)
+		if ruleNames:
+			parts.append("    rules %s" % ", ".join(ruleNames))
 		if node.id is not None:
-			parts.append("    id=%s" % node.id)
+			parts.append("    id %s" % node.id)
 		parts.append("    role %s" % controlTypes.roleLabels[node.role])
 		if node.className:
-			parts.append("    class=%s" % node.className)
+			parts.append("    class %s" % node.className)
 		if node.states:
-			parts.append("    states=%s" % (", ".join(sorted((
-					controlTypes.stateLabels.get(state, state)
-					for state in node.states
+			parts.append("    states %s" % (", ".join(sorted((
+				controlTypes.stateLabels.get(state, state)
+				for state in node.states
 			)))))
 		if node.src:
-			parts.append("    src=%s" % node.src)
-		parts.append("    text=%s" % truncText(node))
+			parts.append("    src %s" % node.src)
+		parts.append("    text %s" % truncText(node))
 		branch.append("\n".join(parts))
 		node = node.parent
 		obj = obj.parent

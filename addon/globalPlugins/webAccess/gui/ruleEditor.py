@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,10 +19,10 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-# Get ready for Python 3
+# Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.07.19"
+__version__ = "2021.02.10"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -32,6 +32,7 @@ import wx
 import addonHandler
 from collections import OrderedDict
 import controlTypes
+import config
 import gui
 import inputCore
 from logHandler import log
@@ -42,13 +43,12 @@ from ..ruleHandler.controlMutation import (
 	MUTATIONS_BY_RULE_TYPE,
 	mutationLabels
 )
-from .. import webModuleHandler
+from ..webModuleHandler import getEditableWebModule, save
 
 try:
 	from wx.lib.expando import ExpandoTextCtrl
 except ImportError:
-	# NVDA version < 2018.2
-	from .wx_lib_expando import ExpandoTextCtrl
+	from ..backports.nvda_2018_2.wx_lib_expando import ExpandoTextCtrl
 
 try:
 	from six import iteritems, text_type
@@ -576,7 +576,7 @@ class RuleCriteriaEditor(wx.Dialog):
 		if index.strip():
 			try:
 				index = int(index)
-			except:
+			except Exception:
 				index = 0
 			if index > 0:
 				data["index"] = index
@@ -1162,18 +1162,18 @@ class RuleEditor(wx.Dialog):
 		rule = self.rule = context.get("rule")
 		self.data = context.setdefault("data", {}).setdefault(
 			"rule",
-			rule.getData() if rule else OrderedDict()
+			rule.dump() if rule else OrderedDict()
 		)
-		markerManager = self.markerManager = context["webModule"].markerManager
-		if not self.rule and markerManager.nodeManager:
-			node = markerManager.nodeManager.getCaretNode()
+		ruleManager = self.ruleManager = context["webModule"].ruleManager
+		if not self.rule and ruleManager.nodeManager:
+			node = ruleManager.nodeManager.getCaretNode()
 			while node is not None:
 				if node.role in formModeRoles:
 					self.data["formMode"] = True
 					break
 				node = node.parent
 		
-		actionsDict = self.markerManager.getActions()
+		actionsDict = self.ruleManager.getActions()
 		self.autoActionList.Clear()
 		self.autoActionList.Append(
 			# Translators: Action name
@@ -1189,13 +1189,23 @@ class RuleEditor(wx.Dialog):
 			self.ruleNameText.Set(self.getQueriesNames())
 		
 		if self.rule is None:
-			self.Title = _(u"New rule")
+			title = _(u"New rule")
+			if config.conf["webAccess"]["devMode"]:
+				webModule = ruleManager.webModule
+				if not webModule.isReadOnly():
+					title += " ({})".format(webModule._getWritableLayer().name)
+				else:
+					title += " ({})".format("/".join((layer.name for layer in webModule.layers)))
+			self.Title = title
 			self.ruleTypeCombo.SetSelection(-1)
 			self.gestureMapValue = {}
 			self.autoActionList.SetSelection(0)
 			self.comment.Value = ""
 		else:
-			self.Title = _("Edit rule")
+			title = _("Edit rule")
+			if config.conf["webAccess"]["devMode"] and rule.layer is not None:
+				title += " ({})".format(rule.layer)
+			self.Title = title
 			self.ruleNameText.Value = rule.name
 			for index, key in enumerate(ruleTypes.ruleTypeLabels.keys()):
 				if key == rule.type:
@@ -1206,7 +1216,7 @@ class RuleEditor(wx.Dialog):
 			self.ruleTypeCombo.SetSelection(index)
 			self.gestureMapValue = rule.gestures.copy()
 			self.autoActionList.SetSelection(
-				markerManager.getActions().keys().index(
+				list(ruleManager.getActions().keys()).index(
 					rule.dic.get("autoAction", "")
 				) + 1  # Empty entry at index 0
 				if "autoAction" in rule.dic else 0
@@ -1221,7 +1231,7 @@ class RuleEditor(wx.Dialog):
 	
 	def getQueriesNames(self):
 		nameList = []
-		for rule in self.markerManager.getQueries():
+		for rule in self.ruleManager.getRules():
 			if rule.name not in nameList:
 				nameList.append(rule.name)
 		return nameList
@@ -1311,7 +1321,7 @@ class RuleEditor(wx.Dialog):
 		for gestureIdentifier in self.gestureMapValue:
 			gestureSource, gestureMain = \
 				inputCore.getDisplayTextForGestureIdentifier(gestureIdentifier)
-			actionStr = self.markerManager.getActions()[
+			actionStr = self.ruleManager.getActions()[
 				self.gestureMapValue[gestureIdentifier]
 			]
 			self.gesturesList.Append("%s = %s" % (
@@ -1344,7 +1354,7 @@ class RuleEditor(wx.Dialog):
 	
 	def onAddGesture(self, evt):
 		from ..gui import shortcutDialog
-		shortcutDialog.markerManager = self.markerManager
+		shortcutDialog.ruleManager = self.ruleManager
 		if shortcutDialog.show():
 			self.AddGestureAction(
 				shortcutDialog.resultShortcut,
@@ -1399,7 +1409,7 @@ class RuleEditor(wx.Dialog):
 		updateOrDeleteIfEmpty(data, "comment", self.comment.Value)
 		
 		synonyms = 0
-		for rule in self.markerManager.getQueries():
+		for rule in self.ruleManager.getRules():
 			if name == rule.name and rule != self.rule:
 				synonyms += 1
 				if synonyms >= 2:
@@ -1425,15 +1435,33 @@ class RuleEditor(wx.Dialog):
 			) == wx.CANCEL:
 				return
 		
+		layerName = None
+		if self.rule is not None:
+			layerName = self.rule.layer
+		webModule = getEditableWebModule(self.ruleManager.webModule, layerName=layerName)
+		if not webModule:
+			return
 		if self.rule is not None:
 			# modification mode, remove old rule
-			self.markerManager.removeQuery(self.rule)
-		rule = ruleHandler.VirtualMarkerQuery(self.markerManager, data)
-		self.markerManager.addQuery(rule)
-		webModuleHandler.update(
-			webModule=self.context["webModule"],
-			focus=self.context["focusObject"]
-		)
+			self.ruleManager.removeRule(self.rule)
+		if layerName == "addon":
+			if not webModule.getLayer("addon") and webModule.getLayer("scratchpad"):
+				layerName = "scratchpad"
+		elif layerName is None:
+			layerName = webModule._getWritableLayer().name
+		
+		ruleManager = self.ruleManager = webModule.ruleManager
+		rule = webModule.createRule(data)
+		if layerName not in ruleManager.layers:
+			ruleManager.layers[layerName] = []
+			ruleManager.layersIndex = dict(
+				((layerName, layerIndex) for layerIndex, layerName in enumerate(ruleManager.layers.keys()))
+			)
+		ruleManager.loadRule(layerName, None, data)
+		webModule.getLayer(layerName, raiseIfMissing=True).dirty = True
+		if not save(webModule, layerName=layerName):
+			return
+		
 		assert self.IsModal()
 		self.EndModal(wx.ID_OK)
 	

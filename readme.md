@@ -2,7 +2,7 @@
 
 [Web application modules](http://webmodules.org/) support for modern or complex web sites.
 
-Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
+Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
 
 ## License
 
@@ -24,7 +24,7 @@ See the file COPYING.txt at the root of this distribution for more details.
 
 ## Requirements
 
-This is an add-on targeting the NVDA screen reader version 2016.2 or greater. 
+This is an add-on targeting the NVDA screen reader version 2016.3 or greater. 
 
 The following software is required in order to build this add-on:
 

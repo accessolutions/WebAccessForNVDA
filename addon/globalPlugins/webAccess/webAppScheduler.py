@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.10.23"
+__version__ = "2021.01.05"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -111,25 +111,6 @@ class WebAppScheduler(threading.Thread):
 		if func:
 			func(obj, self.fakeNext)
 	
-	def event_configurationChanged(self, webModule, focus):
-		if (
-			webModule
-			and webModule.ruleManager
-			and webModule.ruleManager.nodeManager
-			and webModule.ruleManager.nodeManager.treeInterceptor
-		):
-			ti = webModule.ruleManager.nodeManager.treeInterceptor
-			assert isinstance(ti, WebAccessBmtdti)
-			ti.webAccess._nodeManager = None
-			ti.webAccess._webModule = None
-		if (
-			focus
-			and focus.treeInterceptor
-			and isinstance(focus.treeInterceptor, WebAccessBmdti)
-		):
-			focus.treeInterceptor.webAccess._nodeManager = None
-			focus.treeInterceptor.webAccess._webModule = None
-
 	def event_treeInterceptor_gainFocus(self, treeInterceptor, firstGainFocus):
 		# TODO: Isn't it dead code?
 		log.error("event_treeInterceptor_gainFocus")
@@ -192,7 +173,8 @@ class WebAppScheduler(threading.Thread):
 		nodeManager.treeInterceptor.webAccess.ruleManager.update(nodeManager)
 
 	def event_markerManagerUpdated(self, markerManager):
-		markerManager.checkPageTitle()
+		# Doesn't work outside of the main thread for Google Chrome 83
+		wx.CallAfter(markerManager.checkPageTitle)
 		# markerManager.checkAutoAction()
 
 	def event_gainFocus(self, obj):
@@ -211,7 +193,7 @@ class WebAppScheduler(threading.Thread):
 				name='node_gainFocus',
 				obj=node, webApp=webModule
 				)
-			webModule.widgetManager.claimVirtualBufferWidget(reason)
+			# webModule.widgetManager.claimVirtualBufferWidget(reason)
 			if useInternalBrowser is True or webModule.activeWidget is not None:
 				beep(300, 30)
 				wx.CallAfter(webModule.presenter.display, node)

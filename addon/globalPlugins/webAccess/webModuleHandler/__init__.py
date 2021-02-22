@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,9 +21,10 @@
 
 """Web Access GUI."""
 
-from __future__ import absolute_import
+# Keep compatible with Python 2
+from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.12.12"
+__version__ = "2021.02.10"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -39,46 +40,27 @@ import gui
 from logHandler import log
 import ui
 
-from .webModule import InvalidApiVersion, NewerFormatVersion, WebModule
-from ..packaging import version
+from .webModule import InvalidApiVersion, NewerFormatVersion, WebModule, WebModuleDataLayer
+from ..lib.packaging import version
 from ..nvdaVersion import nvdaVersion
+from ..overlay import WebAccessBmdti
 from ..store import DuplicateRefError
 from ..store import MalformedRefError
 
 
-_store = None
+store = None
 _catalog = None
 _webModules = None
 
 
-def create(webModule, focus, force=False):
-	_store.create(webModule, force=force)
-	getWebModules(refresh=True)
-	if focus:
-		from .. import webAppScheduler
-		webAppScheduler.scheduler.send(
-			eventName="configurationChanged",
-			webModule=webModule,
-			focus=focus
-			)
-	else:
-		log.error("No focus to update")
-
-
-def delete(webModule, focus, prompt=True):
+def delete(webModule, prompt=True):
 	if prompt:
 		from ..gui.webModulesManager import promptDelete
 		if not promptDelete(webModule):
 			return False
-	_store.delete(webModule)
+	store.delete(webModule)
 	getWebModules(refresh=True)
-	if focus:
-		from .. import webAppScheduler
-		webAppScheduler.scheduler.send(
-			eventName="configurationChanged",
-			webModule=webModule,
-			focus=focus
-			)
+	resetRunningModules()
 	return True
 
 
@@ -89,7 +71,7 @@ def getCatalog(refresh=False, errors=None):
 			return _catalog
 	else:
 		_webModules = None
-	_catalog = list(_store.catalog(errors=errors))
+	_catalog = list(store.catalog(errors=errors))
 	return _catalog
 
 
@@ -112,7 +94,7 @@ def getWebModuleForWindowTitle(windowTitle):
 	for ref, meta in getCatalog():
 		candidate = meta.get("windowTitle")
 		if candidate and candidate in windowTitle:
-			return _store.get(ref)
+			return store.get(ref)
 
 
 def getWebModuleForUrl(url):
@@ -129,7 +111,7 @@ def getWebModuleForUrl(url):
 				matchedRef = ref
 				matchedLen = len(candidate)
 	if matchedRef:
-		return _store.get(matchedRef)
+		return store.get(matchedRef)
 
 
 def getWindowTitle(obj):
@@ -151,17 +133,26 @@ def getWindowTitle(obj):
 			return None
 		if root is not obj:
 			return getWindowTitle(root)
+	res = None
 	if isinstance(obj, WebAccessObject):
-		# This is verified with Firefox, Chrome and IE.
-		return obj._get_name(original=True)
-	# TODO: Implement Edge support
-	return obj.name or getattr(obj, "windowText", None)
+		res = obj._get_name(original=True)
+	else:
+		res = obj.name
+	if res:
+		return res
+	try:
+		res = obj.IAccessibleObject.accName(obj.IAccessibleChildID)
+	except Exception:
+		pass
+	if res:
+		return res
+	return getattr(obj, "windowText", None)
 
 
 def getUrl(obj):
 	try:
 		url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
-	except: 
+	except Exception:
 		url = None
 	if url:
 		return url
@@ -170,7 +161,7 @@ def getUrl(obj):
 			root = obj.parent.treeInterceptor.rootNVDAObject
 			if root is not obj:
 				return getUrl(root)
-	except:
+	except Exception:
 		log.exception()
 	return None
 
@@ -182,46 +173,84 @@ def getWebModules(refresh=False, errors=None):
 			return _webModules
 	else:
 		_catalog = None
-	_webModules = list(_store.list(errors=errors))
+	_webModules = list(store.list(errors=errors))
 	return _webModules
 
 
-def update(webModule, focus, force=False):
-	updatable, mask = checkUpdatable(webModule)
-	if mask:
-		return create(webModule, focus, force=force)
-	if updatable:
-		_store.update(webModule, force=force)
-		ui.message(_("Web module updated."))
-		log.info(u"WebModule updated: {webModule}".format(webModule=webModule))
-	getWebModules(refresh=True)
-	if focus:
-		from .. import webAppScheduler
-		webAppScheduler.scheduler.send(
-			eventName="configurationChanged",
-			webModule=webModule,
-			focus=focus
+def resetRunningModules(webModule=None):
+	import treeInterceptorHandler
+	for ti in treeInterceptorHandler.runningTable:
+		if not isinstance(ti, WebAccessBmdti):
+			continue
+		if webModule is not None and ti.webAccess.webModule != webModule:
+			continue
+		ti.webAccess._nodeManager = None
+		ti.webAccess._webModule = None
+
+
+def save(webModule, layerName=None, prompt=True, force=False):
+	if layerName is not None:
+		layer = webModule.getLayer(layerName, raiseIfMissing=True)
+	else:
+		layers = [
+			layer for layer in reversed(webModule.layers)
+			if not layer.readOnly and layer.dirty
+		]
+		if len(layers) == 0:
+			# Nothing to save
+			return True
+		elif len(layers) != 1:
+			raise Exception((
+				"Expecting a single data layer to save. Found {}. webModule={!r}, layers={!r}"
+			).format(len(layers), webModule, webModule.layers))
+		layer = layers[0]
+	try:
+		log.info("saving layer {!r}".format(layer))
+		if layer.storeRef is None:
+			storeRef = store.create(webModule, force=force)
+			prompt and ui.message(
+				# Translators: Confirmation message after web module creation.
+				_(u"Your new web module {name} has been created.").format(name=webModule.name)
 			)
+		else:
+			store.update(webModule, layerName=layer.name, force=force)
+	except DuplicateRefError as e:
+		if not prompt or force:
+			return False
+		from ..gui import webModuleEditor
+		if webModuleEditor.promptOverwrite():
+			return save(webModule, layerName=layerName, prompt=prompt, force=True)
+		return False
+	except MalformedRefError:
+		prompt and gui.messageBox(
+			message=(
+				_("The web module name should be a valid file name.")
+				+ " " + os.linesep
+				+ _("It should not contain any of the following:")
+				+ os.linesep
+				+ "\t" + "\\ / : * ? \" | "
+			),
+			caption=webModuleEditor.Dialog._instance.Title,
+			style=wx.OK | wx.ICON_EXCLAMATION
+		)
+		return False
+	except Exception:
+		log.exception("save(webModule={!r}, layerName=={!r}, prompt=={!r}, force=={!r}".format(
+			webModule, layerName, prompt, force
+		))
+		if prompt:
+			gui.messageBox(
+				# Translators: The text of a generic error message dialog
+				message=_("An error occured.\n\nPlease consult NVDA's log."),
+				# Translators: The title of an error message dialog
+				caption=_("Web Access for NVDA"),
+				style=wx.OK | wx.ICON_EXCLAMATION
+			)
+		getWebModules(refresh=True)
+		return False
+	getWebModules(refresh=True)
+	resetRunningModules()
 	return True
-
-
-def checkUpdatable(webModule):
-	"""
-	Check if a WebModule can be updated in place.
-	
-	If not, prompts the user if they want to mask it with a
-	copy in userConfig (which is the default store when
-	creating a new WebModule).
-	
-	Returns (isUpdatable, shouldMask)
-	"""
-	if _store.supports("update", item=webModule):
-		return True, False
-	if _store.supports("mask", item=webModule):
-		from ..gui.webModulesManager import promptMask
-		if promptMask(webModule):
-			return False, True
-		return False, False
 
 
 def showCreator(context):
@@ -237,6 +266,8 @@ def showEditor(context, new=False):
 	if new:
 		if "webModule" in context:
 			del context["webModule"]
+	webModuleEditor.show(context)
+	return
 	keepShowing = True
 	force = False
 	while keepShowing:
@@ -245,13 +276,13 @@ def showEditor(context, new=False):
 			while keepTrying:
 				try:
 					if new:
-						webModule = context["webModule"] = \
-							WebModule(data=context["data"])
+						webModule = context["webModule"] = WebModule()
+						webModule.load(None, data=context["data"])
 						create(
 							webModule=webModule,
 							focus=context.get("focusObject"),
 							force=force
-							)
+						)
 						# Translators: Confirmation message after web module creation.
 						ui.message(
 							_(
@@ -260,12 +291,13 @@ def showEditor(context, new=False):
 							)
 					else:
 						webModule = context["webModule"]
-						webModule.load(context["data"])
+						for name, value in context["data"]["WebModule"].items():
+							setattr(webModule, name, value)
 						update(
 							webModule=webModule,
 							focus=context.get("focusObject"),
 							force=force
-							)
+						)
 					keepShowing = keepTrying = False
 				except DuplicateRefError as e:
 					if webModuleEditor.promptOverwrite():
@@ -284,7 +316,7 @@ def showEditor(context, new=False):
 						),
 						caption=webModuleEditor.Dialog._instance.Title,
 						style=wx.OK | wx.ICON_EXCLAMATION
-						)
+					)
 				finally:
 					if not new:
 						getWebModules(refresh=True)
@@ -300,14 +332,103 @@ def showManager(context):
 	webModulesManager.show(context)
 
 
-def hasCustomModule(name):
-	if nvdaVersion < (2019, 3):
-		# Python 2.x can't properly handle unicode module names, so convert them.
-		name = name.encode("mbcs")
-	return any(
-		importer.find_module("webModules.{}".format(name))
-		for importer in _importers
-	)
+def getEditableWebModule(webModule, layerName=None, prompt=True):
+	try:
+		if layerName is not None:
+			if not webModule.getLayer(layerName).readOnly:
+				return webModule
+			webModule = getEditableScratchpadWebModule(webModule, layerName=layerName, prompt=prompt)
+		else:
+			if not webModule.isReadOnly():
+				return webModule
+			webModule = (
+				getEditableUserConfigWebModule(webModule)
+				or getEditableScratchpadWebModule(webModule, prompt=prompt)
+			)
+	except Exception:
+		log.exception("webModule={!r}, layerName={!r}".format(webModule, layerName))
+	if webModule:
+		return webModule
+	if prompt:
+		# Translators: An error message upon attempting to save a modification
+		msg = _("This modification cannot be saved under the current configuration.")
+		hints = []
+		if config.conf["webAccess"]["disableUserConfig"] and layerName is None:
+			# Translators: A hint on how to allow to save a modification
+			hints.append(_(u"• In the WebAccess category, enable User WebModules."))
+		if (
+			not config.conf["webAccess"]["devMode"]
+			and layerName not in ("user", None)
+		):
+			# Translators: A hint on how to allow to save a modification
+			hints.append(_(u"• In the WebAccess category, enable Developper Mode."))
+		if (
+			nvdaVersion >= (2019, 1)
+			and not config.conf["development"]["enableScratchpadDir"]
+			and (
+				layerName is None and config.conf["webAccess"]["disableUserConfig"]
+				or layerName not in ("user", None)
+			)
+		):
+			# Translators: A hint on how to allow to save a modification
+			hints.append(_(u"• In the Advanced category, enable loading of the Scratchpad directory"))
+		if hints:
+			if len(hints) > 1 and config.conf["webAccess"]["disableUserConfig"] and layerName is None:
+				hints.insert(1, _("or"))
+			msg += os.linesep + os.linesep
+			# Translators: An introduction to hints on how to allow to save a modification
+			msg += _("You may, in NVDA Preferences:")
+			for hint in hints:
+				msg += os.linesep + hint
+		gui.messageBox(
+			message=msg,
+			# Translators: The title of an error message dialog
+			caption=_("Error"),
+			style=wx.OK | wx.ICON_EXCLAMATION
+		)
+	
+
+def getEditableScratchpadWebModule(webModule, layerName=None, prompt=True):
+	if not (
+		(config.conf["development"]["enableScratchpadDir"] or nvdaVersion < (2019, 1))
+		and config.conf["webAccess"]["devMode"]
+	):
+		return None
+	layer = webModule.getLayer("scratchpad")
+	if layer:
+		if layer.readOnly:
+			return None
+		return webModule
+	if not webModule.layers:  # New module
+		webModule.load("scratchpad")
+		webModule.getLayer("scratchpad", raiseIfMissing=True).dirty = False
+		return webModule
+	if layerName is None:
+		layerName = "addon"
+	if layerName != "addon":
+		return None
+	if prompt:
+		from ..gui.webModulesManager import promptMask
+		if not promptMask(webModule):
+			return False
+	data = webModule.dump(layerName).data
+	mask = type(webModule)()
+	mask.load("scratchpad", data=data)
+	mask.getLayer("scratchpad", raiseIfMissing=True).dirty = True
+	return mask
+
+
+def getEditableUserConfigWebModule(webModule):
+	if config.conf["webAccess"]["disableUserConfig"]:
+		return None
+	layer = webModule.getLayer("user")
+	if layer:
+		if layer.readOnly:
+			return None
+		return webModule
+	webModule.load("user")
+	webModule.getLayer("user", raiseIfMissing=True).dirty = False
+	return webModule
 
 
 def getWebModuleFactory(name):
@@ -322,7 +443,7 @@ def getWebModuleFactory(name):
 		else:
 			import importlib
 			mod = importlib.import_module("webModules.{}".format(name), package="webModules")
-	except:
+	except Exception:
 		log.exception("Could not import custom module webModules.{}".format(name))
 	if not mod:
 		return WebModule
@@ -341,8 +462,20 @@ def getWebModuleFactory(name):
 	return ctor
 
 
+def hasCustomModule(name):
+	if nvdaVersion < (2019, 3):
+		# Python 2.x can't properly handle unicode module names, so convert them.
+		name = name.encode("mbcs")
+	return any(
+		importer.find_module("webModules.{}".format(name))
+		for importer in _importers
+		if importer
+	)
+
+
 def initialize():
-	global _importers, _store
+	global store
+	global _importers
 	
 	import imp
 	webModules = imp.new_module("webModules")
@@ -350,14 +483,12 @@ def initialize():
 	import sys
 	sys.modules["webModules"] = webModules
 	config.addConfigDirsToPythonPackagePath(webModules)
-	webModules.__path__.insert(
-		1 if config.conf["development"]["enableScratchpadDir"] else 0,
-		os.path.join(globalVars.appArgs.configPath, "webModules")
-	)
+	if nvdaVersion < (2019, 1) and not config.conf["webAccess"]["disableUserConfig"]:
+		webModules.__path__.insert(0, os.path.join(globalVars.appArgs.configPath, "webModules"))
 	_importers = list(pkgutil.iter_importers("webModules.__init__"))
 	
 	from ..store.webModule import WebModuleStore
-	_store = WebModuleStore()
+	store = WebModuleStore()
 
 
 def terminate():

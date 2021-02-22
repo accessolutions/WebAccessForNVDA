@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,12 +21,15 @@
 
 """Web Access addons data store."""
 
-__version__ = "2018.10.10"
+# Keep compatible with Python 2
+from __future__ import absolute_import, division, print_function
 
+__version__ = "2021.02.04"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
 import addonHandler
+import config
 
 from . import DispatchStore
 from . import Store
@@ -49,12 +52,23 @@ class AddonsStore(DispatchStore):
 	
 	stores = property(__getStores)
 	
+	def update(self, *args, **kwargs):
+		if not (config.conf["webAccess"]["devMode"] and config.conf["webAccess"]["writeInAddons"]):
+			return Store.update(self, *args, **kwargs)
+		return super(AddonsStore, self).update(*args, **kwargs)
+	
+	def supports(self, operation, **kwargs):
+		if operation in ("create", "mask"):
+			return False
+		if operation == "update":
+			return (
+				config.conf["webAccess"]["devMode"]
+				and config.conf["webAccess"]["writeInAddons"]
+			)
+		return Store.supports(self, operation, **kwargs)
+	
 	# Defaults to read-only.
 	# A WebModule provided by an addon might still be modified by first
-	# duplicating it to the userConfig.
+	# duplicating it into the scratchpad.
 	create = Store.create
 	delete = Store.delete
-	supports = Store.supports		
-	update = Store.update
-	
-	

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@ WebAccess overlay classes
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.11.20"
+__version__ = "2021.02.10"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -46,6 +46,7 @@ import NVDAObjects
 from NVDAObjects.IAccessible import IAccessible
 import speech
 import textInfos
+import treeInterceptorHandler
 import ui
 import virtualBuffers
 
@@ -58,6 +59,12 @@ try:
 except ImportError:
 	# NVDA version < 2018.3
 	iteritems = dict.iteritems
+
+try:
+	from garbageHandler import TrackedObject
+except ImportError:
+	# NVDA < 2020.3
+	TrackedObject = object
 
 
 addonHandler.initTranslation()
@@ -143,30 +150,37 @@ class ScriptWrapper(object):
 		self.script(gesture)
 
 
-class WebAccessBmdtiHelper(object):
+class WebAccessBmdtiHelper(TrackedObject):
 	"""
 	Utility methods and properties.
 	"""
 	WALK_ALL_TREES = False
 	
 	def __init__(self, treeInterceptor):
-		self.treeInterceptor = treeInterceptor
 		self.caretHitZoneBorder = False
 		self._nodeManager = None
+		self._treeInterceptor = weakref.ref(treeInterceptor)
 		self._webModule = None
+	
+	def terminate(self):
+		if self._webModule is not None:
+			self._webModule.terminate()
+		self._webModule = None
+		if self._nodeManager is not None:
+			self._nodeManager.terminate()
+		self._nodeManager = None
 	
 	@property
 	def nodeManager(self):
 		nodeManager = self._nodeManager
-		if (
-			not nodeManager
-			and (self.WALK_ALL_TREES or self.treeInterceptor.webAccess.webModule)
-		):
+		ti = self.treeInterceptor
+		if not ti:
+			self._nodeManager = None
+			return None
+		if (not nodeManager and (self.WALK_ALL_TREES or ti.webAccess.webModule)):
 			from .nodeHandler import NodeManager
 			from .webAppScheduler import scheduler
-			nodeManager = self._nodeManager = NodeManager(
-				self.treeInterceptor, scheduler.onNodeMoveto
-			)
+			nodeManager = self._nodeManager = NodeManager(ti, scheduler.onNodeMoveto)
 		return nodeManager
 	
 	@property
@@ -176,22 +190,36 @@ class WebAccessBmdtiHelper(object):
 		return self.webModule.ruleManager
 	
 	@property
+	def treeInterceptor(self):
+		if hasattr(self, "_treeInterceptor"):
+			ti = self._treeInterceptor
+			if isinstance(ti, weakref.ReferenceType):
+				ti = ti()
+			if ti and ti in treeInterceptorHandler.runningTable:
+				return ti
+			else:
+				return None
+	
+	@property
 	def webModule(self):
 		from . import supportWebApp, webAccessEnabled
 		if not webAccessEnabled:
 			return None
-		if not self._webModule:
-			obj = self.treeInterceptor.rootNVDAObject
+		ti = self.treeInterceptor
+		if not ti:
+			self._webModule = None
+			return None
+		webModule = self._webModule
+		if not webModule:
+			obj = ti.rootNVDAObject
 			if not supportWebApp(obj):
 				return None
 			from . import webModuleHandler
 			try:
-				self._webModule = webModuleHandler.getWebModuleForTreeInterceptor(
-					self.treeInterceptor
-				)
-			except:
+				webModule = self._webModule = webModuleHandler.getWebModuleForTreeInterceptor(ti)
+			except Exception:
 				log.exception()
-		return self._webModule
+		return webModule
 	
 	@property
 	def zone(self):
@@ -405,11 +433,45 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			if issubclass(attr, textInfos.offsets.OffsetsTextInfo):
 				self.TextInfo = getDynamicClass((WebAccessBmdtiTextInfo, attr))
 	
+	def terminate(self):
+		self.webAccess.terminate()
+		super(WebAccessBmdti, self).terminate()
+	
+	def _get_isAlive(self):
+		isAlive = super(WebAccessBmdti, self).isAlive
+		if isAlive:
+			return isAlive
+		# Due to unidentified race conditions, MSHTML sometimes caches a zero-valued IAccessibleRole
+		# after a trapped COMError and then considers the TreeInterceptor as being dead.
+		# Invalidating the property cache usually fixes the issue.
+		root = self.rootNVDAObject
+		if not root:
+			return isAlive
+		from NVDAObjects.IAccessible.MSHTML import MSHTML
+		if not issubclass(root.APIClass, MSHTML):
+			return isAlive
+		try:
+			del root._propertyCache[type(root).IAccessibleRole.fget]
+		except KeyError:
+			return isAlive
+		except Exception:
+			log.exception()
+		else:
+			isAlive = super(WebAccessBmdti, self).isAlive
+		return isAlive
+	
 	def _get_TextInfo(self):
 		superCls = super(WebAccessBmdti, self)._get_TextInfo()
 		if not issubclass(superCls, textInfos.offsets.OffsetsTextInfo):
 			return superCls
 		return getDynamicClass((WebAccessBmdtiTextInfo, superCls))
+	
+	def _set_selection(self, info, reason=controlTypes.REASON_CARET):
+		webModule = self.webAccess.webModule
+		if webModule and hasattr(webModule, "_set_selection"):
+			webModule._set_selection(self, info, reason=reason)
+			return
+		super(WebAccessBmdti, self)._set_selection(info, reason=reason)
 	
 	def _caretMovementScriptHelper(
 		self,
@@ -523,7 +585,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 					try:
 						obj = item.textInfo.NVDAObjectAtStart
 						controlId = obj.IA2UniqueID
-					except:
+					except Exception:
 						log.exception()
 				if controlId is None:
 					log.error((
@@ -749,10 +811,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 				for value in values:
 					if isinstance(value, set):
 						if value.issubset(candidate or set()) == negate:
-							log.info(u"boom {}, {}, {}".format(value, candidate, negate))
 							break
-						else:
-							log.info(u"yep {}, {}, {}".format(value, candidate, negate))
 						continue
 					if isinstance(value, bool):
 						candidate = bool(candidate)
@@ -803,7 +862,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 				return True
 		return super(WebAccessBmdti, self)._tabOverride(direction)
 	
-	def doFindText(self, text, reverse=False, caseSensitive=False):
+	def doFindText(self, text, reverse=False, caseSensitive=False, willSayAllResume=False):
 		if not text:
 			return
 		info = self.makeTextInfo(textInfos.POSITION_CARET)
@@ -812,7 +871,8 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			self.selection = info
 			speech.cancelSpeech()
 			info.move(textInfos.UNIT_LINE, 1, endPoint="end")
-			speech.speakTextInfo(info, reason=controlTypes.REASON_CARET)
+			if not willSayAllResume or nvdaVersion < (2020, 4):
+				speech.speakTextInfo(info, reason=controlTypes.REASON_CARET)
 		elif self.webAccess.zone:
 			def ask():
 				if gui.messageBox(
@@ -894,6 +954,13 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 					func, ignoreTreeInterceptorPassThrough=True
 				)
 		return super(WebAccessBmdti, self).getScript(gesture)
+	
+	def event_treeInterceptor_gainFocus(self):
+		webModule = self.webAccess.webModule
+		if webModule and hasattr(webModule, "event_treeInterceptor_gainFocus"):
+			if webModule.event_treeInterceptor_gainFocus():
+				return
+		super(WebAccessBmdti, self).event_treeInterceptor_gainFocus()
 	
 	def script_disablePassThrough(self, gesture):
 		if (
@@ -996,9 +1063,11 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 	script_quickNavToPreviousResultLevel3.passThroughIfNoWebModule = True
 	
 	def script_refreshResults(self, gesture):
+		# Translators: Notified when manually refreshing results
 		ui.message(_("Refresh results"))
-		self.webAccess.ruleManager.update()
+		self.webAccess.ruleManager.update(force=True)
 	
+	# Translators: The description for the refreshResults script
 	script_refreshResults.__doc__ = _("Refresh results")
 	script_refreshResults.category = SCRCAT_WEBACCESS
 	script_refreshResults.ignoreTreeInterceptorPassThrough = True
@@ -1034,12 +1103,12 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 	}
 
 
-class WebAccessObjectHelper(object):
+class WebAccessObjectHelper(TrackedObject):
 	"""
 	Utility methods and properties.
 	"""
 	def __init__(self, obj):
-		self.obj = obj
+		self._obj = weakref.ref(obj)
 	
 	@property
 	def nodeManager(self):
@@ -1047,6 +1116,10 @@ class WebAccessObjectHelper(object):
 		if not ti:
 			return None
 		return ti.webAccess.nodeManager
+	
+	@property
+	def obj(self):
+		return self._obj()
 	
 	@property
 	def ruleManager(self):
@@ -1068,7 +1141,7 @@ class WebAccessObjectHelper(object):
 				return ti
 			try:
 				obj = ti.rootNVDAObject.parent
-			except:
+			except Exception:
 				return None
 	
 	@property
@@ -1085,7 +1158,7 @@ class WebAccessObjectHelper(object):
 		obj = self.obj
 		try:
 			controlId = obj.treeInterceptor.getIdentifierFromNVDAObject(obj)[1]
-		except:
+		except Exception:
 			log.exception()
 			return default
 		mutated = mgr.getMutatedControl(controlId)
@@ -1119,7 +1192,7 @@ class WebAccessObject(IAccessible):
 		if level:
 			try:
 				level = int(level)
-			except:
+			except Exception:
 				log.exception(
 					"Could not convert to int: level={}".format(level)
 				)
@@ -1156,7 +1229,7 @@ class WebAccessObject(IAccessible):
 				if initFunc:
 					try:
 						initFunc(obj)
-					except:
+					except Exception:
 						log.exception()
 	
 	if (2017, 3) <= nvdaVersion < (2019, 2):
