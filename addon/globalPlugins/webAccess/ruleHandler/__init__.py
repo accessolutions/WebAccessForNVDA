@@ -432,7 +432,11 @@ class MarkerManager(baseObject.ScriptableObject):
 			for result in self.markerResults:
 				if not result.rule.mutation:
 					continue
-				controlId = int(result.node.controlIdentifier)
+				try:
+					controlId = int(result.node.controlIdentifier)
+				except Exception:
+					log.exception("rule: {}, node: {}".format(result.name, result.node))
+					continue
 				entry = self._mutatedControlsById.get(controlId)
 				if entry is None:
 					entry = MutatedControl(result)
