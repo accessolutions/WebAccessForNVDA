@@ -1058,7 +1058,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 	def script_refreshResults(self, gesture):
 		# Translators: Notified when manually refreshing results
 		ui.message(_("Refresh results"))
-		self.webAccess.ruleManager.update()
+		self.webAccess.ruleManager.update(force=True)
 	
 	# Translators: The description for the refreshResults script
 	script_refreshResults.__doc__ = _("Refresh results")
