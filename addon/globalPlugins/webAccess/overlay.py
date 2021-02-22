@@ -466,6 +466,13 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			return superCls
 		return getDynamicClass((WebAccessBmdtiTextInfo, superCls))
 	
+	def _set_selection(self, info, reason=controlTypes.REASON_CARET):
+		webModule = self.webAccess.webModule
+		if webModule and hasattr(webModule, "_set_selection"):
+			webModule._set_selection(self, info, reason=reason)
+			return
+		super(WebAccessBmdti, self)._set_selection(info, reason=reason)
+	
 	def _caretMovementScriptHelper(
 		self,
 		gesture,
