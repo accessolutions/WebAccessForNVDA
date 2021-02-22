@@ -1061,7 +1061,7 @@ class VirtualMarkerResult(MarkerResult):
 		browseMode.reportPassThrough.last = treeInterceptor.passThrough 
 	
 	def script_speak(self, gesture):
-		repeat = scriptHandler.getLastScriptRepeatCount()
+		repeat = scriptHandler.getLastScriptRepeatCount() if gesture is not None else 0
 		if repeat == 0:
 			parts = []
 			if self.markerQuery.sayName:
