@@ -953,10 +953,11 @@ class MarkerResult(baseObject.ScriptableObject):
 
 class VirtualMarkerResult(MarkerResult):
 	
-	def __init__(self, markerQuery, node, context):
+	def __init__(self, markerQuery, node, context, index):
 		super(VirtualMarkerResult ,self).__init__(markerQuery)
 		self.node = node
 		self.context = context
+		self.index = index
 	
 	_cache_value = False
 	
@@ -1264,8 +1265,8 @@ class VirtualMarkerQuery(MarkerQuery):
 				return False
 		return True
 	
-	def createResult(self, node, context):
-		return VirtualMarkerResult(self, node, context)
+	def createResult(self, node, context, index):
+		return VirtualMarkerResult(self, node, context, index)
 	
 	def _iterResults(self, widget=False):
 		t = logTimeStart()
@@ -1369,7 +1370,7 @@ class VirtualMarkerQuery(MarkerQuery):
 					startOffset=root.offset,
 					endOffset=root.offset + root.size
 				) if root is not self.ruleManager.nodeManager.mainNode else None
-				yield self.createResult(node, context)
+				yield self.createResult(node, context, index)
 				if not self.multiple and not multipleContext:
 					return
 
