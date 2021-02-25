@@ -22,7 +22,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.02.10"
+__version__ = "2021.02.24"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -436,7 +436,7 @@ class MarkerManager(baseObject.ScriptableObject):
 					controlId = int(result.node.controlIdentifier)
 				except Exception:
 					log.exception("rule: {}, node: {}".format(result.name, result.node))
-					continue
+					raise
 				entry = self._mutatedControlsById.get(controlId)
 				if entry is None:
 					entry = MutatedControl(result)
