@@ -22,7 +22,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.03.12"
+__version__ = "2021.03.13"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
@@ -31,6 +31,7 @@ __author__ = (
 
 
 from collections import OrderedDict
+import datetime
 import os
 from pprint import pformat
 
@@ -39,6 +40,7 @@ addonHandler.initTranslation()
 import api
 import baseObject
 import braille
+import config
 import controlTypes
 import globalVars
 from logHandler import log
@@ -47,27 +49,13 @@ import speech
 import ui
 
 from ..lib.packaging import version
-# from .. import presenter
+from ..webAppLib import playWebAppSound
 from .. import ruleHandler
-from ..ruleHandler import ruleTypes
-from ..webAppLib import *
-
 
 try:
 	import json
 except ImportError:
 	from ..lib import json
-
-try:
-	from six import string_types, text_type
-except ImportError:
-	# NVDA version < 2018.3
-	string_types = basestring
-	text_type = unicode
-
-
-class NewerFormatVersion(version.InvalidVersion):
-	pass
 
 
 class InvalidApiVersion(version.InvalidVersion):
@@ -215,6 +203,7 @@ class WebModule(baseObject.ScriptableObject):
 				if index is None:
 					index = candidateIndex
 		if data is not None:
+			from .dataRecovery import recover
 			recover(data)
 			layer = WebModuleDataLayer(layerName, data, storeRef, rulesOnly=rulesOnly)
 		elif storeRef is not None:
@@ -223,6 +212,7 @@ class WebModule(baseObject.ScriptableObject):
 			layer.name = layerName
 			layer.rulesOnly = rulesOnly
 			data = layer.data
+			from .dataRecovery import recover
 			recover(data)
 		else:
 			data = OrderedDict({"WebModule": OrderedDict()})
@@ -237,9 +227,7 @@ class WebModule(baseObject.ScriptableObject):
 			self.layers.insert(index, layer)
 		else:
 			self.layers.append(layer)
-		rules = data.get("Rules")
-		if rules:
-			self.ruleManager.load(layer=layer.name, index=index, data=rules)	
+		self.ruleManager.load(layer=layer.name, index=index, data=data.get("Rules", {}))
 	
 	def getLayer(self, layerName, raiseIfMissing=False):
 		for layer in self.layers:
@@ -260,7 +248,12 @@ class WebModule(baseObject.ScriptableObject):
 	
 	def terminate(self):
 		self.ruleManager.terminate()
-
+	
+	def printLog(self, layerName):
+		for logLevel, logCodePath, logDateTime, logMsg in self.getLayer(layerName).data.get("log", []):
+			print(logLevel, logDateTime, logCodePath)
+			print(logMsg)
+	
 	def _getLayeredProperty(self, name, startLayerIndex=-1, raiseIfMissing=False):
 		for index, layer in list(enumerate(self.layers))[startLayerIndex::-1]:
 			if layer.rulesOnly:
@@ -363,374 +356,3 @@ class WebModule(baseObject.ScriptableObject):
 		"kb:nvda+t": "title",
 		"kb:nvda+shift+t": "sayWebModuleName",
 	}
-
-
-def recover(data):
-	formatVersion = data.get("formatVersion")
-	# Ensure compatibility with data files prior to format versioning
-	if formatVersion is None:
-		formatVersion = ""
-		recoverFromLegacyTo_0_1(data)
-	formatVersion = version.parse(formatVersion)
-	if formatVersion < version.parse("0.2"):
-		recoverFrom_0_1_to_0_2(data)
-	if formatVersion < version.parse("0.3"):
-		recoverFrom_0_2_to_0_3(data)
-	if formatVersion < version.parse("0.4"):
-		recoverFrom_0_3_to_0_4(data)
-	if formatVersion < version.parse("0.5"):
-		recoverFrom_0_4_to_0_5(data)
-	if formatVersion < version.parse("0.6"):
-		recoverFrom_0_5_to_0_6(data)
-	if formatVersion < version.parse("0.7"):
-		recoverFrom_0_6_to_0_7(data)
-	if formatVersion > WebModule.FORMAT_VERSION:
-		raise NewerFormatVersion(
-			"WebModule format version not supported: {ver}".format(
-				ver=formatVersion
-			)
-		)
-
-
-def logRecovery(data, version, level, msg):
-	data.setdefault("log", {}).setdefault(version, []).append((level, msg))
-
-def recoverFromLegacyTo_0_1(data):
-	# Back to the "WebAppHandler" days
-	if "WebModule" not in data and "WebApp" in data:
-		data["WebModule"] = data.pop("WebApp")
-	if "Rules" not in data and "PlaceMarkers" in data:
-		data["Rules"] = data.pop("PlaceMarkers")
-	# Earlier versions supported only a single URL trigger
-	url = data.get("WebModule", {}).get("url", None)
-	if isinstance(url, string_types):
-		data["WebModule"]["url"] = [url]
-	# Custom labels for certain fields are not supported anymore
-	# TODO: Re-implement custom field labels?
-	if "FieldLabels" in data:
-		logRecovery(
-			data,
-			"Recover from legacy to 0.1",
-			log.WARNING,
-			"FieldLabels not supported"
-		)
-
-
-def recoverFrom_0_1_to_0_2(data):
-	rules = data.get("Rules", [])
-	for rule in rules:
-		if "context" in rule:
-			rule["requiresContext"] = rule.pop("context")
-		if "isContext" in rule:
-			if rule.get("isContext"):
-				rule["definesContext"] = "pageId"
-			del rule["isContext"]
-
-
-def recoverFrom_0_2_to_0_3(data):
-	rules = data.get("Rules", [])
-	for rule in rules:
-		if rule.get("autoAction") == "noAction":
-			del rule["autoAction"]
-
-
-def recoverFrom_0_3_to_0_4(data):
-	markerKeys = (
-		"gestures", "autoAction", "skip",
-		"multiple", "formMode", "sayName",
-	)
-	splitTitles = []
-	splitMarkers = []
-	rules = data.get("Rules", [])
-	for rule in rules:
-		rule.setdefault("type", ruleTypes.MARKER)
-		if rule.get("definesContext") and rule.get("isPageTitle"):
-				split = rule.copy()
-				del rule["isPageTitle"]
-				split["type"] = ruleTypes.PAGE_TITLE_1
-				split["name"] = u"{} (title)".format(rule["name"])
-				for key in markerKeys:
-					try:
-						del split[key]
-					except KeyError:
-						pass
-				splitTitles.append(split)
-				logRecovery(
-					data,
-					"Recover from 0.3 to 0.4",
-					log.WARNING,
-					(
-						u'Web module \"{module}\" - rule "{rule}": '
-						u'Splitting "isPageTitle" from "definesContext".'
-					).format(
-						module=data.get("WebModule", {}).get("name"),
-						rule=rule.get("name")
-					)
-				)
-		elif rule.get("definesContext"):
-			if rule["definesContext"] in ("pageId", "pageType"):
-				rule["type"] = ruleTypes.PAGE_TYPE
-			else:
-				rule["type"] = ruleTypes.PARENT
-			reason = "definesContext"
-		elif rule.get("isPageTitle"):
-			rule["type"] = ruleTypes.PAGE_TITLE_1
-			reason = "isPageTitle"
-		else:
-			reason = None
-		if reason:
-			if (
-				rule.get("gestures")
-				or rule.get("autoAction")
-				or not rule.get("skip", False)
-			):
-				split = rule.copy()
-				del split[reason]
-				split["type"] = ruleTypes.MARKER
-				split["name"] = u"{} (marker)".format(rule["name"])
-				splitMarkers.append(split)
-				logRecovery(
-					data,
-					"Recover from 0.3 to 0.4",
-					log.WARNING,
-					(
-						u'Web module \"{module}\" - rule "{rule}": '
-						u'Splitting "{reason}" from marker.'
-					).format(
-						module=data.get("WebModule", {}).get("name"),
-						rule=rule.get("name"),
-						reason=reason
-					)
-				)
-			for key in markerKeys:
-				try:
-					del rule[key]
-				except KeyError:
-					pass
-	
-	rules.extend(splitTitles)
-	rules.extend(splitMarkers)
-
-	for rule in rules:
-		if rule.get("requiresContext"):
-			rule["contextPageType"] = rule["requiresContext"]
-			logRecovery(
-				data,
-				"Recover from 0.3 to 0.4",
-				log.WARNING,
-				u"Web module \"{module}\" - rule \"{rule}\": "
-				u"Property \"requiresContext\" has been copied to " 
-				u"\"contextPageType\", which is probably not accurate. "
-				u"Please redefine the required context.".format(
-					module=data.get("WebModule", {}).get("name"),
-					rule=rule.get("name")
-				)
-			)
-		
-		for key in (
-			"definesContext",
-			"requiresContext",
-			"isPageTitle"
-		):
-			try:
-				del rule[key]
-			except KeyError:
-				pass
-		
-		# If it is upper-case (as in non-normalized identifiers),
-		# `keyboardHandler.KeyboardInputGesture.getDisplayTextForIdentifier`
-		# does not properly handle the NVDA key. 
-		gestures = rule.get("gestures", {})
-		# Get ready for Python 3: dict.items will return an iterator.
-		for key, value in list(gestures.items()):
-			if "NVDA" not in key:
-				continue
-			del gestures[key]
-			key = key.replace("NVDA", "nvda")
-			gestures[key] = value				
-
-
-def recoverFrom_0_4_to_0_5(data):
-	# Rules: New "states" criterion (#5)
-	# Rules: Ignore more whitespace in criteria expressions (19f772b)
-	# Rules: Support composition of the "role" criterion (#6)
-	rules = data.get("Rules", [])
-	for rule in rules:
-		if "role" in rule:
-			rule["role"] = text_type(rule["role"])
-
-
-def recoverFrom_0_5_to_0_6(data):
-	# Browsers compatibility: Handle "tag" case inconsistency (da96341)
-	# Mutate controls (#9)
-	rules = data.get("Rules", [])
-	for rule in rules:
-		if rule.get("tag"):
-			rule["tag"] = rule["tag"].lower()
-
-
-def recoverFrom_0_6_to_0_7(data):
-	# Multi-criteria
-	rules = data.get("Rules", [])
-	if isinstance(rules, dict):
-		# Already converted to multi criteria
-		return
-
-	log.info("rules: {}".format(pformat(rules)))
-	from collections import OrderedDict
-	rulesDict = OrderedDict()
-	for rule in rules:
-		log.info("rule: {}".format(pformat(rule)))
-		rulesDict[rule["name"]] = None  # Use it first as an ordered Set
-		criteria = {}
-		for key in (
-			"contextPageTitle",
-			"contextPageType",
-			"contextParent",
-			"text",
-			"role",
-			"tag",
-			"id",
-			"className",
-			"states",
-			"src",
-			"relativePath",
-			"index",
-		):
-			if key in rule:
-				criteria[key] = rule.pop(key)
-		rule["criteria"] = [criteria]
-		# The following three keys were long abandonned but not removed from earlier versions
-		rule.pop("class", None)
-		rule.pop("createWidget", None)
-		rule.pop("user", None)
-	log.info("rulesDict: {}".format(list(rulesDict.keys())))
-	
-	extra = OrderedDict()
-	for name in list(rulesDict.keys()):
-		alternatives = [rule for rule in rules if rule["name"] == name]
-		assert alternatives
-		if len(alternatives) == 1:
-			# Case 1 - Single set of criteria: Keep as-is
-			rule = alternatives[0]
-			rule.pop("priority", None)
-			rulesDict[name] = rule
-			continue
-#		if not any((True for rule in alternatives if "priority" in rule)):
-		noPriority = not any((True for rule in alternatives if "priority" in rule))
-# 		for rule1 in alternatives:
-# 			for rule2 in alternatives:
-# 				if rule1 is rule2:
-# 					continue
-# 				if rule1.get("gestures") != rule2.get("gestures"):
-# 					sameGestures = False
-# 					break
-# 			else:
-# 				continue
-# 			break
-# 		else:
-# 			sameGestures = True
-		
-		class HashableDict(dict):  # Utility class to help compare dictionaries
-			def __sortedDump(self):
-				return tuple((k, self[k]) for k in sorted(self))
-			def __hash__(self):
-				return hash(self.__sortedDump())
-			def __eq__(self, other):
-				return self.__sortedDump() == other.__sortedDump()
-			@classmethod
-			def areUnique(cls, dicts):
-				dicts = [cls(dict) for dict in dicts]
-				return len(dicts) == len(set(dicts))
-		
-		# Check gestures only if no priority
-		sameGestures = noPriority and not HashableDict.areUnique([rule.get("gestures", {}) for rule in alternatives])
-		if not sameGestures:
-			log.warning(f"{[rule.get('gestures', {}) for rule in alternatives]}")
-		if noPriority and not sameGestures:
-			# Case 2 - No priority: Create a unique name by adding a suffix
-			format = "{{}}_#{{:0{}}}".format(len(str(len(alternatives))))
-			offset = 0
-			for index, rule in enumerate(alternatives):
-				while True:
-					extraName = format.format(rule["name"], index + offset)
-					if extraName not in rulesDict and extraName not in extra:
-						break
-					offset += 1
-				rule["name"] = extraName
-				logRecovery(
-					data,
-					"Recover from 0.6 to 0.7",
-					log.WARNING,
-					(
-						u"Web module \"{module}\" - rule \"{rule}\" #{index}: "
-						u"Renamed to \"{name}\"."
-					).format(
-						module=data.get("WebModule", {}).get("name"),
-						rule=name,
-						index=index,
-						name=extraName
-					)
-				)
-				extra[extraName] = rule
-			del rulesDict[name]
-			continue
-		# Case 3 - At least one alternative holds a priority
-		# Step 1: Missing priority defaults to 0
-		for index, rule in enumerate(alternatives):
-			if "priority" not in rule:
-				rule["priority"] = 0
-				logRecovery(
-					data,
-					"Recover from 0.6 to 0.7",
-					log.WARNING,
-					(
-						u"Web module \"{module}\" - rule \"{rule}\" #{index}: "
-						u"Missing priority considered as 0."
-					).format(
-						module=data.get("WebModule", {}).get("name"),
-						rule=rule["name"],
-						index=index,
-					)
-				)
-		# Step 2: Sort alternatives by priority and index
-		alternatives = [rule for (index, rule) in sorted(
-			enumerate(alternatives),
-			key=lambda item: (item[1]["priority"], index)
-		)]
-		# Step 3: Merge
-		rule = alternatives.pop(0)
-		rule.pop("priority", None)
-		notes = []
-		for alternative in alternatives:
-			for key, value in rule.items():
-				if key in ("criteria", "priority"):
-					continue
-				if value != alternative.get(key):
-					if key in alternative:
-						altValue = repr(alternative.get("key"))
-					else:
-						altValue = "missing"
-					notes.append(u"{!r} was {}".format(key, altValue))
-			if notes:
-				notes.insert(0, _(u"Recovered from 0.6"))
-				alternative["criteria"][0]["notes"] = "\n".join(notes)
-				logRecovery(
-					data,
-					"Recover from 0.6 to 0.7",
-					log.WARNING,
-					(
-						u"Web module \"{module}\" - rule \"{rule}\" #{index}: "
-						u"Diverging attributes saved as criteria notes."
-					).format(
-						module=data.get("WebModule", {}).get("name"),
-						rule=rule["name"],
-						index=index,
-					)
-				)
-			rule["criteria"].append(alternative["criteria"][0])
-		rulesDict[name] = rule
-	rulesDict.update(extra)
-	rules = data["Rules"] = rulesDict
-	data["Rules"] = rules
-	log.info("after: {}".format(rules))

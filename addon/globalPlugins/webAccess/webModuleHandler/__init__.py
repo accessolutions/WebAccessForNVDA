@@ -24,7 +24,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.03.12"
+__version__ = "2021.03.13"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -40,7 +40,8 @@ import gui
 from logHandler import log
 import ui
 
-from .webModule import InvalidApiVersion, NewerFormatVersion, WebModule, WebModuleDataLayer
+from .dataRecovery import NewerFormatVersion
+from .webModule import InvalidApiVersion, WebModule, WebModuleDataLayer
 from ..lib.packaging import version
 from ..nvdaVersion import nvdaVersion
 from ..overlay import WebAccessBmdti

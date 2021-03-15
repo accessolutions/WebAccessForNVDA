@@ -21,7 +21,7 @@
 
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.03.12"
+__version__ = "2021.03.13"
 __author__ = u"Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
@@ -210,9 +210,9 @@ class GeneralPanel(SettingsPanelWithContext):
 		item = wx.StaticText(self, label=_("Technical &notes"))
 		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-		#item = self.criteriaNotes = wx.TextCtrl(self, size=scale(300, 200), style=wx.TE_MULTILINE)
-		item = self.criteriaNotes = wx.TextCtrl(self, style=wx.TE_MULTILINE)
+		item = self.criteriaComment = wx.TextCtrl(self, size=scale(400, 200), style=wx.TE_MULTILINE)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
+		gbSizer.AddGrowableRow(row)
 		
 		gbSizer.AddGrowableCol(2)
 	
@@ -229,13 +229,13 @@ class GeneralPanel(SettingsPanelWithContext):
 		index = data.get("criteriaIndex", nbCriteria + 1)
 		self.criteriaOrder.SetSelection(index)
 		self.criteriaName.Value = data.get("name", "")
-		self.criteriaNotes.Value = data.get("notes", "")
+		self.criteriaComment.Value = data.get("comment", "")
 	
 	def onSave(self):
 		data = self.context["data"]["criteria"]
 		data["criteriaIndex"] = self.criteriaOrder.Selection
 		setIfNotEmpty(data, "name", self.criteriaName.Value)
-		setIfNotEmpty(data, "notes", self.criteriaNotes.Value)
+		setIfNotEmpty(data, "comment", self.criteriaComment.Value)
 
 
 class ContextPanel(SettingsPanelWithContext):
@@ -1222,8 +1222,8 @@ class CriteriaEditorDialog(MultiCategorySettingsDialogWithContext):
 
 	# Translators: This is the label for the WebAccess criteria settings dialog.
 	title = _("WebAccess Criteria set editor")
-	categoryClasses = [GeneralPanel, ContextPanel, CriteriaPanel]
-	categoryClasses = [CriteriaPanel_]
+	# categoryClasses = [GeneralPanel, ContextPanel, CriteriaPanel]
+	categoryClasses = [GeneralPanel, CriteriaPanel_]
 	INITIAL_SIZE = (800, 480)
 
 

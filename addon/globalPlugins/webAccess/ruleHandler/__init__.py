@@ -22,7 +22,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.03.12"
+__version__ = "2021.03.13"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -945,7 +945,7 @@ class SingleNodeResult(Result):
 			# Ensure the focus does not remain on a control out of the zone
 			treeInterceptor.rootNVDAObject.setFocus()
 		else:
-			for result in reversed(rule.ruleManager.results):
+			for result in reversed(rule.ruleManager.getResults()):
 				if result.rule.type != ruleTypes.ZONE:
 					continue
 				zone = Zone(result)
@@ -1072,7 +1072,7 @@ class Criteria(baseObject.AutoPropertyObject):
 	def load(self, data):
 		data = data.copy()
 		self.name = data.pop("name", None)
-		self.notes = data.pop("notes", None)
+		self.comment = data.pop("comment", None)
 		self.contextPageTitle = data.pop("contextPageTitle", None)
 		self.contextPageType = data.pop("contextPageType", None)
 		self.contextParent = data.pop("contextParent", None)
@@ -1107,6 +1107,8 @@ class Criteria(baseObject.AutoPropertyObject):
 			if value and value.strip():
 				dic[key] = value
 		
+		setIfNotNoneOrEmptyString(data, "name", self.name)
+		setIfNotNoneOrEmptyString(data, "comment", self.comment)
 		setIfNotNoneOrEmptyString(data, "contextPageTitle", self.contextPageTitle)
 		setIfNotNoneOrEmptyString(data, "contextPageType", self.contextPageType)
 		setIfNotNoneOrEmptyString(data, "contextParent", self.contextParent)

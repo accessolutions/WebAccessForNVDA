@@ -21,7 +21,7 @@
 
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.03.12"
+__version__ = "2021.03.13"
 __author__ = u"Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
@@ -95,7 +95,13 @@ class GeneralPanel(SettingsPanelWithContext):
 		gbSizer = wx.GridBagSizer()
 		gbSizer.EmptyCellSize = (0, 0)
 		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
-
+		
+		def scale(*args):
+			return tuple([
+				self.scaleSize(arg) if arg > 0 else arg
+				for arg in args
+			])
+		
 		row = 0
 		# Translators: The Label for the Rule type choice list.
 		item = wx.StaticText(self, label=_("Rule &type"))
@@ -130,7 +136,7 @@ class GeneralPanel(SettingsPanelWithContext):
 		item = wx.StaticText(self, label=_("User &documentation"))
 		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add((guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-		item = self.ruleDocumentation = wx.TextCtrl(self, size=(400, 100), style=wx.TE_MULTILINE)
+		item = self.ruleDocumentation = wx.TextCtrl(self, size=scale(400, 100), style=wx.TE_MULTILINE)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 		gbSizer.AddGrowableRow(row)
 		
@@ -142,8 +148,9 @@ class GeneralPanel(SettingsPanelWithContext):
 		item = wx.StaticText(self, label=_("&Summary"))
 		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add((guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-		item = self.ruleSummary = wx.TextCtrl(self, size=(400, 100), style=wx.TE_MULTILINE | wx.TE_READONLY)
+		item = self.ruleSummary = wx.TextCtrl(self, size=scale(400, 100), style=wx.TE_MULTILINE | wx.TE_READONLY)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
+		gbSizer.AddGrowableRow(row)
 		
 		gbSizer.AddGrowableCol(2)
 
@@ -240,11 +247,17 @@ class AlternativesPanel(SettingsPanelWithContext):
 		gbSizer.EmptyCellSize = (0, 0)
 		#settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
 		
+		def scale(*args):
+			return tuple([
+				self.scaleSize(arg) if arg > 0 else arg
+				for arg in args
+			])
+		
 		# Translators: Label for a control in the Rule Editor
 		item = wx.StaticText(self, label=_("&Alternatives"))
 		gbSizer.Add(item, pos=(0, 0))
 		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(1, 0))
-		item = self.criteriaList = wx.ListBox(self, size=self.scaleSize((-1, 150)))
+		item = self.criteriaList = wx.ListBox(self, size=scale(-1, 150))
 		item.Bind(wx.EVT_LISTBOX, self.onCriteriaSelected)
 		gbSizer.Add(item, pos=(2, 0), span=(6, 1), flag=wx.EXPAND)
 		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(8, 0))
@@ -254,7 +267,7 @@ class AlternativesPanel(SettingsPanelWithContext):
 		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(10, 0))
 		item = self.criteriaSummary = wx.TextCtrl(
 			self,
-			size=self.scaleSize((-1, 150)),
+			size=scale(-1, 150),
 			style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH2,
 		)
 		gbSizer.Add(item, pos=(11, 0), span=(1, 3), flag=wx.EXPAND)
@@ -391,7 +404,10 @@ class ActionsPanel(SettingsPanelWithContext):
 		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
 		
 		def scale(*args):
-			return self.scaleSize(args)
+			return tuple([
+				self.scaleSize(arg) if arg > 0 else arg
+				for arg in args
+			])
 		
 		row = 0
 		# Translators: Displayed when the selected rule type doesn't support any action
@@ -586,7 +602,10 @@ class PropertiesPanel(SettingsPanelWithContext):
 		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
 		
 		def scale(*args):
-			return self.scaleSize(args)
+			return tuple([
+				self.scaleSize(arg) if arg > 0 else arg
+				for arg in args
+			])
 		
 		hidable = self.hidable = {"spacers": []}
 		
@@ -650,7 +669,7 @@ class PropertiesPanel(SettingsPanelWithContext):
 		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item.Show(False)
 		items.append(item)
-		item = self.customNameText = wx.TextCtrl(self, size=(350, -1))
+		item = self.customNameText = wx.TextCtrl(self, scale(350, -1))
 		item.Hide()
 		items.append(item)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
@@ -669,7 +688,7 @@ class PropertiesPanel(SettingsPanelWithContext):
 		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item.Show(False)
 		items.append(item)
-		item = self.customValueText = wx.TextCtrl(self, size=(350, -1))
+		item = self.customValueText = wx.TextCtrl(self, scale(350, -1))
 		item.Hide()
 		items.append(item)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
