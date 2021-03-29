@@ -22,7 +22,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.03.13"
+__version__ = "2021.03.26"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -865,6 +865,12 @@ class Result(baseObject.ScriptableObject):
 	def _get_criteria(self):
 		return self._criteria()
 	
+	def _get_label(self):
+		customName = self.criteria.customName
+		if customName is None:
+			customName = self.rule.customName
+		return customName or self.rule.name
+	
 	def _get_name(self):
 		return self.rule.name
 	
@@ -872,11 +878,11 @@ class Result(baseObject.ScriptableObject):
 		return self._rule()
 	
 	def _get_value(self):
-		raise NotImplementedError
-	
-	def check(self):
-		raise NotImplementedError
-	
+		customValue = self.criteria.customValue
+		if customValue is None:
+			customValue = self.rule.customValue
+		return customValue or self.node.getTreeInterceptorText()
+		
 	def script_moveto(self, gesture):
 		raise NotImplementedError
 	
@@ -887,7 +893,16 @@ class Result(baseObject.ScriptableObject):
 		raise NotImplementedError
 	
 	def script_speak(self, gesture):
-		raise NotImplementedError
+		repeat = scriptHandler.getLastScriptRepeatCount() if gesture is not None else 0
+		if repeat == 0:
+			parts = []
+			if self.rule.sayName:
+				parts.append(self.label)
+			parts.append(self.value)
+			msg = u" - ".join(parts)
+			wx.CallAfter(ui.message, msg)
+		else:
+			self.script_moveto(None, fromSpeak=True)
 	
 	def script_mouseMove(self, gesture):
 		raise NotImplementedError
@@ -916,11 +931,6 @@ class SingleNodeResult(Result):
 	def _get_node(self):
 		return self._node()
 	
-	def _get_value(self):
-		return \
-			self.rule.customValue \
-			or self.node.getTreeInterceptorText()
-	
 	def script_moveto(self, gesture, fromQuickNav=False, fromSpeak=False):
 		if self.node.nodeManager is None:
 			return
@@ -931,10 +941,10 @@ class SingleNodeResult(Result):
 		if fromSpeak:
 			# Translators: Speak rule name on "Move to" action
 			speech.speakMessage(_(u"Move to {ruleName}").format(
-				ruleName=rule.label)
+				ruleName=self.label)
 			)
 		elif rule.sayName:
-			speech.speakMessage(rule.label)
+			speech.speakMessage(self.label)
 		treeInterceptor = self.node.nodeManager.treeInterceptor
 		if not treeInterceptor or not treeInterceptor.isReady:
 			return
@@ -980,7 +990,7 @@ class SingleNodeResult(Result):
 	def script_sayall(self, gesture, fromQuickNav=False):
 		speech.cancelSpeech()
 		if self.rule.sayName:
-			speech.speakMessage(self.rule.label)
+			speech.speakMessage(self.label)
 		treeInterceptor = html.getTreeInterceptor()
 		if not treeInterceptor:
 			return
@@ -1007,7 +1017,7 @@ class SingleNodeResult(Result):
 			return
 		treeInterceptor = self.node.nodeManager.treeInterceptor
 		if self.rule.sayName:
-			speech.speakMessage(self.rule.label)
+			speech.speakMessage(self.label)
 		self.node.activate()
 		time.sleep(0.1)
 		api.processPendingEvents ()
@@ -1016,22 +1026,10 @@ class SingleNodeResult(Result):
 		treeInterceptor.passThrough = self.rule.formMode
 		browseMode.reportPassThrough.last = treeInterceptor.passThrough 
 	
-	def script_speak(self, gesture):
-		repeat = scriptHandler.getLastScriptRepeatCount() if gesture is not None else 0
-		if repeat == 0:
-			parts = []
-			if self.rule.sayName:
-				parts.append(self.rule.label)
-			parts.append(self.value)
-			msg = u" - ".join(parts)
-			wx.CallAfter(ui.message, msg)
-		else:
-			self.script_moveto(None, fromSpeak=True)
-	
 	def script_mouseMove(self, gesture):
 		rule = self.rule
 		if rule.sayName:
-			speech.speakMessage(rule.label)
+			speech.speakMessage(self.label)
 		treeInterceptor = html.getTreeInterceptor()
 		if not treeInterceptor:
 			return
@@ -1048,7 +1046,7 @@ class SingleNodeResult(Result):
 		return self.node.offset < other.node.offset
 	
 	def getTitle(self):
-		return self.rule.label + " - " + self.node.innerText
+		return self.label + " - " + self.node.innerText
 
 
 class Criteria(baseObject.AutoPropertyObject):

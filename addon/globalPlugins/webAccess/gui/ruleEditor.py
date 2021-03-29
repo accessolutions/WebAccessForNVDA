@@ -21,7 +21,7 @@
 
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.03.13"
+__version__ = "2021.03.26"
 __author__ = u"Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
@@ -669,7 +669,7 @@ class PropertiesPanel(SettingsPanelWithContext):
 		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item.Show(False)
 		items.append(item)
-		item = self.customNameText = wx.TextCtrl(self, scale(350, -1))
+		item = self.customNameText = wx.TextCtrl(self, size=scale(350, -1))
 		item.Hide()
 		items.append(item)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
@@ -688,7 +688,7 @@ class PropertiesPanel(SettingsPanelWithContext):
 		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item.Show(False)
 		items.append(item)
-		item = self.customValueText = wx.TextCtrl(self, scale(350, -1))
+		item = self.customValueText = wx.TextCtrl(self, size=scale(350, -1))
 		item.Hide()
 		items.append(item)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)

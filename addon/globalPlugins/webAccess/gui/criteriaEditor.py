@@ -21,7 +21,7 @@
 
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.03.13"
+__version__ = "2021.03.26"
 __author__ = u"Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
@@ -1213,17 +1213,272 @@ class CriteriaPanel_(SettingsPanelWithContext):
 
 
 # todo: make this panel
-class OverridesPanes(SettingsPanelWithContext):
+class OverridesPanel(SettingsPanelWithContext):
 	# Translators: This is the label for the overrides's panel.
 	title = _("Overrides")
+	
+	# The semi-column is part of the labels because some localizations
+	# (ie. French) require it to be prepended with one space.
+	FIELDS = OrderedDict((
+# 		# Translator: Multiple results checkbox label for the rule dialog's properties panel.
+# 		("multiple", pgettext("webAccess.ruleProperties", u"&Multiple results")),
+# 		# Translator: Activate form mode checkbox label for the rule dialog's properties panel.
+# 		("formMode", pgettext("webAccess.ruleProperties", u"Activate &form mode")),
+# 		# Translator: Skip page down checkbox label for the rule dialog's properties panel.
+# 		("skip", pgettext("webAccess.ruleProperties", u"S&kip with Page Down")),
+# 		# Translator: Speak rule name checkbox label for the rule dialog's properties panel.
+# 		("sayName", pgettext("webAccess.ruleProperties", u"&Speak rule name")),
+		# Translator: Custom name input label for the rule dialog's properties panel.
+		("customName", pgettext("webAccess.ruleProperties", u"Custom &name:")),
+		# Label depends on rule type)
+		("customValue", None),
+# 		# Translator: Transform select label for the rule dialog's properties panel.
+# 		("mutation", pgettext("webAccess.ruleProperties", u"&Transform:")),
+	))
+	
+	RULE_TYPE_FIELDS = OrderedDict((
+		(ruleTypes.PAGE_TITLE_1, ("customValue",)),
+		(ruleTypes.PAGE_TITLE_2, ("customValue",)),
+		(ruleTypes.ZONE, (
+# 			"formMode",
+# 			"skip",
+# 			"sayName",
+			"customName",
+			"customValue",
+# 			"mutation"
+		)),
+		(ruleTypes.MARKER, (
+# 			"multiple",
+# 			"formMode",
+# 			"skip",
+# 			"sayName",
+			"customName",
+			"customValue",
+# 			"mutation"
+		)),
+	))
+	
+	@staticmethod
+	def getAltFieldLabel(ruleType, key, default=None):
+		if key == "customValue":
+			if ruleType in (ruleTypes.PAGE_TITLE_1, ruleTypes.PAGE_TITLE_2):
+				# Translator: Field label on the RulePropertiesEditor dialog.
+				return pgettext("webAccess.ruleProperties", u"Custom page &title:")
+			elif ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
+				# Translator: Field label on the RulePropertiesEditor dialog.
+				return pgettext("webAccess.ruleProperties", u"Custom messa&ge:")
+		return default
+	
+	def makeSettings(self, settingsSizer):
+		gbSizer = wx.GridBagSizer()
+		gbSizer.EmptyCellSize = (0, 0)
+		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
+		
+		def scale(*args):
+			return tuple([
+				self.scaleSize(arg) if arg > 0 else arg
+				for arg in args
+			])
+		
+		hidable = self.hidable = {"spacers": []}
+		
+		row = 0
+		# Translators: Displayed when the selected rule type doesn't support any property
+		item = self.noPropertiesLabel = wx.StaticText(self, label=_("No property available for the selected rule type"))
+		item.Hide()
+		hidable["noProperties"] = [item]
+		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
+
+# 		row += 1
+# 		item = self.multipleCheckBox = wx.CheckBox(self, label=self.FIELDS["multiple"])
+# 		item.Hide()
+# 		hidable["multiple"] = [item]
+# 		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
+# 		
+# 		row += 1
+# 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+# 		item.Show(False)
+# 		hidable["spacers"].append(item)
+# 		
+# 		row += 1
+# 		item = self.formModeCheckBox = wx.CheckBox(self, label=self.FIELDS["formMode"])
+# 		item.Hide()
+# 		hidable["formMode"] = [item]
+# 		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
+# 		
+# 		row += 1
+# 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+# 		item.Show(False)
+# 		hidable["spacers"].append(item)
+# 		
+# 		row += 1
+# 		item = self.skipCheckBox = wx.CheckBox(self, label=self.FIELDS["skip"])
+# 		item.Hide()
+# 		hidable["skip"] = [item]
+# 		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
+# 		
+# 		row += 1
+# 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+# 		item.Show(False)
+# 		hidable["spacers"].append(item)
+# 		
+# 		row += 1
+# 		item = self.sayNameCheckBox = wx.CheckBox(self, label=self.FIELDS["sayName"])
+# 		item.Hide()
+# 		hidable["sayName"] = [item]
+# 		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
+# 		
+# 		row += 1
+# 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+# 		item.Show(False)
+# 		hidable["spacers"].append(item)
+		
+		row += 1
+		items = hidable["customName"] = []
+		item = self.customNameLabel = wx.StaticText(self, label=self.FIELDS["customName"])
+		item.Hide()
+		items.append(item)
+		gbSizer.Add(item, pos=(row, 0))
+		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
+		item.Show(False)
+		items.append(item)
+		item = self.customNameText = wx.TextCtrl(self, size=scale(350, -1))
+		item.Hide()
+		items.append(item)
+		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
+		
+		row += 1
+		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+		item.Show(False)
+		hidable["spacers"].append(item)
+		
+		row += 1
+		items = hidable["customValue"] = []
+		item = self.customValueLabel = wx.StaticText(self, label=self.FIELDS["customValue"] or "")
+		item.Hide()
+		items.append(item)
+		gbSizer.Add(item, pos=(row, 0))
+		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
+		item.Show(False)
+		items.append(item)
+		item = self.customValueText = wx.TextCtrl(self, size=scale(350, -1))
+		item.Hide()
+		items.append(item)
+		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
+		
+# 		row += 1
+# 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+# 		item.Show(False)
+# 		hidable["spacers"].append(item)
+# 		
+# 		row += 1
+# 		items = hidable["mutation"] = []
+# 		item = self.mutationLabel = wx.StaticText(self, label=self.FIELDS["mutation"])
+# 		item.Hide()
+# 		items.append(item)
+# 		gbSizer.Add(item, pos=(row, 0))
+# 		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
+# 		item.Show(False)
+# 		items.append(item)
+# 		item = self.mutationCombo = wx.ComboBox(self, style=wx.CB_READONLY)
+# 		item.Hide()
+# 		items.append(item)
+# 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
+		
+		gbSizer.AddGrowableCol(2)
+		
+	def initData(self, context):
+		self.context = context
+		for items in self.hidable.values():
+			for item in items:
+				item.Show(False)
+		if not context:
+			for item in self.hidable["noProperties"]:
+				item.Show()
+			return
+		data = context["data"]["criteria"]
+		
+		ruleType = context["data"]["rule"]["type"]
+		fields = self.RULE_TYPE_FIELDS.get(ruleType, {})
+		hidable = self.hidable
+		
+		if not fields:
+			for item in hidable["noProperties"]:
+				item.Show(True)
+				return
+		
+		for field in fields:
+			if field in hidable:
+				for item in hidable[field]:
+					item.Show(True)
+		
+		for item in hidable["spacers"][:len(fields) - 1]:
+			item.Show(True)
+		
+# 		self.multipleCheckBox.Value = data.get("multiple", False)
+# 		self.formModeCheckBox.Value = data.get("formMode", False)
+# 		self.skipCheckBox.Value = data.get("skip", False)
+# 		self.sayNameCheckBox.Value = data.get("sayName", True)
+		self.customNameText.Value = data.get("customName", "")
+		self.customValueLabel.Label = self.getAltFieldLabel(ruleType, "customValue")
+		self.customValueText.Value = data.get("customValue", "")
+		
+# 		self.mutationCombo.Clear()
+# 		self.mutationCombo.Append(
+# 			# Translators: The label when there is no control mutation.
+# 			pgettext("webAccess.controlMutation", "<None>"),
+# 			""
+# 		)
+# 		for id in MUTATIONS_BY_RULE_TYPE.get(ruleType, []):
+# 			label = mutationLabels.get(id)
+# 			if label is None:
+# 				log.error("No label for mutation id: {}".format(id))
+# 				label = id
+# 			self.mutationCombo.Append(label, id)
+# 		mutation = data.get("mutation") # if show else None
+# 		if mutation:
+# 			for index in range(1, self.mutationCombo.Count + 1):
+# 				id = self.mutationCombo.GetClientData(index)
+# 				if id == mutation:
+# 					break
+# 			else:
+# 				# Allow to bypass mutation choice by rule type
+# 				label = mutationLabels.get(id)
+# 				if label is None:
+# 					log.warning("No label for mutation id: {}".format(id))
+# 					label = id
+# 				self.mutationCombo.Append(label, id)
+# 				index += 1
+# 		else:
+# 			index = 0
+# 		self.mutationCombo.SetSelection(index)
+	
+	initData.onPanelActivated = True
+	
+	def onSave(self):
+		data = self.context["data"]["rule"]
+# 		setIfNotEmpty(data, "multiple", str(self.multipleCheckBox.Value))
+# 		setIfNotEmpty(data, "formMode", str(self.formModeCheckBox.Value))
+# 		setIfNotEmpty(data, "skip", str(self.skipCheckBox.Value))
+# 		setIfNotEmpty(data, "sayName", str(self.sayNameCheckBox.Value))
+		setIfNotEmpty(data, "customName", self.customNameText.Value)
+		setIfNotEmpty(data, "customValue", self.customValueText.Value)
+# 		if self.mutationCombo.Selection > 0:
+# 			data["mutation"] = self.mutationCombo.GetClientData(self.mutationCombo.Selection)
+		
+		ruleType = data["type"]
+		showedFields = self.RULE_TYPE_FIELDS.get(ruleType, {})
+		for field in self.FIELDS.keys():
+			if field not in showedFields and data.get(field):
+				del data[field]
 
 
 class CriteriaEditorDialog(MultiCategorySettingsDialogWithContext):
 
 	# Translators: This is the label for the WebAccess criteria settings dialog.
 	title = _("WebAccess Criteria set editor")
-	# categoryClasses = [GeneralPanel, ContextPanel, CriteriaPanel]
-	categoryClasses = [GeneralPanel, CriteriaPanel_]
+	# categoryClasses = [GeneralPanel, ContextPanel, CriteriaPanel, OverridesPanel]
+	categoryClasses = [GeneralPanel, CriteriaPanel_, OverridesPanel]
 	INITIAL_SIZE = (800, 480)
 
 
