@@ -22,7 +22,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.02.10"
+__version__ = "2021.04.07"
 __author__ = u"Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
@@ -112,6 +112,13 @@ def getRules(ruleManager):
 		return []
 
 
+def rule_getResults_safe(rule):
+	try:
+		return rule.getResults()
+	except Exception:
+		return []
+
+
 def getRulesByGesture(ruleManager, filter=None, active=False):
 	gestures = {}
 	noGesture = []
@@ -119,7 +126,7 @@ def getRulesByGesture(ruleManager, filter=None, active=False):
 	for rule in getRules(ruleManager):
 		if filter and filter not in rule.name:
 			continue
-		if active and not rule.getResults():
+		if active and not rule_getResults_safe(rule):
 			continue
 		for gesture, action in iteritems(rule.gestures):
 			rules = gestures.setdefault(getGestureLabel(gesture), [])
@@ -168,7 +175,7 @@ def getRulesByName(ruleManager, filter=None, active=False):
 			for rule in getRules(ruleManager)
 			if (
 				(not filter or filter.lower() in rule.name.lower())
-				and (not active or rule.getResults())
+				and (not active or rule_getResults_safe(rule))
 			)
 		),
 		key=lambda tid: tid.label.lower()
@@ -243,7 +250,7 @@ def getRulesByType(ruleManager, filter=None, active=False):
 	for rule in getRules(ruleManager):
 		if (
 			(filter and filter.lower() not in rule.name.lower())
-			or (active and not rule.getResults())
+			or (active and not rule_getResults_safe(rule))
 		):
 			continue
 		types.setdefault(rule.type, []).append(TreeItemData(
@@ -535,7 +542,7 @@ class Dialog(wx.Dialog):
 		if isinstance(obj, MarkerResult):
 			result = obj
 		elif isinstance(obj, MarkerQuery):
-			result = next(iter(obj.getResults()), None)
+			result = next(iter(rule_getResults_safe(obj)), None)
 		if not result:
 			wx.Bell()
 			return
@@ -582,15 +589,19 @@ class Dialog(wx.Dialog):
 		context = self.context.copy()  # Shallow copy
 		context["rule"] = rule
 		if showEditor(context):
-			# Pass the eventually changed rule name
-			self.refreshRuleList(context["data"]["rule"]["name"])
+			self.Close()
+			return
+# 			# Pass the eventually changed rule name
+# 			self.refreshRuleList(context["data"]["rule"]["name"])
 		wx.CallAfter(self.tree.SetFocus)
 	
 	def onRuleNew(self, evt):
 		context = self.context.copy()  # Shallow copy
 		if showCreator(context):
-			self.refreshRuleList(context["data"]["rule"]["name"])
-			wx.CallAfter(self.tree.SetFocus)
+			self.Close()
+			return
+# 			self.refreshRuleList(context["data"]["rule"]["name"])
+		wx.CallAfter(self.tree.SetFocus)
 	
 	def onTreeItemActivated(self, evt):
 		self.onResultMoveTo(evt)
@@ -617,15 +628,7 @@ class Dialog(wx.Dialog):
 			self.ruleEditButton.Enabled = False
 			self.ruleComment.Value = ""
 		else:
-			try:
-				hasResults = bool(rule.getResults())
-			except Exception:
-				self.resultMoveToButton.Enabled = False
-				self.ruleDeleteButton.Enabled = False
-				self.ruleEditButton.Enabled = False
-				self.ruleComment.Value = ""
-				wx.CallLater(10, self.onTreeSelChanged, evt)
-				return
+			self.resultMoveToButton.Enabled = bool(rule_getResults_safe(rule))
 			self.resultMoveToButton.Enabled = hasResults
 			self.ruleDeleteButton.Enabled = True
 			self.ruleEditButton.Enabled = True
