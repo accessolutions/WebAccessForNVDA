@@ -1041,6 +1041,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 	script_quickNavToNextResultLevel2.category = SCRCAT_WEBACCESS
 	script_quickNavToNextResultLevel2.ignoreTreeInterceptorPassThrough = True
 	script_quickNavToNextResultLevel2.passThroughIfNoWebModule = True
+	script_quickNavToNextResultLevel2.supersedes = {"kb:pagedown": "moveByPage_forward"}
 	
 	def script_quickNavToPreviousResultLevel2(self, gesture):
 		self.webAccess.ruleManager.quickNavToPreviousLevel2()
@@ -1050,6 +1051,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 	script_quickNavToPreviousResultLevel2.category = SCRCAT_WEBACCESS
 	script_quickNavToPreviousResultLevel2.ignoreTreeInterceptorPassThrough = True
 	script_quickNavToPreviousResultLevel2.passThroughIfNoWebModule = True
+	script_quickNavToPreviousResultLevel2.supersedes = {"kb:pageup": "moveByPage_back"}
 	
 	def script_quickNavToNextResultLevel3(self, gesture):
 		self.webAccess.ruleManager.quickNavToNextLevel3()
