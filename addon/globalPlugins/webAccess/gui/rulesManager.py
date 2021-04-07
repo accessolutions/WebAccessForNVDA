@@ -22,7 +22,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.03.12"
+__version__ = "2021.04.06"
 __author__ = u"Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
@@ -350,24 +350,45 @@ class Dialog(wx.Dialog):
 		
 		item = self.tree = wx.TreeCtrl(
 			self,
-			size=wx.Size(700, 500),
+			size=wx.Size(700, 300),
 			style=wx.TR_HAS_BUTTONS | wx.TR_HIDE_ROOT | wx.TR_LINES_AT_ROOT
 		)
 		item.Bind(wx.EVT_TREE_ITEM_ACTIVATED, self.onTreeItemActivated)
 		item.Bind(wx.EVT_TREE_KEY_DOWN, self.onTreeKeyDown)
 		item.Bind(wx.EVT_TREE_SEL_CHANGED, self.onTreeSelChanged)
 		self.treeRoot = item.AddRoot("root")
-		contentsSizer.Add(item, flag=wx.EXPAND, proportion=1)
+		contentsSizer.Add(item, flag=wx.EXPAND, proportion=2)
 		contentsSizer.AddSpacer(
 			guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS
 		)
-
-		ruleCommentLabel = wx.StaticText(self, label="Description")
-		contentsSizer.Add(ruleCommentLabel, flag=wx.EXPAND)
-		self.ruleComment = wx.TextCtrl(
-			self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_NO_VSCROLL
+		
+		descSizer = wx.GridBagSizer()
+		descSizer.EmptyCellSize = (0, 0)
+		contentsSizer.Add(descSizer, flag=wx.EXPAND, proportion=1)
+		#contentsSizer.Add(descSizer, flag=wx.EXPAND)
+		
+		# Translator: The label for a field on the Rules manager
+		item = wx.StaticText(self, label=_("Summary"))
+		descSizer.Add(item, pos=(0, 0), flag=wx.EXPAND)
+		descSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(1, 0))
+		item = self.ruleSummary = wx.TextCtrl(
+			self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_DONTWRAP | wx.TE_RICH
 		)
-		contentsSizer.Add(self.ruleComment, flag=wx.EXPAND)
+		descSizer.Add(item, pos=(2, 0), flag=wx.EXPAND)
+		
+		descSizer.Add((guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL, 0), pos=(0, 1))
+		
+		# Translator: The label for a field on the Rules manager
+		item = wx.StaticText(self, label=_("Technical notes"))
+		descSizer.Add(item, pos=(0, 2), flag=wx.EXPAND)
+		descSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(1, 2))
+		item = self.ruleComment = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY)
+		descSizer.Add(item, pos=(2, 2), flag=wx.EXPAND)
+		
+		descSizer.AddGrowableCol(0)
+		descSizer.AddGrowableCol(2)
+		descSizer.AddGrowableRow(2)
+		
 		contentsSizer.AddSpacer(
 			guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS
 		)
@@ -503,7 +524,7 @@ class Dialog(wx.Dialog):
 			wx.CallAfter(self.tree.SelectItem, shared.selectTreeItem)
 			# Sync call ensures NVDA won't announce the first item of
 			# the tree before reporting the selection.
-			self.tree.SelectItem(shared.selectTreeItem)
+			#self.tree.SelectItem(shared.selectTreeItem)
 			return
 		
 		def unselect():
@@ -600,6 +621,11 @@ class Dialog(wx.Dialog):
 		if showCreator(context, parent=self):
 			self.Close()
 			return
+# 			self.groupByRadio.SetSelection(next(iter((
+# 				index
+# 				for index, groupBy in enumerate(GROUP_BY)
+# 				if groupBy.id == "name"
+# 			))))
 # 			self.refreshRuleList(context["data"]["rule"]["name"])
 		wx.CallAfter(self.tree.SetFocus)
 	
@@ -616,6 +642,7 @@ class Dialog(wx.Dialog):
 		evt.Skip()
 	
 	def onTreeSelChanged(self, evt):
+		from logHandler import log
 		if (
 			evt is not None
 			and (evt.EventObject is None or evt.EventObject.IsBeingDeleted())
@@ -626,12 +653,14 @@ class Dialog(wx.Dialog):
 			self.resultMoveToButton.Enabled = False
 			self.ruleDeleteButton.Enabled = False
 			self.ruleEditButton.Enabled = False
+			self.ruleSummary.Value = ""
 			self.ruleComment.Value = ""
 		else:
 			self.resultMoveToButton.Enabled = bool(rule_getResults_safe(rule))
-			self.resultMoveToButton.Enabled = hasResults
 			self.ruleDeleteButton.Enabled = True
 			self.ruleEditButton.Enabled = True
+			from .ruleEditor import getSummary
+			self.ruleSummary.Value = getSummary(rule.dump())
 			self.ruleComment.Value = rule.comment or ""
 	
 	def ShowModal(self, context):

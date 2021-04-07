@@ -363,41 +363,49 @@ def recoverFrom_0_6_to_0_7(data):
 		rule.pop("priority", None)
 		ruleComments = []
 		for index, alternative in enumerate(alternatives):
+			overrides = OrderedDict()
 			alternativeComments = []
 			for key, value in rule.items():
 				if key in ("criteria", "priority", "comment"):
 					continue
-				if value != alternative.get(key):
-					if key in alternative:
-						altValue = repr(alternative.get("key"))
-					else:
-						altValue = "missing"
+				altValue = alternative.get(key)
+				if altValue != value:
+					missing = key not in alternative
+					if key in ("customName", "customValue"):
+						if missing:
+							overrides[key] = ""
+						continue
 					alternativeComments.append(
-						u"{!r} was {} instead of {}"
-						.format(key, altValue, repr(value))
+						u"{!r} was {} instead of {!r}"
+						.format(key, repr(altValue) if not missing else "missing", value)
 					)
 			for key, altValue in alternative.items():
-				if key in ("criteria", "priority", "comment") or key in rule:
+				if key in rule or key in (
+					"criteria", "priority", "comment", "customName", "customValue"
+				):
 					continue
 				alternativeComments.append(
-					u"{!r} was {} instead of {}"
-					.format(key, repr(altValue), "missing")
+					u"{!r} was {!r} instead of missing"
+					.format(key, altValue)
 				)
+			criteria = alternative["criteria"][0]
+			if overrides:
+				criteria.update(overrides)
 			if alternativeComments:
-				if alternative["criteria"][0].get("comment"):
-					alternative["criteria"][0]["comment"] += u"\n\n"
+				if criteria.get("comment"):
+					criteria["comment"] += u"\n\n"
 				else:
-					alternative["criteria"][0]["comment"] = ""
-				alternative["criteria"][0]["comment"] += (
+					criteria["comment"] = ""
+				criteria["comment"] += (
 					_(u"Recovered from format version {}").format("0.6")
 					+ u"\n"
 					+ u"\n".join(alternativeComments)
 				)
 				ruleComments.append(
-					u"Alternative {}:\n\t\t{}"
-					.format(index + 1, "\n\t\t".join(alternativeComments))
+					u"Alternative {}:\n\t{}"
+					.format(index + 1, "\n\t".join(alternativeComments))
 				)
-			rule["criteria"].append(alternative["criteria"][0])
+			rule["criteria"].append(criteria)
 		if ruleComments:
 			rule["comment"] = (
 				_(u"Recovered from format version {}").format("0.6")

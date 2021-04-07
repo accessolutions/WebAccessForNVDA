@@ -627,28 +627,6 @@ def showWebModulesLoadErrors():
 		)
 
 
-def notifyError(logMsg, exc_info=True):
-		log.exception(logMsg, exc_info=exc_info)
-		import gui
-		gui.messageBox(
-			_("An error occured. See NVDA log for more details."),
-			style=wx.ICON_ERROR
-		)
-
-
-def guarded(func):
-	
-	def wrapper(*args, **kwargs):
-		try:
-			return func(*args, **kwargs)
-		except Exception:
-			notifyError("Uncaught error while processing {!r}(args={!r}, kwargs={!r}".format(
-				func, args, kwargs
-			))
-	
-	return wrapper
-
-
 if (2018, 1) <= nvdaVersion < (2019, 2, 1):
 	
 	# Workaround for NVDA bug #10227 / PR #10231 / Fix up #10282

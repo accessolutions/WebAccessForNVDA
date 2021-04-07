@@ -189,8 +189,8 @@ class RuleManager(baseObject.ScriptableObject):
 	
 	def loadRule(self, layer, name, data):
 		if layer not in self._layers:
-			self._initLayer(layer, index)
-		self._loadRule(self, layer, name, data)
+			self._initLayer(layer, None)
+		self._loadRule(layer, name, data)
 	
 	def _loadRule(self, layer, name, data):
 		rule = self.webModule.createRule(data)
@@ -202,7 +202,7 @@ class RuleManager(baseObject.ScriptableObject):
 		for index in range(len(self._results)):
 			if self._results[index].rule.layer == layer:
 				del self._results[index]
-		for ruleLayers in self._rules:
+		for ruleLayers in self._rules.values():
 			ruleLayers.pop(layer, None)
 		self._layers.pop(layer, None)
 
@@ -1333,7 +1333,7 @@ class Rule(baseObject.ScriptableObject):
 		data = data.copy()
 		self.name = data.pop("name")
 		self.type = data.pop("type")
-		self.criteria = [Criteria(self, criteria) for criteria in data.pop("criteria")]
+		self.criteria = [Criteria(self, criteria) for criteria in data.pop("criteria", [])]
 		self.mutation = None
 		mutation = data.pop("mutation", None)
 		if mutation:
