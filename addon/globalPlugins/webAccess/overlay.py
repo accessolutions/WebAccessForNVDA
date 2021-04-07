@@ -26,7 +26,7 @@ WebAccess overlay classes
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.02.10"
+__version__ = "2021.04.07"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -65,6 +65,13 @@ try:
 except ImportError:
 	# NVDA < 2020.3
 	TrackedObject = object
+
+
+try:
+	REASON_CARET = controlTypes.OutputReason.CARET
+except AttributeError:
+	# NVDA < 2021.1
+	REASON_CARET = controlTypes.REASON_CARET
 
 
 addonHandler.initTranslation()
@@ -466,7 +473,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			return superCls
 		return getDynamicClass((WebAccessBmdtiTextInfo, superCls))
 	
-	def _set_selection(self, info, reason=controlTypes.REASON_CARET):
+	def _set_selection(self, info, reason=REASON_CARET):
 		webModule = self.webAccess.webModule
 		if webModule and hasattr(webModule, "_set_selection"):
 			webModule._set_selection(self, info, reason=reason)
@@ -872,7 +879,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			speech.cancelSpeech()
 			info.move(textInfos.UNIT_LINE, 1, endPoint="end")
 			if not willSayAllResume or nvdaVersion < (2020, 4):
-				speech.speakTextInfo(info, reason=controlTypes.REASON_CARET)
+				speech.speakTextInfo(info, reason=REASON_CARET)
 		elif self.webAccess.zone:
 			def ask():
 				if gui.messageBox(
