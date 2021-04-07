@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.08.16"
+__version__ = "2021.08.16"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -33,6 +33,13 @@ from NVDAObjects.IAccessible import IAccessible
 import controlTypes
 from logHandler import log
 import virtualBuffers
+
+
+try:
+	REASON_CARET = controlTypes.OutputReason.CARET
+except AttributeError:
+	# NVDA < 2021.1
+	REASON_CARET = controlTypes.REASON_CARET
 
 
 # global variable that stores the last valid document tree interceptor
@@ -255,7 +262,7 @@ def speakLine(info=None):
 			return
 	info = info.copy()
 	info.expand(textInfos.UNIT_LINE)
-	speech.speakTextInfo(info,unit=textInfos.UNIT_LINE,reason=controlTypes.REASON_CARET)
+	speech.speakTextInfo(info,unit=textInfos.UNIT_LINE,reason=REASON_CARET)
 
 def formMode():
 	try:

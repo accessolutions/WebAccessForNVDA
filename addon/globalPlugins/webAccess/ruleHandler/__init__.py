@@ -22,7 +22,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.02.24"
+__version__ = "2021.04.07"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -65,6 +65,14 @@ try:
 except ImportError:
 	# NVDA < 2020.3
 	TrackedObject = object
+
+
+try:
+	REASON_CARET = controlTypes.OutputReason.CARET
+except AttributeError:
+	# NVDA < 2021.1
+	REASON_CARET = controlTypes.REASON_CARET
+
 
 addonHandler.initTranslation()
 
@@ -1015,7 +1023,7 @@ class VirtualMarkerResult(MarkerResult):
 			speech.speakTextInfo(
 				info,
 				unit=textInfos.UNIT_LINE,
-				reason=controlTypes.REASON_CARET
+				reason=REASON_CARET
 			)
 			return
 		focusObject = api.getFocusObject()
