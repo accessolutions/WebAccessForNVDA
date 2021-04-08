@@ -629,7 +629,6 @@ class Dialog(wx.Dialog):
 			self.ruleComment.Value = ""
 		else:
 			self.resultMoveToButton.Enabled = bool(rule_getResults_safe(rule))
-			self.resultMoveToButton.Enabled = hasResults
 			self.ruleDeleteButton.Enabled = True
 			self.ruleEditButton.Enabled = True
 			self.ruleComment.Value = rule.comment or ""
