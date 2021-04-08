@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.12.05"
+__version__ = "2021.04.08"
 __author__ = u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -31,6 +31,7 @@ from collections import OrderedDict
 import addonHandler
 import controlTypes
 
+from ..nvdaVersion import nvdaVersion
 from . import ruleTypes
 
 
@@ -115,6 +116,9 @@ MUTATIONS = {
 	"table.data": Mutation({"table-layout": False}, False),
 	"table.layout": Mutation({"table-layout": True}, False)
 }
+
+if nvdaVersion >= (2019, 3):
+	MUTATIONS["landmark.region"].attrs["role"] = controlTypes.ROLE_REGION  # NVDA PR #10462
 
 MUTATIONS_BY_RULE_TYPE = OrderedDict((
 	(
