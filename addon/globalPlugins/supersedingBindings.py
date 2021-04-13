@@ -62,7 +62,7 @@ script_quickNavToNextResultLevel2.supersedes = {"kb:pagedown": "moveByPage_forwa
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.03.29"
+__version__ = "2021.04.13"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 __license__ = "GPL"
 
@@ -99,7 +99,6 @@ def getSupersededBinding(moduleName, className, scriptName, gestureIdentifier):
 		func = getattr(cls, "script_{}".format(scriptName))
 		return getattr(func, "supersedes", {}).get(gestureIdentifier)
 	except (KeyError, AttributeError):
-		log.exception()
 		return None
 
 
