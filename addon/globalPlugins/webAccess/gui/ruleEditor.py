@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2021 Accessolutions (https://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.02.10"
+__version__ = "2021.05.31"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -37,6 +37,7 @@ import gui
 import inputCore
 from logHandler import log
 
+from ..nvdaVersion import nvdaVersion
 from .. import ruleHandler
 from ..ruleHandler import ruleTypes
 from ..ruleHandler.controlMutation import (
@@ -339,7 +340,10 @@ class RuleContextEditor(wx.Dialog):
 	def ShowModal(self, context):
 		self.initData(context)
 		self.Fit()
-		self.Center(wx.BOTH | wx.CENTER_ON_SCREEN)
+		if nvdaVersion < (2021, 1):
+			self.Center(wx.BOTH | wx.CENTER_ON_SCREEN)
+		else:  # wx 4.1.1
+			self.CentreOnScreen()
 		if self.pageTitleCombo.IsShown():
 			self.pageTitleCombo.SetFocus()
 		else:
@@ -598,7 +602,10 @@ class RuleCriteriaEditor(wx.Dialog):
 	def ShowModal(self, context):
 		self.initData(context)
 		self.Fit()
-		self.Center(wx.BOTH | wx.CENTER_ON_SCREEN)
+		if nvdaVersion < (2021, 1):
+			self.Center(wx.BOTH | wx.CENTER_ON_SCREEN)
+		else:  # wx 4.1.1
+			self.CentreOnScreen()
 		self.searchText.SetFocus()
 		return super(RuleCriteriaEditor, self).ShowModal()
 
@@ -955,7 +962,10 @@ class RulePropertiesEditor(wx.Dialog):
 	def ShowModal(self, context):
 		self.initData(context)
 		self.Fit()
-		self.Center(wx.BOTH | wx.CENTER_ON_SCREEN)
+		if nvdaVersion < (2021, 1):
+			self.Center(wx.BOTH | wx.CENTER_ON_SCREEN)
+		else:  # wx 4.1.1
+			self.CentreOnScreen()
 		for ctrl in (
 			self.multipleCheckBox,
 			self.formModeCheckBox,
@@ -1482,6 +1492,9 @@ class RuleEditor(wx.Dialog):
 	def ShowModal(self, context):
 		self.initData(context)
 		self.Fit()
-		self.Center(wx.BOTH | wx.CENTER_ON_SCREEN)
+		if nvdaVersion < (2021, 1):
+			self.Center(wx.BOTH | wx.CENTER_ON_SCREEN)
+		else:  # wx 4.1.1
+			self.CentreOnScreen()
 		self.ruleTypeCombo.SetFocus()
 		return super(RuleEditor, self).ShowModal()

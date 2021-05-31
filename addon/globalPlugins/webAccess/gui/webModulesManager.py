@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2021 Accessolutions (https://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.01.05"
+__version__ = "2021.05.31"
 __author__ = u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -37,6 +37,8 @@ import globalVars
 import gui
 import languageHandler
 from logHandler import log
+
+from ..nvdaVersion import nvdaVersion
 
 try:
 	from gui.nvdaControls import AutoWidthColumnListCtrl
@@ -293,5 +295,8 @@ class Dialog(wx.Dialog):
 		self.initData(context)
 		self.Fit()
 		self.modulesList.SetFocus()
-		self.Center(wx.BOTH | wx.CENTER_ON_SCREEN)
+		if nvdaVersion < (2021, 1):
+			self.Center(wx.BOTH | wx.CENTER_ON_SCREEN)
+		else:  # wx 4.1.1
+			self.CentreOnScreen()
 		return super(Dialog, self).Show()

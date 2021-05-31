@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2020 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2021 Accessolutions (https://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.12.22"
+__version__ = "2021.05.31"
 __author__ = "Shirley Noel <shirley.noel@pole-emploi.fr>"
 
 
@@ -33,6 +33,8 @@ import inputCore
 import gui
 import speech
 import ui
+
+from ..nvdaVersion import nvdaVersion
 
 
 addonHandler.initTranslation()
@@ -198,6 +200,9 @@ class Dialog(wx.Dialog):
 	def ShowModal(self):
 		self.initData()
 		self.Fit()
-		self.Center(wx.BOTH | wx.CENTER_ON_SCREEN)
+		if nvdaVersion < (2021, 1):
+			self.Center(wx.BOTH | wx.CENTER_ON_SCREEN)
+		else:  # wx 4.1.1
+			self.CentreOnScreen()
 		self.inputShortcut.SetFocus()
 		return super(Dialog, self).ShowModal()
