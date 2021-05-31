@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2021 Accessolutions (https://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.04.07"
+__version__ = "2021.05.31"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -41,7 +41,6 @@ import gui
 import inputCore
 from logHandler import log
 import queueHandler
-import sayAllHandler
 import scriptHandler
 import speech
 import textInfos
@@ -50,6 +49,7 @@ import ui
 import weakref
 
 from .. import nodeHandler
+from ..nvdaVersion import nvdaVersion
 from ..webAppLib import (
 	html,
 	logTimeStart,
@@ -1054,7 +1054,12 @@ class VirtualMarkerResult(MarkerResult):
 			return
 		finally:
 			speech.speechMode = speechMode
-		sayAllHandler.readText(sayAllHandler.CURSOR_CARET)
+		if nvdaVersion < (2021, 1):
+			import sayAllHandler
+			sayAllHandler.readText(sayAllHandler.CURSOR_CARET)
+		else:
+			from speech.sayAll import SayAllHandler
+			SayAllHandler.readText(SayAllHandler.CURSOR.CARET)
 	
 	def script_activate(self, gesture):
 		if self.node.nodeManager is None:

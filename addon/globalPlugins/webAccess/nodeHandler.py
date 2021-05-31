@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2020 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2021 Accessolutions (https://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.11.23"
+__version__ = "2021.05.33"
 __authors__ = (
 	u"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
 	u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
@@ -40,12 +40,12 @@ import controlTypes
 from logHandler import log
 import mouseHandler
 import NVDAHelper
-import sayAllHandler
 import textInfos
 import treeInterceptorHandler
 import ui
 import winUser
 
+from .nvdaVersion import nvdaVersion
 from .webAppLib import *
 
 
@@ -910,14 +910,7 @@ class NodeField(TrackedObject):
 			return False
 		info = self.getTextInfo()
 		self.nodeManager.treeInterceptor._activatePosition(info=info)
-
-	def sayAll(self):
-		if self.moveto():
-			sayAllHandler.readText(sayAllHandler.CURSOR_CARET)
-			return True
-		else:
-			return False
-
+	
 	def getNVDAObject(self):
 		if not self.isReady():
 			return None
@@ -1047,3 +1040,20 @@ class NodeField(TrackedObject):
 			return info.text
 		else:
 			return ""
+	
+	if nvdaVersion < (2021, 1):
+		def sayAll(self):
+			import sayAllHandler
+			if self.moveto():
+				sayAllHandler.readText(sayAllHandler.CURSOR_CARET)
+				return True
+			else:
+				return False
+	else:
+		def sayAll(self):
+			from speech.sayAll import SayAllHandler
+			if self.moveto():
+				SayAllHandler.readText(SayAllHandler.CURSOR.CARET)
+				return True
+			else:
+				return False
