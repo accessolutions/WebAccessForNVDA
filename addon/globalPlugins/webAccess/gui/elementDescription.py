@@ -23,7 +23,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.05.31"
+__version__ = "2021.06.01"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 __license__ = "GPL"
 
@@ -34,7 +34,7 @@ import addonHandler
 import controlTypes
 import gui
 
-from ..nvdaVersion import import nvdaVersion
+from ..nvdaVersion import nvdaVersion
 
 
 addonHandler.initTranslation()
