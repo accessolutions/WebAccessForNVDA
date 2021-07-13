@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2019 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2019.07.17"
+__version__ = "2021.07.13"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -46,6 +46,7 @@ import virtualBuffers
 import winUser
 
 from . import html
+from ..nvdaVersion import nvdaVersion
 
 
 try:
@@ -55,13 +56,37 @@ except ImportError:
 	string_types = basestring
 
 
+if nvdaVersion >= (2021, 1):
+	speechMode_off = speech.SpeechMode.off
+	speechMode_talk = speech.SpeechMode.talk
+	getSpeechMode = lambda: speech.getState().speechMode
+	setSpeechMode = speech.setSpeechMode
+else:
+	speechMode_off = speech.speechMode_off
+	speechMode_talk = speech.speechMode_talk
+	getSpeechMode = lambda: speech.getState().speechMode
+	setSpeechMode = lambda value: setattr(speech, "speechMode", value)
+
+
+_speechMode_saved = None
+
+
 def speechOff():
-	speech.speechMode=speech.speechMode_off
-	
+	global _speechMode_saved
+	_speechMode_saved = getSpeechMode()
+	setSpeechMode(speechMode_off)
+
+
 def speechOn(delay=0):
+	global _speechMode_saved
 	time.sleep(delay)
-	api.processPendingEvents ()
-	speech.speechMode=speech.speechMode_talk
+	api.processPendingEvents()
+	if _speechMode_saved is not None:
+		setSpeechMode(_speechMode_saved)
+		_speechMode_saved = None
+	else:
+		setSpeechMode(speechMode_talk)
+
 
 def playWebAppSound (name):
 	from ... import webAccess

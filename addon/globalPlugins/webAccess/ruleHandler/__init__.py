@@ -22,7 +22,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.05.31"
+__version__ = "2021.07.13"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -72,6 +72,16 @@ try:
 except AttributeError:
 	# NVDA < 2021.1
 	REASON_CARET = controlTypes.REASON_CARET
+
+
+if nvdaVersion >= (2021, 1):
+	speechMode_off = speech.SpeechMode.off
+	getSpeechMode = lambda: speech.getState().speechMode
+	setSpeechMode = speech.setSpeechMode
+else:
+	speechMode_off = speech.speechMode_off
+	getSpeechMode = lambda: speech.getState().speechMode
+	setSpeechMode = lambda value: setattr(speech, "speechMode", value)
 
 
 addonHandler.initTranslation()
@@ -1041,9 +1051,9 @@ class VirtualMarkerResult(MarkerResult):
 		treeInterceptor = html.getTreeInterceptor()
 		if not treeInterceptor:
 			return
-		speechMode = speech.speechMode
+		speechMode = getSpeechMode()
 		try:
-			speech.speechMode = speech.speechMode_off
+			setSpeechMode(speechMode_off)
 			treeInterceptor.passThrough = False
 			browseMode.reportPassThrough.last = treeInterceptor.passThrough 
 			self.node.moveto()
@@ -1053,7 +1063,7 @@ class VirtualMarkerResult(MarkerResult):
 			log.exception("Error during script_sayall")
 			return
 		finally:
-			speech.speechMode = speechMode
+			setSpeechMode(speechMode)
 		if nvdaVersion < (2021, 1):
 			import sayAllHandler
 			sayAllHandler.readText(sayAllHandler.CURSOR_CARET)
