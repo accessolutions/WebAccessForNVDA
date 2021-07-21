@@ -22,11 +22,13 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.07.13"
+__version__ = "2021.07.20"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
 import os
+import threading
+import time
 
 import api
 import braille
@@ -40,7 +42,6 @@ import nvwave
 import scriptHandler
 import speech
 import textInfos
-import time
 import tones
 import virtualBuffers
 import winUser
@@ -68,24 +69,81 @@ else:
 	setSpeechMode = lambda value: setattr(speech, "speechMode", value)
 
 
-_speechMode_saved = None
+def synchronized(lock):
+	
+	def decorator(func):
+		
+		def wrapper(*args, **kwargs):
+			with lock:
+				return func(*args, **kwargs)
+		
+		return wrapper
+	
+	return decorator
 
 
-def speechOff():
-	global _speechMode_saved
-	_speechMode_saved = getSpeechMode()
+_speechModes_saved = []
+_speechMode_lock = threading.RLock()
+
+
+@synchronized(_speechMode_lock)
+def speechOff(timeout=1):
+	global _speechModes_saved
+	_speechModes_saved.append(getSpeechMode())
 	setSpeechMode(speechMode_off)
+	
+	if timeout is not None:
+		event = threading.Event()
+		
+		def watchdog():
+			time.sleep(timeout)
+			if event.is_set():
+				return
+			speechOn(force=True)
+		
+		threading.Thread(target=watchdog).start()
+		return event
 
 
-def speechOn(delay=0):
-	global _speechMode_saved
+@synchronized(_speechMode_lock)
+def speechOn(delay=0, force=False):
+	global _speechModes_saved
+	speechMode = None
+	if force:
+		if _speechModes_saved:
+			speechMode = _speechModes_saved[0]
+			_speechModes_saved[:] = []
+	elif _speechModes_saved:
+		speechMode = _speechModes_saved.pop()
+	if speechMode is None:
+		speechMode = speechMode_talk
+	
 	time.sleep(delay)
 	api.processPendingEvents()
-	if _speechMode_saved is not None:
-		setSpeechMode(_speechMode_saved)
-		_speechMode_saved = None
-	else:
-		setSpeechMode(speechMode_talk)
+	setSpeechMode(speechMode)
+
+
+class _SpeechMuted(object):
+	
+	def __init__(self, timeout=1):
+		self.timeout = timeout
+		self.event = None
+	
+	def __enter__(self):
+		self.event = speechOff()
+	
+	@synchronized(_speechMode_lock)
+	def __exit__(self, exc_type, exc_value, traceback):
+		event = self.event
+		if event is not None:
+			if event.is_set():
+				return
+			event.set()
+		speechOn()
+
+
+def speechMuted(timeout=1):
+	return _SpeechMuted(timeout=timeout)
 
 
 def playWebAppSound (name):
