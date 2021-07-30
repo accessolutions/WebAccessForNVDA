@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.07.20"
+__version__ = "2021.07.29"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -87,7 +87,7 @@ _speechMode_lock = threading.RLock()
 
 
 @synchronized(_speechMode_lock)
-def speechOff(timeout=1):
+def speechOff(timeout=2):
 	global _speechModes_saved
 	_speechModes_saved.append(getSpeechMode())
 	setSpeechMode(speechMode_off)
@@ -125,7 +125,7 @@ def speechOn(delay=0, force=False):
 
 class _SpeechMuted(object):
 	
-	def __init__(self, timeout=1):
+	def __init__(self, timeout=2):
 		self.timeout = timeout
 		self.event = None
 	
@@ -142,7 +142,7 @@ class _SpeechMuted(object):
 		speechOn()
 
 
-def speechMuted(timeout=1):
+def speechMuted(timeout=2):
 	return _SpeechMuted(timeout=timeout)
 
 
