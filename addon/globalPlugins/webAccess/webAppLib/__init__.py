@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.07.29"
+__version__ = "2021.08.04"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -65,7 +65,7 @@ if nvdaVersion >= (2021, 1):
 else:
 	speechMode_off = speech.speechMode_off
 	speechMode_talk = speech.speechMode_talk
-	getSpeechMode = lambda: speech.getState().speechMode
+	getSpeechMode = lambda: speech.speechMode
 	setSpeechMode = lambda value: setattr(speech, "speechMode", value)
 
 
