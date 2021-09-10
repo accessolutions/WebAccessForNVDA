@@ -2,7 +2,7 @@
 # globalPlugins/browsableMessage/gui.py
 
 # This file is part of browsableMessage-nvda.
-# Copyright (C) 2020 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2020-2021 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@ Browsable Message GUI.
 
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.10.12"
+__version__ = "2021.09.10"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 __license__ = "GPL"
 
@@ -59,7 +59,7 @@ if sys.version_info[:3] == (2, 7, 16):  # NVDA 2019.2.x
 			r"lib\python-2.7.16\wx"
 		),
 	)
-elif (3, 7) < sys.version_info[:3] < (3, 8):  # NVDA >= 2019.3.x
+elif sys.version_info[:3] == (3, 7, 5):  # NVDA >= 2019.3, <= 2020.4
 	if wx.__version__ != "4.0.3":
 		raise ValueError("Unsupported wxPython version: {}".format(wx.__version__))
 	import os.path
@@ -68,6 +68,17 @@ elif (3, 7) < sys.version_info[:3] < (3, 8):  # NVDA >= 2019.3.x
 		os.path.join(
 			os.path.dirname(os.path.abspath(__file__)),
 			r"lib\python-3.7.5\wx"
+		),
+	)
+elif sys.version_info[:3] == (3, 7, 9):  # NVDA >= 2021.1
+	if wx.__version__ != "4.1.1":
+		raise ValueError("Unsupported wxPython version: {}".format(wx.__version__))
+	import os.path
+	import sys
+	sys.modules["wx"].__path__.append(
+		os.path.join(
+			os.path.dirname(os.path.abspath(__file__)),
+			r"lib\python-3.7.9\wx"
 		),
 	)
 else:
@@ -188,5 +199,5 @@ class WebViewDialog(wx.Dialog):
 				if className == u"Internet Explorer_Server":
 					winUser.setFocus(hwnd)
 					return
-		except:
+		except Exception:
 			log.exception()

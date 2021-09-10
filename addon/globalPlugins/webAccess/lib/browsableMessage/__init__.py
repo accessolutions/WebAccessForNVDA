@@ -2,7 +2,7 @@
 # globalPlugins/browsableMessage/__init__.py
 
 # This file is part of browsableMessage-nvda.
-# Copyright (C) 2020 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2020-2021 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@ Browsable Message.
 
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2020.10.11"
+__version__ = "2021.09.10"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 __license__ = "GPL"
 
@@ -111,7 +111,7 @@ def browsableMessage(source, type=None, title=None, rootDirs=None):
 		if dlg:
 			try:
 				dlg.Show(False)
-			except:
+			except Exception:
 				pass
 	
 	callback = None
