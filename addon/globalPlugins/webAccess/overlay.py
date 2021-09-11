@@ -124,9 +124,10 @@ class ScriptWrapper(object):
 	"""
 	Wrap a script to help controlling its metadata or its execution.
 	"""
-	def __init__(self, script, override=None, **defaults):
+	def __init__(self, script, override=None, arg="script", **defaults):
 		self.script = script
 		self.override = override
+		self.arg = arg
 		self.defaults = defaults
 	
 	def __getattribute__(self, name):
@@ -134,7 +135,7 @@ class ScriptWrapper(object):
 		# category, ignoreTreeInterceptorPassThrough or resumeSayAllMode.
 		# Note: scriptHandler.executeScript looks at script.__func__ to
 		# prevent recursion.
-		if name not in ("__class__", "script", "override", "defaults"):
+		if name not in ("__class__", "script", "override", "arg", "defaults"):
 			if self.override:
 				try:
 					return getattr(self.override, name)
@@ -150,11 +151,11 @@ class ScriptWrapper(object):
 				pass
 		return object.__getattribute__(self, name)
 	
-	def __call__(self, gesture):
-		if self.override and self.override(gesture):
-			# The override returned True, do not execute the original script.
-			return
-		self.script(gesture)
+	def __call__(self, gesture, **kwargs):
+		if self.override:
+			# Throws `TypeError` on purpose if `arg` is already in `kwargs`
+			return self.override(gesture, **kwargs, **{self.arg: self.script})
+		return self.script(gesture, **kwargs)
 
 
 class WebAccessBmdtiHelper(TrackedObject):
