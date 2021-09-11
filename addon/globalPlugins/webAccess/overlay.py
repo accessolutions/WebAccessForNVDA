@@ -26,7 +26,7 @@ WebAccess overlay classes
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.04.07"
+__version__ = "2021.09.10"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -256,6 +256,15 @@ class WebAccessBmdtiTextInfo(textInfos.offsets.OffsetsTextInfo):
 	 - Enforce respect of the active zone borders.
 	 - Override attributes of mutated controls.
 	"""  # noqa: E101
+	
+	def __init__(self, obj, position):
+		super(WebAccessBmdtiTextInfo, self).__init__(obj, position)
+		if not isinstance(position, weakref.ProxyType):
+			try:
+				self.basePosition = weakref.proxy(position)
+			except Exception:
+				pass
+	
 	def find(self, text, caseSensitive=False, reverse=False):
 		zone = self.obj.webAccess.zone
 		if not zone:
