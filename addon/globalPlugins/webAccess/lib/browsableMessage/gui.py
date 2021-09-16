@@ -25,7 +25,7 @@ Browsable Message GUI.
 
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.09.10"
+__version__ = "2021.09.16"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 __license__ = "GPL"
 
@@ -47,10 +47,9 @@ addonHandler.initTranslation()
 
 
 # As it comes with compiled .pyd files, the version of wx.html2 to import here
-# must strictly match the versions of Python and wxPython shipped with NVDA.
-if sys.version_info[:3] == (2, 7, 16):  # NVDA 2019.2.x
-	if wx.__version__ != "4.0.3":
-		raise ValueError("Unsupported wxPython version: {}".format(wx.__version__))
+# must match the versions of Python and wxPython shipped with NVDA.
+if sys.version_info[:3] == (2, 7, 16) and wx.__version__ == "4.0.3":
+	# NVDA 2019.2.x
 	import os.path
 	import sys
 	sys.modules["wx"].__path__.append(
@@ -59,9 +58,12 @@ if sys.version_info[:3] == (2, 7, 16):  # NVDA 2019.2.x
 			r"lib\python-2.7.16\wx"
 		),
 	)
-elif sys.version_info[:3] == (3, 7, 5):  # NVDA >= 2019.3, <= 2020.4
-	if wx.__version__ != "4.0.3":
-		raise ValueError("Unsupported wxPython version: {}".format(wx.__version__))
+elif sys.version_info[:2] == (3, 7) and wx.__version__ == "4.0.3":
+	# NVDA 2019.3.x / Python 3.7.5
+	# NVDA 2020.1 / Python 3.7.7
+	# NVDA 2020.2 / Python 3.7.8
+	# NVDA 2020.3 / Python 3.7.9
+	# NVDA 2020.4 / Python 3.7.9
 	import os.path
 	import sys
 	sys.modules["wx"].__path__.append(
@@ -70,9 +72,8 @@ elif sys.version_info[:3] == (3, 7, 5):  # NVDA >= 2019.3, <= 2020.4
 			r"lib\python-3.7.5\wx"
 		),
 	)
-elif sys.version_info[:3] == (3, 7, 9):  # NVDA >= 2021.1
-	if wx.__version__ != "4.1.1":
-		raise ValueError("Unsupported wxPython version: {}".format(wx.__version__))
+elif sys.version_info[:3] == (3, 7, 9) and wx.__version__ == "4.1.1":
+	# NVDA 2021.1, 2021.2
 	import os.path
 	import sys
 	sys.modules["wx"].__path__.append(
@@ -82,7 +83,10 @@ elif sys.version_info[:3] == (3, 7, 9):  # NVDA >= 2021.1
 		),
 	)
 else:
-	raise ValueError("Unsupported Python version: {}".format(sys.version_info))
+	raise ValueError("Unsupported Python ({}) and wxPython ({}) combination".format(
+		".".join((str(part) for part in sys.version_info[:3])),
+		wx.__version__
+	))
 
 
 import wx.html2
