@@ -22,7 +22,7 @@
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.05.33"
+__version__ = "2021.09.27"
 __authors__ = (
 	u"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
 	u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
@@ -58,8 +58,7 @@ except ImportError:
 try:
 	from ast import literal_eval
 except ImportError:
-	# NVDA < 2018.4
-	from .ast import literal_eval
+	from .backports.nvda_2018_4.ast import literal_eval
 
 try:
 	from garbageHandler import TrackedObject	

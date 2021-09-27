@@ -26,7 +26,7 @@ WebAccess overlay classes
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.09.10"
+__version__ = "2021.09.27"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -811,10 +811,9 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 				if key.startswith("parent::"):
 					key = key[len("parent::"):]
 					if parentAttrs is None:
-						parent = mutated.node.parent
-						parentInfo = parent.getTextInfo()
+						parentInfo = parentNode.getTextInfo()
 						parentAttrs = parentInfo._getControlFieldAttribs(
-							docHandle, int(parent.controlIdentifier)
+							docHandle, int(parentNode.controlIdentifier)
 						)
 					attrs = parentAttrs
 					node = parentNode
