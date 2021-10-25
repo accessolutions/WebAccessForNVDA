@@ -22,7 +22,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.09.30"
+__version__ = "2021.10.25"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -155,7 +155,8 @@ def translateStatesLblToId(expr):
 	def translate(value):
 		for key, candidate in iteritems(controlTypes.stateLabels):
 			if candidate == value:
-				return text_type(key)
+				# The key is an enum as of NVDA 2021.2
+				return text_type(int(key))
 		return value
 	return translateExprValues(expr, translate)
 
