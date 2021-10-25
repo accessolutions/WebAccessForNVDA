@@ -22,7 +22,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.09.10"
+__version__ = "2021.10.25"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
@@ -46,7 +46,6 @@ import speech
 import ui
 
 from ..lib.packaging import version
-# from .. import presenter
 from .. import ruleHandler
 from ..ruleHandler import ruleTypes
 from ..webAppLib import *
@@ -123,10 +122,6 @@ class WebModule(baseObject.ScriptableObject):
 		self.layers = []  # List of `WebModuleDataLayer` instances
 		self.activePageTitle = None
 		self.activePageIdentifier = None
-		# from .. import widgets
-		# self.widgetManager = widgets.WidgetManager(self)
-#		self.activeWidget = None
-		# self.presenter = presenter.Presenter(self)
 		self.ruleManager = self.markerManager = ruleHandler.MarkerManager(self)
 	
 # 	def __del__(self):
