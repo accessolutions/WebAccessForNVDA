@@ -22,7 +22,7 @@
 # Keep compatible with Python 2
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.07.13"
+__version__ = "2021.10.25"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
@@ -1068,8 +1068,8 @@ class VirtualMarkerResult(MarkerResult):
 			import sayAllHandler
 			sayAllHandler.readText(sayAllHandler.CURSOR_CARET)
 		else:
-			from speech.sayAll import SayAllHandler
-			SayAllHandler.readText(SayAllHandler.CURSOR.CARET)
+			from speech.sayAll import CURSOR as sayAll_CURSOR, SayAllHandler
+			SayAllHandler.readText(sayAll_CURSOR.CARET)
 	
 	def script_activate(self, gesture):
 		if self.node.nodeManager is None:
