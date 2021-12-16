@@ -26,10 +26,11 @@ WebAccess overlay classes
 # Get ready for Python 3
 from __future__ import absolute_import, division, print_function
 
-__version__ = "2021.09.27"
+__version__ = "2021.12.16"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
+import threading
 import weakref
 import wx
 
@@ -1189,22 +1190,51 @@ class WebAccessObject(IAccessible):
 	
 	def initOverlayClass(self):
 		self.webAccess = WebAccessObjectHelper(self)
+		self._original_lock = threading.RLock()
+		self._original = False
+		self.__name = None
+		self.__name_original = None
+		self.__positionInfo = None
+		self.__role = None
+		self.__role_original = None
+	
+	_cache_name = False
 	
 	def _get_name(self, original=False):
-		if original:
-			self.webAccess._original = True
-		try:
-			name = super(WebAccessObject, self).name
-			if original or getattr(self.webAccess, "_original", False):
-				return name
-			return self.webAccess.getMutatedControlAttribute("name", name)
-		finally:
-			if original:
-				self.webAccess._original = False
+		if not hasattr(self, "webAccess"):
+			# We are most likely called from the initOverlayClass method of an overlay
+			# applied by an AppModule hence called before our own initOverlayClass.
+			return super(WebAccessObject, self).name
+		if original or self._original:
+			with self._original_lock:
+				oldOriginal = self._original
+				original = self._original = original or oldOriginal
+				try:
+					if original:
+						name = self.__name_original
+						if name is not None:
+							return name
+						name = self.__name_original = super(WebAccessObject, self).name
+						return name
+				finally:
+					self._original = oldOriginal
+		name = self.__name
+		if name is not None:
+			return name
+		name = super(WebAccessObject, self).name
+		name = self.__name = self.webAccess.getMutatedControlAttribute("name", name)
+		return name
+	
+	_cache_positionInfo = False
 	
 	def _get_positionInfo(self):
-		# "level" is text in control field attributes,
-		# but int in position info...
+		if not hasattr(self, "webAccess"):
+			# We are most likely called from the initOverlayClass method of an overlay
+			# applied by an AppModule hence called before our own initOverlayClass.
+			return super(WebAccessObject, self).positionInfo
+		info = self.__positionInfo
+		if info is not None:
+			return info
 		info = super(WebAccessObject, self).positionInfo
 		level = self.webAccess.getMutatedControlAttribute("level")
 		if level:
@@ -1215,19 +1245,35 @@ class WebAccessObject(IAccessible):
 					"Could not convert to int: level={}".format(level)
 				)
 			info["level"] = level
+		self.__positionInfo = info
 		return info
 	
+	_cache_role = False
+	
 	def _get_role(self, original=False):
-		if original:
-			self.webAccess._original = True
-		try:
-			role = super(WebAccessObject, self).role
-			if original or getattr(self.webAccess, "_original", False):
-				return role
-			return self.webAccess.getMutatedControlAttribute("role", role)
-		finally:
-			if original:
-				self.webAccess._original = False
+		if not hasattr(self, "webAccess"):
+			# We are most likely called from the initOverlayClass method of an overlay
+			# applied by an AppModule hence called before our own initOverlayClass.
+			return super(WebAccessObject, self).role
+		if original or self._original:
+			with self._original_lock:
+				oldOriginal = self._original
+				original = self._original = original or oldOriginal
+				try:
+					if original:
+						role = self.__role_original
+						if role is not None:
+							return role
+						role = self.__role_original = super(WebAccessObject, self).role
+						return role
+				finally:
+					self._original = oldOriginal
+		role = self.__role
+		if role is not None:
+			return role
+		role = super(WebAccessObject, self).role
+		role = self.__role = self.webAccess.getMutatedControlAttribute("role", role)
+		return role
 		
 	def _set_treeInterceptor(self, obj):
 		super(WebAccessObject, self)._set_treeInterceptor(obj)
