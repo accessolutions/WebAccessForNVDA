@@ -934,6 +934,10 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			pass
 		if script:
 			if not webModule and getattr(script, "passThroughIfNoWebModule", False):
+				if getattr(script, "supersedes", False) and script.supersedes:
+					scriptName = "script_%s" % list(script.supersedes.values())[0]
+					script = getattr(self, scriptName, None)
+					if script: return script
 				if nvdaVersion >= (2019, 2):
 					script = self.script_passThrough
 				else:
