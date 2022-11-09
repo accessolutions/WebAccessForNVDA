@@ -19,12 +19,13 @@ addon_info = {
 	# Translators: Long description to be shown for this add-on on add-on information from add-ons manager
 	"addon_description" : _("""Web application modules support for modern or complex web sites."""),
 	# version
-	"addon_version" : "2022.10.17-dev",
+	"addon_version" : "2022.11.09-dev",
 	# Author(s)
 	"addon_author" : (
 		u"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
 		u"Yannick Plassiard <yan@mistigri.org>, "
-		u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
+		u"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+		u"André-Abush Clause <a.clause@accessolutions.fr>"
 		),
 	# URL for the add-on documentation support
 	"addon_url" : "http://www.accessolutions.fr",
