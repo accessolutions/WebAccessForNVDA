@@ -112,7 +112,7 @@ SOUND_DIRECTORY = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..",
 
 
 
-supportedWebAppHosts = ['firefox', 'chrome', 'java', 'iexplore', 'microsoftedgecp', 'msedge']
+supportedWebAppHosts = ['brave', 'firefox', 'chrome', 'java', 'iexplore', 'microsoftedgecp', 'msedge']
 
 activeWebApp = None
 useInternalBrowser = False
