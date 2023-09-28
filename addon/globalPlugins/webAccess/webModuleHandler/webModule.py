@@ -19,8 +19,6 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-# Keep compatible with Python 2
-from __future__ import absolute_import, division, print_function
 
 __version__ = "2021.03.13"
 __author__ = (
@@ -74,7 +72,7 @@ class WebModuleDataLayer(baseObject.AutoPropertyObject):
 		self.dirty = False
 	
 	def __repr__(self):
-		return u"<WebModuleDataLayer (name={!r}, storeRef={!r}, rulesOnly={!r}".format(
+		return "<WebModuleDataLayer (name={!r}, storeRef={!r}, rulesOnly={!r}".format(
 			self.name, self.storeRef, self.rulesOnly
 		)
 	
@@ -115,7 +113,7 @@ class WebModule(baseObject.ScriptableObject):
 		self.ruleManager = ruleHandler.RuleManager(self)
 	
 	def __repr__(self):
-		return u"WebModule {name}".format(
+		return "WebModule {name}".format(
 			name=self.name if self.name is not None else "<noName>"
 		)
 	
@@ -140,8 +138,8 @@ class WebModule(baseObject.ScriptableObject):
 				title = self.ruleManager.getPageTitle()
 			except Exception:
 				log.exception(
-					u'Error while retrieving page title'
-					u' in WebModule "{}"'.format(
+					'Error while retrieving page title'
+					' in WebModule "{}"'.format(
 						self.name
 					)
 				)
@@ -349,7 +347,7 @@ class WebModule(baseObject.ScriptableObject):
 
 	def script_sayWebModuleName(self, gesture):
 		# Translators: Speak name of current web module
-		ui.message(_(u"Current web module is: {name}").format(name=self.name))
+		ui.message(_("Current web module is: {name}").format(name=self.name))
 
 	__gestures = {
 		"kb:nvda+h": "contextualHelp",

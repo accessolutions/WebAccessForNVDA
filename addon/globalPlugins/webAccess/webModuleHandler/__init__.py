@@ -21,8 +21,6 @@
 
 """Web Access GUI."""
 
-# Keep compatible with Python 2
-from __future__ import absolute_import, division, print_function
 
 __version__ = "2021.03.13"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
@@ -211,7 +209,7 @@ def save(webModule, layerName=None, prompt=True, force=False):
 			storeRef = store.create(webModule, force=force)
 			prompt and ui.message(
 				# Translators: Confirmation message after web module creation.
-				_(u"Your new web module {name} has been created.").format(name=webModule.name)
+				_("Your new web module {name} has been created.").format(name=webModule.name)
 			)
 		else:
 			store.update(webModule, layerName=layer.name, force=force)
@@ -287,12 +285,12 @@ def showEditor(context, new=False):
 						# Translators: Confirmation message after web module creation.
 						ui.message(
 							_(
-								u"Your new web module {name} has been created."
+								"Your new web module {name} has been created."
 								).format(name=webModule.name)
 							)
 					else:
 						webModule = context["webModule"]
-						for name, value in context["data"]["WebModule"].items():
+						for name, value in list(context["data"]["WebModule"].items()):
 							setattr(webModule, name, value)
 						update(
 							webModule=webModule,
@@ -356,13 +354,13 @@ def getEditableWebModule(webModule, layerName=None, prompt=True):
 		hints = []
 		if config.conf["webAccess"]["disableUserConfig"] and layerName is None:
 			# Translators: A hint on how to allow to save a modification
-			hints.append(_(u"• In the WebAccess category, enable User WebModules."))
+			hints.append(_("• In the WebAccess category, enable User WebModules."))
 		if (
 			not config.conf["webAccess"]["devMode"]
 			and layerName not in ("user", None)
 		):
 			# Translators: A hint on how to allow to save a modification
-			hints.append(_(u"• In the WebAccess category, enable Developper Mode."))
+			hints.append(_("• In the WebAccess category, enable Developper Mode."))
 		if (
 			nvdaVersion >= (2019, 1)
 			and not config.conf["development"]["enableScratchpadDir"]
@@ -372,7 +370,7 @@ def getEditableWebModule(webModule, layerName=None, prompt=True):
 			)
 		):
 			# Translators: A hint on how to allow to save a modification
-			hints.append(_(u"• In the Advanced category, enable loading of the Scratchpad directory"))
+			hints.append(_("• In the Advanced category, enable loading of the Scratchpad directory"))
 		if hints:
 			if len(hints) > 1 and config.conf["webAccess"]["disableUserConfig"] and layerName is None:
 				hints.insert(1, _("or"))
@@ -437,13 +435,8 @@ def getWebModuleFactory(name):
 		return WebModule
 	mod = None
 	try:
-		if nvdaVersion < (2019, 3):
-			# Python 2.x can't properly handle unicode module names, so convert them.
-			name = name.encode("mbcs")
-			mod = __import__("webModulesMC.{}".format(name), globals(), locals(), ("webModulesMC",))
-		else:
-			import importlib
-			mod = importlib.import_module("webModulesMC.{}".format(name), package="webModulesMC")
+		import importlib
+		mod = importlib.import_module("webModulesMC.{}".format(name), package="webModulesMC")
 	except Exception:
 		log.exception("Could not import custom module webModulesMC.{}".format(name))
 	if not mod:
@@ -456,7 +449,7 @@ def getWebModuleFactory(name):
 		raise InvalidApiVersion(apiVersion)
 	ctor = getattr(mod, "WebModule", None)
 	if ctor is None:
-		msg = u"Python module {} does not provide a 'WebModule' class: {}".format(
+		msg = "Python module {} does not provide a 'WebModule' class: {}".format(
 			mod.__name__,
 			getattr(mod, "__file__", None) or getattr(mod, "__path__", None)
 		)
@@ -466,9 +459,6 @@ def getWebModuleFactory(name):
 
 
 def hasCustomModule(name):
-	if nvdaVersion < (2019, 3):
-		# Python 2.x can't properly handle unicode module names, so convert them.
-		name = name.encode("mbcs")
 	return any(
 		importer.find_module("webModulesMC.{}".format(name))
 		for importer in _importers

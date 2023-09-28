@@ -19,8 +19,6 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-# Keep compatible with Python 2
-from __future__ import absolute_import, division, print_function
 
 __version__ = "2020.12.22"
 __author__ = "Shirley Noel <shirley.noel@pole-emploi.fr>"
@@ -152,7 +150,7 @@ class Dialog(wx.Dialog):
 					wx.CallLater,
 					100,
 					ui.message,
-					_(u"Shortcut set to %s" % main)
+					_("Shortcut set to %s" % main)
 				)
 		elif gestureIdentifier == "kb:tab":
 			return True
@@ -198,6 +196,6 @@ class Dialog(wx.Dialog):
 	def ShowModal(self):
 		self.initData()
 		self.Fit()
-		self.Center(wx.BOTH | wx.CENTER_ON_SCREEN)
+		self.CenterOnScreen()
 		self.inputShortcut.SetFocus()
 		return super(Dialog, self).ShowModal()

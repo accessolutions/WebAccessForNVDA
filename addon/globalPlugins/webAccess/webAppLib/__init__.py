@@ -20,10 +20,10 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 # Get ready for Python 3
-from __future__ import absolute_import, division, print_function
+
 
 __version__ = "2019.07.17"
-__author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
+__author__ = "Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
 import os
@@ -52,7 +52,7 @@ try:
 	from six import string_types
 except ImportError:
 	# NVDA version < 2018.3
-	string_types = basestring
+	string_types = str
 
 
 def speechOff():
@@ -238,6 +238,6 @@ def searchNameByColor (obj, background):
 					red = -1
 		elif isinstance (field, string_types):
 			if red == background and len(field) > 3:
-				return unicode (field)
+				return str (field)
 	# end of loop
 	return ""

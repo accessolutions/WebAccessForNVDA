@@ -20,10 +20,10 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 # Get ready for Python 3
-from __future__ import absolute_import, division, print_function
+
 
 __version__ = "2021.03.12"
-__author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
+__author__ = "Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
 import threading
@@ -40,7 +40,7 @@ try:
 	from six.moves import queue
 except ImportError:
 	# NVDA version < 2018.3
-	import Queue as queue
+	import queue as queue
 
 
 TRACE = lambda *args, **kwargs: None  # @UnusedVariable
@@ -80,8 +80,8 @@ class WebAppScheduler(threading.Thread):
 						log.exception("Error executing event {}".format(eventName))
 
 				else:
-					log.info(u"event %s is not found" % eventName)
-		log.info  (u"webAppScheduler stopped !")
+					log.info("event %s is not found" % eventName)
+		log.info  ("webAppScheduler stopped !")
 
 	def send(self, **kwargs):
 		self.queue.put(kwargs)
@@ -133,10 +133,10 @@ class WebAppScheduler(threading.Thread):
 
 	def event_checkWebAppManager(self):
 		# TODO: Should not be triggered anymore 
-		log.error(u"event_checkWebAppManager")
+		log.error("event_checkWebAppManager")
 		focus = api.getFocusObject()
 		webApp = focus.webAccess.webModule if isinstance(focus, WebAccessObject) else None
-		TRACE(u"event_checkWebAppManager: webApp={webApp}".format(
+		TRACE("event_checkWebAppManager: webApp={webApp}".format(
 			webApp=id(webApp) if webApp is not None else None
 			))
 		if webApp:
@@ -145,8 +145,8 @@ class WebAppScheduler(threading.Thread):
 				#webApp.treeInterceptor = treeInterceptor
 				nodeManager = getattr(treeInterceptor, "nodeManager", None)
 				TRACE(
-					u"event_checkWebAppManager: "
-					u"nodeManager={nodeManager}".format(
+					"event_checkWebAppManager: "
+					"nodeManager={nodeManager}".format(
 						nodeManager=id(nodeManager)
 							if nodeManager is not None else None
 						)
@@ -193,7 +193,7 @@ class WebAppScheduler(threading.Thread):
 				name='node_gainFocus',
 				obj=node, webApp=webModule
 				)
-			# webModule.widgetManager.claimVirtualBufferWidget(reason)
-			if useInternalBrowser is True or webModule.activeWidget is not None:
+			#webModule.widgetManager.claimVirtualBufferWidget(reason)
+			if useInternalBrowser is True: #or webModule.activeWidget is not None:
 				beep(300, 30)
 				wx.CallAfter(webModule.presenter.display, node)

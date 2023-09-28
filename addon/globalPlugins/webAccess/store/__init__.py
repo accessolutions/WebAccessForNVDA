@@ -21,8 +21,6 @@
 
 """Web Access data store."""
 
-# Keep compatible with Python 2
-from __future__ import absolute_import, division, print_function
 
 __version__ = "2021.02.04"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
@@ -66,14 +64,14 @@ class Store(object):
 					errors.append((ref, sys.exc_info()))
 				else:
 					log.exception(
-						u"Error while retrieving item: ref={ref}".format(
+						"Error while retrieving item: ref={ref}".format(
 							ref=ref
 						)
 					)
 				continue
 			if item is None:
 				log.warning(
-					u"No item retrieved for ref: {ref}".format(ref=ref)
+					"No item retrieved for ref: {ref}".format(ref=ref)
 				)
 			else:
 				yield item
@@ -140,7 +138,7 @@ class DispatchStore(Store):
 					if len(ref) == 1:
 						ref = ref[0]
 			else:
-				ValueError(u"Unexpected ref format: {ref}".format(ref))
+				ValueError("Unexpected ref format: {ref}".format(ref))
 		else:
 			storeKey = ref
 		store = None
@@ -153,7 +151,7 @@ class DispatchStore(Store):
 					break
 			if store is None:
 				raise Exception(
-					u"Unknown store: {storeKey}".format(storeKey=storeKey)
+					"Unknown store: {storeKey}".format(storeKey=storeKey)
 				)
 			self.storeDic[storeKey] = store
 		if hasNestedRef:

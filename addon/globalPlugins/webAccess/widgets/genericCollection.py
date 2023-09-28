@@ -60,7 +60,7 @@ class GenericCollection(WebAppWidget):
 	
 	def _get_activeNodeName(self):
 		if self.activeNode is None:
-			return u"Sans nom"
+			return "Sans nom"
 		try:
 			n = self.activeNode.name
 		except:
@@ -85,16 +85,16 @@ class GenericCollection(WebAppWidget):
 	def __init__(self, webApp, obj=None):
 		super(GenericCollection, self).__init__(webApp)
 		if self.name is None:
-			self.name = u"Collection d'objets sant nom"
+			self.name = "Collection d'objets sant nom"
 		if self.brailleName is None:
 			if self.name is not None:
 				self.brailleName = self.name
 			else:
-				self.brailleName = u"Barre"
+				self.brailleName = "Barre"
 		self.addGestures(self.__widgetGestures)
 		letters = {}
 		if self.supportSearch:
-			for x in range(ord('A'), ord('Z') + 1) + range(ord('a'), ord('z') + 1) + [ord(' ')]:
+			for x in list(range(ord('A'), ord('Z') + 1)) + list(range(ord('a'), ord('z') + 1)) + [ord(' ')]:
 				c = chr(x)
 				if c.isupper():
 					g = "shift+" + c
@@ -121,13 +121,13 @@ class GenericCollection(WebAppWidget):
 		@returns the built presentation string.
 		@rtype stra
 		"""
-		return u"_activeNodeName_ _activeNodeRole_ %d sur _collectionCount_" % (self.itemIndex + 1)
+		return "_activeNodeName_ _activeNodeRole_ %d sur _collectionCount_" % (self.itemIndex + 1)
 
 	def getBraillePresentationString(self):
 		if self.presentationConfig.get("braille.verticalPresentation", True) is True:
-			return u"%s: %s" %(self.brailleName, u"_activeNodeName_ _activeNodeRole_   %d/_collectionCount_" %(self.itemIndex + 1))
+			return "%s: %s" %(self.brailleName, "_activeNodeName_ _activeNodeRole_   %d/_collectionCount_" %(self.itemIndex + 1))
 		else:
-			return [u"%s:" % self.brailleName] + self._collection
+			return ["%s:" % self.brailleName] + self._collection
 	
 	def getBraillePresentationStringForElement(self, element):
 		n = element.name
@@ -196,7 +196,7 @@ class GenericCollection(WebAppWidget):
 			ui.message("introuvable")
 			return False
 		else:
-			ui.message(u"Recherche non supportée")
+			ui.message("Recherche non supportée")
 	
 	def script_nextItem(self, gesture):
 		if self._useVirtualBuffer:
@@ -216,7 +216,7 @@ class GenericCollection(WebAppWidget):
 		self.activeNode.moveto()
 
 	def obj_nextItem(self):
-		speech.speakMessage(u"Bas")
+		speech.speakMessage("Bas")
 
 	def script_previousItem(self, gesture):
 		if self._useVirtualBuffer:
@@ -236,7 +236,7 @@ class GenericCollection(WebAppWidget):
 		self.activeNode.moveto()
 
 	def obj_previousItem(self, gesture):
-		speech.speakMessage(u"haut")
+		speech.speakMessage("haut")
 
 	def script_activateItem(self, gesture):
 		if self._useVirtualBuffer:
@@ -250,13 +250,13 @@ class GenericCollection(WebAppWidget):
 			item.activate()
 	
 	def obj_activateItem(self, gesture):
-		ui.message(u"Aucune action définie.")
+		ui.message("Aucune action définie.")
 	
 		
 	def script_moveBefore(self, gesture):
 		node = self._collection[0]
 		if node.offset == 0:
-			ui.message(u"Haut du document.")
+			ui.message("Haut du document.")
 			return
 		if node:
 			# log.info("Searching for offset: %d, size %d" % (node.offset + node.size, node.size))
@@ -281,7 +281,7 @@ class GenericCollection(WebAppWidget):
 				nextItem.moveto()
 				self.widgetManager.nodeManager.setCurrentNode(nextItem)
 			else:
-				ui.message(u"Bas")
+				ui.message("Bas")
 				
 	__widgetGestures = {
 		"kb:uparrow": "previousItem",

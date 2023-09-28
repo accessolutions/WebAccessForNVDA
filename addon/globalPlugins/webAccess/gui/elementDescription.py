@@ -21,10 +21,10 @@
 
 
 # Get ready for Python 3
-from __future__ import absolute_import, division, print_function
+
 
 __version__ = "2021.02.10"
-__author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
+__author__ = "Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 __license__ = "GPL"
 
 
@@ -45,7 +45,7 @@ def truncText(node):
 	elif len(textList) == 1:
 		return textList[0]
 	else:
-		desc = u"%d %s\r\n" % (
+		desc = "%d %s\r\n" % (
 			len(textList),
 			pgettext("webAccess.elementDescription", "elements")
 			if len(textList) > 1
@@ -61,11 +61,11 @@ def truncText(node):
 			if text and text.strip():
 				textTo = text.strip()
 				break
-		desc += u"        %s %s\r\n" % (
+		desc += "        %s %s\r\n" % (
 			pgettext("webAccess.elementDescription", "from:"),
 			textFrom
 		)
-		desc += u"        %s %s" % (
+		desc += "        %s %s" % (
 			pgettext("webAccess.elementDescription", "to:"),
 			textTo
 		)
@@ -104,7 +104,7 @@ def getNodeDescription():
 		isinstance(focus, WebAccessObject)
 		and focus.webAccess.nodeManager
 	):
-		return _(u"No NodeManager")
+		return _("No NodeManager")
 	ruleManager = focus.webAccess.ruleManager
 	results = ruleManager.getResults() if ruleManager else []
 	node = focus.webAccess.nodeManager.getCaretNode()
@@ -175,7 +175,7 @@ class ElementDescriptionDialog(wx.Dialog):
 		self.EscapeId = wx.ID_CLOSE
 		
 		mainSizer.Fit(self)
-		self.Center(wx.BOTH | wx.CENTER_ON_SCREEN)
+		self.CenterOnScreen()
 
 	def OnClose(self, evt):
 		self.Destroy()

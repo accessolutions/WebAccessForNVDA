@@ -19,11 +19,9 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-# Keep compatible with Python 2
-from __future__ import absolute_import, division, print_function
 
 __version__ = "2021.01.05"
-__author__ = u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
+__author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
 import os
@@ -71,9 +69,9 @@ def promptMask(webModule):
 			break
 	else:
 		raise LookupError("addonName={!r}".format(addonName))
-	log.info(u"Proposing to mask {!r} from addon {!r}".format(webModule, addonName))
+	log.info("Proposing to mask {!r} from addon {!r}".format(webModule, addonName))
 	msg = _(
-		u"""This web module comes with the add-on {addonSummary}.
+		"""This web module comes with the add-on {addonSummary}.
 It cannot be modified at its current location.
 
 Do you want to make a copy in your scratchpad?
@@ -293,5 +291,5 @@ class Dialog(wx.Dialog):
 		self.initData(context)
 		self.Fit()
 		self.modulesList.SetFocus()
-		self.Center(wx.BOTH | wx.CENTER_ON_SCREEN)
+		self.CentreOnScreen()
 		return super(Dialog, self).Show()

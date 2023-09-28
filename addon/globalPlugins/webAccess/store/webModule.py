@@ -21,8 +21,6 @@
 
 """Web Module data store."""
 
-# Keep compatible with Python 2
-from __future__ import absolute_import, division, print_function
 
 __version__ = "2021.03.12"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
@@ -65,7 +63,7 @@ class WebModuleJsonFileDataStore(Store):
 		self.path = os.path.join(basePath, dirName)
 	
 	def __repr__(self):
-		return u"<WebModuleJsonFileDataStore (name={!r}, path={!r}".format(self.name, self.path)
+		return "<WebModuleJsonFileDataStore (name={!r}, path={!r}".format(self.name, self.path)
 	
 	def catalog(self, errors=None):
 		if not os.path.isdir(self.path):
@@ -88,7 +86,7 @@ class WebModuleJsonFileDataStore(Store):
 						errors.append((ref, sys.exc_info()))
 					else:
 						log.exception(
-							u"Error while retrieving item: ref={}".format(ref)
+							"Error while retrieving item: ref={}".format(ref)
 						)
 					continue
 				yield ref, meta
@@ -117,16 +115,16 @@ class WebModuleJsonFileDataStore(Store):
 		if os.path.lexists(path):
 			if not os.path.isfile(path):
 				raise Exception(
-					u"Non-file resource found at path: {path}".format(
+					"Non-file resource found at path: {path}".format(
 						path=path
 						)
 					)
 			elif new and not force:
 				raise DuplicateRefError(
-					u"File already exists: {path}".format(path=path)
+					"File already exists: {path}".format(path=path)
 				)
 		elif not new:
-			raise Exception(u"File not found: {path}".format(path=path))
+			raise Exception("File not found: {path}".format(path=path))
 		else:
 			try:
 				os.lstat(path)
@@ -134,7 +132,7 @@ class WebModuleJsonFileDataStore(Store):
 				# Malformed path
 				if e.errno == errno.EINVAL:
 					raise MalformedRefError(
-						u"Invalid path: {path}".format(path=path)
+						"Invalid path: {path}".format(path=path)
 					)
 				# File not found, as expected
 				elif e.errno == errno.ENOENT:
@@ -148,7 +146,7 @@ class WebModuleJsonFileDataStore(Store):
 		return item.data["WebModule"]["name"]
 	
 	def getPath(self, ref):
-		return os.path.join(self.path, u"{ref}.json".format(ref=ref))
+		return os.path.join(self.path, "{ref}.json".format(ref=ref))
 	
 	def getRef(self, item):
 		ref = item.storeRef
@@ -191,7 +189,7 @@ class WebModuleJsonFileDataStore(Store):
 			with open(path, "r") as f:
 				return json.load(f)
 		except Exception:
-			log.exception(u"Failed reading file: {}".format(path))
+			log.exception("Failed reading file: {}".format(path))
 			raise
 	
 	def write(self, path, data):
@@ -203,7 +201,7 @@ class WebModuleJsonFileDataStore(Store):
 				json.dump(data, f, indent=4)
 		except Exception:
 			log.exception(
-				u"Failed writing file: {path}".format(path=path)
+				"Failed writing file: {path}".format(path=path)
 			)
 			return False
 		return True
@@ -244,7 +242,7 @@ class WebModuleStore(DispatchStore):
 			full[storeRef] = meta
 		uniqueKeyRefs = set()
 		consolidated = OrderedDict()
-		for storeRef, meta in full.items():
+		for storeRef, meta in list(full.items()):
 			keyRef = self._getKeyRef(storeRef)
 			if keyRef in uniqueKeyRefs:
 				continue
@@ -275,7 +273,7 @@ class WebModuleStore(DispatchStore):
 						del meta[property]
 			uniqueKeyRefs.add(keyRef)
 			consolidated[storeRef] = meta
-		return consolidated.items()
+		return list(consolidated.items())
 	
 	def create(self, item, **kwargs):
 		layers = [layer for layer in reversed(item.layers) if layer.storeRef is None]

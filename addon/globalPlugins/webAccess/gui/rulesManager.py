@@ -19,11 +19,9 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-# Keep compatible with Python 2
-from __future__ import absolute_import, division, print_function
 
 __version__ = "2021.04.06"
-__author__ = u"Shirley Noël <shirley.noel@pole-emploi.fr>"
+__author__ = "Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
 from collections import namedtuple
@@ -88,15 +86,15 @@ def getGestureLabel(gesture):
 	)
 	if gesture.startswith("kb:"):
 		return main
-	return u"{main} ({source})".format(source=source, main=main)
+	return "{main} ({source})".format(source=source, main=main)
 
 
 def getRuleLabel(rule):
 	label = rule.name
 	if rule._gestureMap:
-		label += u" ({gestures})".format(gestures=u", ".join(
+		label += " ({gestures})".format(gestures=", ".join(
 			inputCore.getDisplayTextForGestureIdentifier(identifier)[1]
-			for identifier in rule._gestureMap.keys()
+			for identifier in list(rule._gestureMap.keys())
 		))
 	return label
 
@@ -132,7 +130,7 @@ def getRulesByGesture(ruleManager, filter=None, active=False):
 			rules = gestures.setdefault(getGestureLabel(gesture), [])
 			rules.append(TreeItemData(
 				label=(
-					u"{rule} - {action}".format(
+					"{rule} - {action}".format(
 						rule=rule.name,
 						action=builtinRuleActions.get(action, action)
 					)
@@ -147,7 +145,7 @@ def getRulesByGesture(ruleManager, filter=None, active=False):
 				TreeItemData(label=rule.name, obj=rule, children=[])
 			)
 	for gesture, tids in sorted(
-		gestures.items(),
+		list(gestures.items()),
 		key=lambda kvp: kvp[0]
 	):
 		yield TreeItemData(
@@ -447,7 +445,7 @@ class Dialog(wx.Dialog):
 		self.context = context
 		ruleManager = self.ruleManager = context["webModule"].ruleManager
 		webModule = ruleManager.webModule
-		title = u"Web Module - {}".format(webModule.name)
+		title = "Web Module - {}".format(webModule.name)
 		if config.conf["webAccess"]["devMode"]:
 			title += " ({})".format("/".join((layer.name for layer in webModule.layers)))
 		self.Title = title
@@ -666,6 +664,6 @@ class Dialog(wx.Dialog):
 	def ShowModal(self, context):
 		self.initData(context)
 		self.Fit()
-		self.Center(wx.BOTH | wx.CENTER_ON_SCREEN)
+		self.CentreOnScreen()
 		self.tree.SetFocus()
 		return super(Dialog, self).ShowModal()

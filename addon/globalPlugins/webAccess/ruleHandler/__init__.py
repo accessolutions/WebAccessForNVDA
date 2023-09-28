@@ -19,11 +19,9 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-# Keep compatible with Python 2
-from __future__ import absolute_import, division, print_function
 
 __version__ = "2021.03.26"
-__author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
+__author__ = "Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
 from collections import OrderedDict
@@ -43,7 +41,6 @@ import gui
 import inputCore
 from logHandler import log
 import queueHandler
-import sayAllHandler
 import scriptHandler
 import speech
 import textInfos
@@ -158,7 +155,7 @@ class RuleManager(baseObject.ScriptableObject):
 		self.triggeredIdentifiers = {}
 		self.lastAutoMoveto = None
 		self.lastAutoMovetoTime = 0
-		self.defaultScripts = DefaultScripts(u"Aucun marqueur associé à cette touche")
+		self.defaultScripts = DefaultScripts("Aucun marqueur associé à cette touche")
 		self.timerCheckAutoAction = None
 		self.zone = None
 	
@@ -169,12 +166,12 @@ class RuleManager(baseObject.ScriptableObject):
 		return self._nodeManager and self._nodeManager()
 	
 	def dump(self, layer):
-		return {name: rule.dump() for name, rule in self._layers[layer].items()}
+		return {name: rule.dump() for name, rule in list(self._layers[layer].items())}
 	
 	def load(self, layer, index, data):
 		self.unload(layer)
 		self._initLayer(layer, index)
-		for ruleName, ruleData in data.items():
+		for ruleName, ruleData in list(data.items()):
 			self._loadRule(layer, ruleName, ruleData)
 	
 	def _initLayer(self, layer, index):
@@ -202,7 +199,7 @@ class RuleManager(baseObject.ScriptableObject):
 		for index in range(len(self._results)):
 			if self._results[index].rule.layer == layer:
 				del self._results[index]
-		for ruleLayers in self._rules.values():
+		for ruleLayers in list(self._rules.values()):
 			ruleLayers.pop(layer, None)
 		self._layers.pop(layer, None)
 
@@ -216,20 +213,20 @@ class RuleManager(baseObject.ScriptableObject):
 			return tuple(self._layers[layer].values())
 		return tuple([
 			rule
-			for ruleLayers in self._rules.values()
-			for rule in ruleLayers.values() 
+			for ruleLayers in list(self._rules.values())
+			for rule in list(ruleLayers.values()) 
 		])
 	
 	def getRule(self, name, layer=None):
 		if layer is None:
-			for layer in self._layers.keys():
+			for layer in list(self._layers.keys()):
 				if layer != "user" or len(self._layers) == 1:
 					break
 		ruleLayers = self._rules[name]
 		if layer not in (None, False):
 			return ruleLayers[layer]
 		try:
-			return next(iter(ruleLayers.values()))
+			return next(iter(list(ruleLayers.values())))
 		except StopIteration:
 			raise LookupError({"name": name, "layer": layer})
 
@@ -245,7 +242,7 @@ class RuleManager(baseObject.ScriptableObject):
 		if not self.isReady:
 			return
 		if layer is None:
-			for layer in self._layers.keys():
+			for layer in list(self._layers.keys()):
 				if layer != "user" or len(self._layers) == 1:
 					break
 		for result in self.getResults():
@@ -275,7 +272,7 @@ class RuleManager(baseObject.ScriptableObject):
 						continue
 				else:
 					raise ValueError(
-						u"Not supported: direction={}".format(direction)
+						"Not supported: direction={}".format(direction)
 					)
 			yield entry
 	
@@ -311,7 +308,7 @@ class RuleManager(baseObject.ScriptableObject):
 				if func is not None:
 					return func
 		for rules in reversed(list(self._layers.values())):
-			for rule in rules.values():
+			for rule in list(rules.values()):
 				func = rule.getScript(gesture)
 				if func is not None:
 					return func
@@ -334,8 +331,8 @@ class RuleManager(baseObject.ScriptableObject):
 		del self._results[:]
 		self._mutatedControlsById.clear()
 		self._mutatedControlsByOffset[:] = []
-		for ruleLayers in self._rules.values():
-			for rule in ruleLayers.values():
+		for ruleLayers in list(self._rules.values()):
+			for rule in list(ruleLayers.values()):
 				rule.resetResults()
 	
 	def update(self, nodeManager=None, force=False):
@@ -361,13 +358,13 @@ class RuleManager(baseObject.ScriptableObject):
 			self._results[:] = []
 			self._mutatedControlsById.clear()
 			self._mutatedControlsByOffset.clear()
-			for ruleLayers in self._rules.values():
-				for rule in ruleLayers.values():
+			for ruleLayers in list(self._rules.values()):
+				for rule in list(ruleLayers.values()):
 					rule.resetResults()
 			
 			results = self._results
 			for rule in sorted(
-				[rule for ruleLayers in self._rules.values() for rule in ruleLayers.values()],
+				[rule for ruleLayers in list(self._rules.values()) for rule in list(ruleLayers.values())],
 				key=lambda rule: (
 					0 if rule.type in (
 						ruleTypes.PAGE_TITLE_1, ruleTypes.PAGE_TITLE_2
@@ -468,8 +465,8 @@ class RuleManager(baseObject.ScriptableObject):
 								) 
 							except Exception:
 								log.exception((
-									u'Error in rule "{rule}" while executing'
-									u' autoAction "{autoAction}"'
+									'Error in rule "{rule}" while executing'
+									' autoAction "{autoAction}"'
 								).format(
 									rule=result.rule.name,
 									autoAction=autoActionName
@@ -624,7 +621,7 @@ class RuleManager(baseObject.ScriptableObject):
 		if not self.getResults():
 			return
 		if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
-			raise ValueError(u"Not supported {}".format(type(info)))
+			raise ValueError("Not supported {}".format(type(info)))
 		offset = info._startOffset
 # 		for result in self.iterResultsAtOffset(offset):
 # 			yield result
@@ -899,7 +896,7 @@ class Result(baseObject.ScriptableObject):
 			if self.rule.sayName:
 				parts.append(self.label)
 			parts.append(self.value)
-			msg = u" - ".join(parts)
+			msg = " - ".join(parts)
 			wx.CallAfter(ui.message, msg)
 		else:
 			self.script_moveto(None, fromSpeak=True)
@@ -911,11 +908,11 @@ class Result(baseObject.ScriptableObject):
 		raise NotImplementedError
 	
 	def getDisplayString(self):
-		return u" ".join(
+		return " ".join(
 			[self.name]
 			+ [
 				inputCore.getDisplayTextForGestureIdentifier(identifier)[1]
-				for identifier in self._gestureMap.keys()
+				for identifier in list(self._gestureMap.keys())
 			]
 		)
 
@@ -940,7 +937,7 @@ class SingleNodeResult(Result):
 			reason = nodeHandler.REASON_SHORTCUT
 		if fromSpeak:
 			# Translators: Speak rule name on "Move to" action
-			speech.speakMessage(_(u"Move to {ruleName}").format(
+			speech.speakMessage(_("Move to {ruleName}").format(
 				ruleName=self.label)
 			)
 		elif rule.sayName:
@@ -1007,13 +1004,13 @@ class SingleNodeResult(Result):
 			return
 		finally:
 			speech.speechMode = speechMode
-		sayAllHandler.readText(sayAllHandler.CURSOR_CARET)
+		speech.sayAll.SayAllHandler.readText(sayAllHandler.CURSOR_CARET)
 	
 	def script_activate(self, gesture):
 		if self.node.nodeManager is None:
 			return
 		if not self.rule.ruleManager.isReady :
-			log.info (u"not ready")
+			log.info ("not ready")
 			return
 		treeInterceptor = self.node.nodeManager.treeInterceptor
 		if self.rule.sayName:
@@ -1088,10 +1085,10 @@ class Criteria(baseObject.AutoPropertyObject):
 		self.customValue = data.pop("customValue", None)
 		if data:
 			raise ValueError(
-				u"Unexpected attribute"
-				+ (u"s" if len(data) > 1 else u"")
-				+ u": "
-				+ u", ".join(data.keys())
+				"Unexpected attribute"
+				+ ("s" if len(data) > 1 else "")
+				+ ": "
+				+ ", ".join(list(data.keys()))
 			)
 	
 	def dump(self):
@@ -1174,8 +1171,8 @@ class Criteria(baseObject.AutoPropertyObject):
 				rule = self.ruleManager.getRule(name, layer=self.layer)
 				if rule is None:
 					log.error((
-						u"In rule \"{rule}\".contextPageType: "
-						u"Rule not found: \"{pageType}\""
+						"In rule \"{rule}\".contextPageType: "
+						"Rule not found: \"{pageType}\""
 					).format(rule=self.rule.name, pageType=name))
 					return False
 				
@@ -1226,8 +1223,8 @@ class Criteria(baseObject.AutoPropertyObject):
 				rule = mgr.getRule(name, layer=self.layer)
 				if rule is None:
 					log.error((
-						u"In rule \"{rule}\".contextParent: "
-						u"Rule not found: \"{parent}\""
+						"In rule \"{rule}\".contextParent: "
+						"Rule not found: \"{parent}\""
 					).format(rule=self.name, parent=name))
 					return
 				if not exclude and rule.multiple:
@@ -1341,12 +1338,12 @@ class Rule(baseObject.ScriptableObject):
 				self.mutation = MUTATIONS[mutation]
 			except LookupError:
 				log.exception((
-					u"Unexpected mutation template id \"{mutation}\" "
-					u"in rule \"{rule}\"."
+					"Unexpected mutation template id \"{mutation}\" "
+					"in rule \"{rule}\"."
 				).format(mutation=mutation, rule=self.name))
 		self.gestures = data.pop("gestures", {})
 		gesturesMap = {}
-		for gestureIdentifier in self.gestures.keys():
+		for gestureIdentifier in list(self.gestures.keys()):
 			gesturesMap[gestureIdentifier] = "notFound"
 		self.bindGestures(gesturesMap)
 		self.autoAction = data.pop("autoAction", None)
@@ -1360,26 +1357,26 @@ class Rule(baseObject.ScriptableObject):
 		self.createWidget = data.pop("createWidget", False)
 		if data:
 			raise ValueError(
-				u"Unexpected attribute"
-				+ (u"s" if len(data) > 1 else u"")
-				+ u": "
-				+ u", ".join(data.keys())
+				"Unexpected attribute"
+				+ ("s" if len(data) > 1 else "")
+				+ ": "
+				+ ", ".join(list(data.keys()))
 			)
 	
 	def resetResults(self):
 		self._results = None
 	
 	def getDisplayString(self):
-		return u" ".join(
+		return " ".join(
 			[self.name]
 			+ [
 				inputCore.getDisplayTextForGestureIdentifier(identifier)[1]
-				for identifier in self._gestureMap.keys()
+				for identifier in list(self._gestureMap.keys())
 			]
 		)
 	
 	def script_notFound(self, gesture):
-		speech.speakMessage(_(u"{ruleName} not found").format(
+		speech.speakMessage(_("{ruleName} not found").format(
 			ruleName=self.label)
 		)
 	
@@ -1399,7 +1396,7 @@ class Rule(baseObject.ScriptableObject):
 
 def getSimpleSearchKwargs(criteria, raiseOnUnsupported=False):
 	kwargs = {}
-	for prop, expr in criteria.dump().items():
+	for prop, expr in list(criteria.dump().items()):
 		if prop in ("contextPageTitle", "contextPageType", "contextParent"):
 			continue
 		if prop not in [
@@ -1414,7 +1411,7 @@ def getSimpleSearchKwargs(criteria, raiseOnUnsupported=False):
 		]:
 			if raiseOnUnsupported:
 				raise ValueError(
-					u"Unsupported criteria: {prop}={expr!r}".format(**locals())
+					"Unsupported criteria: {prop}={expr!r}".format(**locals())
 				)
 			continue
 		if not expr:
@@ -1497,13 +1494,10 @@ class Zone(textInfos.offsets.Offsets, TrackedObject):
 	def __hash__(self):
 		return hash((self.startOffset, self.endOffset))
 	
-	def __nonzero__(self):  # Python 2
-		return self.__bool__()
-	
 	def __repr__(self):
 		if not self:
-			return u"<Zone {} (invalidated)>".format(repr(self.name))
-		return u"<Zone {} at ({}, {})>".format(
+			return "<Zone {} (invalidated)>".format(repr(self.name))
+		return "<Zone {} at ({}, {})>".format(
 			repr(self.name), self.startOffset, self.endOffset
 		)
 	
@@ -1523,7 +1517,7 @@ class Zone(textInfos.offsets.Offsets, TrackedObject):
 		if not self:
 			return False
 		if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
-			raise ValueError(u"Not supported {}".format(type(info)))
+			raise ValueError("Not supported {}".format(type(info)))
 		return (
 			self.startOffset <= info._startOffset
 			and info._endOffset <= self.endOffset
@@ -1534,17 +1528,17 @@ class Zone(textInfos.offsets.Offsets, TrackedObject):
 	
 	def isTextInfoAtStart(self, info):
 		if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
-			raise ValueError(u"Not supported {}".format(type(info)))
+			raise ValueError("Not supported {}".format(type(info)))
 		return self and info._startOffset == self.startOffset
 	
 	def isTextInfoAtEnd(self, info):
 		if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
-			raise ValueError(u"Not supported {}".format(type(info)))
+			raise ValueError("Not supported {}".format(type(info)))
 		return self and info._endOffset == self.endOffset
 	
 	def restrictTextInfo(self, info):
 		if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
-			raise ValueError(u"Not supported {}".format(type(info)))
+			raise ValueError("Not supported {}".format(type(info)))
 		if not self:
 			return False
 		res = False

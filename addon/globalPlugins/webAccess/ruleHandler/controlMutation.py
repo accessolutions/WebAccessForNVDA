@@ -20,10 +20,10 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 # Get ready for Python 3
-from __future__ import absolute_import, division, print_function
+
 
 __version__ = "2019.12.05"
-__author__ = u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
+__author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
 from collections import OrderedDict
@@ -89,22 +89,22 @@ MUTATIONS = {
 	"button": Mutation({"role": controlTypes.ROLE_BUTTON}, False),
 	# "level" is int in position info, but text in control field attributes...
 	"heading.1": Mutation(
-		{"role": controlTypes.ROLE_HEADING, "level": u"1"}, False
+		{"role": controlTypes.ROLE_HEADING, "level": "1"}, False
 	),
 	"heading.2": Mutation(
-		{"role": controlTypes.ROLE_HEADING, "level": u"2"}, False
+		{"role": controlTypes.ROLE_HEADING, "level": "2"}, False
 	),
 	"heading.3": Mutation(
-		{"role": controlTypes.ROLE_HEADING, "level": u"3"}, False
+		{"role": controlTypes.ROLE_HEADING, "level": "3"}, False
 	),
 	"heading.4": Mutation(
-		{"role": controlTypes.ROLE_HEADING, "level": u"4"}, False
+		{"role": controlTypes.ROLE_HEADING, "level": "4"}, False
 	),
 	"heading.5": Mutation(
-		{"role": controlTypes.ROLE_HEADING, "level": u"5"}, False
+		{"role": controlTypes.ROLE_HEADING, "level": "5"}, False
 	),
 	"heading.6": Mutation(
-		{"role": controlTypes.ROLE_HEADING, "level": u"6"}, False
+		{"role": controlTypes.ROLE_HEADING, "level": "6"}, False
 	),
 	"labelled": Mutation({}, True),
 	"landmark.region": Mutation({"landmark": "region"}, True),

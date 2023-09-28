@@ -118,21 +118,21 @@ class Cell (object):
 		else:
 			role = ""
 		if self.checked is True:
-			checked = u"coché"
+			checked = "coché"
 		elif self.checked is False:
-			checked = u"non coché"
+			checked = "non coché"
 		else:
 			checked = ""
 		if self.unavailable:
-			unavailable = u"non disponible"
+			unavailable = "non disponible"
 		else:
 			unavailable = ""
 		if self.selected is True:
-			selected = u"sélectionné"
+			selected = "sélectionné"
 		else:
 			selected = ""
 		if self.visited:
-			visited = u"Visité"
+			visited = "Visité"
 		else:
 			visited= ""
 		if self.value is None:
@@ -176,7 +176,7 @@ class Cell (object):
 	def nextCharacter (self):
 		t = self.getText ()
 		if self.curCharacterIndex >= len(t)-1:
-			speech.speakMessage (u"fin")
+			speech.speakMessage ("fin")
 		else:
 			self.curCharacterIndex += 1
 		if len(t) > 0:
@@ -186,7 +186,7 @@ class Cell (object):
 	def priorCharacter (self):
 		t = self.getText ()
 		if self.curCharacterIndex <= 0:
-			speech.speakMessage (u"début")
+			speech.speakMessage ("début")
 		else:
 			self.curCharacterIndex -= 1
 		if len(t) > 0:
@@ -254,7 +254,7 @@ class Tableau (object):
 	def increaseColWidth (self):
 		c = self.getCell()
 		c.colHeader.width += 1
-		speech.speakMessage (u"largeur %d" % c.colHeader.width)
+		speech.speakMessage ("largeur %d" % c.colHeader.width)
 		key = "width_%s" % c.colHeader.id
 		self.setTableConfig (key, c.colHeader.width)
 		self.displayBraille()
@@ -263,10 +263,10 @@ class Tableau (object):
 	def decreaseColWidth (self):
 		c = self.getCell()
 		if c.colHeader.width <= 1:
-			speech.speakMessage (u"Largeur minimale")
+			speech.speakMessage ("Largeur minimale")
 			return 
 		c.colHeader.width -= 1
-		speech.speakMessage (u"largeur %d" % c.colHeader.width)
+		speech.speakMessage ("largeur %d" % c.colHeader.width)
 		key = "width_%s" % c.colHeader.id
 		self.setTableConfig (key, c.colHeader.width)
 		self.displayBraille()
@@ -368,14 +368,14 @@ class Tableau (object):
 		region.obj = None
 		region.update()
 		if selected or visited:
-			for x in xrange(len(region.brailleCells)):
+			for x in range(len(region.brailleCells)):
 				region.brailleCells[x] |= braille.DOT7 | braille.DOT8
 		else:
 			for pos in self.brlPositions:
 				debut, fin, i = pos
 				if i == self._curCol - 1:
 					start = False
-					for x in xrange(len(region.brailleCells)):
+					for x in range(len(region.brailleCells)):
 						if x == debut and start is False:
 							start = True
 						# if region.brailleCells[x] == 0x00 and x + 1 < fin and region.brailleCells[x + 1] == 0x00:
@@ -421,13 +421,13 @@ class Tableau (object):
 		
 	def rightCell (self):
 		if self._curCol >= self._colCount:
-			speech.speakMessage (u"fin")
+			speech.speakMessage ("fin")
 		else:
 			self._curCol += 1
 
 	def leftCell(self):
 		if self._curCol <= 1:
-			speech.speakMessage (u"début")
+			speech.speakMessage ("début")
 		else:
 			self._curCol -= 1
 	
@@ -487,7 +487,7 @@ class Tableau (object):
 	
 	def selectionCol (self):
 		col = self._curCol
-		speech.speakMessage (u"Colonne %s sélectionnée" % self._titlesCol[col-1].title)
+		speech.speakMessage ("Colonne %s sélectionnée" % self._titlesCol[col-1].title)
 		if col not in self._selectedCols:
 			self._selectedCols.append (col) 
 		if self.pageTitle not in self.userConfig:
@@ -497,7 +497,7 @@ class Tableau (object):
 		self.userConfig.write()
 
 	def resetSelectionCol (self):
-		speech.speakMessage (u"sélection de colonnes effacée")
+		speech.speakMessage ("sélection de colonnes effacée")
 		self._selectedCols = []
 		if self.pageTitle not in self.userConfig:
 			self.userConfig[self.pageTitle] = {}
@@ -578,23 +578,23 @@ class mode (modeHandler.baseMode):
 		self._tableau.speakCell (speakTitle=True)
 
 	def script_end(self, gesture):
-		speech.speakMessage (u"dernière colonne")
+		speech.speakMessage ("dernière colonne")
 		self._tableau.lastCell ()
 		self._tableau.speakCell (speakTitle=True)
 
 
 	def script_home(self, gesture):
-		speech.speakMessage (u"première colonne")
+		speech.speakMessage ("première colonne")
 		self._tableau.firstCell ()
 		self._tableau.speakCell (speakTitle=True)
 
 	def script_controlEnd(self, gesture):
-		speech.speakMessage (u"dernière ligne")
+		speech.speakMessage ("dernière ligne")
 		self._tableau.lastLine ()
 		self._tableau.speakRow ()
 
 	def script_controlHome(self, gesture):
-		speech.speakMessage (u"première ligne")
+		speech.speakMessage ("première ligne")
 		self._tableau.firstLine ()
 		self._tableau.speakRow ()
 
@@ -627,22 +627,22 @@ class mode (modeHandler.baseMode):
 
 	def script_controlPageDown(self, gesture):
 		if lib.searchTag ("button", func=self.isBoutonPageSuivante):
-			speech.speakMessage (u"page suivante")
+			speech.speakMessage ("page suivante")
 			obj = lib.getCaretObject ()
 			obj.doAction()
 		else:
-			speech.speakMessage (u"pas de page suivante")
+			speech.speakMessage ("pas de page suivante")
 
 	def script_controlPageUp(self, gesture):
 		if lib.searchTag ("button", func=self.isBoutonPagePrecedente):
-			speech.speakMessage (u"page précédente")
+			speech.speakMessage ("page précédente")
 			obj = lib.getCaretObject ()
 			obj.doAction()
 		else:
-			speech.speakMessage (u"pas de page précédente")
+			speech.speakMessage ("pas de page précédente")
 
 	def script_controlDownarrow (self, gesture):
-		speech.speakMessage (u"Sortie du tableau")
+		speech.speakMessage ("Sortie du tableau")
 		focus = api.getFocusObject()
 		focus = focus.treeInterceptor
 		focus.script_movePastEndOfContainer (None)
@@ -665,12 +665,12 @@ class mode (modeHandler.baseMode):
 	def script_copieCell (self, gesture):
 		if scriptHandler.getLastScriptRepeatCount() == 0:
 			value = self._tableau.getCell().name
-			speech.speakMessage (u"copie de la cellule")
+			speech.speakMessage ("copie de la cellule")
 		else:
 			value = ""
 			for c in self._tableau.getRow().getCells():
 				value += c.brlText() + " "
-			speech.speakMessage (u"copie de la ligne ")
+			speech.speakMessage ("copie de la ligne ")
 		speech.speakMessage (value)
 		api.copyToClip (value)
 
@@ -703,22 +703,22 @@ class mode (modeHandler.baseMode):
 			
 		curCell= self._tableau.getCell()
 		if curCell is None:
-			ui.message (u"erreur")
+			ui.message ("erreur")
 			return
 		ch = curCell.colHeader
 		if ch is None:
 			ui.message("Cette colonne n'a pas de titre")
 			return
-		newTitleDlg = wx.TextEntryDialog(gui.mainFrame, u"Entrez le nouveau titre pour cette colonne", u"Modifier titre de colonne", ch.title, wx.OK | wx.CANCEL)
+		newTitleDlg = wx.TextEntryDialog(gui.mainFrame, "Entrez le nouveau titre pour cette colonne", "Modifier titre de colonne", ch.title, wx.OK | wx.CANCEL)
 		gui.runScriptModalDialog(newTitleDlg, onEditColumnHeader)
 
 	def script_modeLargeurColonne (self, gesture):
 		self._modeLargeurColonne = not self._modeLargeurColonne
 		c = self._tableau.getCell()
 		if self._modeLargeurColonne:
-			speech.speakMessage (u"Modification largeur colonne %s" % c.colHeader.title)
+			speech.speakMessage ("Modification largeur colonne %s" % c.colHeader.title)
 		else:
-			speech.speakMessage (u"Modification largeur colonne désactivée")
+			speech.speakMessage ("Modification largeur colonne désactivée")
 
 
 	def script_editCell (self, gesture):

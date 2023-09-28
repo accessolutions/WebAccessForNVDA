@@ -133,7 +133,7 @@ class WidgetManager(baseObject.ScriptableObject):
 		if widget == self.webApp.activeWidget:
 			return
 		if self.webApp.activeWidget is not None:
-			speech.speakMessage(u"Sortie de %s, %s" %(self.webApp.activeWidget.name, self.webApp.activeWidget.group))
+			speech.speakMessage("Sortie de %s, %s" %(self.webApp.activeWidget.name, self.webApp.activeWidget.group))
 			self.sendWidgetEvent('widget_loseFocus', self.webApp.activeWidget)
 			self.webApp.activeWidget = None
 			if webAppHandler.useInternalBrowser is False and widget == None:
@@ -154,7 +154,7 @@ class WidgetManager(baseObject.ScriptableObject):
 		if widget is not None and (widget.autoEnter is True or reason is nodeHandler.REASON_SHORTCUT):
 			self.webApp.activeWidget = widget
 			speech.cancelSpeech()
-			speech.speakMessage(u"Entrée dans %s, %s" %(widget.name, widget.group))
+			speech.speakMessage("Entrée dans %s, %s" %(widget.name, widget.group))
 			self.sendWidgetEvent('widget_gainFocus', widget)
 		else:
 			self.webApp.activeWidget = None
@@ -243,21 +243,21 @@ class WebAppWidget(baseObject.ScriptableObject):
 	
 	def script_toggleLockBoundaries(self, gesture):
 		if self.lockBoundaries is True:
-			speech.speakMessage(u"Barrières désactivées.")
+			speech.speakMessage("Barrières désactivées.")
 			self.lockBoundaries = False
 		else:
-			speech.speakMessage(u"Barrières activées.")
+			speech.speakMessage("Barrières activées.")
 			self.lockBoundaries = True
 	def script_disableInstance(self, gesture):
 		self.autoEnter = False
-		speech.speakMessage(u"L'entrée automatique dans %s est désactivée." % self.name)
+		speech.speakMessage("L'entrée automatique dans %s est désactivée." % self.name)
 		self.widgetManager.handleWidgetSwitch(None, nodeHandler.REASON_FOCUS)
 
 	def script_whereAmI(self, gesture):
-		speech.speakMessage(u"Composant: %s, groupe %s" %(self.name if self.name is not None else "sans nom", self.group))
+		speech.speakMessage("Composant: %s, groupe %s" %(self.name if self.name is not None else "sans nom", self.group))
 
 	def script_activateItem(self, gesture):
-		speech.speakMessage(u"Aucune action définie.")
+		speech.speakMessage("Aucune action définie.")
 		
 	__basicGestures = {
 		"kb:control+alt+l": "toggleLockBoundaries",

@@ -192,7 +192,7 @@ class Presenter(baseObject.ScriptableObject):
 			braillePres = speechPres
 		if isinstance(braillePres, list):
 			for s in braillePres:
-				if isinstance(s, unicode):
+				if isinstance(s, str):
 					outStr = self.formatPresentation(s, ctx, True)
 					self.brailleObjects.append(BrailleOffset(ctx, outStr))
 				else:
@@ -200,7 +200,7 @@ class Presenter(baseObject.ScriptableObject):
 						outStr = ctx.getBraillePresentationStringForElement(s)
 					except Exception as e:
 						log.exception("getBraillePresentationStringForElement failed: %s" % e)
-						outStr = u"sansnom"
+						outStr = "sansnom"
 					self.brailleObjects.append(BrailleOffset(ctx, outStr))
 		else:
 			pObj = BrailleOffset(ctx, self.formatPresentation(braillePres, ctx, True))
@@ -247,7 +247,7 @@ class Presenter(baseObject.ScriptableObject):
 						except KeyError:
 							attr = controlTypes.roleLabels[attr]
 				else:
-					attr = unicode(attr)
+					attr = str(attr)
 			string = string.replace(match.group(1), attr, 1)
 		return string
 
@@ -264,6 +264,6 @@ class Presenter(baseObject.ScriptableObject):
 					try:
 						obj.object.script_activateItem(gesture)
 					except:
-						speech.speakMessage(u"Pas d'action")
+						speech.speakMessage("Pas d'action")
 				return
-		speech.speakMessage(u"Clic inconnu")
+		speech.speakMessage("Clic inconnu")

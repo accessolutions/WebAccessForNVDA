@@ -19,10 +19,10 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-from __future__ import absolute_import, division, print_function
+
 
 __version__ = "2021.04.06"
-__author__ = u"Shirley Noël <shirley.noel@pole-emploi.fr>"
+__author__ = "Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
 from collections import OrderedDict
@@ -46,14 +46,7 @@ from . import (
 	stripAccel,
 	stripAccelAndColon
 )
-
-try:
-	from six import iteritems, text_type
-except ImportError:
-	# NVDA version < 2018.3
-	iteritems = dict.iteritems
-	text_type = unicode
-
+from six import iteritems, text_type
 
 EXPR_VALUE = re.compile("(([^!&| ])+( (?=[^!&|]))*)+")
 """
@@ -96,7 +89,7 @@ def translateExprValues(expr, func):
 		end += offset
 		buf[start:end] = dest
 		offset += len(dest) - len(src)
-	return u"".join(buf)
+	return "".join(buf)
 
 
 def translateRoleIdToLbl(expr):
@@ -112,7 +105,7 @@ def translateRoleLblToId(expr, raiseOnError=True):
 	def translate(value):
 		for key, candidate in iteritems(controlTypes.roleLabels):
 			if candidate == value:
-				return text_type(key)
+				return text_type(key.value)
 		if raiseOnError:
 			raise ValidationError(value)
 		return value
@@ -132,7 +125,7 @@ def translateStatesLblToId(expr, raiseOnError=True):
 	def translate(value):
 		for key, candidate in iteritems(controlTypes.stateLabels):
 			if candidate == value:
-				return text_type(key)
+				return text_type(key.value)
 		if raiseOnError:
 			raise ValidationError(value)
 		return value
@@ -142,20 +135,20 @@ def translateStatesLblToId(expr, raiseOnError=True):
 def getSummary(data, indent="", condensed=False):
 	parts = []
 	subParts = []
-	for key, label in CriteriaPanel.FIELDS.items():
+	for key, label in list(CriteriaPanel.FIELDS.items()):
 		if key not in CriteriaPanel.CONTEXT_FIELDS or key not in data:
 			continue
 		value = data[key]
-		subParts.append(u"{} {}".format(stripAccel(label), value))
+		subParts.append("{} {}".format(stripAccel(label), value))
 	if not subParts:
 		# Translators: A mention on the Criteria summary report
 		subParts.append(_("Global - Applies to the whole web module"))
 	if condensed:
-		parts.append(u", ".join(subParts))
+		parts.append(", ".join(subParts))
 	else:
 		parts.extend(subParts)
 	subParts = []
-	for key, label in CriteriaPanel.FIELDS.items():
+	for key, label in list(CriteriaPanel.FIELDS.items()):
 		if key in CriteriaPanel.CONTEXT_FIELDS or key not in data:
 			continue
 		value = data[key]
@@ -164,32 +157,32 @@ def getSummary(data, indent="", condensed=False):
 				value = translateRoleIdToLbl(value)
 			elif key == "states":
 				value = translateStatesIdToLbl(value)
-		subParts.append(u"{} {}".format(stripAccel(label), value))
+		subParts.append("{} {}".format(stripAccel(label), value))
 	if subParts:
 		if condensed:
-			parts.append(u", ".join(subParts))
+			parts.append(", ".join(subParts))
 		else:
 			parts.extend(subParts)
 	subParts = []
-	for key, label in OverridesPanel.FIELDS.items():
+	for key, label in list(OverridesPanel.FIELDS.items()):
 		if key not in data:
 			continue
 		value = data[key]
-		subParts.append(u"{} {}".format(stripAccel(label), value))
+		subParts.append("{} {}".format(stripAccel(label), value))
 	if subParts:
 		if condensed:
-			parts.append(u"{} {}".format(
+			parts.append("{} {}".format(
 				_("Overrides:"),
-				u", ".join(subParts)
+				", ".join(subParts)
 			))
 		else:
 			for subPart in subParts:
-				parts.append(u"{} {}".format(_("Overrides"), subPart))
+				parts.append("{} {}".format(_("Overrides"), subPart))
 	if parts:
-		return u"{}{}".format(indent, u"\n{}".format(indent).join(parts))
+		return "{}{}".format(indent, "\n{}".format(indent).join(parts))
 	else:
 		# Translators: Fail-back criteria summary in rule's criteria panel dialog.
-		return u"{}{}".format(indent, _("No criteria"))
+		return "{}{}".format(indent, _("No criteria"))
 
 
 @guarded
@@ -317,7 +310,7 @@ class GeneralPanel(ContextualSettingsPanel):
 		if not self.context:
 			return ""
 		data = self.context["data"]["criteria"]
-		for panel in self.Parent.Parent.catIdToInstanceMap.values():
+		for panel in list(self.Parent.Parent.catIdToInstanceMap.values()):
 			panel.updateData(data)
 		return getSummary(data)
 	
@@ -346,29 +339,29 @@ class CriteriaPanel(ContextualSettingsPanel):
 	# (ie. French) require it to be prepended with one space.
 	FIELDS = OrderedDict((
 		# Translator: The label for a Rule Criteria field
-		("contextPageTitle", pgettext("webAccess.ruleCriteria", u"Page &title:")),
+		("contextPageTitle", pgettext("webAccess.ruleCriteria", "Page &title:")),
 		# Translator: The label for a Rule Criteria field
-		("contextPageType", pgettext("webAccess.ruleCriteria", u"Page t&ype")),
+		("contextPageType", pgettext("webAccess.ruleCriteria", "Page t&ype")),
 		# Translator: The label for a Rule Criteria field
-		("contextParent", pgettext("webAccess.ruleCriteria", u"&Parent element")),
+		("contextParent", pgettext("webAccess.ruleCriteria", "&Parent element")),
 		# Translator: The label for a Rule Criteria field
-		("text", pgettext("webAccess.ruleCriteria", u"&Text:")),
+		("text", pgettext("webAccess.ruleCriteria", "&Text:")),
 		# Translator: The label for a Rule Criteria field
-		("role", pgettext("webAccess.ruleCriteria", u"&Role:")),
+		("role", pgettext("webAccess.ruleCriteria", "&Role:")),
 		# Translator: The label for a Rule Criteria field
-		("tag", pgettext("webAccess.ruleCriteria", u"T&ag:")),
+		("tag", pgettext("webAccess.ruleCriteria", "T&ag:")),
 		# Translator: The label for a Rule Criteria field
-		("id", pgettext("webAccess.ruleCriteria", u"&ID:")),
+		("id", pgettext("webAccess.ruleCriteria", "&ID:")),
 		# Translator: The label for a Rule Criteria field
-		("className", pgettext("webAccess.ruleCriteria", u"&Class:")),
+		("className", pgettext("webAccess.ruleCriteria", "&Class:")),
 		# Translator: The label for a Rule Criteria field
-		("states", pgettext("webAccess.ruleCriteria", u"&States:")),
+		("states", pgettext("webAccess.ruleCriteria", "&States:")),
 		# Translator: The label for a Rule Criteria field
-		("src", pgettext("webAccess.ruleCriteria", u"Ima&ge source:")),
+		("src", pgettext("webAccess.ruleCriteria", "Ima&ge source:")),
 		# Translator: The label for a Rule Criteria field
-		("relativePath", pgettext("webAccess.ruleCriteria", u"R&elative path:")),
+		("relativePath", pgettext("webAccess.ruleCriteria", "R&elative path:")),
 		# Translator: The label for a Rule Criteria field
-		("index", pgettext("webAccess.ruleCriteria", u"Inde&x:")),
+		("index", pgettext("webAccess.ruleCriteria", "Inde&x:")),
 	))
 	
 	CONTEXT_FIELDS = ["contextPageTitle", "contextPageType", "contextParent"]
@@ -719,7 +712,7 @@ class CriteriaPanel(ContextualSettingsPanel):
 			for field in fields:
 				fields[field] = True
 		self.Freeze()
-		for field, show in fields.items():
+		for field, show in list(fields.items()):
 			for item in self.hidable[field]:
 				item.Show(show)
 		self.Thaw()
@@ -835,7 +828,7 @@ class OverridesPanel(ContextualSettingsPanel):
 # 		# Translator: Speak rule name checkbox label for the rule dialog's properties panel.
 # 		("sayName", pgettext("webAccess.ruleProperties", u"&Speak rule name")),
 		# Translator: Custom name input label for the rule dialog's properties panel.
-		("customName", pgettext("webAccess.ruleProperties", u"Custom &name:")),
+		("customName", pgettext("webAccess.ruleProperties", "Custom &name:")),
 		# Label depends on rule type)
 		("customValue", None),
 # 		# Translator: Transform select label for the rule dialog's properties panel.
@@ -869,10 +862,10 @@ class OverridesPanel(ContextualSettingsPanel):
 		if key == "customValue":
 			if ruleType in (ruleTypes.PAGE_TITLE_1, ruleTypes.PAGE_TITLE_2):
 				# Translator: Field label on the RulePropertiesEditor dialog.
-				return pgettext("webAccess.ruleProperties", u"Custom page &title:")
+				return pgettext("webAccess.ruleProperties", "Custom page &title:")
 			elif ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
 				# Translator: Field label on the RulePropertiesEditor dialog.
-				return pgettext("webAccess.ruleProperties", u"Custom messa&ge:")
+				return pgettext("webAccess.ruleProperties", "Custom messa&ge:")
 		return default
 	
 	def makeSettings(self, settingsSizer):
@@ -995,7 +988,7 @@ class OverridesPanel(ContextualSettingsPanel):
 		
 	def initData(self, context):
 		self.context = context
-		for items in self.hidable.values():
+		for items in list(self.hidable.values()):
 			for item in items:
 				item.Show(False)
 		if not context:
@@ -1077,7 +1070,7 @@ class OverridesPanel(ContextualSettingsPanel):
 		data = self.context["data"]["rule"]
 		ruleType = data["type"]
 		showedFields = self.RULE_TYPE_FIELDS.get(ruleType, {})
-		for field in self.FIELDS.keys():
+		for field in list(self.FIELDS.keys()):
 			if field not in showedFields and data.get(field):
 				del data[field]
 
@@ -1102,7 +1095,7 @@ class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
 		testCriteria(self.context)
 	
 	def updateData(self):
-		for panel in self.catIdToInstanceMap.values():
+		for panel in list(self.catIdToInstanceMap.values()):
 			panel.updateData()
 
 

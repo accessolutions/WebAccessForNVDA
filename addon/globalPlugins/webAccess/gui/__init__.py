@@ -19,10 +19,10 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-from __future__ import absolute_import, division, print_function
+
 
 __version__ = "2021.04.06"
-__author__ = u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
+__author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
 from collections import OrderedDict
@@ -59,7 +59,7 @@ try:
 except ImportError:
 	# NVDA version < 2018.3
 	iteritems = dict.iteritems
-	text_type = unicode
+	text_type = str
 
 try:
 	from gui.dpiScalingHelper import DpiScalingHelperMixin
@@ -148,6 +148,20 @@ class ContextualSettingsPanel(FillableSettingsPanel):
 		super(ContextualSettingsPanel, self).onPanelActivated()
 
 
+class PanelAccessible(wx.Accessible):
+
+	"""
+	WX Accessible implementation to set the role of a settings panel to property page,
+	as well as to set the accessible description based on the panel's description.
+	"""
+
+	def GetRole(self, childId):
+		return (wx.ACC_OK, wx.ROLE_SYSTEM_PROPERTYPAGE)
+	
+	def GetDescription(self, childId):
+		return (wx.ACC_OK, self.Window.panelDescription)
+
+
 class FillableMultiCategorySettingsDialog(MultiCategorySettingsDialog):
 	"""This `MultiCategorySettingsDialog` allows its panels to fill the whole available space.
 	
@@ -180,14 +194,8 @@ class FillableMultiCategorySettingsDialog(MultiCategorySettingsDialog):
 					).format(cls, panel.Size[0])
 				)
 			panel.SetLabel(panel.title)
-			import oleacc
-			panel.server = nvdaControls.AccPropertyOverride(
-				panel,
-				propertyAnnotations={
-					oleacc.PROPID_ACC_ROLE: oleacc.ROLE_SYSTEM_PROPERTYPAGE,  # change the role from pane to property page
-					oleacc.PROPID_ACC_DESCRIPTION: panel.panelDescription,  # set a description
-				}
-			)
+			panel.SetAccessible(PanelAccessible(panel))
+			
 		return panel
 	
 	def _enterActivatesOk_ctrlSActivatesApply(self, evt):
@@ -285,7 +293,7 @@ class DropDownWithHideableChoices(wx.ComboBox):
 		self.__refresh()
 	
 	def getChoicesKeys(self):
-		return self.__choicesWholeMap.keys()
+		return list(self.__choicesWholeMap.keys())
 	
 	def getSelectedChoiceKey(self):
 		choice = self.__getSelectedChoice()
@@ -330,7 +338,7 @@ class DropDownWithHideableChoices(wx.ComboBox):
 		choice = self.__getSelectedChoice()
 		whole = self.__choicesWholeMap
 		filtered = self.__choicesFilteredList
-		filtered[:] = [c for c in whole.values() if c.enabled]
+		filtered[:] = [c for c in list(whole.values()) if c.enabled]
 		self.Set([c.label for c in filtered])
 		if choice is not None:
 			if choice.enabled:

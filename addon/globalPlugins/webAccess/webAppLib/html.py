@@ -19,11 +19,9 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-# Keep compatible with Python 2
-from __future__ import absolute_import, division, print_function
 
 __version__ = "2021.08.16"
-__author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
+__author__ = "Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
 import textInfos
@@ -66,38 +64,38 @@ def getIEHTMLAttributes (obj):
 		node = obj.HTMLNode
 		if node is None:
 			return ""
-		s = u"tag %s\r\n" % (node.nodeName)
+		s = "tag %s\r\n" % (node.nodeName)
 		if node.id is not None:
-			s += u"id=%s\r\n" % (node.id)
+			s += "id=%s\r\n" % (node.id)
 			if node.className is not None:
-				s += u"class=%s\r\n" % (node.className)
+				s += "class=%s\r\n" % (node.className)
 	except:
 		return ""
 	
 	try:
 		if node.src is not None:
-			s += u"src=%s\r\n" % (node.src)
+			s += "src=%s\r\n" % (node.src)
 	except:
 		pass
-	s += u"\r\n"
+	s += "\r\n"
 	return s
 			
 def getHTMLAttributes(obj):
 	if hasattr (obj, "HTMLNode"):
 		return getIEHTMLAttributes (obj)
 	if not isinstance(obj, IAccessible):
-		return u"pas IAccessibe\r\n"
+		return "pas IAccessibe\r\n"
 	try:
 		attributes = obj.IA2Attributes
 	except:
 		attributes =()
-	s = u""
+	s = ""
 	try:
-		s += u"id=%s\r\n" %(attributes["id"])
+		s += "id=%s\r\n" %(attributes["id"])
 	except:
 		pass
 	try:
-		s += u"class=%s\r\n" %(attributes["class"])
+		s += "class=%s\r\n" %(attributes["class"])
 	except:
 		pass
 	try:
@@ -105,16 +103,16 @@ def getHTMLAttributes(obj):
 	except:
 		tag = "inconnu"
 	try:
-		s += u"src=%s\r\n" %(attributes["src"])
+		s += "src=%s\r\n" %(attributes["src"])
 	except:
 		pass
 	try:
 		if tag == "body":
 			url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
-			s += u"url=%s\r\n" %(url)
+			s += "url=%s\r\n" %(url)
 	except:
 		pass
-	return(u"tag %s\r\n%s\r\n" %(tag, s))
+	return("tag %s\r\n%s\r\n" %(tag, s))
 
 def getFirstChildName (obj):
 	# retourne le premier name non nul a partir de l'objet en cours

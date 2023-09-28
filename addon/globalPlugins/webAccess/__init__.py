@@ -51,8 +51,6 @@ Monkey-patched NVDA functions:
 * virtualBuffers.VirtualBuffer._loadBufferDone
 """
 
-# Keep compatible with Python 2
-from __future__ import absolute_import, division, print_function
 
 __version__ = "2021.03.12"
 __author__ = (
@@ -135,7 +133,7 @@ class DefaultBrowserScripts(baseObject.ScriptableObject):
 
 	__gestures = {}
 
-defaultBrowserScripts = DefaultBrowserScripts(u"Pas de web module pour cette page")
+defaultBrowserScripts = DefaultBrowserScripts("Pas de web module pour cette page")
 
 
 def getVersion():
@@ -164,7 +162,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		from .gui.settings import initialize as settings_initialize
 		# FIXME:
 		# After the above import, it appears that the `gui` name now points to the `.gui` module
-		# rather that NVDA's `gui`… No clue why… (Confirmed with Python 2 & 3)
+		# rather that NVDA's `gui`… No clue why…
 		import gui
 		settings_initialize()
 		
@@ -254,7 +252,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		from .gui.settings import WebAccessSettingsDialog
 		# FIXME:
 		# After the above import, it appears that the `gui` name now points to the `.gui` module
-		# rather that NVDA's `gui`… No clue why… (Confirmed with Python 2 & 3)
+		# rather that NVDA's `gui`… No clue why…
 		import gui
 		gui.mainFrame._popupSettingsDialog(WebAccessSettingsDialog)
 	
@@ -272,46 +270,46 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				and not hasattr(focus, "treeInterceptor") \
 				and not hasattr(focus.treeInterceptor, "_webApp") \
 				and not hasattr(focus.treeInterceptor, "nodeManager"):
-			ui.message(u"Pas de WebModule actif")
+			ui.message("Pas de WebModule actif")
 			return
 		
 		diverged = False
 		focusModule = None
 		treeModule = None
-		msg = u"Divergence :"
+		msg = "Divergence :"
 		msg += os.linesep
-		msg += u"activeWebApp = {webModule}".format(
+		msg += "activeWebApp = {webModule}".format(
 			webModule=activeWebApp.storeRef
 				if hasattr(activeWebApp, "storeRef")
 				else activeWebApp
 			)
 		if activeWebApp is not None:
-			msg += u" ({id})".format(id=id(activeWebApp))
+			msg += " ({id})".format(id=id(activeWebApp))
 		if not hasattr(focus, "_webApp"):
 			msg += os.linesep
-			msg += u"focus._webApp absent"
+			msg += "focus._webApp absent"
 		else:
 			focusModule = focus._webApp
 			if activeWebApp is not focusModule:
 				diverged = True
 			msg += os.linesep
-			msg += u"focus._webApp = {webModule}".format(
+			msg += "focus._webApp = {webModule}".format(
 				webModule=
 					focusModule.storeRef
 					if hasattr(focusModule, "storeRef")
 					else focusModule
 				)
 			if focusModule is not None:
-				msg += u" ({id})".format(id=id(focusModule))
+				msg += " ({id})".format(id=id(focusModule))
 		if not hasattr(focus, "treeInterceptor"):
 			diverged = True
 			msg += os.linesep
-			msg += u"focus.treeInterceptor absent"
+			msg += "focus.treeInterceptor absent"
 		else:
 			if focus.treeInterceptor is None:
 				diverged = True
 				msg += os.linesep
-				msg += u"focus.treeInterceptor None"
+				msg += "focus.treeInterceptor None"
 # 			if not hasattr(focusModule, "treeInterceptor"):
 # 				diverged = True
 # 				msg += os.linesep
@@ -331,47 +329,47 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 						or treeModule is not activeWebApp:
 					diverged = True
 				msg += os.linesep
-				msg += u"treeInterceptor._webApp = {webModule}".format(
+				msg += "treeInterceptor._webApp = {webModule}".format(
 					webModule=
 						treeModule.storeRef
 						if hasattr(treeModule, "storeRef")
 						else treeModule
 					)
 				if treeModule is not None:
-					msg += u" ({id})".format(id=id(treeModule))
+					msg += " ({id})".format(id=id(treeModule))
 			if hasattr(focus.treeInterceptor, "nodeManager"):
 				if focusModule is None:
 					diverged = True
-					msg += u"treeInterceptor.nodeManager "
+					msg += "treeInterceptor.nodeManager "
 					if focus.treeInterceptor.nodeManager is None:
-						msg += u"est None"
+						msg += "est None"
 					else:
-						msg += u"n'est pas None"
+						msg += "n'est pas None"
 				elif \
 						focusModule.ruleManager.nodeManager is not \
 						focus.treeInterceptor.nodeManager:
 					diverged = True
 					msg += os.linesep
-					msg += u"NodeManagers différents"
+					msg += "NodeManagers différents"
 				elif focusModule.ruleManager.nodeManager is None:
 					msg += os.linesep
-					msg += u"NodeManagers None"
+					msg += "NodeManagers None"
 					
 
-		allMsg = u""
+		allMsg = ""
 
 		if not diverged:
 			try:
 				from six import text_type
 			except ImportError:
 				# NVDA version < 2018.3
-				text_type = unicode
+				text_type = str
 			msg = text_type(focusModule.storeRef)
 		speech.speakMessage(msg)
 		allMsg += msg + os.linesep
 		
 		treeInterceptor = html.getTreeInterceptor()
-		msg = u"nodeManager %d caractères, %s, %s" % (treeInterceptor.nodeManager.treeInterceptorSize, treeInterceptor.nodeManager.isReady, treeInterceptor.nodeManager.mainNode is not None)
+		msg = "nodeManager %d caractères, %s, %s" % (treeInterceptor.nodeManager.treeInterceptorSize, treeInterceptor.nodeManager.isReady, treeInterceptor.nodeManager.mainNode is not None)
 		speech.speakMessage(msg)
 		allMsg += msg + os.linesep
 		api.copyToClip(allMsg)
@@ -595,7 +593,7 @@ def showWebModulesLoadErrors():
 		if isinstance(ref, tuple):
 			label = ref[-1]
 			if len(ref) > 2 and ref[0] == "addons":
-				label = u"{webModuleName} ({addonName})".format(
+				label = "{webModuleName} ({addonName})".format(
 					webModuleName=ref[-1],
 					addonName=ref[1]
 				)
@@ -642,7 +640,7 @@ if (2018, 1) <= nvdaVersion < (2019, 2, 1):
 		if len(attribsString) >= ATTRIBS_STRING_BASE64_THRESHOLD:
 			attribsString = ATTRIBS_STRING_BASE64_PATTERN.sub(ATTRIBS_STRING_BASE64_REPL, attribsString)
 			if len(attribsString) >= ATTRIBS_STRING_BASE64_THRESHOLD:
-				log.debugWarning(u"IA2 attributes string exceeds threshold: {}".format(attribsString))
+				log.debugWarning("IA2 attributes string exceeds threshold: {}".format(attribsString))
 		return splitIA2Attribs.super(attribsString)
 
 	import IAccessibleHandler

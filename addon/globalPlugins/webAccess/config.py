@@ -19,11 +19,9 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-# Stay compatible with Python 2
-from __future__ import absolute_import, division, print_function
 
 __version__ = "2021.01.14"
-__author__ = u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
+__author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
 import config
@@ -63,7 +61,7 @@ def handleConfigChange():
 		if nvdaVersion >= (2019, 1):
 			_cache["development"] = config.conf["development"].dict()
 	else:
-		_cache = {"webAccess": dict(config.conf["webAccess"].iteritems())}
+		_cache = {"webAccess": dict(iter(config.conf["webAccess"].items()))}
 
 
 def initialize():

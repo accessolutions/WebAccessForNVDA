@@ -19,8 +19,6 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-# Keep compatible with Python 2
-from __future__ import absolute_import, division, print_function
 
 __version__ = "2021.03.12"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
@@ -44,8 +42,8 @@ try:
 	from six import string_types, text_type
 except ImportError:
 	# NVDA version < 2018.3
-	string_types = basestring
-	text_type = unicode
+	string_types = str
+	text_type = str
 
 
 class NewerFormatVersion(version.InvalidVersion):
@@ -80,7 +78,7 @@ def recover(data):
 	from .webModule import WebModule
 	if formatVersion > WebModule.FORMAT_VERSION:
 		raise NewerFormatVersion(
-			u"WebModule format version not supported: {}".format(formatVersion)
+			"WebModule format version not supported: {}".format(formatVersion)
 		)
 
 
@@ -144,7 +142,7 @@ def recoverFrom_0_3_to_0_4(data):
 				split = rule.copy()
 				del rule["isPageTitle"]
 				split["type"] = ruleTypes.PAGE_TITLE_1
-				split["name"] = u"{} (title)".format(rule["name"])
+				split["name"] = "{} (title)".format(rule["name"])
 				for key in markerKeys:
 					try:
 						del split[key]
@@ -153,7 +151,7 @@ def recoverFrom_0_3_to_0_4(data):
 				splitTitles.append(split)
 				logLevel = max(logLevel, log.WARNING)
 				logMsgs.append(
-					u'Rule "{}": Splitting "isPageTitle" from "definesContext".'
+					'Rule "{}": Splitting "isPageTitle" from "definesContext".'
 					.format(rule.get("name"))
 				)
 		elif rule.get("definesContext"):
@@ -176,10 +174,10 @@ def recoverFrom_0_3_to_0_4(data):
 				split = rule.copy()
 				del split[reason]
 				split["type"] = ruleTypes.MARKER
-				split["name"] = u"{} (marker)".format(rule["name"])
+				split["name"] = "{} (marker)".format(rule["name"])
 				splitMarkers.append(split)
 				logLevel = max(logLevel, log.WARNING)
-				logMsgs.append(u'Rule "{}": Splitting "{}" from marker.'.format(rule.get("name"), reason))
+				logMsgs.append('Rule "{}": Splitting "{}" from marker.'.format(rule.get("name"), reason))
 			for key in markerKeys:
 				try:
 					del rule[key]
@@ -194,10 +192,10 @@ def recoverFrom_0_3_to_0_4(data):
 			rule["contextPageType"] = rule["requiresContext"]
 			logLevel = max(logLevel, log.WARNING)
 			logMsgs.append(
-				u'Rule "{}": '
-				u'Property "requiresContext" has been copied to '
-				u'"contextPageType", which is probably not accurate. '
-				u'Please redefine the required context.'
+				'Rule "{}": '
+				'Property "requiresContext" has been copied to '
+				'"contextPageType", which is probably not accurate. '
+				'Please redefine the required context.'
 				.format(rule.get("name"))
 			)
 		
@@ -338,7 +336,7 @@ def recoverFrom_0_6_to_0_7(data):
 					offset += 1
 				rule["name"] = extraName
 				logLevel = max(logLevel, log.WARNING)
-				logMsgs.append(u'Rule "{}" #{}: Renamed to "{}".'.format(name, index, extraName))
+				logMsgs.append('Rule "{}" #{}: Renamed to "{}".'.format(name, index, extraName))
 				extra[extraName] = rule
 			del rulesDict[name]
 			continue
@@ -349,8 +347,8 @@ def recoverFrom_0_6_to_0_7(data):
 				rule["priority"] = 0
 				logLevel = max(logLevel, log.WARNING)
 				logMsgs.append(
-					u'Rule "{}" #{}: '
-					u"Missing priority considered as 0."
+					'Rule "{}" #{}: '
+					"Missing priority considered as 0."
 					.format(rule["name"], index)
 				)
 		# Step 2: Sort alternatives by priority and index
@@ -365,7 +363,7 @@ def recoverFrom_0_6_to_0_7(data):
 		for index, alternative in enumerate(alternatives):
 			overrides = OrderedDict()
 			alternativeComments = []
-			for key, value in rule.items():
+			for key, value in list(rule.items()):
 				if key in ("criteria", "priority", "comment"):
 					continue
 				altValue = alternative.get(key)
@@ -376,16 +374,16 @@ def recoverFrom_0_6_to_0_7(data):
 							overrides[key] = ""
 						continue
 					alternativeComments.append(
-						u"{!r} was {} instead of {!r}"
+						"{!r} was {} instead of {!r}"
 						.format(key, repr(altValue) if not missing else "missing", value)
 					)
-			for key, altValue in alternative.items():
+			for key, altValue in list(alternative.items()):
 				if key in rule or key in (
 					"criteria", "priority", "comment", "customName", "customValue"
 				):
 					continue
 				alternativeComments.append(
-					u"{!r} was {!r} instead of missing"
+					"{!r} was {!r} instead of missing"
 					.format(key, altValue)
 				)
 			criteria = alternative["criteria"][0]
@@ -393,28 +391,28 @@ def recoverFrom_0_6_to_0_7(data):
 				criteria.update(overrides)
 			if alternativeComments:
 				if criteria.get("comment"):
-					criteria["comment"] += u"\n\n"
+					criteria["comment"] += "\n\n"
 				else:
 					criteria["comment"] = ""
 				criteria["comment"] += (
-					_(u"Recovered from format version {}").format("0.6")
-					+ u"\n"
-					+ u"\n".join(alternativeComments)
+					_("Recovered from format version {}").format("0.6")
+					+ "\n"
+					+ "\n".join(alternativeComments)
 				)
 				ruleComments.append(
-					u"Alternative {}:\n\t{}"
+					"Alternative {}:\n\t{}"
 					.format(index + 1, "\n\t".join(alternativeComments))
 				)
 			rule["criteria"].append(criteria)
 		if ruleComments:
 			rule["comment"] = (
-				_(u"Recovered from format version {}").format("0.6")
-				+ u"\n"
-				+ u"\n".join(ruleComments)
+				_("Recovered from format version {}").format("0.6")
+				+ "\n"
+				+ "\n".join(ruleComments)
 			)
 			logLevel = max(logLevel, log.WARNING)
 			logMsgs.append(
-				u'Rule "{}":\n\t{}'
+				'Rule "{}":\n\t{}'
 				.format(rule["name"], "\n\t".join(ruleComments))
 			)
 		rulesDict[name] = rule

@@ -20,12 +20,13 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 # Get ready for Python 3
-from __future__ import absolute_import, division, print_function
+
 
 __version__ = "2021.03.12"
 __authors__ = (
-	u"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
-	u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
+	"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 )
 
 
@@ -40,7 +41,6 @@ import controlTypes
 from logHandler import log
 import mouseHandler
 import NVDAHelper
-import sayAllHandler
 import textInfos
 import treeInterceptorHandler
 import ui
@@ -50,7 +50,7 @@ from .webAppLib import *
 
 
 try:
-	from six import unichr
+	from six import chr
 except ImportError:
 	# NVDA version < 2018.3	
 	pass
@@ -99,7 +99,7 @@ class NodeManager(baseObject.ScriptableObject):
 		self.callbackNodeMoveto = None
 		self.updating = False
 		if treeInterceptor is None:
-			log.info(u"nodeManager created with none treeInterceptor")
+			log.info("nodeManager created with none treeInterceptor")
 			return
 		self.callbackNodeMoveto = callbackNodeMoveto
 		self.update()
@@ -153,7 +153,7 @@ class NodeManager(baseObject.ScriptableObject):
 
 	def _startElementHandler(self, tagName, attrs):
 		TRACE(
-			u"_startElementHandler(tagName={}, attrs={})".format(
+			"_startElementHandler(tagName={}, attrs={})".format(
 				tagName, attrs)
 		)
 		# s = self.formatAttributes(attrs)
@@ -162,9 +162,9 @@ class NodeManager(baseObject.ScriptableObject):
 			data = attrs.get('value', None)
 			if data is not None:
 				try:
-					data = unichr(int(data))
+					data = chr(int(data))
 				except ValueError:
-					data = u'\ufffd'
+					data = '\ufffd'
 				self._CharacterDataHandler(data)
 			return
 		elif tagName == 'control':
@@ -191,7 +191,7 @@ class NodeManager(baseObject.ScriptableObject):
 			self.mainNode = node
 
 	def _EndElementHandler(self, tagName):
-		TRACE(u"_EndElementHandler(tagName={})".format(tagName))
+		TRACE("_EndElementHandler(tagName={})".format(tagName))
 		if tagName == 'unich':
 			pass
 		elif tagName in ("control", "text"):
@@ -203,7 +203,7 @@ class NodeManager(baseObject.ScriptableObject):
 			raise ValueError("unknown tag name: %s" % tagName)
 
 	def _CharacterDataHandler(self, data):
-		TRACE(u"_CharacterDataHandler(data={})".format(data))
+		TRACE("_CharacterDataHandler(data={})".format(data))
 		p = self.currentParentNode
 		if not hasattr(p, "format"):
 			raise
@@ -283,7 +283,7 @@ class NodeManager(baseObject.ScriptableObject):
 		else:
 			self.updating = False
 			self._ready = False
-			log.info(u"reading vBuff error")
+			log.info("reading vBuff error")
 			return False
 		# self.info = info
 		if self.mainNode is None:
@@ -395,7 +395,7 @@ class NodeManager(baseObject.ScriptableObject):
 			return
 		c = self.searchOffset(self._curNode.offset + self._curNode.size + 0)
 		if c == self._curNode or c is None:
-			ui.message(u"Bas du document")
+			ui.message("Bas du document")
 			self._curNode.moveto()
 			return
 		if c.parent.role not in (
@@ -415,7 +415,7 @@ class NodeManager(baseObject.ScriptableObject):
 		c = self.searchOffset(self._curNode.offset - 1)
 		# log.info("C is %s" % c)
 		if c is None:
-			ui.message(u"Début du document")
+			ui.message("Début du document")
 			self._curNode.moveto()
 			return
 		if c.parent.role not in (
@@ -504,7 +504,7 @@ class NodeField(TrackedObject):
 			self.children = []
 		else:
 			raise ValueError(
-				u"Unexpected nodeType: {nodeType}".format(nodeType=nodeType))
+				"Unexpected nodeType: {nodeType}".format(nodeType=nodeType))
 		self._previousTextNode = \
 			weakref.ref(nodeManager.lastTextNode) \
 			if nodeManager.lastTextNode is not None \
@@ -671,9 +671,9 @@ class NodeField(TrackedObject):
 		_count += 1
 		found = True
 		# Copy kwargs dict to get ready for Python 3:
-		for key, allowedValues in kwargs.copy().items():
+		for key, allowedValues in list(kwargs.copy().items()):
 			if "_" not in key:
-				log.warning(u"Unexpected argument: {arg}".format(arg=key))
+				log.warning("Unexpected argument: {arg}".format(arg=key))
 				continue
 			test, prop = key.split("_", 1)
 			prop = prop.rsplit("#", 1)[0]
@@ -777,7 +777,7 @@ class NodeField(TrackedObject):
 					return node
 		return None
 	
-	RELATIVE_PATH_CRITERIA = re.compile(u"^{[^}]*}")
+	RELATIVE_PATH_CRITERIA = re.compile("^{[^}]*}")
 	
 	def walk(self, path):
 		"""Walk the node tree and return the destination node.
@@ -860,8 +860,8 @@ class NodeField(TrackedObject):
 					match = self.RELATIVE_PATH_CRITERIA.match(path[index:])
 					if not match:
 						log.error((
-							u"Malformed criteria expression in relative path expression "
-							u"at position {index}: {path}"
+							"Malformed criteria expression in relative path expression "
+							"at position {index}: {path}"
 						).format(**locals()))
 						return None
 					# TODO: Refactor to break this coupling
@@ -872,8 +872,8 @@ class NodeField(TrackedObject):
 					continue
 				else:
 					log.error((
-						u'Invalid step "{step}" at index {index}'
-						u' in path expression: "{path}"'
+						'Invalid step "{step}" at index {index}'
+						' in path expression: "{path}"'
 					).format(
 						step=step,
 						index=index,
@@ -913,7 +913,7 @@ class NodeField(TrackedObject):
 
 	def sayAll(self):
 		if self.moveto():
-			sayAllHandler.readText(sayAllHandler.CURSOR_CARET)
+			speech.sayAll.SayAllHandler.readText(sayAllHandler.CURSOR_CARET)
 			return True
 		else:
 			return False
@@ -932,7 +932,7 @@ class NodeField(TrackedObject):
 		try:
 			(left, top, width, height) = obj.location
 		except Exception:
-			ui.message(u"Impossible de déplacer la souris à cet emplacement")
+			ui.message("Impossible de déplacer la souris à cet emplacement")
 			return False
 		x = left + (width / 2)
 		y = top + (height / 2)
@@ -948,10 +948,10 @@ class NodeField(TrackedObject):
 		if hasattr(self, 'text'):
 			return self.text
 		elif self.role is controlTypes.ROLE_EDITABLETEXT:
-			return u"_name_ _role_"
+			return "_name_ _role_"
 		elif self.role is controlTypes.ROLE_HEADING:
-			return u"_innerText_ _role_ de niveau %s" % self.control["level"]
-		return u"_innerText_ _role_"
+			return "_innerText_ _role_ de niveau %s" % self.control["level"]
+		return "_innerText_ _role_"
 		
 	def getBraillePresentationString(self):
 		return False

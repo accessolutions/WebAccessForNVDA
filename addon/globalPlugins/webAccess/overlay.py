@@ -24,7 +24,7 @@ WebAccess overlay classes
 """
 
 # Get ready for Python 3
-from __future__ import absolute_import, division, print_function
+
 
 __version__ = "2021.03.12"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
@@ -95,7 +95,7 @@ def getDynamicClass(bases):
 def mutateObj(obj, clsList):
 	# Determine the bases for the new class.
 	bases = []
-	for index in xrange(len(clsList)):
+	for index in range(len(clsList)):
 		# A class doesn't need to be a base if it is already implicitly included
 		# by being a superclass of a previous base.
 		if index == 0 or not issubclass(clsList[index - 1], clsList[index]):
@@ -596,7 +596,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 						log.exception()
 				if controlId is None:
 					log.error((
-						u"Could not determine controlId for item: {}"
+						"Could not determine controlId for item: {}"
 					).format(item))
 				elif mgr.getMutatedControl(controlId):
 					# Avoid iterating twice over mutated controls.
@@ -1256,7 +1256,7 @@ class WebAccessObject(IAccessible):
 				res = int(res)
 			except ValueError:
 				log.exception((
-					u"Cannot convert columnNumber to int: {res}"
+					"Cannot convert columnNumber to int: {res}"
 				).format(**locals()))
 			return res
 		
@@ -1266,7 +1266,7 @@ class WebAccessObject(IAccessible):
 				res = int(res)
 			except ValueError:
 				log.exception((
-					u"Cannot convert rowNumber to int: {res}"
+					"Cannot convert rowNumber to int: {res}"
 				).format(**locals()))
 			return res
 	

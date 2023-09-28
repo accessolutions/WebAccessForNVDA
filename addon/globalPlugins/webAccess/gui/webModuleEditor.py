@@ -19,8 +19,6 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-# Keep compatible with Python 2
-from __future__ import absolute_import, division, print_function
 
 __version__ = "2021.03.12"
 __author__ = (
@@ -324,7 +322,7 @@ class Dialog(wx.Dialog, DpiScalingHelperMixin):
 	def ShowModal(self, context):
 		self.initData(context)
 		self.Fit()
-		self.Center(wx.BOTH | wx.CENTER_ON_SCREEN)
+		self.CentreOnScreen()
 		self.webModuleName.SetFocus()
 		return super(Dialog, self).ShowModal()
 	

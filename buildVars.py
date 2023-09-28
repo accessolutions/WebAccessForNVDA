@@ -19,7 +19,7 @@ addon_info = {
 	# Translators: Long description to be shown for this add-on on add-on information from add-ons manager
 	"addon_description" : _("""Web application modules support for modern or complex web sites."""),
 	# version
-	"addon_version" : "2021.04.07-dev+multiCrit-2021.04.06",
+	"addon_version" : "2023.09.28-dev+multiCrit",
 	# Author(s)
 	"addon_author" : (
 		u"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
@@ -31,9 +31,9 @@ addon_info = {
 	# Documentation file name
 	"addon_docFileName" : "readme.html",
 	# Minimum NVDA version supported (e.g. "2018.3")
-	"addon_minimumNVDAVersion" : "2016.3",
+	"addon_minimumNVDAVersion" : "2021.1",
 	# Last NVDA version supported/tested (e.g. "2018.4", ideally more recent than minimum version)
-	"addon_lastTestedNVDAVersion" : "2020.4",
+	"addon_lastTestedNVDAVersion" : "2024.1",
 	# Add-on update channel (default is stable or None)
 	"addon_updateChannel" : None,
 }

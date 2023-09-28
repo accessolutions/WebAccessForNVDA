@@ -59,8 +59,6 @@ script_quickNavToNextResultLevel2.supersedes = {"kb:pagedown": "moveByPage_forwa
 ```
 """
 
-# Keep compatible with Python 2
-from __future__ import absolute_import, division, print_function
 
 __version__ = "2021.03.29"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"

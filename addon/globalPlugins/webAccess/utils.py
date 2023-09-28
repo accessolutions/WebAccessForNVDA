@@ -19,11 +19,9 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-# Stay compatible with Python 2
-from __future__ import absolute_import, division, print_function
 
 __version__ = "2021.04.06"
-__author__ = u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
+__author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
 import addonHandler
@@ -32,7 +30,7 @@ try:
 	from six import text_type
 except ImportError:
 	# NVDA version < 2018.3
-	text_type = unicode
+	text_type = str
 
 
 addonHandler.initTranslation()

@@ -19,10 +19,10 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-from __future__ import absolute_import, division, print_function
+
 
 __version__ = "2021.03.26"
-__author__ = u"Shirley Noël <shirley.noel@pole-emploi.fr>"
+__author__ = "Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
 from collections import OrderedDict, namedtuple
@@ -92,7 +92,7 @@ def getSummary(data):
 				parts.append(getCriteriaSummary(alternative, condensed=True, indent="    "))
 	# Properties
 	subParts = []
-	for key, label in PropertiesPanel.FIELDS.items():
+	for key, label in list(PropertiesPanel.FIELDS.items()):
 		if key not in PropertiesPanel.RULE_TYPE_FIELDS.get(ruleType, []):
 			continue
 		if key == "sayName":
@@ -115,7 +115,7 @@ def getSummary(data):
 		parts.append(_("Properties"))
 		parts.extend(subParts)
 	
-	return u"\n".join(parts)
+	return "\n".join(parts)
 
 
 class GeneralPanel(ContextualSettingsPanel):
@@ -227,7 +227,7 @@ class GeneralPanel(ContextualSettingsPanel):
 		if not self.context:
 			return "nope"
 		data = self.context["data"]["rule"].copy()
-		for panel in self.Parent.Parent.catIdToInstanceMap.values():
+		for panel in list(self.Parent.Parent.catIdToInstanceMap.values()):
 			panel.updateData(data)
 		return getSummary(data)
 	
@@ -546,7 +546,7 @@ class ActionsPanel(ContextualSettingsPanel):
 		else:
 			self.gestureMapValue = data.get("gestures", {}).copy()
 			self.autoActionList.SetSelection(
-				mgr.getActions().keys().index(
+				list(mgr.getActions().keys()).index(
 					data.get("autoAction", "")
 				) + 1  # Empty entry at index 0
 				if "autoAction" in data else 0
@@ -627,19 +627,19 @@ class PropertiesPanel(ContextualSettingsPanel):
 	# (ie. French) require it to be prepended with one space.
 	FIELDS = OrderedDict((
 		# Translator: Multiple results checkbox label for the rule dialog's properties panel.
-		("multiple", pgettext("webAccess.ruleProperties", u"&Multiple results")),
+		("multiple", pgettext("webAccess.ruleProperties", "&Multiple results")),
 		# Translator: Activate form mode checkbox label for the rule dialog's properties panel.
-		("formMode", pgettext("webAccess.ruleProperties", u"Activate &form mode")),
+		("formMode", pgettext("webAccess.ruleProperties", "Activate &form mode")),
 		# Translator: Skip page down checkbox label for the rule dialog's properties panel.
-		("skip", pgettext("webAccess.ruleProperties", u"S&kip with Page Down")),
+		("skip", pgettext("webAccess.ruleProperties", "S&kip with Page Down")),
 		# Translator: Speak rule name checkbox label for the rule dialog's properties panel.
-		("sayName", pgettext("webAccess.ruleProperties", u"&Speak rule name")),
+		("sayName", pgettext("webAccess.ruleProperties", "&Speak rule name")),
 		# Translator: Custom name input label for the rule dialog's properties panel.
-		("customName", pgettext("webAccess.ruleProperties", u"Custom &name:")),
+		("customName", pgettext("webAccess.ruleProperties", "Custom &name:")),
 		# Label depends on rule type)
 		("customValue", None),
 		# Translator: Transform select label for the rule dialog's properties panel.
-		("mutation", pgettext("webAccess.ruleProperties", u"&Transform:")),
+		("mutation", pgettext("webAccess.ruleProperties", "&Transform:")),
 	))
 	
 	RULE_TYPE_FIELDS = OrderedDict((
@@ -669,10 +669,10 @@ class PropertiesPanel(ContextualSettingsPanel):
 		if key == "customValue":
 			if ruleType in (ruleTypes.PAGE_TITLE_1, ruleTypes.PAGE_TITLE_2):
 				# Translator: Field label on the RulePropertiesEditor dialog.
-				return pgettext("webAccess.ruleProperties", u"Custom page &title:")
+				return pgettext("webAccess.ruleProperties", "Custom page &title:")
 			elif ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
 				# Translator: Field label on the RulePropertiesEditor dialog.
-				return pgettext("webAccess.ruleProperties", u"Custom messa&ge:")
+				return pgettext("webAccess.ruleProperties", "Custom messa&ge:")
 		return default
 	
 	def makeSettings(self, settingsSizer):
@@ -795,7 +795,7 @@ class PropertiesPanel(ContextualSettingsPanel):
 		
 	def initData(self, context):
 		self.context = context
-		for items in self.hidable.values():
+		for items in list(self.hidable.values()):
 			for item in items:
 				item.Show(False)
 		if not context:
@@ -878,7 +878,7 @@ class PropertiesPanel(ContextualSettingsPanel):
 		
 		ruleType = data.get("type")
 		showedFields = self.RULE_TYPE_FIELDS.get(ruleType, {})
-		for field in self.FIELDS.keys():
+		for field in list(self.FIELDS.keys()):
 			if field not in showedFields and data.get(field):
 				del data[field]
 	
