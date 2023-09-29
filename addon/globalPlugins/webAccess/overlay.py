@@ -1190,7 +1190,7 @@ class WebAccessObject(IAccessible):
 			self.webAccess._original = True
 		try:
 			name = super(WebAccessObject, self).name
-			if original or getattr(self.webAccess, "_original", False):
+			if original or not getattr(self, "webAccess", False) or getattr(self.webAccess, "_original", False):
 				return name
 			return self.webAccess.getMutatedControlAttribute("name", name)
 		finally:
@@ -1217,7 +1217,7 @@ class WebAccessObject(IAccessible):
 			self.webAccess._original = True
 		try:
 			role = super(WebAccessObject, self).role
-			if original or getattr(self.webAccess, "_original", False):
+			if original or not getattr(self, "webAccess", False) or getattr(self.webAccess, "_original", False):
 				return role
 			return self.webAccess.getMutatedControlAttribute("role", role)
 		finally:
