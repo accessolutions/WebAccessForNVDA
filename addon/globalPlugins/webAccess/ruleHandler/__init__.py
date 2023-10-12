@@ -578,7 +578,7 @@ class MarkerManager(baseObject.ScriptableObject):
 			if result.markerQuery.type == ruleTypes.PAGE_TITLE_1:
 				return result.value
 		from ..webModuleHandler import getWindowTitle
-		windowTitle = getWindowTitle(self.nodeManager.treeInterceptor.rootNVDAObject)
+		windowTitle = getWindowTitle(self.nodeManager.treeInterceptor.rootNVDAObject.parent)
 		return windowTitle or api.getForegroundObject().name
 	
 	def _getPageTitle2(self):
