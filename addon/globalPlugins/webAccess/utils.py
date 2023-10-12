@@ -41,7 +41,7 @@ def updateOrDrop(map, key, value, default=None):
 		value == default
 		or (isinstance(value, text_type) and not value.strip())
 	):
-		map.pop(value, None)
+		map.pop(key, None)
 	else:
 		map[key] = value
 

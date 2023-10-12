@@ -216,7 +216,7 @@ class GeneralPanel(ContextualSettingsPanel):
 			data = self.context["data"]["rule"]
 		# The rule type should already be stored as of onTypeChange
 		data["name"] = self.ruleName.Value
-		updateOrDrop(data, "comment", self.commentText.Value)
+		#updateOrDrop(data, "comment", self.commentText.Value)
 	
 	def onTypeChange(self, evt):
 		data = self.context["data"]["rule"]
@@ -611,7 +611,7 @@ class ActionsPanel(ContextualSettingsPanel):
 		if ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
 			data["gestures"] = self.gestureMapValue
 			autoAction = self.autoActionList.GetClientData(self.autoActionList.Selection)
-			updateOrDrop(data, "autoAction", autoAction)
+			#updateOrDrop(data, "autoAction", autoAction)
 		else:
 			if data.get("gestures"):
 				del data["gestures"]
@@ -795,16 +795,30 @@ class PropertiesPanel(ContextualSettingsPanel):
 		
 	def initData(self, context):
 		self.context = context
+		self.updateData ()
+		
+	def updateData(self, data=None):
 		for items in list(self.hidable.values()):
 			for item in items:
 				item.Show(False)
-		if not context:
-			for item in self.hidable["noProperties"]:
-				item.Show()
-			return
-		rule = context.get("rule")
-		data = context["data"]["rule"]
+		data = self.context["data"]["rule"]
+		updateOrDrop(data, "multiple", self.multipleCheckBox.Value)
+		updateOrDrop(data, "formMode", self.formModeCheckBox.Value)
+		updateOrDrop(data, "skip", self.skipCheckBox.Value)
+		updateOrDrop(data, "sayName", self.sayNameCheckBox.Value)
+		updateOrDrop(data, "customName", self.customNameText.Value)
+		updateOrDrop(data, "customValue", self.customValueText.Value)
+		if self.mutationCombo.Selection > 0:
+			data["mutation"] = self.mutationCombo.GetClientData(self.mutationCombo.Selection)
+		else:
+			data.pop("mutation", None)
 		
+		ruleType = data.get("type")
+		showedFields = self.RULE_TYPE_FIELDS.get(ruleType, {})
+		for field in list(self.FIELDS.keys()):
+			if field not in showedFields and data.get(field):
+				del data[field]
+	
 		ruleType = data.get("type")
 		fields = self.RULE_TYPE_FIELDS.get(ruleType, {})
 		hidable = self.hidable
@@ -859,29 +873,7 @@ class PropertiesPanel(ContextualSettingsPanel):
 		else:
 			index = 0
 		self.mutationCombo.SetSelection(index)
-	
-	def updateData(self, data=None):
-		if data is None:
-			data = self.context["data"]["rule"]
-	
-		data = self.context["data"]["rule"]
-		updateOrDrop(data, "multiple", self.multipleCheckBox.Value, False)
-		updateOrDrop(data, "formMode", self.formModeCheckBox.Value, False)
-		updateOrDrop(data, "skip", self.skipCheckBox.Value, False)
-		updateOrDrop(data, "sayName", self.sayNameCheckBox.Value, True)
-		updateOrDrop(data, "customName", self.customNameText.Value)
-		updateOrDrop(data, "customValue", self.customValueText.Value)
-		if self.mutationCombo.Selection > 0:
-			data["mutation"] = self.mutationCombo.GetClientData(self.mutationCombo.Selection)
-		else:
-			data.pop("mutation", None)
 		
-		ruleType = data.get("type")
-		showedFields = self.RULE_TYPE_FIELDS.get(ruleType, {})
-		for field in list(self.FIELDS.keys()):
-			if field not in showedFields and data.get(field):
-				del data[field]
-	
 	def onPanelDeactivated(self):
 		self.updateData()
 		super(PropertiesPanel, self).onPanelDeactivated()
