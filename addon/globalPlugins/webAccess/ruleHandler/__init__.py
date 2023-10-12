@@ -1165,8 +1165,7 @@ class Criteria(baseObject.AutoPropertyObject):
 				exclude = False
 			found = False
 			for name in expr.split("|"):
-				name = name.strip()
-				if not name:
+				if not name.strip():
 					continue
 				rule = self.ruleManager.getRule(name, layer=self.layer)
 				if rule is None:
@@ -1335,7 +1334,7 @@ class Rule(baseObject.ScriptableObject):
 		mutation = data.pop("mutation", None)
 		if mutation:
 			try:
-				self.mutation = MUTATIONS[mutation]
+				self.mutation = None#MUTATIONS[mutation]
 			except LookupError:
 				log.exception((
 					"Unexpected mutation template id \"{mutation}\" "
