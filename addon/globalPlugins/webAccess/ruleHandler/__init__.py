@@ -505,7 +505,7 @@ class RuleManager(baseObject.ScriptableObject):
 			if result.rule.type == ruleTypes.PAGE_TITLE_1:
 				return result.value
 		from ..webModuleHandler import getWindowTitle
-		windowTitle = getWindowTitle(self.nodeManager.treeInterceptor.rootNVDAObject.parent)
+		windowTitle = getWindowTitle(self.nodeManager.treeInterceptor.rootNVDAObject)
 		return windowTitle or api.getForegroundObject().name
 	
 	def _getPageTitle2(self):
