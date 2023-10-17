@@ -29,6 +29,7 @@ __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 import sys
 
 from logHandler import log
+import api
 
 
 class Store(object):
@@ -58,6 +59,7 @@ class Store(object):
 	def list(self, errors=None):
 		for ref, meta in self.catalog(errors=errors):
 			try:
+				api.processPendingEvents()
 				item = self.get(ref)
 			except Exception:
 				if errors is not None:

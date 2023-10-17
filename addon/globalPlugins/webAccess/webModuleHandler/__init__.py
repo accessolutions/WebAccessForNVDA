@@ -187,7 +187,7 @@ def resetRunningModules(webModule=None):
 		ti.webAccess._webModule = None
 
 
-def save(webModule, layerName=None, prompt=True, force=False):
+def save(webModule, layerName=None, prompt=True, force=False, fromRuleEditor=False):
 	if layerName is not None:
 		layer = webModule.getLayer(layerName, raiseIfMissing=True)
 	else:
@@ -247,7 +247,10 @@ def save(webModule, layerName=None, prompt=True, force=False):
 			)
 		getWebModules(refresh=True)
 		return False
-	getWebModules(refresh=True)
+	if not fromRuleEditor:
+		# only if webModule creation or modification
+		log.info ("refresh %s" % prompt)
+		getWebModules(refresh=True)
 	resetRunningModules()
 	return True
 

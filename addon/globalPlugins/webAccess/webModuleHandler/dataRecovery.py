@@ -281,7 +281,7 @@ def recoverFrom_0_6_to_0_7(data):
 		rule.pop("class", None)
 		rule.pop("createWidget", None)
 		rule.pop("user", None)
-	log.info("rulesDict: {}".format(list(rulesDict.keys())))
+	#log.info("rulesDict: {}".format(list(rulesDict.keys())))
 	
 	extra = OrderedDict()
 	for name in list(rulesDict.keys()):
@@ -419,7 +419,7 @@ def recoverFrom_0_6_to_0_7(data):
 	rulesDict.update(extra)
 	rules = data["Rules"] = rulesDict
 	data["Rules"] = rules
-	log.info("after: {}".format(rules))
+	#log.info("after: {}".format(rules))
 	if logMsgs:
 		logRecovery(data, logLevel, "\n".join(logMsgs))
 	data["formatVersion"] = "0.7-dev"

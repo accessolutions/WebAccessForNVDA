@@ -65,6 +65,7 @@ import imp
 import re
 import sys
 import time
+import core
 import wx
 
 from NVDAObjects.IAccessible import IAccessible
@@ -189,6 +190,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# The NVDA AppModule should not yet have been instanciated at this stage
 		NvdaAppModule.event_NVDAObject_init = appModule_nvda_event_NVDAObject_init 		
 		
+		core.callLater (2000, self.loadWebModules)
+		
+	def loadWebModules (self): 
 		webModuleHandler.initialize()
 		log.info("Web Access for NVDA version %s initialized" % getVersion())
 		showWebModulesLoadErrors()
