@@ -56,12 +56,12 @@ except ImportError:
 
 
 def speechOff():
-	speech.speechMode=speech.speechMode_off
+	speech.setSpeechMode(speech.SpeechMode.off)
 	
 def speechOn(delay=0):
 	time.sleep(delay)
 	api.processPendingEvents ()
-	speech.speechMode=speech.speechMode_talk
+	speech.setSpeechMode(speech.SpeechMode.talk)
 
 def playWebAppSound (name):
 	from ... import webAccess
