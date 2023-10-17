@@ -611,7 +611,7 @@ class ActionsPanel(ContextualSettingsPanel):
 		if ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
 			data["gestures"] = self.gestureMapValue
 			autoAction = self.autoActionList.GetClientData(self.autoActionList.Selection)
-			#updateOrDrop(data, "autoAction", autoAction)
+			updateOrDrop(data, "autoAction", autoAction)
 		else:
 			if data.get("gestures"):
 				del data["gestures"]
