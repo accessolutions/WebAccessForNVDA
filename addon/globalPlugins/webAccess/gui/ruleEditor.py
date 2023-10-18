@@ -284,7 +284,7 @@ class GeneralPanel(ContextualSettingsPanel):
 			rule = mgr.getRule(self.ruleName.Value, layer=layerName)
 		except LookupError:
 			rule = None
-		if rule is not None and rule is not self.context.get("rule"):
+		if rule is not None and rule.name is not self.context.get("rule").name:
 			gui.messageBox(
 				# Translators: Error message when another rule with the same name already exists
 				message=_("There already is another rule with the same name."),
