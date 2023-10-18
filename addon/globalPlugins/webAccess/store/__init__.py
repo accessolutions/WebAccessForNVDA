@@ -59,7 +59,8 @@ class Store(object):
 	def list(self, errors=None):
 		for ref, meta in self.catalog(errors=errors):
 			try:
-				api.processPendingEvents()
+				# pending process has been deactivated temporarily until the webacces version gets stable
+				#api.processPendingEvents()
 				item = self.get(ref)
 			except Exception:
 				if errors is not None:
