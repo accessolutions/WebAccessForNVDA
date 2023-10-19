@@ -1112,6 +1112,7 @@ class Criteria(baseObject.AutoPropertyObject):
 		setIfNotNoneOrEmptyString(data, "tag", self.tag)
 		setIfNotNoneOrEmptyString(data, "id", self.id)
 		setIfNotNoneOrEmptyString(data, "className", self.className)
+		setIfNotNoneOrEmptyString(data, "states", self.states)
 		setIfNotNoneOrEmptyString(data, "src", self.src)
 		setIfNotNoneOrEmptyString(data, "relativePath", self.relativePath)
 		setIfNotDefault(data, "index", self.index)
