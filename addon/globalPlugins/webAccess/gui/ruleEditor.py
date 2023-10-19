@@ -216,7 +216,7 @@ class GeneralPanel(ContextualSettingsPanel):
 			data = self.context["data"]["rule"]
 		# The rule type should already be stored as of onTypeChange
 		data["name"] = self.ruleName.Value
-		#updateOrDrop(data, "comment", self.commentText.Value)
+		updateOrDrop(data, "comment", self.commentText.Value)
 	
 	def onTypeChange(self, evt):
 		data = self.context["data"]["rule"]
@@ -792,11 +792,20 @@ class PropertiesPanel(ContextualSettingsPanel):
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 		
 		gbSizer.AddGrowableCol(2)
-		
+
 	def initData(self, context):
 		self.context = context
-		self.updateData ()
-		
+		data = self.context["data"]["rule"]
+		ruleType = data.get("type")
+		self.multipleCheckBox.Value = data.get("multiple", False)
+		self.formModeCheckBox.Value = data.get("formMode", False)
+		self.skipCheckBox.Value = data.get("skip", False)
+		self.sayNameCheckBox.Value = data.get("sayName", True)
+		self.customNameText.Value = data.get("customName", "")
+		self.customValueLabel.Label = self.getAltFieldLabel(ruleType, "customValue")
+		self.customValueText.Value = data.get("customValue", "")
+		self.updateData()
+
 	def updateData(self, data=None):
 		for items in list(self.hidable.values()):
 			for item in items:
@@ -812,7 +821,6 @@ class PropertiesPanel(ContextualSettingsPanel):
 			data["mutation"] = self.mutationCombo.GetClientData(self.mutationCombo.Selection)
 		else:
 			data.pop("mutation", None)
-		
 		ruleType = data.get("type")
 		showedFields = self.RULE_TYPE_FIELDS.get(ruleType, {})
 		for field in list(self.FIELDS.keys()):
