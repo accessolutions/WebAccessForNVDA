@@ -288,17 +288,18 @@ class GeneralPanel(ContextualSettingsPanel):
 		self.context = context
 		data = context["data"]["criteria"]
 		new = data.get("new", False)
-		
-		# TODO: Hide Sequence Order when there are only one choice
 		self.sequenceOrderChoice.Clear()
 		nbCriteria = len(context["data"]["rule"]["criteria"]) + (1 if new else 0)
-		for index in range(nbCriteria):
-			self.sequenceOrderChoice.Append(str(index + 1))
-		index = data.get("criteriaIndex", nbCriteria + 1)
-		self.sequenceOrderChoice.SetSelection(index)
-		self.criteriaName.Value = data.get("name", "")
-		self.commentText.Value = data.get("comment", "")
-		self.refreshSummary()
+		if nbCriteria == 1:
+			self.sequenceOrderChoice.Hide()
+		else:
+			for index in range(nbCriteria):
+				self.sequenceOrderChoice.Append(str(index + 1))
+			index = data.get("criteriaIndex", nbCriteria + 1)
+			self.sequenceOrderChoice.SetSelection(index)
+			self.criteriaName.Value = data.get("name", "")
+			self.commentText.Value = data.get("comment", "")
+			self.refreshSummary()
 	
 	def updateData(self, data=None):
 		if data is None:
