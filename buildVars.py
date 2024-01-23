@@ -14,18 +14,19 @@ addon_info = {
 	"addon_name" : "webAccess",
 	# Add-on summary, usually the user visible name of the addon.
 	# Translators: Summary for this add-on to be shown on installation and add-on information.
-	"addon_summary" : _("Web Access for NVDA"),
+	"addon_summary" : _("Web Access for NVDA (Multicriteria)"),
 	# Add-on description
 	# Translators: Long description to be shown for this add-on on add-on information from add-ons manager
 	"addon_description" : _("""Web application modules support for modern or complex web sites."""),
 	# version
-	"addon_version" : "2023.10.19",
+	"addon_version" : "2024.01.23",
 	# Author(s)
 	"addon_author" : (
 		"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
 		"Yannick Plassiard <yan@mistigri.org>, "
-		"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
-		),
+		"Julien Cochuyt <j.cochuyt@accessolutions.fr>, ",
+		"André-Abush Clause <a.clause@accessolutions.fr>"
+	),
 	# URL for the add-on documentation support
 	"addon_url" : "http://www.accessolutions.fr",
 	# Documentation file name

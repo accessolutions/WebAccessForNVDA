@@ -36,11 +36,7 @@ import gui
 import languageHandler
 from logHandler import log
 
-try:
-	from gui.nvdaControls import AutoWidthColumnListCtrl
-except ImportError:
-	from ..backports.nvda_2016_4.gui_nvdaControls import AutoWidthColumnListCtrl
-
+from gui.nvdaControls import AutoWidthColumnListCtrl
 
 def promptDelete(webModule):
 	msg = (
@@ -111,7 +107,7 @@ class Dialog(wx.Dialog):
 			style=wx.DEFAULT_DIALOG_STYLE|wx.MAXIMIZE_BOX|wx.RESIZE_BORDER,
 			#size=(600,400)
 			)
-		
+
 		modulesListLabel = wx.StaticText(
 			self,
 			# Translators: The label for the modules list in the
@@ -138,24 +134,24 @@ class Dialog(wx.Dialog):
 		item.Bind(
 			wx.EVT_LIST_ITEM_FOCUSED,
 			self.onModulesListItemSelected)
-		
+
 		item = self.moduleCreateButton = wx.Button(
 			self,
 			# Translators: The label for a button in the Web Modules Manager
 			label=_("&New web module..."),
 			)
 		item.Bind(wx.EVT_BUTTON, self.onModuleCreate)
-		
+
 		# Translators: The label for a button in the Web Modules Manager dialog
 		item = self.moduleEditButton = wx.Button(self, label=_("&Edit..."))
 		item.Disable()
 		item.Bind(wx.EVT_BUTTON, self.onModuleEdit)
-		
+
 		# Translators: The label for a button in the Web Modules Manager dialog
 		item = self.rulesManagerButton = wx.Button(self, label=_("Manage &rules..."))
 		item.Disable()
 		item.Bind(wx.EVT_BUTTON, self.onRulesManager)
-		
+
 		item = self.moduleDeleteButton = wx.Button(
 			self,
 			# Translators: The label for a button in the
@@ -163,13 +159,13 @@ class Dialog(wx.Dialog):
 			label=_("&Delete"))
 		item.Disable()
 		item.Bind(wx.EVT_BUTTON, self.onModuleDelete)
-				
+
 		vSizer = wx.BoxSizer(wx.VERTICAL)
 		vSizer.Add(self.moduleCreateButton, flag=wx.EXPAND|wx.LEFT|wx.RIGHT, border=4)
 		vSizer.Add(self.moduleEditButton, flag=wx.EXPAND|wx.LEFT|wx.RIGHT, border=4)
 		vSizer.Add(self.rulesManagerButton, flag=wx.EXPAND|wx.LEFT|wx.RIGHT, border=4)
 		vSizer.Add(self.moduleDeleteButton, flag=wx.EXPAND|wx.LEFT|wx.RIGHT, border=4)
-		
+
 		hSizer = wx.BoxSizer(wx.HORIZONTAL)
 		hSizer.Add(self.modulesList, proportion=1, flag=wx.EXPAND|wx.LEFT|wx.RIGHT, border=4)
 		hSizer.Add(vSizer)
@@ -182,29 +178,29 @@ class Dialog(wx.Dialog):
 			flag=wx.EXPAND|wx.ALIGN_LEFT|wx.TOP|wx.DOWN,
 			border=4
 			)
-		
+
 		hSizer = wx.BoxSizer(wx.HORIZONTAL)
 		hSizer.Add(vSizer, proportion=1, flag=wx.EXPAND|wx.ALL, border=4)
-		
+
 		self.Sizer = hSizer
-		
-	
+
+
 	def __del__(self):
 		Dialog._instance = None
-	
+
 	def initData(self, context):
 		self.context = context
 		module = context["webModule"] if "webModule" in context else None
 		self.refreshModulesList(selectItem=module)
-	
+
 	def onModuleCreate(self, evt=None):
 		from .. import webModuleHandler
 		context = dict(self.context)  # Shallow copy
 		webModuleHandler.showCreator(context)
 		if "webModule" in context:
 			module = context["webModule"]
-			self.refreshModulesList(selectItem=module) 
-	
+			self.refreshModulesList(selectItem=module)
+
 	def onModuleDelete(self, evt=None):
 		index = self.modulesList.GetFirstSelected()
 		if index < 0:
@@ -224,7 +220,7 @@ class Dialog(wx.Dialog):
 		from .. import webModuleHandler
 		webModuleHandler.showEditor(context)
 		self.refreshModulesList(selectIndex=index)
-	
+
 	def onModulesListItemSelected(self, evt):
 		index = evt.GetIndex()
 		item = self.modules[index] if index >= 0 else None
@@ -235,7 +231,7 @@ class Dialog(wx.Dialog):
 			and item.markerManager.isReady
 			)
 		self.moduleDeleteButton.Enable(item is not None)
-	
+
 	def onRulesManager(self, evt=None):
 		index = self.modulesList.GetFirstSelected()
 		if index < 0:
@@ -250,7 +246,7 @@ class Dialog(wx.Dialog):
 		self.modulesList.DeleteAllItems()
 		modules = self.modules = []
 		modulesList = self.modulesList
-		
+
 		from .. import webModuleHandler
 		for index, module in enumerate(webModuleHandler.getWebModules()):
 			if module is selectItem:
@@ -286,7 +282,7 @@ class Dialog(wx.Dialog):
 			self.moduleEditButton.Disable()
 			self.rulesManagerButton.Disable()
 			self.moduleDeleteButton.Disable()
-	
+
 	def Show(self, context):
 		self.initData(context)
 		self.Fit()

@@ -61,10 +61,7 @@ __author__ = (
 
 
 import os
-import imp
 import re
-import sys
-import time
 import core
 import wx
 
@@ -72,6 +69,7 @@ from NVDAObjects.IAccessible import IAccessible
 from NVDAObjects.IAccessible.MSHTML import MSHTML
 from NVDAObjects.IAccessible.ia2Web import Ia2Web
 from NVDAObjects.IAccessible.mozilla import Mozilla
+from scriptHandler import script
 import addonHandler
 import api
 import baseObject
@@ -86,7 +84,6 @@ import ui
 import virtualBuffers
 
 from . import nodeHandler
-from .nvdaVersion import nvdaVersion
 from . import overlay
 from . import presenter
 from . import webAppLib
@@ -119,7 +116,7 @@ webAccessEnabled = True
 scheduler = None
 
 class DefaultBrowserScripts(baseObject.ScriptableObject):
-	
+
 	def __init__(self, warningMessage):
 		super(DefaultBrowserScripts,self).__init__()
 		self.warningMessage = warningMessage
@@ -142,7 +139,7 @@ def getVersion():
 		thisPath = os.path.abspath(
 			os.path.join(
 				os.path.split(__file__)[0],
-				"..\.."
+				r"..\.."
 				)
 			)
 		for addon in addonHandler.getAvailableAddons():
@@ -154,7 +151,7 @@ def getVersion():
 
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
-	
+
 	def __init__(self):
 		super(globalPluginHandler.GlobalPlugin, self).__init__()
 
@@ -166,11 +163,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# rather that NVDA's `gui`… No clue why…
 		import gui
 		settings_initialize()
-		
+
 		global scheduler
 		scheduler = WebAppScheduler()
 		scheduler.start()
-		
+
 		eventHandler._EventExecuter.gen = eventExecuter_gen
 		VirtualBuffer_changeNotify.super = virtualBuffers.VirtualBuffer.changeNotify
 		# This is a classmethod, thus requires binding
@@ -179,7 +176,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		)
 		virtualBuffer_loadBufferDone.super = virtualBuffers.VirtualBuffer._loadBufferDone
 		virtualBuffers.VirtualBuffer._loadBufferDone = virtualBuffer_loadBufferDone
-		
+
 		# Used to announce the opening of the Web Access menu
 		mainFrame_prePopup.super = gui.mainFrame.prePopup
 		gui.mainFrame.prePopup = mainFrame_prePopup.__get__(gui.mainFrame, gui.MainFrame)
@@ -188,11 +185,11 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		from appModules.nvda import AppModule as NvdaAppModule
 		appModule_nvda_event_NVDAObject_init.super = NvdaAppModule.event_NVDAObject_init
 		# The NVDA AppModule should not yet have been instanciated at this stage
-		NvdaAppModule.event_NVDAObject_init = appModule_nvda_event_NVDAObject_init 		
-		
+		NvdaAppModule.event_NVDAObject_init = appModule_nvda_event_NVDAObject_init
+
 		core.callLater (2000, self.loadWebModules)
-		
-	def loadWebModules (self): 
+
+	def loadWebModules(self):
 		webModuleHandler.initialize()
 		log.info("Web Access for NVDA version %s initialized" % getVersion())
 		showWebModulesLoadErrors()
@@ -204,7 +201,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		config_terminate()
 		from .gui.settings import terminate as settings_terminate
 		settings_terminate()
-		
+
 	def chooseNVDAObjectOverlayClasses(self, obj, clsList):
 		if any(
 			True
@@ -218,17 +215,18 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				clsList.insert(0, overlay.WebAccessDocument)
 				return
 			clsList.insert(0, overlay.WebAccessObject)
-	
+
+	@script(
+		# Translators: Input help mode message for show Web Access menu command.
+		description=_("Show the Web Access menu."),
+		category=SCRIPT_CATEGORY,
+		gesture="kb:nvda+w"
+	)
 	def script_showWebAccessGui(self, gesture):  # @UnusedVariable
 		wx.CallAfter(self.showWebAccessGui)
-	
-	# Translators: Input help mode message for show Web Access menu command.
-	script_showWebAccessGui.__doc__ = _("Show the Web Access menu.")
 
-	script_showWebAccessGui.category = SCRIPT_CATEGORY
-	
 	def showWebAccessGui(self):
-		obj = api.getFocusObject()		
+		obj = api.getFocusObject()
 		if obj is None or obj.appModule is None:
 			# Translators: Error message when attempting to show the Web Access GUI.
 			ui.message(_("The current object does not support Web Access."))
@@ -251,7 +249,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			context["webModule"] = webModule
 			context["pageTitle"] = webModule.pageTitle
 		menu.show(context)
-	
+
+	@script(
+		# Translators: Input help mode message for open Web Access settings command.
+		description=_("Open the Web Access Settings."),
+		category=SCRIPT_CATEGORY,
+		gesture="kb:nvda+control+w"
+	)
 	def script_showWebAccessSettings(self, gesture):  # @UnusedVariable
 		from .gui.settings import WebAccessSettingsDialog
 		# FIXME:
@@ -259,12 +263,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# rather that NVDA's `gui`… No clue why…
 		import gui
 		gui.mainFrame._popupSettingsDialog(WebAccessSettingsDialog)
-	
-	# Translators: Input help mode message for a command.
-	script_showWebAccessSettings.__doc__ = _("Open the Web Access Settings.")
 
-	script_showWebAccessSettings.category = SCRIPT_CATEGORY
-	
+	@script(
+		# Translators: Input help mode message for a command.
+		description=_("Toggle debug mode."),
+		category=SCRIPT_CATEGORY,
+		gesture="kb:nvda+control+shift+w"
+	)
 	def script_debugWebModule(self, gesture):  # @UnusedVariable
 		global activeWebApp
 		focus = api.getFocusObject()
@@ -276,7 +281,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				and not hasattr(focus.treeInterceptor, "nodeManager"):
 			ui.message("Pas de WebModule actif")
 			return
-		
+
 		diverged = False
 		focusModule = None
 		treeModule = None
@@ -325,7 +330,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 # 			elif focus.treeInterceptor is not focusModule.treeInterceptor:
 # 				diverged = True
 # 				msg += os.linesep
-# 				msg += u"TreeInterceptors différents"				
+# 				msg += u"TreeInterceptors différents"
 			if hasattr(focus.treeInterceptor, "_webApp"):
 				treeModule = focus.treeInterceptor._webApp
 				if \
@@ -358,7 +363,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 				elif focusModule.ruleManager.nodeManager is None:
 					msg += os.linesep
 					msg += "NodeManagers None"
-					
+
 
 		allMsg = ""
 
@@ -371,17 +376,21 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			msg = text_type(focusModule.storeRef)
 		speech.speakMessage(msg)
 		allMsg += msg + os.linesep
-		
+
 		treeInterceptor = html.getTreeInterceptor()
 		msg = "nodeManager %d caractères, %s, %s" % (treeInterceptor.nodeManager.treeInterceptorSize, treeInterceptor.nodeManager.isReady, treeInterceptor.nodeManager.mainNode is not None)
 		speech.speakMessage(msg)
 		allMsg += msg + os.linesep
 		api.copyToClip(allMsg)
-	
-	script_debugWebModule.category = SCRIPT_CATEGORY
-	
+
+	@script(
+		# Translators: Input help mode message for show Web Access menu command.
+		description=_("Show the element description."),
+		category=SCRIPT_CATEGORY,
+		gesture="kb:nvda+control+e"
+	)
 	def script_showElementDescription(self, gesture):  # @UnusedVariable
-		obj = api.getFocusObject()		
+		obj = api.getFocusObject()
 		if obj is None or obj.appModule is None:
 			# Translators: Error message when attempting to show the Web Access GUI.
 			ui.message(_("The current object does not support Web Access."))
@@ -392,12 +401,13 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			return
 		from .gui import elementDescription
 		elementDescription.showElementDescriptionDialog()
-	
-	# Translators: Input help mode message for show Web Access menu command.
-	script_showElementDescription.__doc__ = _("Show the element description.")
 
-	script_showElementDescription.category = SCRIPT_CATEGORY
-	
+
+	@script(
+		description=_("""Toggle Web Access support."""),
+		category=SCRIPT_CATEGORY,
+		gesture="kb:nvda+shift+w"
+	)
 	def script_toggleWebAccessSupport(self, gesture):  # @UnusedVariable
 		global useInternalBrowser
 		global webAccessEnabled
@@ -410,16 +420,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			#useInternalBrowser = True
 			webAccessEnabled = True
 			ui.message(_("Web Access support enabled."))  # FR: u"Support Web Access activé."
-	
-	script_toggleWebAccessSupport.category = SCRIPT_CATEGORY
-	
-	__gestures = {
-		"kb:nvda+w": "showWebAccessGui",
-		"kb:nvda+shift+w": "toggleWebAccessSupport",
-		"kb:nvda+control+w": "showWebAccessSettings",
-		"kb:nvda+control+shift+w": "debugWebModule",
-		"kb:nvda+control+e": "showElementDescription",
-	}
 
 
 def getActiveWebApp():
@@ -439,7 +439,7 @@ def supportWebApp(obj):
 	if obj is None or obj.appModule is None:
 		return None
 	return  obj.appModule.appName in supportedWebAppHosts
-	
+
 
 def VirtualBuffer_changeNotify(cls, rootDocHandle, rootID):
 	# log.info(u"change notify")
@@ -551,13 +551,13 @@ def showWebModulesLoadErrors():
 	webModuleHandler.getWebModules(errors=errors)
 	if not errors:
 		return
-	
+
 	class Case(object):
 		__slots__ = ("excType", "msgSingular", "msgPlural", "refs")
 		def __init__(self, *args):
 			self.excType, self.msgSingular, self.msgPlural = args
 			self.refs = []
-	
+
 	cases = (
 		Case(
 			webModuleHandler.NewerFormatVersion,
@@ -627,27 +627,3 @@ def showWebModulesLoadErrors():
 			style=wx.ICON_WARNING,
 			parent=gui.mainFrame
 		)
-
-
-if (2018, 1) <= nvdaVersion < (2019, 2, 1):
-	
-	# Workaround for NVDA bug #10227 / PR #10231 / Fix up #10282
-	# "IA2: Do not treat huge base64 data as NVDA might freeze in Google Chrome"
-	
-	ATTRIBS_STRING_BASE64_PATTERN = re.compile(
-		r"(([^\\](\\\\)*);src:data\\:[^\\;]+\\;base64\\,)[A-Za-z0-9+/=]+"
-	)
-	ATTRIBS_STRING_BASE64_REPL = r"\1<truncated>"
-	ATTRIBS_STRING_BASE64_THRESHOLD = 4096
-
-	def splitIA2Attribs(attribsString):
-		if len(attribsString) >= ATTRIBS_STRING_BASE64_THRESHOLD:
-			attribsString = ATTRIBS_STRING_BASE64_PATTERN.sub(ATTRIBS_STRING_BASE64_REPL, attribsString)
-			if len(attribsString) >= ATTRIBS_STRING_BASE64_THRESHOLD:
-				log.debugWarning("IA2 attributes string exceeds threshold: {}".format(attribsString))
-		return splitIA2Attribs.super(attribsString)
-
-	import IAccessibleHandler
-
-	splitIA2Attribs.super = IAccessibleHandler.splitIA2Attribs
-	IAccessibleHandler.splitIA2Attribs = splitIA2Attribs

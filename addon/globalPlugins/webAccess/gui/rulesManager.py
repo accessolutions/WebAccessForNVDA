@@ -58,10 +58,7 @@ except AttributeError:
 	TreeCtrl_GetItemData = wx.TreeCtrl.GetItemData
 	TreeCtrl_SetItemData = wx.TreeCtrl.SetItemData
 
-try:
-	from gui import guiHelper
-except ImportError:
-	from ..backports.nvda_2016_4 import gui_guiHelper as guiHelper
+from gui import guiHelper
 
 
 addonHandler.initTranslation()
@@ -183,11 +180,11 @@ def getRulesByName(ruleManager, filter=None, active=False):
 def getRulesByPosition(ruleManager, filter=None, active=True):
 	"""
 	Yield rules by position.
-	
+
 	As position depends on result, the `active` criteria is ignored.
 	"""
 	Parent = namedtuple("Parent", ("parent", "tid", "zone"))
-	
+
 	def filterChildlessParent(parent):
 		if (
 			not filter
@@ -198,7 +195,7 @@ def getRulesByPosition(ruleManager, filter=None, active=True):
 		if parent.parent:
 			parent.parent.tid.children.remove(parent)
 		return True
-	
+
 	webModule = ruleManager.webModule
 	if not webModule.isReadOnly():
 		layer = webModule._getWritableLayer()
@@ -206,7 +203,7 @@ def getRulesByPosition(ruleManager, filter=None, active=True):
 		layer = None
 	else:
 		return
-	
+
 	parent = None
 	for result in ruleManager.getResults():
 		rule = result.rule
@@ -305,10 +302,10 @@ class Dialog(wx.Dialog):
 			id=wx.ID_ANY,
 			style=wx.DEFAULT_DIALOG_STYLE | wx.MAXIMIZE_BOX
 		)
-		
+
 		mainSizer = wx.BoxSizer(wx.VERTICAL)
 		contentsSizer = wx.BoxSizer(wx.VERTICAL)
-		
+
 		item = self.groupByRadio = wx.RadioBox(
 			self,
 			# Translator: A label on the RulesManager dialog.
@@ -319,9 +316,9 @@ class Dialog(wx.Dialog):
 		item.Bind(wx.EVT_RADIOBOX, self.onGroupByRadio)
 		contentsSizer.Add(item, flag=wx.EXPAND)
 		contentsSizer.AddSpacer(guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS)
-		
+
 		filtersSizer = wx.GridSizer(1, 2, 10, 10)
-		
+
 		labeledCtrlHelper = guiHelper.LabeledControlHelper(
 			self,
 			# Translator: A label on the RulesManager dialog.
@@ -332,7 +329,7 @@ class Dialog(wx.Dialog):
 		item.Bind(wx.EVT_TEXT, lambda evt: self.refreshRuleList())
 		item.Bind(wx.EVT_TEXT_ENTER, lambda evt: self.tree.SetFocus())
 		filtersSizer.Add(labeledCtrlHelper.sizer, flag=wx.EXPAND)
-		
+
 		self.activeOnlyCheckBox = wx.CheckBox(
 			self,
 			# Translator: A label on the RulesManager dialog.
@@ -340,12 +337,12 @@ class Dialog(wx.Dialog):
 		)
 		self.activeOnlyCheckBox.Bind(wx.EVT_CHECKBOX, self.onActiveOnlyCheckBox)
 		filtersSizer.Add(self.activeOnlyCheckBox)
-		
+
 		contentsSizer.Add(filtersSizer, flag=wx.EXPAND)
 		contentsSizer.AddSpacer(
 			guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS
 		)
-		
+
 		item = self.tree = wx.TreeCtrl(
 			self,
 			size=wx.Size(700, 300),
@@ -359,12 +356,12 @@ class Dialog(wx.Dialog):
 		contentsSizer.AddSpacer(
 			guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS
 		)
-		
+
 		descSizer = wx.GridBagSizer()
 		descSizer.EmptyCellSize = (0, 0)
 		contentsSizer.Add(descSizer, flag=wx.EXPAND, proportion=1)
 		#contentsSizer.Add(descSizer, flag=wx.EXPAND)
-		
+
 		# Translator: The label for a field on the Rules manager
 		item = wx.StaticText(self, label=_("Summary"))
 		descSizer.Add(item, pos=(0, 0), flag=wx.EXPAND)
@@ -373,20 +370,20 @@ class Dialog(wx.Dialog):
 			self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_DONTWRAP | wx.TE_RICH
 		)
 		descSizer.Add(item, pos=(2, 0), flag=wx.EXPAND)
-		
+
 		descSizer.Add((guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL, 0), pos=(0, 1))
-		
+
 		# Translator: The label for a field on the Rules manager
 		item = wx.StaticText(self, label=_("Technical notes"))
 		descSizer.Add(item, pos=(0, 2), flag=wx.EXPAND)
 		descSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(1, 2))
 		item = self.ruleComment = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY)
 		descSizer.Add(item, pos=(2, 2), flag=wx.EXPAND)
-		
+
 		descSizer.AddGrowableCol(0)
 		descSizer.AddGrowableCol(2)
 		descSizer.AddGrowableRow(2)
-		
+
 		contentsSizer.AddSpacer(
 			guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS
 		)
@@ -439,7 +436,7 @@ class Dialog(wx.Dialog):
 		mainSizer.Fit(self)
 		self.Sizer = mainSizer
 		self.CentreOnScreen()
-	
+
 	def initData(self, context):
 		global lastGroupBy, lastActiveOnly
 		self.context = context
@@ -457,13 +454,13 @@ class Dialog(wx.Dialog):
 		))
 		self.onGroupByRadio(None, refresh=True)
 		self.refreshRuleList(selectObj=context.get("rule"))
-	
+
 	def getSelectedObject(self):
 		selection = self.tree.Selection
 		if not selection.IsOk():
 			return None
 		return TreeCtrl_GetItemData(self.tree, self.tree.Selection).obj
-	
+
 	def getSelectedRule(self):
 		obj = self.getSelectedObject()
 		if not obj:
@@ -473,29 +470,29 @@ class Dialog(wx.Dialog):
 		elif isinstance(obj, Result):
 			return obj.rule
 		return None
-	
+
 	def refreshRuleList(self, selectName=None, selectObj=None):
 		groupBy = GROUP_BY[self.groupByRadio.GetSelection()]
 		filter = self.filterEdit.GetValue()
 		active = self.activeOnlyCheckBox.Value
 		self.tree.DeleteChildren(self.treeRoot)
-		
+
 		tids = groupBy.func(
 			self.ruleManager,
 			filter,
 			active
 		) if groupBy.func else []
-		
+
 		# Would be replaced by use of nonlocal in Python 3
 		class SharedScope(object):
 			__slots__ = ("selectTreeItem",)
-		
+
 		shared = SharedScope()
 		shared.selectTreeItem = None
 		selectRule = None
 		if selectObj and isinstance(selectObj, Result):
 			selectRule = selectObj.rule
-		
+
 		def addToTree(parent, tids):
 			for tid in tids:
 				tii = self.tree.AppendItem(parent, tid.label)
@@ -511,12 +508,12 @@ class Dialog(wx.Dialog):
 							shared.selectTreeItem = tii
 				if tid.children:
 					addToTree(tii, tid.children)
-		
+
 		addToTree(self.treeRoot, tids)
-		
+
 		if filter or groupBy.id == "position":
 			self.tree.ExpandAllChildren(self.treeRoot)
-		
+
 		if shared.selectTreeItem is not None:
 			# Async call ensures the selection won't get lost.
 			wx.CallAfter(self.tree.SelectItem, shared.selectTreeItem)
@@ -524,20 +521,20 @@ class Dialog(wx.Dialog):
 			# the tree before reporting the selection.
 			#self.tree.SelectItem(shared.selectTreeItem)
 			return
-		
+
 		def unselect():
 			self.tree.Unselect()
 			self.onTreeSelChanged(None)
-		
+
 		wx.CallAfter(unselect)
-	
+
 	def onActiveOnlyCheckBox(self, evt):
 		global lastActiveOnly
 		if not self.Enabled:
 			return
 		lastActiveOnly = self.activeOnlyCheckBox.Value
 		self.refreshRuleList()
-	
+
 	def onGroupByRadio(self, evt, refresh=True):
 		global lastGroupBy, lastActiveOnly
 		groupBy = GROUP_BY[self.groupByRadio.GetSelection()]
@@ -551,7 +548,7 @@ class Dialog(wx.Dialog):
 			self.activeOnlyCheckBox.Enabled = True
 		if refresh:
 			self.refreshRuleList()
-	
+
 	def onResultMoveTo(self, evt):
 		obj = self.getSelectedObject()
 		if not obj:
@@ -571,7 +568,7 @@ class Dialog(wx.Dialog):
 			None
 		)
 		self.Close()
-	
+
 	def onRuleDelete(self, evt):
 		rule = self.getSelectedRule()
 		if not rule:
@@ -599,7 +596,7 @@ class Dialog(wx.Dialog):
 			)
 			self.refreshRuleList()
 		wx.CallAfter(self.tree.SetFocus)
-	
+
 	def onRuleEdit(self, evt):
 		rule = self.getSelectedRule()
 		if not rule:
@@ -613,7 +610,7 @@ class Dialog(wx.Dialog):
 # 			# Pass the eventually changed rule name
 # 			self.refreshRuleList(context["data"]["rule"]["name"])
 		wx.CallAfter(self.tree.SetFocus)
-	
+
 	def onRuleNew(self, evt):
 		context = self.context.copy()  # Shallow copy
 		if showCreator(context, parent=self):
@@ -626,10 +623,10 @@ class Dialog(wx.Dialog):
 # 			))))
 # 			self.refreshRuleList(context["data"]["rule"]["name"])
 		wx.CallAfter(self.tree.SetFocus)
-	
+
 	def onTreeItemActivated(self, evt):
 		self.onResultMoveTo(evt)
-	
+
 	def onTreeKeyDown(self, evt):
 		if evt.KeyCode == wx.WXK_F2:
 			self.onRuleEdit(evt)
@@ -638,7 +635,7 @@ class Dialog(wx.Dialog):
 		else:
 			return
 		evt.Skip()
-	
+
 	def onTreeSelChanged(self, evt):
 		from logHandler import log
 		if (
@@ -660,7 +657,7 @@ class Dialog(wx.Dialog):
 			from .ruleEditor import getSummary
 			self.ruleSummary.Value = getSummary(rule.dump())
 			self.ruleComment.Value = rule.comment or ""
-	
+
 	def ShowModal(self, context):
 		self.initData(context)
 		self.Fit()

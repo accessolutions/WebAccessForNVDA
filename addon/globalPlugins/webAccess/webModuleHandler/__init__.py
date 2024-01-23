@@ -41,7 +41,6 @@ import ui
 from .dataRecovery import NewerFormatVersion
 from .webModule import InvalidApiVersion, WebModule, WebModuleDataLayer
 from ..lib.packaging import version
-from ..nvdaVersion import nvdaVersion
 from ..overlay import WebAccessBmdti
 from ..store import DuplicateRefError
 from ..store import MalformedRefError
@@ -262,7 +261,7 @@ def showCreator(context):
 def showEditor(context, new=False):
 	from ..gui import webModuleEditor
 	from .webModule import WebModule
-	
+
 	if "data" in context:
 		del context["data"]
 	if new:
@@ -328,7 +327,7 @@ def showEditor(context, new=False):
 				# Translator: Canceling web module creation.
 				ui.message(_("Cancel"))
 
-	
+
 def showManager(context):
 	from ..gui import webModulesManager
 	webModulesManager.show(context)
@@ -365,8 +364,7 @@ def getEditableWebModule(webModule, layerName=None, prompt=True):
 			# Translators: A hint on how to allow to save a modification
 			hints.append(_("• In the WebAccess category, enable Developper Mode."))
 		if (
-			nvdaVersion >= (2019, 1)
-			and not config.conf["development"]["enableScratchpadDir"]
+			not config.conf["development"]["enableScratchpadDir"]
 			and (
 				layerName is None and config.conf["webAccess"]["disableUserConfig"]
 				or layerName not in ("user", None)
@@ -388,11 +386,11 @@ def getEditableWebModule(webModule, layerName=None, prompt=True):
 			caption=_("Error"),
 			style=wx.OK | wx.ICON_EXCLAMATION
 		)
-	
+
 
 def getEditableScratchpadWebModule(webModule, layerName=None, prompt=True):
 	if not (
-		(config.conf["development"]["enableScratchpadDir"] or nvdaVersion < (2019, 1))
+		config.conf["development"]["enableScratchpadDir"]
 		and config.conf["webAccess"]["devMode"]
 	):
 		return None
@@ -472,17 +470,15 @@ def hasCustomModule(name):
 def initialize():
 	global store
 	global _importers
-	
+
 	import imp
 	webModules = imp.new_module("webModulesMC")
 	webModules.__path__ = list()
 	import sys
 	sys.modules["webModulesMC"] = webModules
 	config.addConfigDirsToPythonPackagePath(webModules)
-	if nvdaVersion < (2019, 1) and not config.conf["webAccess"]["disableUserConfig"]:
-		webModules.__path__.insert(0, os.path.join(globalVars.appArgs.configPath, "webModulesMC"))
 	_importers = list(pkgutil.iter_importers("webModulesMC.__init__"))
-	
+
 	from ..store.webModule import WebModuleStore
 	store = WebModuleStore()
 
