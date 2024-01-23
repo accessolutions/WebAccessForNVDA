@@ -1,259 +1,290 @@
-# Web Access for NVDA
+# Web Access pour NVDA -- Quickstart Guide
 
-[Web application modules](http://webmodules.org/) support for modern or complex web sites.
+Copyright (C) 2015-2024 [Accessolutions](http://accessolutions.fr)
 
-Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
 
-## License
+## The web modules
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+The web modules allow, interactively, to create NVDA scripts to ease and
+customize browsing web sites and business web applications.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
+### Creating a web module
 
-See the file COPYING.txt at the root of this distribution for more details.
+Set the focus on one of the pages of the web site for which you want to create a
+module.
 
+Press `NVDA+W`.
 
-## Requirements
+Select "New web module" in the menu. 
 
-This is an add-on targeting the NVDA screen reader version 2016.3 or greater. 
+The dialog "New web module" opens.
 
-The following software is required in order to build this add-on:
+In the field "Web module name", give a meaningful name thet identifies this web
+site. (This name must conform to Windows file names syntax)
 
-- a Python distribution (2.7 or greater 32 bits is recommended).
-  Check the [Python website](http://www.python.org) for Windows Installers.
-- GNU Gettext tools. You can find windows builds
-  [here](http://gnuwin32.sourceforge.net/downlinks/gettext.php).
+In the drop-down list "URL", choose the part of the URL which is common to all
+the pages of the intended site. Press the up and down arrow keys to get the
+possible subsets of the current URL.
+In most cases, you may use the first proposal as it contains only the first part
+of the URL up to the first slash ("/").
 
-Additional requirements (see installation procedure in the next section):
- - SCons - [Website](http://www.scons.org/) - version 3.0.0
- - Markdown-2.0.1 or greater, to convert documentation files to HTML documents.
+In the drop-down list "Window title", you can enter a part of the title of the
+browser window. 
+Only use this parameter if the match by URL cannot identify the web site. In
+most cases, you should leave this field empty.
 
+Click the "OK" button to create the module.
 
-## Virtual environment
+A file with a ".json" extension is created in the "webModule" folder in the NVDA
+user folder. 
 
-The recommended way to setup a Python build environment is to use `virtualenv`.
 
-It is especially true when using different versions and flavours of the Python
-interpreter or working on projects that might have conflicting dependencies. 
+### Modifying a web module
 
-In this section, we will assume your Python 2.7 32 bits interpreter is *not*
-in the `PATH` environment variable. In later sections, we will assume it
-either is or you activated (as we recommend) the dedicated virtual environment.
+Set the focus on one of the pages of the web site for which you want to modify
+the module.
 
-The following commands use our dev team installation paths, amend according to
-your needs.
+Press `NVDA+W`.
 
+Select "Edit the web module" in the menu.
 
-### Install `virtualenv`
- 	
-```
-D:\dev\Python27-32\Scripts\pip install virtualenv
-```
+Alternatively, select "Manage web modules" in the menu.
 
+The dialog "Web modules manager" opens.
 
-### Create a home folder for your virtual environments
+Select the module you want to modify or delete, and click the "Edit" or "Delete"
+buttons, respectively. 
 
-```
-md D:\dev\venv
-```
 
+## Module rules
 
-### Create a new virtual environment
+A web module is made of a set of rules.
+Each rule is used to identify a specific element on a web page and act upon it.
 
-```
-D:\dev\Python27-32\Scripts\virtualenv.exe D:\dev\venv\nvda-addon
-```
+There are a few rule types, allowing to structure navigation through the web
+application. We will focus here on the "Marker" rule type, which allows to bind
+keyboard gestures and automatic actions.
 
-	
-### (Optional) Inject references
 
-We will inject in the new virtual environment references to the targetted
-NVDA source code and its Python dependencies.
+### Creating a rule
 
-This step is not strictly necessary, but it eases IDE integration and the
-use of code linters / style checkers.
+To create a rule, first set the browse mode cursor in the web page on the
+element for which you want to create a rule.
 
-From the root folder you store your projects in:
+Press `NVDA+W`.
 
-```
-git clone --recurse-submodules "https://github.com/nvaccess/nvda.git"
-cd nvda
-git checkout --recurse-submodules release-2018.3.2
-```
+In the menu, select "New rule".
 
-Then, create a `.pth` file in the `site-packages` of your virtual
-environment containing the paths - in Windows format - to the cloned
-source and dependancies, one line for each.
+A window featuring multiple categories is opened, with the General category highlighted.
 
-Example of a typical `nvda.pth` file:
+In the field "Rule type", select "Marker".
 
-```
-D:\dev\src\nvda\source
-D:\dev\src\nvda\include\scons\src\engine
-D:\dev\src\nvda\include\pyserial
-D:\dev\src\nvda\include\comtypes
-D:\dev\src\nvda\include\wxPython
-D:\dev\src\nvda\miscDeps\python
-```
+In the field "Rule name", give a name to this new rule.
+This name will be automatically announced when you will later press the keyboard
+shortcut assigned to this rule.
 
-This exhaustive list is obtained from looking at the file
-`source/sourceEnv.py` in the NVDA source tree.
 
-Finally, copy the file `scons.py` from the root of this project to the
-`Scripts` directory of the virtual environment.
-This is just a small convenience script allowing easier invocation of the
-SCons found in the cloned NVDA sub-module.
+#### Filtering criteria
 
+Switch to the "Criteria" category.
 
-### If using Git Bash, the `activate` script might need to be fixed.
+Click on "New..." button (or press ALT+n).
 
-The `VIRTUAL_ENV` variable it defines holds a path in Windows format.
+The next fields are used to define the criteria identifying the element for
+which to apply the rule. One or more criterion can be specified.
+On each drop-down list, by pressing on the down arrow key, you will get
+proposals from most to least specific to the current element.
+It is usually advisable to choose amongst the first proposals.
+Technically, these proposals are the attributes of the HTML ancestors to the
+current HTML element.  
 
-This has no impact if calling Python commands from the same hard disk unit
-but would prevent ie. calling a `python.exe` on drive `D:` from your home
-folder on drive `C:`.
 
-The script can be patched in-place with the following command:
+##### Text
 
-```
-sed -E -i 's/^(VIRTUAL_ENV=)(.+)$/echo \1\\""$(cygpath \2)"\\"/e' /d/dev/venv/nvda-addon/Scripts/activate
-```
+In the "Text" field, enter a string of text to look for.
+If the string begins with a left angle bracket ("<"), the search will look at
+the previous element. This is especially useful to look up an edit field whose
+label is placed just before it.
 
 
-### Activate the virtual environment.
+##### Role
 
-```
-D:\dev\venv\nvda-addon\Script\activate.bat
-```
+In the "Role" drop-down list, select one of the roles proposed for this element.
 
-or from Git Bash:
 
-```
-. /d/dev/venv/nvda-addon/Scripts/activate
-```
-	
-Note the leading period, meaning the script is sourced, not run.
+##### Tag
 
-Your command prompt should now be prefixed with the name of the virtual
-environment in parenthesis.
+In the "Tag" drop-down list, select the HTML tag used for this element.
 
-Any subsequent command will be run in the context of this virtual
-environment.
-The corresponding `python.exe` is now the first in your `PATH` environment
-variable, whether another one was already present or not.
-Furthermore, packages installed via `pip` will land in this virtual
-environment instead of the base Python installation.
+As the concepts of roles and tags mostly overlap, one might want to set either
+one or the other, but rarely both.
 
-You can later run `deactivate` to leave this virtual environment, but let's
-first finish to set it up.
 
-### Install the remaining build dependencies:
+##### ID
 
-```
-pip install "Markdown>=2.0.1"
-```
+In the "ID" drop-down list, select one of the strings that identifies the most
+specifically the element, if any.
 
-Optionally, if you did not create a `nvda.pth` file the in virtual environment:
 
-```
-pip install "SCons==3.0.0"
-```
+##### Class
 
+In the "class" drop-down list, select one of the strings that identifies the
+most specifically the element, if any.
 
-The new `nvda-addon` virtual environment is now ready to build our addon.
+As is usual for file names, the strings in "ID" and "Class" fields may contain
+an asterisk ("*") to allow for matching a substring.
 
-Note that it can also be used by many IDEs, such as PyDev for Eclipse, as
-the interpreter for the project. 
 
+##### SRC
 
-## Build
+The field "SRC" is useful only for image elements with a source filename or URL. 
 
-This add-on is based upon the
-[addonTemplate](https://bitbucket.org/nvdaaddonteam/addontemplate)
-from the NVDA Add-ons Team and, as such, is built using SCons.
 
+##### Index
 
-Depending on your environment, your SCons command might be either `scons.py`
-or `scons.bat`. As a convention, `scons` will be used within this document.
+If several elements match the criteria for the rule, this field sets the index
+of the element to consider as the intended one.
 
 
-The following commands are to be run from the project root folder. 
+Once the criteria are set, hit `enter` or tab to the "OK" button to close the
+dialog.
 
 
-### Generate Gettext POT translation file
+#### Keyboard shortcuts
 
-```
-scons pot
-```
+1. Switch to the "Actions" category.
+2. Choose "Add..." button (or `ALT+A`).
+3. Press the keyboard shorcut you want to assign.
+4. Pair an action. The available actions are:
 
+	* "Move to" : Move the browse mode cursor to the element and announce it.
+	* "Speak" : Announce the text of the element, but do not move the cursor.
+	* "Say all" : Move the browse mode cursor to the element and start reading aloud all the text from this position.
+	* "Activate" : Perform a mouse click on the element.
+	* "Mouse move" : Move the mouse cursor onto this element, but do not click.
 
-The resulting `WebAccess.pot` file will be created (or updated) in the project
-root folder.
+Several keyboard shortcuts, with different actions, can be assigned to the same
+rule.
 
 
-### Build the installation package
+##### Special handling of the "Speak" action :
 
-```
-scons
-```
+When a keyboard shorcut is assigned to the "Speak" action, pressing twice
+quickly this same shorcut will perform the "Move to" action.
 
+This may be used to define a shorcut to read aloud an error message shown on the
+web page without moving, while still being able to move
+to this message for a more precise reading with braille or speech commands, all
+while only having one shortcut to remember.
 
-The resulting `WebAccess-<version>.nvda-addon` file will be created (or
-updated) in the project root folder.
 
+#### Automatic actions
 
-### Cleaning
+The automatic action is not bound to a keyboard shorcut. It executes
+automatically when an element matching the rule criteria is found on the page.
+This can be used to automatically move the cursor at a specific starting
+position when a page loads. Alternatively, it also allows to automatically read
+aloud an error message as it appears.
 
-In order to ease in place execution during development, the manifest
-and documentation files generated by the build process are stored within the
-source tree, instead of a separate `build` folder.
+Caution: While very useful, the automatic actions can lead to seemingly
+unpredictable browsing behavior if not defined carefully.
+The "Speak" action is most likely harmless. 
+The actions "Move to" and "Say all" can lead to blocking the user.
+The "Activate" action should be avoided unless strictly necessary. 
 
-To get rid of them:
 
-```
-scons -c
-```
+#### Properties
 
+##### Multiple results available
 
+By default, if several elements on the page meet the criteria for the rule, only
+the first one will be considered. All the other matches are ignored.
 
-To also get rid of the generated Gettext POT translation file:
+If this box is checked, then all of the matching elements are considered. 
+That is, pressing the page up and page down keys will allow to successively go
+to each of the elements matching the rule.
+Nevertheless, this does not change the behavior of the assigned keyboard
+shorcut, which still applies to the sole first matched element. 
+It is advised to check this box for a rule matching search results on a given
+page, otherwise only the first result would be identified. 
 
-```
-scons -c pot
-```
 
+#### Activate form mode
 
-## Install
+This checkbox specifies if the form mode should be automatically activating upon
+moving to the element.
+By default, it is checked when a rule is created for an edit field.
 
-This project follows NVDA standards regarding installation of `.nvda-addon`
-files.
 
+#### Speak rule name
 
-However, one might want to use a development version executed directly from
-the source tree.
+This checkbox sets whether the name of the rule should be anounced when
+activated.
+It is checked by default and can be unchecked to avoid making a double announce
+when the rule name and the text of the element are alike.
+  
 
-A possible solution is to use file-system junction. Run the following command
-from the current user config `addons` directory:
+#### Skip with Page Down
 
-```
-mklink /J WebAccess <path to the addon folder in the source tree>
-```
+This checkbox sets whether the cursor should stop on the element matching this
+rule when pressing the Page Up and Page Down keys.
 
-Note: Local administrator privileges are required.
 
 
-In this configuration, run the following command from the same
-directory to remove the junction, uninstalling the development version:
 
-```
-rd WebAccess
-```
+## Best practice
+
+In order the end user of a module to easily learn, understand, remember the
+keyboard shortcuts and the structure of the pages,
+it is advised to the module developper to adhere, as much as possible, to a few
+recommandations.
+
+
+### Be consistent while choosing keyboard shortcuts
+
+The same shorcut should have the same effect on every page of web site. 
+By example, Control+Shift+B should lead to the main button bar, whatever the
+page.
+
+Any keyboard shorcut can be defined, but we advise on using Control+Shift+Letter
+to avoid as much as possible conflicting with other existing use.
+
+
+### Defining the zones that structure a page
+
+Most web sites use a common squeleton for all of their pages.
+This layout is made for an immediate visual understanding, but can often be
+cumbersome to grasp with braille or speech.
+
+Not only do keyboard shortcuts let the user move faster, but they can also allow
+him/her a better understanding of the page structure.   
+
+Thus, it is advised to always use the same keyboard shorcuts for the main zones
+that compose a web site.
+
+Example : 
+
+* Control+Shift+L: Move to the beginning of the main content of the page.  
+* Control+Shift+E: Move to the first edit field of the main form.
+* Control+Shift+H: Move to the main menu (of the web site, not the browser).  
+* Control+Shift+O: Move to the tab captions (for page with inner tabs, not the
+browser tabs).  
+* Control+Shift+B: Move to the main button bar (usually at the bottom of the
+main form).  
+* Control+Shift+A: Move to the tree navigation control (often shown on the left
+side of the page).  
+* Control+Shift+F: Move to the main search field, if any, in form mode.  
+* Control+Shift+M: Announce an error or informative message.
+* Control+Enter: Click on the main form validation button.  
+
+This list is of course neither mandatory nor complete.
+
+
+### Handling error and informative messages
+
+Error or informative messages are often pretty difficult to detect with a screen
+reader when not properly advertised in Aria.
+Should they be displayed while editing a field or after form validation, an
+automatic action can typically be used to announce them as soon as they are
+detected.
