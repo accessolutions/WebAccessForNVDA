@@ -36,7 +36,7 @@ addon_info = {
 		"André-Abush Clause <a.clause@accessolutions.fr>"
 	),
 	# URL for the add-on documentation support
-	"addon_url" : "http://www.accessolutions.fr",
+	"addon_url" : "https://www.accessolutions.fr/",
 	# URL for the add-on repository where the source code can be found
 	"addon_sourceURL": "https://github.com/accessolutions/WebAccessForNVDA",
 	# Documentation file name
