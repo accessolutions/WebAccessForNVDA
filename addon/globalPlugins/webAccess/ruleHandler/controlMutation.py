@@ -42,7 +42,7 @@ class Mutation(object):
 	A template mutation to apply on a control as the result of a matched rule.
 	"""
 	__slots__ = ("attrs", "mutateName")
-	
+
 	def __init__(self, attrs, mutateName):
 		self.attrs = attrs
 		self.mutateName = mutateName
@@ -53,26 +53,26 @@ class MutatedControl(object):
 	The effective mutations applied on a control as the result of matched rules.
 	"""
 	__slots__ = ("node", "attrs")
-	
+
 	def __init__(self, result):
 		if not hasattr(result, "node"):
 			raise TypeError("Only node results are supported")
 		self.node = result.node
 		self.attrs = {}
 		self.apply(result)
-	
+
 	@property
 	def controlId(self):
 		return int(self.node.controlIdentifier)
-	
+
 	@property
 	def start(self):
 		return self.node.offset
-	
+
 	@property
 	def end(self):
 		return self.node.offset + self.node.size
-	
+
 	def apply(self, result):
 		rule = result.rule
 		mutation = rule.mutation
