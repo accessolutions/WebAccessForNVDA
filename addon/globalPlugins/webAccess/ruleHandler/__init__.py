@@ -857,7 +857,12 @@ class Result(baseObject.ScriptableObject):
 				dispatcher.webModules.add(webModule)
 				setattr(self.__class__, scriptAttrName, dispatcher)
 				setattr(self, scriptAttrName, dispatcher.__get__(self))
-		self.bindGestures(rule.gestures)
+
+		if criteria.customGestures:
+			self.bindGestures(criteria.customGestures)
+			return
+		else:
+			self.bindGestures(rule.gestures)
 
 	def _get_criteria(self):
 		return self._criteria()
@@ -1083,6 +1088,7 @@ class Criteria(baseObject.AutoPropertyObject):
 		self.sayName = data.pop("sayName", None)
 		self.customName = data.pop("customName", None)
 		self.customValue = data.pop("customValue", None)
+		self.customGestures = data.pop("customGestures", None)
 		if data:
 			raise ValueError(
 				"Unexpected attribute"
@@ -1119,6 +1125,7 @@ class Criteria(baseObject.AutoPropertyObject):
 		setIfNotDefault(data, "sayName", self.sayName)
 		setIfNotDefault(data, "customName", self.customName)
 		setIfNotDefault(data, "customValue", self.customValue)
+		setIfNotDefault(data, "customGestures", self.customGestures)
 
 		return data
 
@@ -1327,6 +1334,7 @@ class Rule(baseObject.ScriptableObject):
 		setIfNotDefault(data, "customName", self.customName)
 		setIfNotDefault(data, "customValue", self.customValue)
 		setIfNotDefault(data, "comment", self.comment)
+		setIfNotDefault(data, "customGestures", self.customGestures)
 
 		return data
 
@@ -1357,6 +1365,7 @@ class Rule(baseObject.ScriptableObject):
 		self.sayName = data.pop("sayName", True)
 		self.customName = data.pop("customName", None)
 		self.customValue = data.pop("customValue", None)
+		self.customGestures = data.pop("customGestures", None)
 		self.comment = data.pop("comment", None)
 		self.createWidget = data.pop("createWidget", False)
 		if data:
