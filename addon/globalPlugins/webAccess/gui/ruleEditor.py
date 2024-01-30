@@ -36,6 +36,7 @@ import gui
 import inputCore
 from logHandler import log
 
+from ..nvdaVersion import nvdaVersion
 from .. import ruleHandler
 from ..ruleHandler import ruleTypes
 from ..ruleHandler.controlMutation import (
@@ -113,19 +114,19 @@ def getSummary(data):
 	if subParts:
 		parts.append(_("Properties"))
 		parts.extend(subParts)
-
+	
 	return "\n".join(parts)
 
 
 class GeneralPanel(ContextualSettingsPanel):
 	# Translators: The label for the General settings panel.
 	title = _("General")
-
+	
 	def makeSettings(self, settingsSizer):
 		gbSizer = wx.GridBagSizer()
 		gbSizer.EmptyCellSize = (0, 0)
 		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
-
+		
 		def scale(*args):
 			if len(args) == 1:
 				return self.scaleSize(args[0])
@@ -133,7 +134,7 @@ class GeneralPanel(ContextualSettingsPanel):
 				self.scaleSize(arg) if arg > 0 else arg
 				for arg in args
 			])
-
+		
 		row = 0
 		# Translators: The Label for a field on the Rule editor
 		item = wx.StaticText(self, label=_("Rule &type:"))
@@ -148,10 +149,10 @@ class GeneralPanel(ContextualSettingsPanel):
 		# Translators: Tooltip for rule type choice list.
 		item.SetToolTip(_("TOOLTIP EXEMPLE"))
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-
+		
 		row += 1
 		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-
+		
 		row += 1
 		# Translators: The Label for a field on the Rule editor
 		item = wx.StaticText(self, label=_("Rule &name"))
@@ -159,10 +160,10 @@ class GeneralPanel(ContextualSettingsPanel):
 		gbSizer.Add((guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item = self.ruleName = wx.TextCtrl(self)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-
+		
 		row += 1
 		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-
+		
 		row += 1
 		# Translators: The label for a field on the Rule editor
 		item = wx.StaticText(self, label=_("&Summary"))
@@ -176,10 +177,10 @@ class GeneralPanel(ContextualSettingsPanel):
 		item = self.summaryText = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 		gbSizer.AddGrowableRow(row)
-
+		
 		row += 1
 		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-
+		
 		row += 1
 		# Translator: The label for a field on the Rule editor
 		item = wx.StaticText(self, label=_("Technical &notes"))
@@ -190,14 +191,14 @@ class GeneralPanel(ContextualSettingsPanel):
 		item = self.commentText = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_RICH)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 		gbSizer.AddGrowableRow(row)
-
+		
 		gbSizer.AddGrowableCol(2)
 
 	def initData(self, context):
 		self.context = context
 		rule = context.get("rule")
 		data = context["data"]["rule"]
-
+		
 		if rule:
 			for index, key in enumerate(ruleTypes.ruleTypeLabels.keys()):
 				if key == data["type"]:
@@ -205,23 +206,23 @@ class GeneralPanel(ContextualSettingsPanel):
 					break
 		else:
 			self.ruleType.SetSelection(-1)
-
+			
 		self.ruleName.Value = data.get("name", "")
 		self.commentText.Value = data.get("comment", "")
 		self.refreshSummary()
-
+	
 	def updateData(self, data=None):
 		if data is None:
 			data = self.context["data"]["rule"]
 		# The rule type should already be stored as of onTypeChange
 		data["name"] = self.ruleName.Value
 		updateOrDrop(data, "comment", self.commentText.Value)
-
+	
 	def onTypeChange(self, evt):
 		data = self.context["data"]["rule"]
 		data["type"] = tuple(ruleTypes.ruleTypeLabels.keys())[self.ruleType.Selection]
 		self.refreshSummary()
-
+	
 	def getSummary(self):
 		if not self.context:
 			return "nope"
@@ -229,18 +230,18 @@ class GeneralPanel(ContextualSettingsPanel):
 		for panel in list(self.Parent.Parent.catIdToInstanceMap.values()):
 			panel.updateData(data)
 		return getSummary(data)
-
+	
 	def refreshSummary(self):
 		self.summaryText.Value = self.getSummary()
-
+	
 	def onPanelActivated(self):
 		self.refreshSummary()
 		super(GeneralPanel, self).onPanelActivated()
-
+	
 	def onPanelDeactivated(self):
 		self.updateData()
 		super(GeneralPanel, self).onPanelDeactivated()
-
+	
 	def isValid(self):
 		# Type is required
 		if not self.ruleType.Selection >= 0:
@@ -253,7 +254,7 @@ class GeneralPanel(ContextualSettingsPanel):
 			)
 			self.ruleType.SetFocus()
 			return False
-
+		
 		# Name is required
 		if not self.ruleName.Value.strip():
 			gui.messageBox(
@@ -265,7 +266,7 @@ class GeneralPanel(ContextualSettingsPanel):
 			)
 			self.ruleName.SetFocus()
 			return False
-
+		
 		candidate = self.ruleName.Value
 		mgr = self.context["webModule"].ruleManager
 		layerName = self.context["rule"].layer if "rule" in self.context else None
@@ -292,9 +293,9 @@ class GeneralPanel(ContextualSettingsPanel):
 				parent=self
 			)
 			return False
-
+		
 		return True
-
+	
 	def onSave(self):
 		self.updateData()
 
@@ -302,18 +303,18 @@ class GeneralPanel(ContextualSettingsPanel):
 class AlternativesPanel(ContextualSettingsPanel):
 	# Translators: The label for a category in the rule editor
 	title = _("Criteria")
-
+	
 	def makeSettings(self, settingsSizer):
 		self.settingsSizer = gbSizer = wx.GridBagSizer()
 		gbSizer.EmptyCellSize = (0, 0)
 		#settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
-
+		
 		def scale(*args):
 			return tuple([
 				self.scaleSize(arg) if arg > 0 else arg
 				for arg in args
 			])
-
+		
 		# Translators: Label for a control in the Rule Editor
 		item = wx.StaticText(self, label=_("&Alternatives"))
 		gbSizer.Add(item, pos=(0, 0))
@@ -321,9 +322,9 @@ class AlternativesPanel(ContextualSettingsPanel):
 		item = self.criteriaList = wx.ListBox(self, size=scale(-1, 150))
 		item.Bind(wx.EVT_LISTBOX, self.onCriteriaSelected)
 		gbSizer.Add(item, pos=(2, 0), span=(6, 1), flag=wx.EXPAND)
-
+		
 		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(8, 0))
-
+		
 		# Translators: The label for a field on the Rule editor
 		item = wx.StaticText(self, label=_("Summary"))
 		gbSizer.Add(item, pos=(9, 0))
@@ -336,9 +337,9 @@ class AlternativesPanel(ContextualSettingsPanel):
 		item = self.summaryText = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH)
 		gbSizer.Add(item, pos=(11, 0), flag=wx.EXPAND)
 		gbSizer.AddGrowableRow(11)
-
+		
 		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(12, 0))
-
+		
 		# Translators: The label for a field on the Rule editor
 		item = wx.StaticText(self, label=_("Technical notes"))
 		gbSizer.Add(item, pos=(13, 0))
@@ -348,34 +349,34 @@ class AlternativesPanel(ContextualSettingsPanel):
 		item = self.commentText = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_RICH)
 		gbSizer.Add(item, pos=(15, 0), flag=wx.EXPAND)
 		gbSizer.AddGrowableRow(15)
-
+		
 		gbSizer.Add((guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL, 0), pos=(2, 1))
-
+		
 		# Translators: New criteria button label
 		item = self.newButton = wx.Button(self, label=_("&New..."))
 		item.Bind(wx.EVT_BUTTON, self.onNewCriteria)
 		gbSizer.Add(item, pos=(2, 2))
-
+		
 		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(3, 2))
-
+		
 		# Translators: Edit criteria button label
 		item = self.editButton = wx.Button(self, label=_("&Edit..."))
 		item.Bind(wx.EVT_BUTTON, self.onEditCriteria)
 		gbSizer.Add(item, pos=(4, 2))
-
+		
 		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(5, 2))
-
+		
 		# Translators: Delete criteria button label
 		item = self.deleteButton = wx.Button(self, label=_("&Delete"))
 		item.Bind(wx.EVT_BUTTON, self.onDeleteCriteria)
 		gbSizer.Add(item, pos=(6, 2))
-
+		
 		gbSizer.AddGrowableCol(0)
-
+	
 	def initData(self, context):
 		self.context = context
 		data = context["data"]["rule"].setdefault("criteria", [])
-
+		
 		if not data:
 			self.criteriaList.Clear()
 			self.summaryText.Value = ""
@@ -386,22 +387,22 @@ class AlternativesPanel(ContextualSettingsPanel):
 				self.criteriaList.Append(self.getCriteriaName(criteria))
 			self.criteriaList.SetSelection(0)
 			self.onCriteriaSelected(None)
-
+			
 	def updateData(self, data=None):
 		# Nothing to update: This panel directly writes into the data map.
 		pass
-
+	
 	def getCriteriaName(self, criteria):
 		if criteria.get("name"):
 			return criteria["name"]
 		else:
 			from . import criteriaEditor
 			return criteriaEditor.getSummary(criteria, condensed=True).split("\n")[0]
-
+	
 	def getCriteriaSummary(self, criteria):
 		from . import criteriaEditor
 		return criteriaEditor.getSummary(criteria)
-
+	
 	def onNewCriteria(self, evt):
 		context = self.context
 		context["data"]["criteria"] = OrderedDict({
@@ -432,7 +433,7 @@ class AlternativesPanel(ContextualSettingsPanel):
 				return
 		finally:
 			del context["data"]["criteria"]
-
+		
 	def onDeleteCriteria(self, evt):
 		context = self.context
 		index = self.criteriaList.Selection
@@ -445,7 +446,7 @@ class AlternativesPanel(ContextualSettingsPanel):
 		) == wx.YES:
 			del context["data"]["rule"]["criteria"][index]
 			self.refreshCriteria()
-
+	
 	def onCriteriaSelected(self, evt):
 		if not self.editButton.Enabled:
 			self.editButton.Enable(enable=True)
@@ -454,7 +455,7 @@ class AlternativesPanel(ContextualSettingsPanel):
 		criteria = data[self.criteriaList.Selection]
 		self.summaryText.Value = self.getCriteriaSummary(criteria)
 		self.commentText.Value = criteria.get("comment", "")
-
+	
 	def refreshCriteria(self, index=0):
 		data = self.context["data"]["rule"]["criteria"]
 		self.criteriaList.Clear()
@@ -462,8 +463,8 @@ class AlternativesPanel(ContextualSettingsPanel):
 			self.criteriaList.Append(self.getCriteriaName(criteria))
 		if data:
 			self.criteriaList.Selection = index
-		self.onCriteriaSelected(None)
-
+		self.onCriteriaSelected(None)	
+	
 	def onSave(self):
 		# Nothing to save: This panel directly writes into data
 		pass
@@ -472,24 +473,24 @@ class AlternativesPanel(ContextualSettingsPanel):
 class ActionsPanel(ContextualSettingsPanel):
 	# Translators: The label for a category in the rule editor
 	title = _("Actions")
-
+	
 	def makeSettings(self, settingsSizer):
 		gbSizer = self.sizer = wx.GridBagSizer()
 		gbSizer.EmptyCellSize = (0, 0)
 		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
-
+		
 		def scale(*args):
 			return tuple([
 				self.scaleSize(arg) if arg > 0 else arg
 				for arg in args
 			])
-
+		
 		row = 0
 		# Translators: Displayed when the selected rule type doesn't support any action
 		item = self.noActionsLabel = wx.StaticText(self, label=_("No action available for the selected rule type."))
 		item.Hide()
 		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
-
+		
 		row += 1
 		# Translators: Keyboard shortcut input label for the rule dialog's action panel.
 		item = wx.StaticText(self, label=_("&Gestures"))
@@ -515,7 +516,7 @@ class ActionsPanel(ContextualSettingsPanel):
 
 		row += 1
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-
+		
 		row += 1
 		# Translators: Automatic action at rule detection input label for the rule dialog's action panel.
 		item = wx.StaticText(self, label=_("&Automatic action at rule detection:"))
@@ -523,22 +524,22 @@ class ActionsPanel(ContextualSettingsPanel):
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item = self.autoActionList = wx.ComboBox(self, style=wx.CB_READONLY)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-
+		
 		gbSizer.AddGrowableCol(2)
-
+		
 	def initData(self, context):
 		self.context = context
 		rule = context.get("rule")
 		data = context["data"]["rule"]
 		mgr = context["webModule"].ruleManager
-
+		
 		actionsDict = mgr.getActions()
 		self.autoActionList.Clear()
 		# Translators: No action choice
 		self.autoActionList.Append(pgettext("webAccess.action", "No action"), "")
 		for action in actionsDict:
 			self.autoActionList.Append(actionsDict[action], action)
-
+			
 		if not rule:
 			self.gestureMapValue = {}
 			self.autoActionList.SetSelection(0)
@@ -551,13 +552,13 @@ class ActionsPanel(ContextualSettingsPanel):
 				if "autoAction" in data else 0
 			)
 		self.updateGesturesList()
-
+	
 	def updateData(self, data=None):
 		pass # @@@
-
+	
 	def onAddGesture(self, evt):
 		from ..gui import shortcutDialog
-		mgr = self.context["webModule"].ruleManager
+		mgr = self.context["webModule"].ruleManager 
 		shortcutDialog.ruleManager = mgr
 		if shortcutDialog.show():
 			self.gestureMapValue[shortcutDialog.resultShortcut] = shortcutDialog.resultActionData
@@ -565,12 +566,12 @@ class ActionsPanel(ContextualSettingsPanel):
 				newGestureIdentifier=shortcutDialog.resultShortcut,
 				focus=True
 			)
-
+		
 	def onDeleteGesture(self, evt):
 		gestureIdentifier = self.gesturesList.GetClientData(self.gesturesList.Selection)
 		del self.gestureMapValue[gestureIdentifier]
 		self.updateGesturesList(focus=True)
-
+		
 	def updateGesturesList(self, newGestureIdentifier=None, focus=False):
 		mgr = self.context["webModule"].ruleManager
 		self.gesturesList.Clear()
@@ -585,25 +586,25 @@ class ActionsPanel(ContextualSettingsPanel):
 			i += 1
 		if len(self.gestureMapValue) > 0:
 			self.gesturesList.SetSelection(sel)
-
+		
 		if self.gesturesList.Selection < 0:
 			self.deleteButton.Enabled = False
 		else:
 			self.deleteButton.Enabled = True
-
+		
 		if focus:
 			self.gesturesList.SetFocus()
-
+	
 	def onPanelActivated(self):
 		data = self.context["data"]["rule"] if hasattr(self, "context") else {}
 		ruleType = data.get("type")
-
+		
 		show = ruleType in (ruleTypes.ZONE, ruleTypes.MARKER)
 		self.sizer.ShowItems(show)
 		self.noActionsLabel.Show(not show)
-
+		
 		super(ActionsPanel, self).onPanelActivated()
-
+	
 	def onSave(self):
 		data = self.context["data"]["rule"]
 		ruleType = data.get("type")
@@ -621,7 +622,7 @@ class ActionsPanel(ContextualSettingsPanel):
 class PropertiesPanel(ContextualSettingsPanel):
 	# Translators: The label for a category in the rule editor
 	title = _("Properties")
-
+	
 	# The semi-column is part of the labels because some localizations
 	# (ie. French) require it to be prepended with one space.
 	FIELDS = OrderedDict((
@@ -640,7 +641,7 @@ class PropertiesPanel(ContextualSettingsPanel):
 		# Translator: Transform select label for the rule dialog's properties panel.
 		("mutation", pgettext("webAccess.ruleProperties", "&Transform:")),
 	))
-
+	
 	RULE_TYPE_FIELDS = OrderedDict((
 		(ruleTypes.PAGE_TITLE_1, ("customValue",)),
 		(ruleTypes.PAGE_TITLE_2, ("customValue",)),
@@ -662,7 +663,7 @@ class PropertiesPanel(ContextualSettingsPanel):
 			"mutation"
 		)),
 	))
-
+	
 	@staticmethod
 	def getAltFieldLabel(ruleType, key, default=None):
 		if key == "customValue":
@@ -673,20 +674,20 @@ class PropertiesPanel(ContextualSettingsPanel):
 				# Translator: Field label on the RulePropertiesEditor dialog.
 				return pgettext("webAccess.ruleProperties", "Custom messa&ge:")
 		return default
-
+	
 	def makeSettings(self, settingsSizer):
 		gbSizer = wx.GridBagSizer()
 		gbSizer.EmptyCellSize = (0, 0)
 		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
-
+		
 		def scale(*args):
 			return tuple([
 				self.scaleSize(arg) if arg > 0 else arg
 				for arg in args
 			])
-
+		
 		hidable = self.hidable = {"spacers": []}
-
+		
 		row = 0
 		# Translators: Displayed when the selected rule type doesn't support any property
 		item = self.noPropertiesLabel = wx.StaticText(self, label=_("No property available for the selected rule type"))
@@ -699,45 +700,45 @@ class PropertiesPanel(ContextualSettingsPanel):
 		item.Hide()
 		hidable["multiple"] = [item]
 		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
-
+		
 		row += 1
 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
 		item.Show(False)
 		hidable["spacers"].append(item)
-
+		
 		row += 1
 		item = self.formModeCheckBox = wx.CheckBox(self, label=self.FIELDS["formMode"])
 		item.Hide()
 		hidable["formMode"] = [item]
 		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
-
+		
 		row += 1
 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
 		item.Show(False)
 		hidable["spacers"].append(item)
-
+		
 		row += 1
 		item = self.skipCheckBox = wx.CheckBox(self, label=self.FIELDS["skip"])
 		item.Hide()
 		hidable["skip"] = [item]
 		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
-
+		
 		row += 1
 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
 		item.Show(False)
 		hidable["spacers"].append(item)
-
+		
 		row += 1
 		item = self.sayNameCheckBox = wx.CheckBox(self, label=self.FIELDS["sayName"])
 		item.Hide()
 		hidable["sayName"] = [item]
 		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
-
+		
 		row += 1
 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
 		item.Show(False)
 		hidable["spacers"].append(item)
-
+		
 		row += 1
 		items = hidable["customName"] = []
 		item = self.customNameLabel = wx.StaticText(self, label=self.FIELDS["customName"])
@@ -751,12 +752,12 @@ class PropertiesPanel(ContextualSettingsPanel):
 		item.Hide()
 		items.append(item)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-
+		
 		row += 1
 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
 		item.Show(False)
 		hidable["spacers"].append(item)
-
+		
 		row += 1
 		items = hidable["customValue"] = []
 		item = self.customValueLabel = wx.StaticText(self, label=self.FIELDS["customValue"] or "")
@@ -770,12 +771,12 @@ class PropertiesPanel(ContextualSettingsPanel):
 		item.Hide()
 		items.append(item)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-
+		
 		row += 1
 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
 		item.Show(False)
 		hidable["spacers"].append(item)
-
+		
 		row += 1
 		items = hidable["mutation"] = []
 		item = self.mutationLabel = wx.StaticText(self, label=self.FIELDS["mutation"])
@@ -789,7 +790,7 @@ class PropertiesPanel(ContextualSettingsPanel):
 		item.Hide()
 		items.append(item)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-
+		
 		gbSizer.AddGrowableCol(2)
 
 	def initData(self, context):
@@ -803,37 +804,6 @@ class PropertiesPanel(ContextualSettingsPanel):
 		self.customNameText.Value = data.get("customName", "")
 		self.customValueLabel.Label = self.getAltFieldLabel(ruleType, "customValue")
 		self.customValueText.Value = data.get("customValue", "")
-
-		self.mutationCombo.Clear()
-		self.mutationCombo.Append(
-			# Translators: The label when there is no control mutation.
-			pgettext("webAccess.controlMutation", "<None>"),
-			""
-		)
-		for id_ in MUTATIONS_BY_RULE_TYPE.get(ruleType, []):
-			label = mutationLabels.get(id_)
-			if label is None:
-				log.error("No label for mutation id: {}".format(id_))
-				label = id_
-			self.mutationCombo.Append(label, id_)
-		mutation = data.get("mutation")
-		if mutation:
-			for index in range(1, self.mutationCombo.Count + 1):
-				id_ = self.mutationCombo.GetClientData(index)
-				if id_ == mutation:
-					break
-			else:
-				# Allow to bypass mutation choice by rule type
-				label = mutationLabels.get(id_)
-				if label is None:
-					log.warning("No label for mutation id: {}".format(id_))
-					label = id_
-				self.mutationCombo.Append(label, id_)
-				index += 1
-		else:
-			index = 0
-		self.mutationCombo.SetSelection(index)
-
 		self.updateData()
 
 	def updateData(self, data=None):
@@ -856,24 +826,24 @@ class PropertiesPanel(ContextualSettingsPanel):
 		for field in list(self.FIELDS.keys()):
 			if field not in showedFields and data.get(field):
 				del data[field]
-
+	
 		ruleType = data.get("type")
 		fields = self.RULE_TYPE_FIELDS.get(ruleType, {})
 		hidable = self.hidable
-
+		
 		if not fields:
 			for item in hidable["noProperties"]:
 				item.Show(True)
 				return
-
+		
 		for field in fields:
 			if field in hidable:
 				for item in hidable[field]:
 					item.Show(True)
-
+		
 		for item in hidable["spacers"][:len(fields) - 1]:
 			item.Show(True)
-
+		
 		self.multipleCheckBox.Value = data.get("multiple", False)
 		self.formModeCheckBox.Value = data.get("formMode", False)
 		self.skipCheckBox.Value = data.get("skip", False)
@@ -881,11 +851,41 @@ class PropertiesPanel(ContextualSettingsPanel):
 		self.customNameText.Value = data.get("customName", "")
 		self.customValueLabel.Label = self.getAltFieldLabel(ruleType, "customValue")
 		self.customValueText.Value = data.get("customValue", "")
-
+		
+		self.mutationCombo.Clear()
+		self.mutationCombo.Append(
+			# Translators: The label when there is no control mutation.
+			pgettext("webAccess.controlMutation", "<None>"),
+			""
+		)
+		for id in MUTATIONS_BY_RULE_TYPE.get(ruleType, []):
+			label = mutationLabels.get(id)
+			if label is None:
+				log.error("No label for mutation id: {}".format(id))
+				label = id
+			self.mutationCombo.Append(label, id)
+		mutation = data.get("mutation") # if show else None
+		if mutation:
+			for index in range(1, self.mutationCombo.Count + 1):
+				id = self.mutationCombo.GetClientData(index)
+				if id == mutation:
+					break
+			else:
+				# Allow to bypass mutation choice by rule type
+				label = mutationLabels.get(id)
+				if label is None:
+					log.warning("No label for mutation id: {}".format(id))
+					label = id
+				self.mutationCombo.Append(label, id)
+				index += 1
+		else:
+			index = 0
+		self.mutationCombo.SetSelection(index)
+		
 	def onPanelDeactivated(self):
 		self.updateData()
 		super(PropertiesPanel, self).onPanelDeactivated()
-
+	
 	def onSave(self):
 		self.updateData()
 
@@ -901,14 +901,14 @@ class RuleEditorDialog(ContextualMultiCategorySettingsDialog):
 		PropertiesPanel,
 	]
 	INITIAL_SIZE = (750, 520)
-
+	
 	def __init__(self, *args, **kwargs):
 		# Uncomment the below to focus the first field upon dialog appearance
 		# kwargs["initialCategory"] = GeneralPanel
 		super(RuleEditorDialog, self).__init__(*args, **kwargs)
 		#from . import criteriaEditor
 		#self.categoryClasses.append(criteriaEditor.CriteriaPanel_)
-
+	
 	def initData(self, context):
 		rule = context.get("rule")
 		data = context.setdefault("data", {}).setdefault(
@@ -924,7 +924,7 @@ class RuleEditorDialog(ContextualMultiCategorySettingsDialog):
 					break
 				node = node.parent
 		super(RuleEditorDialog, self).initData(context)
-
+	
 	def _doCategoryChange__(self, newCatId):
 		if (
 			hasattr(self, "context")
@@ -936,9 +936,9 @@ class RuleEditorDialog(ContextualMultiCategorySettingsDialog):
 				from . import criteriaEditor
 				newCatId = self.categoryClasses.index(criteriaEditor.CriteriaPanel_)
 				context["data"]["criteria"] = lst[0]
-
-		super(RuleEditorDialog, self)._doCategoryChange(newCatId)
-
+				
+		super(RuleEditorDialog, self)._doCategoryChange(newCatId) 
+	
 	def _doSave(self):
 		super(RuleEditorDialog, self)._doSave()
 		try:
@@ -958,7 +958,7 @@ class RuleEditorDialog(ContextualMultiCategorySettingsDialog):
 					layerName = "scratchpad"
 			elif layerName is None:
 				layerName = webModule._getWritableLayer().name
-
+			
 			rule = webModule.createRule(data)
 			mgr.loadRule(layerName, rule.name, data)
 			webModule.getLayer(layerName, raiseIfMissing=True).dirty = True

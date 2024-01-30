@@ -28,12 +28,15 @@ __author__ = "Shirley Noël <shirley.noel@pole-emploi.fr>"
 from collections import OrderedDict
 import re
 import wx
+import inputCore
 # from wx.lib.expando import EVT_ETC_LAYOUT_NEEDED, ExpandoTextCtrl
 
 import controlTypes
 import gui
 from logHandler import log
 
+
+from .ruleEditor import ActionsPanel
 from ..ruleHandler import ruleTypes
 from ..utils import guarded, updateOrDrop
 from . import (
@@ -213,7 +216,7 @@ def testCriteria(context):
 
 class GeneralPanel(ContextualSettingsPanel):
 	# Translators: The label for a Criteria editor category.
-	title = _("General")
+	title = _("General (Criteria)")
 	
 	def makeSettings(self, settingsSizer):
 		gbSizer = wx.GridBagSizer()
@@ -363,6 +366,7 @@ class CriteriaPanel(ContextualSettingsPanel):
 		("relativePath", pgettext("webAccess.ruleCriteria", "R&elative path:")),
 		# Translator: The label for a Rule Criteria field
 		("index", pgettext("webAccess.ruleCriteria", "Inde&x:")),
+
 	))
 	
 	CONTEXT_FIELDS = ["contextPageTitle", "contextPageType", "contextParent"]
@@ -812,6 +816,232 @@ class CriteriaPanel(ContextualSettingsPanel):
 		self.updateData()		
 
 
+class CustomActionsPanel(ContextualSettingsPanel):
+
+	temp = None
+
+	# Translators: The label for a category in the rule editor
+	title = _("Custom Actions")
+
+	def makeSettings(self, settingsSizer):
+		gbSizer = self.sizer = wx.GridBagSizer()
+		gbSizer.EmptyCellSize = (0, 0)
+		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
+
+		def scale(*args):
+			return tuple([
+				self.scaleSize(arg) if arg > 0 else arg
+				for arg in args
+			])
+
+		row = 0
+		# Translators: Displayed when the selected rule type doesn't support any action
+		item = self.noActionsLabel = wx.StaticText(self, label=_("No action available for the selected rule type."))
+		item.Hide()
+		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
+
+		row += 1
+		# Translators: Keyboard shortcut input label for the rule dialog's action panel.
+		item = wx.StaticText(self, label=_("Custom Gestures"))
+		gbSizer.Add(item, pos=(row, 0), flag=wx.EXPAND)
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(row + 1, 0))
+		innerGbSizer = wx.GridBagSizer()
+		item = self.gesturesList = wx.ListBox(self, size=scale(-1, 1))
+
+		innerGbSizer.Add(item, pos=(0, 0), span=(4, 1), flag=wx.EXPAND)
+		innerGbSizer.Add(scale(guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL, 0), pos=(0, 1))
+
+		# Translators: The label for a button in the Rule Editor dialog
+		item = self.addBtnGest = wx.Button(self, label=_("&Add"))
+		item.Bind(wx.EVT_BUTTON, self.onAddGesture)
+		innerGbSizer.Add(item, pos=(0, 2), flag=wx.EXPAND)
+		innerGbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_BUTTONS_VERTICAL), pos=(1, 1))
+
+
+		# Translators: The label for a button in the Rule Editor dialog
+		item = self.btnEdit =  wx.Button(self, label=_("&Edit"))
+		item.Bind(wx.EVT_BUTTON, self.onEditGesture)
+		innerGbSizer.Add(item, pos=(1, 2), flag=wx.EXPAND)
+		innerGbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_BUTTONS_VERTICAL), pos=(2, 1))
+
+
+		# Translators: The label for a button in the Rule Editor dialog
+		item = self.deleteButton = wx.Button(self, label=_("&Delete"))
+		item.Bind(wx.EVT_BUTTON, self.onDeleteGesture)
+		innerGbSizer.Add(item, pos=(2, 2), flag=wx.EXPAND)
+		innerGbSizer.AddGrowableCol(0)
+		innerGbSizer.AddGrowableRow(3)
+		gbSizer.Add(innerGbSizer, pos=(row + 3, 0), span=(1, 4), flag=wx.EXPAND)
+		row += 3
+
+		row += 1
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+
+		row += 1
+		# Translators: Automatic action at rule detection input label for the rule dialog's action panel.
+		item = wx.StaticText(self, label=_("Custom Actions"))
+		gbSizer.Add(item, pos=(row, 0))
+		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
+		item = self.customActionList = wx.ComboBox(self, style=wx.CB_READONLY)
+		item.Bind(wx.EVT_COMBOBOX, self.onSelectActionCombo)
+		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
+		row += 1
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+
+		row += 1
+		# Translators: Automatic action at rule detection input label for the rule dialog's action panel.
+		item = wx.StaticText(self, label=_("&Automatic action at rule detection:"))
+		gbSizer.Add(item, pos=(row, 0))
+		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
+		item = self.autoActionList = wx.ComboBox(self, style=wx.CB_READONLY)
+		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
+
+		gbSizer.AddGrowableCol(2)
+
+	def initData(self, context):
+		self.context = context
+		rule = context.get("rule")
+		data = context["data"]["criteria"]
+		mgr = context["webModule"].ruleManager
+
+		actionsDict = mgr.getActions()
+
+		#self.autoActionList.Clear()
+		# Translators: No action choice
+		self.autoActionList.Append(pgettext("webAccess.action", "No action"), "")
+		for action in actionsDict:
+			self.autoActionList.Append(actionsDict[action], action)
+
+		if not rule:
+			self.gestureMapValue = {}
+			self.autoActionList.SetSelection(0)
+		else:
+			self.gestureMapValue = data.get("customGestures", {}).copy()
+			self.customActionList.Append(pgettext("webAccess.action", "No action"), "")
+			if self.gestureMapValue:
+				self.updateGesturesBtn(isGesture = True)
+			self.autoActionList.SetSelection(
+				list(mgr.getActions().keys()).index(
+					data.get("autoAction", "")
+				) + 1  # Empty entry at index 0
+				if "autoAction" in data else 0
+			)
+		self.updateGesturesList()
+		self.customActionList.Enabled = False
+		self.btnEdit.Enabled = False
+
+
+	def updateGesturesBtn(self, isGesture):
+		if isGesture:
+			#self.addBtnGest.Enabled = False
+			pass
+
+	def onEditGesture(self, evt):
+		self.customActionList.Clear()
+		self.customActionList.Enabled = True
+		mgr = self.context["webModule"].ruleManager
+		actionsDict = mgr.getActions()
+		for action in actionsDict:
+			self.customActionList.Append(actionsDict[action], action)
+
+	def onSelectActionCombo(self, evt):
+		if evt.IsSelection:
+			#log.info("============================>======================== evt combo ============> {}".format((dir(evt))))
+			#log.info("================ wheen============>======================== evt combo ============> {}".format((evt.GetString())))
+			self.updateData(evt.GetString())
+
+
+
+	def updateData(self, data=None):
+		isEmptyList = self.gesturesList.GetCount()
+		#log.info("========================================= {} ==================>".format( dir(self.gesturesList)))
+		#log.info("=======================size================== {} ==================>".format( isEmptyList))
+		if isEmptyList > 0:
+			gestureIdentifier = self.gesturesList.GetClientData(self.gesturesList.Selection)
+			self.temp = gestureIdentifier
+			self.gesturesList.Clear()
+			del self.gestureMapValue[gestureIdentifier]
+
+		#log.info("===================== CUSTOM ACTION ================ TEMP ======> {}".format(self.temp ))
+
+		if self.temp is not None:
+
+			custGestIdentifier = self.temp.split(":")
+			custGest = "{} = {}, {}".format(custGestIdentifier[1], data, self.temp)
+
+			#log.info("==========================actionStr : =========> custGest ================== {}".format(  custGest))
+			self.gesturesList.Append(custGest)
+
+
+	def onAddGesture(self, evt):
+		from ..gui import shortcutDialog
+		mgr = self.context["webModule"].ruleManager
+		shortcutDialog.ruleManager = mgr
+		if shortcutDialog.show():
+			self.gestureMapValue[shortcutDialog.resultShortcut] = shortcutDialog.resultActionData
+			#log.info("================================== shortcutDialog.resultShortcut ===========> {}".format(shortcutDialog.resultShortcut))
+			self.updateGesturesList(
+				newGestureIdentifier=shortcutDialog.resultShortcut,
+				focus=True
+			)
+		self.updateGesturesBtn(isGesture=True)
+
+	def onDeleteGesture(self, evt):
+		gestureIdentifier = self.gesturesList.GetClientData(self.gesturesList.Selection)
+		del self.gestureMapValue[gestureIdentifier]
+		self.gesturesList.Clear()
+		self.updateGesturesList(focus=True)
+		self.addBtnGest.Enabled = True
+
+	def updateGesturesList(self, newGestureIdentifier=None, focus=False):
+		mgr = self.context["webModule"].ruleManager
+		i = 0
+		sel = 0
+		for gestureIdentifier in self.gestureMapValue:
+			gestureSource, gestureMain = inputCore.getDisplayTextForGestureIdentifier(gestureIdentifier)
+			actionStr = mgr.getActions()[self.gestureMapValue[gestureIdentifier]]
+			self.gesturesList.Append("%s = %s" % (gestureMain, actionStr), gestureIdentifier)
+			#log.info("====================================== REAL ======================> {}, {}".format("%s = %s" % (gestureMain, actionStr), gestureIdentifier))
+			if gestureIdentifier == newGestureIdentifier:
+				sel = i
+			i += 1
+		if len(self.gestureMapValue) > 0:
+			self.gesturesList.SetSelection(sel)
+
+		if self.gesturesList.Selection < 0:
+			self.deleteButton.Enabled = False
+		else:
+			self.deleteButton.Enabled = True
+
+		if focus:
+			self.gesturesList.SetFocus()
+
+	def onPanelActivated(self):
+		data = self.context["data"]["rule"] if hasattr(self, "context") else {}
+		ruleType = data.get("type")
+
+		show = ruleType in (ruleTypes.ZONE, ruleTypes.MARKER)
+		self.sizer.ShowItems(show)
+		self.noActionsLabel.Show(not show)
+
+		super(CustomActionsPanel, self).onPanelActivated()
+
+	def onSave(self):
+		data = self.context["data"]["rule"]
+		ruleType = data.get("type")
+		if ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
+			dataCriteria = self.context["data"]["criteria"]
+			dataCriteria["customGestures"] = self.gestureMapValue
+			autoAction = self.autoActionList.GetClientData(self.autoActionList.Selection)
+			updateOrDrop(dataCriteria, "autoAction", autoAction)
+		else:
+			if data.get("customGestures"):
+				del data["customGestures"]
+			if data.get("autoAction"):
+				del data["autoAction"]
+
+		#self.updateData()
+
 # todo: make this panel
 class OverridesPanel(ContextualSettingsPanel):
 	# Translators: The label for a Criteria editor category.
@@ -829,9 +1059,10 @@ class OverridesPanel(ContextualSettingsPanel):
 # 		# Translator: Speak rule name checkbox label for the rule dialog's properties panel.
 # 		("sayName", pgettext("webAccess.ruleProperties", u"&Speak rule name")),
 		# Translator: Custom name input label for the rule dialog's properties panel.
-		("customName", pgettext("webAccess.ruleProperties", "Custom &name:")),
+		("customName", pgettext("webAccess.ruleProperties", "Custom name:")),
 		# Label depends on rule type)
-		("customValue", None),
+		("customValue", "Custom Value"),
+		("customGestures", "Custom gesture"),
 # 		# Translator: Transform select label for the rule dialog's properties panel.
 # 		("mutation", pgettext("webAccess.ruleProperties", u"&Transform:")),
 	))
@@ -845,6 +1076,7 @@ class OverridesPanel(ContextualSettingsPanel):
 # 			"sayName",
 			"customName",
 			"customValue",
+			"customGestures"
 # 			"mutation"
 		)),
 		(ruleTypes.MARKER, (
@@ -854,6 +1086,7 @@ class OverridesPanel(ContextualSettingsPanel):
 # 			"sayName",
 			"customName",
 			"customValue",
+			"customGestures"
 # 			"mutation"
 		)),
 	))
@@ -965,7 +1198,14 @@ class OverridesPanel(ContextualSettingsPanel):
 		item.Hide()
 		items.append(item)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-		
+
+		row += 1
+		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+		item.Show(False)
+		hidable["spacers"].append(item)
+
+
+
 # 		row += 1
 # 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
 # 		item.Show(False)
@@ -1056,13 +1296,16 @@ class OverridesPanel(ContextualSettingsPanel):
 	def updateData(self, data=None):
 		if data is None:
 			data = self.context["data"]["criteria"]
+			updateOrDrop(data, "customName", self.customNameText.Value)
+			updateOrDrop(data, "customValue", self.customValueText.Value)
+			updateOrDrop(data, "customGestures", {})
 		data = self.context["data"]["rule"]
 # 		updateOrDrop(data, "multiple", str(self.multipleCheckBox.Value))
 # 		updateOrDrop(data, "formMode", str(self.formModeCheckBox.Value))
 # 		updateOrDrop(data, "skip", str(self.skipCheckBox.Value))
 # 		updateOrDrop(data, "sayName", str(self.sayNameCheckBox.Value))
-		updateOrDrop(data, "customName", self.customNameText.Value)
-		updateOrDrop(data, "customValue", self.customValueText.Value)
+		#updateOrDrop(data, "customName", self.customNameText.Value)
+		#updateOrDrop(data, "customValue", self.customValueText.Value)
 # 		if self.mutationCombo.Selection > 0:
 # 			data["mutation"] = self.mutationCombo.GetClientData(self.mutationCombo.Selection)
 	
@@ -1080,7 +1323,7 @@ class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
 
 	# Translators: This is the label for the WebAccess criteria settings dialog.
 	title = _("WebAccess Criteria set editor")
-	categoryClasses = [GeneralPanel, CriteriaPanel, OverridesPanel]
+	categoryClasses = [GeneralPanel, CriteriaPanel, OverridesPanel, CustomActionsPanel]
 	INITIAL_SIZE = (800, 480)
 	
 	def makeSettings(self, settingsSizer):

@@ -27,6 +27,7 @@ __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 import config
 from logHandler import log
 
+from .nvdaVersion import nvdaVersion
 from . import webModuleHandler
 
 
@@ -47,15 +48,20 @@ def handleConfigChange():
 			config.conf["webAccess"]["disableUserConfig"]
 			!= _cache.get("webAccess", {}).get("disableUserConfig")
 		) or (
-			config.conf["development"]["enableScratchpadDir"]
+			nvdaVersion >= (2019, 1)
+			and config.conf["development"]["enableScratchpadDir"]
 			!= _cache.get("development", {}).get("enableScratchpadDir")
 		):
 			webModuleHandler.terminate()
 			webModuleHandler.initialize()
 			webModuleHandler.getWebModules(refresh=True)
 			webModuleHandler.resetRunningModules()
-	_cache = {"webAccess" : config.conf["webAccess"].dict()}
-	_cache["development"] = config.conf["development"].dict()
+	if nvdaVersion >= (2018, 4):
+		_cache = {"webAccess" : config.conf["webAccess"].dict()}
+		if nvdaVersion >= (2019, 1):
+			_cache["development"] = config.conf["development"].dict()
+	else:
+		_cache = {"webAccess": dict(iter(config.conf["webAccess"].items()))}
 
 
 def initialize():
@@ -78,9 +84,11 @@ def initialize():
 	baseProfile.validate(config.conf.validator, section=section)
 	# Initialize cache for later comparison
 	handleConfigChange()
-	config.post_configReset.register(handleConfigChange)
+	if nvdaVersion >= (2018, 3):
+		config.post_configReset.register(handleConfigChange)
 
 
 def terminate():
 	config.ConfigManager.BASE_ONLY_SECTIONS.remove("webAccess")
-	config.post_configReset.unregister(handleConfigChange)
+	if nvdaVersion >= (2018, 3):
+		config.post_configReset.unregister(handleConfigChange)

@@ -30,8 +30,8 @@ __author__ = (
 
 from collections import OrderedDict
 import datetime
-import json
 import os
+from pprint import pformat
 
 import addonHandler
 addonHandler.initTranslation()
@@ -50,12 +50,18 @@ from ..lib.packaging import version
 from ..webAppLib import playWebAppSound
 from .. import ruleHandler
 
+try:
+	import json
+except ImportError:
+	from ..lib import json
+
+
 class InvalidApiVersion(version.InvalidVersion):
 	pass
 
 
 class WebModuleDataLayer(baseObject.AutoPropertyObject):
-
+	
 	def __init__(self, name, data, storeRef, rulesOnly=False, readOnly=None):
 		self.name = name
 		self.data = data
@@ -64,12 +70,12 @@ class WebModuleDataLayer(baseObject.AutoPropertyObject):
 		if readOnly is not None:
 			self.readOnly = readOnly
 		self.dirty = False
-
+	
 	def __repr__(self):
 		return "<WebModuleDataLayer (name={!r}, storeRef={!r}, rulesOnly={!r}".format(
 			self.name, self.storeRef, self.rulesOnly
 		)
-
+	
 	def _get_readOnly(self):
 		storeRef = self.storeRef
 		if storeRef is not None:
@@ -93,38 +99,38 @@ class WebModuleDataLayer(baseObject.AutoPropertyObject):
 
 
 class WebModule(baseObject.ScriptableObject):
-
+	
 	API_VERSION = version.parse("0.4")
-
+	
 	FORMAT_VERSION_STR = "0.7-dev"
 	FORMAT_VERSION = version.parse(FORMAT_VERSION_STR)
-
+	
 	def __init__(self):
 		super(WebModule, self).__init__()
 		self.layers = []  # List of `WebModuleDataLayer` instances
 		self.activePageTitle = None
 		self.activePageIdentifier = None
 		self.ruleManager = ruleHandler.RuleManager(self)
-
+	
 	def __repr__(self):
 		return "WebModule {name}".format(
 			name=self.name if self.name is not None else "<noName>"
 		)
-
+	
 	def _get_help(self):
 		return self._getLayeredProperty("help")
-
+	
 	def _set_help(self, value):
 		self._setLayeredProperty("help", value)
-
+	
 	def _get_name(self):
 		return self._getLayeredProperty("name")
-
+	
 	def _set_name(self, value):
 		self._setLayeredProperty("name", value)
-
+	
 	_cache_pageTitle = False
-
+	
 	def _get_pageTitle(self):
 		title = self.activePageTitle
 		if not title:
@@ -140,29 +146,29 @@ class WebModule(baseObject.ScriptableObject):
 		if not title:
 			title = api.getForegroundObject().name
 		return title
-
+	
 	def _get_url(self):
 		return self._getLayeredProperty("url")
-
+	
 	def _set_url(self, value):
 		self._setLayeredProperty("url", value)
-
+	
 	def _get_windowTitle(self):
 		return self._getLayeredProperty("windowTitle")
-
+	
 	def _set_windowTitle(self, value):
 		self._setLayeredProperty("windowTitle", value)
-
+	
 	def chooseNVDAObjectOverlayClasses(self, obj, clsList):
 		"""
 		Choose NVDAObject overlay classes for a given NVDAObject.
-
+		
 		This works in a similar manner as the methods with the same name in
 		AppModule and GlobalPlugin but comes into play much later: It is
 		called only when the TreeInterceptor is set on the NVDAObject. Hence,
 		if removing a class from the list, beware its earlier presence might
 		have had side effects.
-
+		
 		Also, this method should return:
 		 - A sequence of the newly classes for which the method
 		   `initOverlayClass` should be called once the object is mutated.
@@ -171,23 +177,23 @@ class WebModule(baseObject.ScriptableObject):
 		 - Any negative value, if the object should not be mutated at all.
 		"""
 		return False
-
+	
 	def createRule(self, data):
 		return ruleHandler.Rule(self.ruleManager, data)
-
+	
 	def dump(self, layerName):
 		layer = self.getLayer(layerName, raiseIfMissing=True)
 		data = layer.data
 		data["formatVersion"] = self.FORMAT_VERSION_STR
 		data["Rules"] = self.ruleManager.dump(layerName)
 		return layer
-
+	
 	def isReadOnly(self):
 		try:
 			return not bool(self._getWritableLayer())
 		except LookupError:
 			return True
-
+	
 	def load(self, layerName, index=None, data=None, storeRef=None, rulesOnly=False, readOnly=None):
 		for candidateIndex, layer in enumerate(self.layers):
 			if layer.name == layerName:
@@ -220,7 +226,7 @@ class WebModule(baseObject.ScriptableObject):
 		else:
 			self.layers.append(layer)
 		self.ruleManager.load(layer=layer.name, index=index, data=data.get("Rules", {}))
-
+	
 	def getLayer(self, layerName, raiseIfMissing=False):
 		for layer in self.layers:
 			if layer.name == layerName:
@@ -228,7 +234,7 @@ class WebModule(baseObject.ScriptableObject):
 		if raiseIfMissing:
 			raise LookupError(repr(layerName))
 		return None
-
+	
 	def unload(self, layerName):
 		for index, layer in enumerate(self.layers):
 			if layer.name == layerName:
@@ -237,15 +243,15 @@ class WebModule(baseObject.ScriptableObject):
 			raise LookupError(layerName)
 		self.ruleManager.unload(layerName)
 		del self.layers[index]
-
+	
 	def terminate(self):
 		self.ruleManager.terminate()
-
+	
 	def printLog(self, layerName):
 		for logLevel, logCodePath, logDateTime, logMsg in self.getLayer(layerName).data.get("log", []):
 			print(logLevel, logDateTime, logCodePath)
 			print(logMsg)
-
+	
 	def _getLayeredProperty(self, name, startLayerIndex=-1, raiseIfMissing=False):
 		for index, layer in list(enumerate(self.layers))[startLayerIndex::-1]:
 			if layer.rulesOnly:
@@ -260,14 +266,14 @@ class WebModule(baseObject.ScriptableObject):
 			return data[name]
 		if raiseIfMissing:
 			raise LookupError("name={!r}, startLayerIndex={!r}".format(name, startLayerIndex))
-
+	
 	def _getWritableLayer(self):
 		for layer in reversed(self.layers):
 			if not layer.readOnly and not layer.rulesOnly:
 				return layer
 			break
 		raise LookupError("No suitable data layer")
-
+	
 	def _setLayeredProperty(self, name, value):
 		layer = self._getWritableLayer()
 		data = layer.data["WebModule"]
@@ -283,7 +289,7 @@ class WebModule(baseObject.ScriptableObject):
 			if data["overrides"].get(name) != overridden:
 				layer.dirty = True
 				data["overrides"][name] = overridden
-
+	
 	def event_webApp_init(self, obj, nextHandler):
 		self.loadUserFile()
 		nextHandler()
@@ -292,7 +298,7 @@ class WebModule(baseObject.ScriptableObject):
 		speech.cancelSpeech()
 		playWebAppSound("pageChanged")
 		speech.speakMessage(pageTitle)
-
+	
 	def event_webApp_gainFocus(self, obj, nextHandler):
 		if obj.role not in [controlTypes.ROLE_DOCUMENT, controlTypes.ROLE_FRAME, controlTypes.ROLE_INTERNALFRAME]:
 			nextHandler()
@@ -307,7 +313,7 @@ class WebModule(baseObject.ScriptableObject):
 	def event_webApp_loseFocus(self, obj, nextHandler):
 		playWebAppSound("webAppLoseFocus")
 		nextHandler()
-
+		
 	def script_contextualHelp(self, gesture):
 		if not self.help:
 			# Translators: Presented when requesting a missing contextual help
@@ -327,7 +333,7 @@ class WebModule(baseObject.ScriptableObject):
 			_("Contextual Help"),
 			rootDirs,
 		)
-
+	
 	def script_title(self, gesture):
 		title = self.pageTitle
 		repeatCount = scriptHandler.getLastScriptRepeatCount()

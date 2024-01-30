@@ -40,6 +40,7 @@ import globalVars
 from logHandler import log
 
 from ..lib.packaging import version
+from ..nvdaVersion import nvdaVersion
 from ..webModuleHandler import InvalidApiVersion, WebModule, WebModuleDataLayer, getWebModuleFactory
 from . import DispatchStore
 from . import DuplicateRefError
@@ -55,15 +56,15 @@ except ImportError:
 
 
 class WebModuleJsonFileDataStore(Store):
-
+	
 	def __init__(self, name, basePath, dirName="webModulesMC"):
 		super(WebModuleJsonFileDataStore, self).__init__(name=name)
 		self.basePath = basePath
 		self.path = os.path.join(basePath, dirName)
-
+	
 	def __repr__(self):
 		return "<WebModuleJsonFileDataStore (name={!r}, path={!r}".format(self.name, self.path)
-
+	
 	def catalog(self, errors=None):
 		if not os.path.isdir(self.path):
 			return
@@ -96,19 +97,19 @@ class WebModuleJsonFileDataStore(Store):
 		self.write(path, item.data)
 		self.setRef(item, ref)
 		return ref
-
+	
 	def delete(self, item, ref=None):
 		if ref is None:
 			ref = self.getRef(item)
 		path = self.getCheckedPath(ref)
 		return os.remove(path)
-
+	
 	def get(self, ref):
 		path = self.getCheckedPath(ref)
 		data = self.read(path)
 		item = WebModuleDataLayer(None, data, ref)
 		return item
-
+	
 	def getCheckedPath(self, ref, new=False, force=False):
 		path = self.getPath(ref)
 		if os.path.lexists(path):
@@ -139,38 +140,38 @@ class WebModuleJsonFileDataStore(Store):
 				# Houston?
 				else:
 					raise
-		return path
-
+		return path			
+		
 	def getNewRef(self, item):
 		return item.data["WebModule"]["name"]
-
+	
 	def getPath(self, ref):
 		return os.path.join(self.path, "{ref}.json".format(ref=ref))
-
+	
 	def getRef(self, item):
 		ref = item.storeRef
 		if isinstance(ref, tuple):
-			return ref[-1]
+			return ref[-1] 
 		return ref
-
+	
 	def hasRef(self, layer):
 		return (
 			hasattr(item, "storeRef")
 			and item.storeRef
 		)
-
+	
 	def setRef(self, item, ref):
 		if hasattr(item, "storeRef") and isinstance(item.storeRef, tuple):
 			ref = item.storeRef[:-1] + (ref,)
 		item.storeRef = ref
-
+	
 	def supports(self, operation, **kwargs):
 		if operation in ["create", "delete", "mask", "update"]:
 			if self.basePath == globalVars.appArgs.configPath:
 				return not config.conf["webAccess"]["disableUserConfig"]
 			return config.conf["webAccess"]["devMode"]
 		return super(WebModuleJsonFileDataStore, self).supports(operation, **kwargs)
-
+	
 	def update(self, item, ref=None, force=False):
 		if ref is None:
 			ref = self.getRef(item)
@@ -182,7 +183,7 @@ class WebModuleJsonFileDataStore(Store):
 			self.setRef(item, newRef)
 			path = newPath
 		self.write(path, item.data)
-
+	
 	def read(self, path):
 		try:
 			with open(path, "r") as f:
@@ -190,7 +191,7 @@ class WebModuleJsonFileDataStore(Store):
 		except Exception:
 			log.exception("Failed reading file: {}".format(path))
 			raise
-
+	
 	def write(self, path, data):
 		try:
 			dir = os.path.dirname(path)
@@ -215,7 +216,7 @@ class WebModuleStore(DispatchStore):
 			name="userConfig", basePath=globalVars.appArgs.configPath
 		)
 		stores.append(store)
-		if config.conf["development"]["enableScratchpadDir"]:
+		if nvdaVersion >= (2019, 1) and config.conf["development"]["enableScratchpadDir"]:
 			store = self.scratchpadStore = WebModuleJsonFileDataStore(
 				name="scratchpad", basePath=config.getScratchpadDir()
 			)
@@ -228,13 +229,13 @@ class WebModuleStore(DispatchStore):
 			)
 		))
 		super(WebModuleStore, self).__init__(*args, **kwargs)
-
+	
 	def alternatives(self, keyRef):
 		return (
 			storeRef for storeRef, meta in super(WebModuleStore, self).catalog()
 			if self._getKeyRef(storeRef) == keyRef
 		)
-
+	
 	def catalog(self, errors=None):
 		full = OrderedDict()
 		for storeRef, meta in super(WebModuleStore, self).catalog(errors=errors):
@@ -273,7 +274,7 @@ class WebModuleStore(DispatchStore):
 			uniqueKeyRefs.add(keyRef)
 			consolidated[storeRef] = meta
 		return list(consolidated.items())
-
+	
 	def create(self, item, **kwargs):
 		layers = [layer for layer in reversed(item.layers) if layer.storeRef is None]
 		if len(layers) != 1:
@@ -281,7 +282,7 @@ class WebModuleStore(DispatchStore):
 		layer = layers[0]
 		layer = item.dump(layer.name)
 		layer.storeRef = super(WebModuleStore, self).create(layer, **kwargs)
-
+	
 	def delete(self, item, layerName=None, ref=None, **kwargs):
 		if layerName is not None:
 			layer = item.getLayers(layerName, raiseIfMissing=True)
@@ -301,7 +302,7 @@ class WebModuleStore(DispatchStore):
 		elif not config.conf["webAccess"]["devMode"]:
 			raise Exception("This action is allowed only in Developer Mode")
 		super(WebModuleStore, self).delete(layer, ref=ref, **kwargs)
-
+		
 	def get(self, ref):
 		keyRef = self._getKeyRef(ref)
 		alternatives = self.alternatives(keyRef)
@@ -338,10 +339,10 @@ class WebModuleStore(DispatchStore):
 			item.load(layerName, storeRef=storeRef)
 		item.alternatives = self.alternatives(keyRef)
 		return item
-
+	
 	def getData(self, ref):
 		return super(WebModuleStore, self).get(ref)
-
+	
 	def getSupportingStores(self, operation, **kwargs):
 		if operation == "create":
 			item = kwargs.get("item")
@@ -361,7 +362,7 @@ class WebModuleStore(DispatchStore):
 					return (self.scratchpadStore,)
 			return tuple()
 		return super(WebModuleStore, self).getSupportingStores(operation, **kwargs)
-
+	
 	def update(self, item, layerName=None, ref=None, **kwargs):
 		if layerName is not None or ref is not None:
 			for layer in reversed(item.layers):
@@ -386,14 +387,14 @@ class WebModuleStore(DispatchStore):
 			raise Exception("This action is allowed only in Developer Mode")
 		layer = item.dump(layer.name)
 		super(WebModuleStore, self).update(layer, ref=ref, **kwargs)
-
+	
 	def _getKeyRef(self, storeRef):
 		# Consider only the tail of DispatcherStore refs
 		if isinstance(storeRef, tuple) and (len(storeRef) > 0):
 			return storeRef[-1]
 		else:
 			return storeRef
-
+	
 	def _isUserConfig(self, ref):
 		try:
 			return ref[0] == "userConfig"

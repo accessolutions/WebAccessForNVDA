@@ -44,8 +44,19 @@ import ui
 from ..webModuleHandler import WebModule, getEditableWebModule, getUrl, getWindowTitle, save
 
 
-from gui import guiHelper
-from gui.dpiScalingHelper import DpiScalingHelperMixin
+try:
+	from gui import guiHelper
+except ImportError:
+	# NVDA < 2016.4
+	from ..backports.nvda_2016_4 import gui_guiHelper as guiHelper
+
+
+try:
+	from gui.dpiScalingHelper import DpiScalingHelperMixin
+except ImportError:
+	# NVDA < 2019.1
+	from ..backports.gui_dpiScalingHelper import DpiScalingHelperMixin
+
 
 addonHandler.initTranslation()
 
@@ -84,7 +95,7 @@ class Dialog(wx.Dialog, DpiScalingHelperMixin):
 		if Dialog._instance is not None:
 			return
 		Dialog._instance = self
-
+		
 		super(Dialog, self).__init__(
 			parent,
 			style=wx.DEFAULT_DIALOG_STYLE | wx.MAXIMIZE_BOX | wx.RESIZE_BORDER,
@@ -98,7 +109,7 @@ class Dialog(wx.Dialog, DpiScalingHelperMixin):
 			flag=wx.EXPAND | wx.ALL,
 			border=guiHelper.BORDER_FOR_DIALOGS
 		)
-
+		
 		row = 0
 		# Translators: The label for a field in the WebModule editor
 		item = wx.StaticText(self, label=_("Web module name:"))
@@ -106,10 +117,10 @@ class Dialog(wx.Dialog, DpiScalingHelperMixin):
 		gbSizer.Add((guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item = self.webModuleName = wx.TextCtrl(self)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-
+		
 		row += 1
 		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(row, 0))
-
+		
 		row += 1
 		# Translators: The label for a field in the WebModule editor
 		item = wx.StaticText(self, label=_("URL:"))
@@ -117,10 +128,10 @@ class Dialog(wx.Dialog, DpiScalingHelperMixin):
 		gbSizer.Add((guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item = self.webModuleUrl = wx.ComboBox(self, choices=[])
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-
+		
 		row += 1
 		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(row, 0))
-
+		
 		row += 1
 		# Translators: The label for a field in the WebModule editor
 		item = wx.StaticText(self, label=_("Window title:"))
@@ -131,7 +142,7 @@ class Dialog(wx.Dialog, DpiScalingHelperMixin):
 
 		row += 1
 		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(row, 0))
-
+		
 		row += 1
 		# Translators: The label for a field in the WebModule editor
 		item = wx.StaticText(self, label=_("Help (in Markdown):"))
@@ -142,7 +153,7 @@ class Dialog(wx.Dialog, DpiScalingHelperMixin):
 
 		gbSizer.AddGrowableCol(2)
 		gbSizer.AddGrowableRow(row)
-
+		
 		mainSizer.Add(
 			self.CreateSeparatedButtonSizer(wx.OK | wx.CANCEL),
 			flag=wx.EXPAND | wx.TOP | wx.DOWN,
@@ -152,7 +163,7 @@ class Dialog(wx.Dialog, DpiScalingHelperMixin):
 		self.Bind(wx.EVT_BUTTON, self.onCancel, id=wx.ID_CANCEL)
 		#self.Sizer = mainSizer
 		self.SetSizerAndFit(mainSizer)
-
+	
 	def initData(self, context):
 		self.context = context
 		webModule = context.get("webModule")
@@ -187,9 +198,9 @@ class Dialog(wx.Dialog, DpiScalingHelperMixin):
 			if config.conf["webAccess"]["devMode"]:
 				title += " ({})".format("/".join((layer.name for layer in webModule.layers)))
 		self.Title = title
-
+		
 		self.webModuleName.Value = (webModule.name or "") if webModule is not None else ""
-
+		
 		urls = []
 		selectedUrl = None
 		if webModule is not None and webModule.url:
@@ -240,9 +251,9 @@ class Dialog(wx.Dialog, DpiScalingHelperMixin):
 			if selectedUrl
 			else 0
 		)
-
+		
 		windowTitleChoices = []
-		windowTitleIsFilled = False
+		windowTitleIsFilled = False 
 		if webModule is not None and webModule.windowTitle:
 			windowTitleIsFilled = True
 			windowTitleChoices.append(webModule.windowTitle)
@@ -257,11 +268,11 @@ class Dialog(wx.Dialog, DpiScalingHelperMixin):
 			item.Selection = 0
 		else:
 			item.Value = ""
-
+		
 		self.help.Value = webModule.help if webModule and webModule.help else ""
-
+	
 	def onOk(self, evt):
-		name = self.webModuleName.Value.strip()
+		name = self.webModuleName.Value.strip() 
 		if len(name) < 1:
 			gui.messageBox(
 				_("You must enter a name for this web module"),
@@ -284,7 +295,7 @@ class Dialog(wx.Dialog, DpiScalingHelperMixin):
 			)
 			self.webModuleUrl.SetFocus()
 			return
-
+		
 		context = self.context
 		webModule = context.get("webModule")
 		if webModule is None:
@@ -293,25 +304,25 @@ class Dialog(wx.Dialog, DpiScalingHelperMixin):
 			webModule = getEditableWebModule(webModule)
 			if not webModule:
 				return
-
+		
 		webModule.name = name
 		webModule.url = url
 		webModule.windowTitle = windowTitle
 		webModule.help = help
-
+		
 		if not save(webModule):
 			return
-
+		
 		assert self.IsModal()
 		self.EndModal(wx.ID_OK)
 
 	def onCancel(self, evt):
 		self.EndModal(wx.ID_CANCEL)
-
+		
 	def ShowModal(self, context):
 		self.initData(context)
 		self.Fit()
 		self.CentreOnScreen()
 		self.webModuleName.SetFocus()
 		return super(Dialog, self).ShowModal()
-
+	

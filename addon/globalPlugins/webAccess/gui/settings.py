@@ -32,26 +32,59 @@ import addonHandler
 import config
 import gui
 
+from ..nvdaVersion import nvdaVersion
 
-from gui import guiHelper, SettingsDialog, SettingsPanel
+try:
+	from gui import SettingsDialog, SettingsPanel
+except ImportError:
+	from ..backports.nvda_2018_2.gui_settingsDialogs import SettingsDialog, SettingsPanel
+try:
+	import guiHelper
+except ImportError:
+	from ..backports.nvda_2016_4 import gui_guiHelper as guiHelper
 
 
 addonHandler.initTranslation()
 
 
 def initialize():
-	gui.NVDASettingsDialog.categoryClasses.append(WebAccessSettingsPanel)
+	if nvdaVersion >= (2018, 2):
+		gui.NVDASettingsDialog.categoryClasses.append(WebAccessSettingsPanel)
+	else:
+		sysTrayIcon = gui.mainFrame.sysTrayIcon
+		preferencesMenu = sysTrayIcon.preferencesMenu
+		global _webAccessMenuItem
+		_webAccessMenuItem = preferencesMenu.Append(
+			wx.ID_ANY,
+			# Translators: An item in NVDA's Preferences menu
+			_("&WebAccess..."),
+			# Translators: The contextual help for an item in NVDA's Preferences menu
+			_("WebAccess Preferences")
+		)
+		sysTrayIcon.Bind(
+			wx.EVT_MENU,
+			lambda evt: gui.mainFrame._popupSettingsDialog(WebAccessSettingsDialog),
+			_webAccessMenuItem
+		)
+
 
 def terminate():
-	gui.NVDASettingsDialog.categoryClasses.remove(WebAccessSettingsPanel)
+	if nvdaVersion >= (2018, 2):
+		gui.NVDASettingsDialog.categoryClasses.remove(WebAccessSettingsPanel)
+	else:
+		global _webAccessMenuItem
+		gui.mainFrame.sysTrayIcon.preferencesMenu.Remove(_webAccessMenuItem.id)
+		_webAccessMenuItem.Destroy()
+		_webAccessMenuItem = None
+
 
 
 class WebAccessSettingsDialog(SettingsDialog):
-
+	
 	panel = None
 	# Translators: The title of a dialog
 	title = _("WebAccess Preferences")
-
+	
 	def makeSettings(self, settingsSizer):
 		panel = self.panel = WebAccessSettingsPanel(self)
 		settingsSizer.Add(
@@ -60,17 +93,17 @@ class WebAccessSettingsDialog(SettingsDialog):
 			proportion=1,
 			border=guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL
 		)
-
+	
 	def postInit(self):
 		self.Layout()
 		self.panel.SetFocus()
-
+	
 	def _doSave(self):
 		if self.panel.isValid() is False:
 			raise ValueError("Validation for %s blocked saving settings" % self.panel.__class__.__name__)
 		self.panel.onSave()
 		self.panel.postSave()
-
+	
 	def onOk(self,evt):
 		try:
 			self._doSave()
@@ -79,7 +112,7 @@ class WebAccessSettingsDialog(SettingsDialog):
 			return
 		self.panel.Destroy()
 		super(WebAccessSettingsDialog, self).onOk(evt)
-
+	
 	def onCancel(self,evt):
 		self.panel.onDiscard()
 		self.panel.Destroy()
@@ -89,7 +122,7 @@ class WebAccessSettingsDialog(SettingsDialog):
 class WebAccessSettingsPanel(SettingsPanel):
 	# Translators: The label for a category in the settings dialog
 	title = _("WebAccess")
-
+	
 	def makeSettings(self, settingsSizer):
 		sHelper = guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
 		item = self.devMode = sHelper.addItem(

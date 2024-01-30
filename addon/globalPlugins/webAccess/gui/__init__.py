@@ -31,14 +31,47 @@ import wx
 
 from logHandler import log
 
-from gui import guiHelper, nvdaControls
-from gui.settingsDialogs import (
-	MultiCategorySettingsDialog,
-	SettingsDialog,
-	SettingsPanel,
-)
-from six import iteritems, text_type
-from gui.dpiScalingHelper import DpiScalingHelperMixin
+try:
+	from gui import guiHelper, nvdaControls
+except ImportError:
+	# NVDA < 2016.4
+	from ..backports.nvda_2016_4 import (
+		gui_guiHelper as guiHelper, 
+		gui_nvdaControls as nvdaControls
+	)
+
+try:
+	from gui.settingsDialogs import (
+		MultiCategorySettingsDialog,
+		SettingsDialog,
+		SettingsPanel,
+	)
+except ImportError:
+	# NVDA < 2018.2  
+	from ..backports.nvda_2018_2.gui_settingsDialogs import (
+		MultiCategorySettingsDialog,
+		SettingsDialog,
+		SettingsPanel
+	)
+
+try:
+	from six import iteritems, text_type
+except ImportError:
+	# NVDA version < 2018.3
+	iteritems = dict.iteritems
+	text_type = str
+
+try:
+	from gui.dpiScalingHelper import DpiScalingHelperMixin
+except ImportError:
+	# NVDA < 2019.1
+	from ..backports.nvda_2019_1.gui_dpiScalingHelper import DpiScalingHelperMixin 
+
+	class MultiCategorySettingsDialog(MultiCategorySettingsDialog, DpiScalingHelper):
+		pass
+	
+	class SettingsPanel(SettingsPanel, DpiScalingHelper):
+		pass
 
 
 LABEL_ACCEL = re.compile("&(?!&)")
@@ -48,7 +81,7 @@ Compiled pattern used to strip accelerator key indicators from labels.
 
 def stripAccel(label):
 	"""Strip the eventual accelerator key indication from a field label
-
+	
 	This allows for registering a single literal (hence a single translation)
 	for use both as form field label and to compose summary reports.
 	"""
@@ -57,7 +90,7 @@ def stripAccel(label):
 
 def stripAccelAndColon(label):
 	"""Strip the eventual accelerator key indication from a field label
-
+	
 	This allows for registering a single literal (hence a single translation)
 	for use both as form field label and to compose validation messages.
 	"""
@@ -71,11 +104,11 @@ class ValidationError(Exception):
 class InvalidValue(object):
 	"""Represents an invalid value
 	"""
-
+	
 	def __init__(self, raw):
 		# The raw value that could not be validated
 		self.raw = raw
-
+	
 	def __str__(self):
 		# Translator: The placeholder for an invalid value in summary reports
 		return _("<Invalid>")
@@ -83,7 +116,7 @@ class InvalidValue(object):
 
 class FillableSettingsPanel(SettingsPanel):
 	"""This `SettingsPanel` allows its controls to fill the whole available space.
-
+	
 	See `FillableMultiCategorySettingsDialog`
 	"""
 
@@ -98,17 +131,17 @@ class FillableSettingsPanel(SettingsPanel):
 
 
 class ContextualSettingsPanel(FillableSettingsPanel):
-
+	
 	def __init__(self, *args, **kwargs):
 		self.context = None
 		super(ContextualSettingsPanel, self).__init__(*args, **kwargs)
-
+	
 	def initData(self, context):
 		raise NotImplemented()
-
+	
 	# Set to True if the view depends on data that can be edited on other panels of the same dialog
 	initData.onPanelActivated = False
-
+	
 	def onPanelActivated(self):
 		if getattr(self.initData, "onPanelActivated", False):
 			self.initData(self.context)
@@ -124,14 +157,14 @@ class PanelAccessible(wx.Accessible):
 
 	def GetRole(self, childId):
 		return (wx.ACC_OK, wx.ROLE_SYSTEM_PROPERTYPAGE)
-
+	
 	def GetDescription(self, childId):
 		return (wx.ACC_OK, self.Window.panelDescription)
 
 
 class FillableMultiCategorySettingsDialog(MultiCategorySettingsDialog):
 	"""This `MultiCategorySettingsDialog` allows its panels to fill the whole available space.
-
+	
 	See `FillableSettingsPanel`
 	"""
 
@@ -162,9 +195,9 @@ class FillableMultiCategorySettingsDialog(MultiCategorySettingsDialog):
 				)
 			panel.SetLabel(panel.title)
 			panel.SetAccessible(PanelAccessible(panel))
-
+			
 		return panel
-
+	
 	def _enterActivatesOk_ctrlSActivatesApply(self, evt):
 		if evt.KeyCode in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER):
 			obj = evt.EventObject
@@ -175,31 +208,31 @@ class FillableMultiCategorySettingsDialog(MultiCategorySettingsDialog):
 
 
 def configuredSettingsDialogType(**config):
-
+	
 	class Type(SettingsDialog):
 		def __init__(self, *args, **kwargs):
 			kwargs.update(config)
 			return super(Type, self).__init__(*args, **kwargs)
-
+	
 	return Type
 
 
 class ContextualMultiCategorySettingsDialog(
-	FillableMultiCategorySettingsDialog,
-	configuredSettingsDialogType(hasApplyButton=False, multiInstanceAllowed=True)
+		FillableMultiCategorySettingsDialog,
+		configuredSettingsDialogType(hasApplyButton=False, multiInstanceAllowed=True)
 ):
-
+	
 	def __init__(self, *args, **kwargs):
 		self.context = None
 		super(ContextualMultiCategorySettingsDialog, self).__init__(*args, **kwargs)
-
+	
 	def initData(self, context):
 		self.context = context
 		panel = self.currentCategory
 		if isinstance(panel, ContextualSettingsPanel):
 			if not getattr(panel.initData, "onPanelActivated", False):
 				panel.initData(context)
-
+	
 	def _getCategoryPanel(self, catId):
 		panel = super(ContextualMultiCategorySettingsDialog, self)._getCategoryPanel(catId)
 		if (
@@ -230,9 +263,9 @@ def showContextualDialog(cls, context, parent, *args, **kwargs):
 
 
 class HideableChoice():
-
+	
 	__slots__ = ("key", "label", "enabled")
-
+	
 	def __init__(self, key, label, enabled=True):
 		self.key = key
 		self.label = label
@@ -240,55 +273,55 @@ class HideableChoice():
 
 
 class DropDownWithHideableChoices(wx.ComboBox):
-
+	
 	def __init__(self, *args, **kwargs):
 		style = kwargs.get("style", 0)
 		style |= wx.CB_READONLY
 		kwargs["style"] = style
 		super(DropDownWithHideableChoices, self).__init__(*args, **kwargs)
 		self.__choicesWholeMap = OrderedDict()
-		self.__choicesFilteredList = []
-
+		self.__choicesFilteredList = [] 
+	
 	def Clear(self):
 		self.__choicesWholeMap.clear()
 		self.__choicesFilteredList[:] = []
 		return super(DropDownWithHideableChoices, self).Clear()
-
+	
 	def setChoices(self, keyLabelPairs):
 		self.__choicesWholeMap.clear()
 		self.__choicesWholeMap.update({key: HideableChoice(key, label) for key, label in keyLabelPairs})
 		self.__refresh()
-
+	
 	def getChoicesKeys(self):
 		return list(self.__choicesWholeMap.keys())
-
+	
 	def getSelectedChoiceKey(self):
 		choice = self.__getSelectedChoice()
 		return choice and choice.key
-
+	
 	def setSelectedChoiceKey(self, key, default=None):
 		choice = self.__getChoice(key)
 		if choice.enabled:
 			self.__setSelectedChoice(choice)
 		elif default is not None:
 			self.setSelectedChoiceKey(key=default, default=None)
-
+	
 	def setChoiceEnabled(self, key, enabled, default=None):
 		choice = self.__getChoice(key)
 		choice.enabled = enabled
 		self.__refresh(default)
-
+	
 	def setChoicesEnabled(self, keys, enabled, default=None):
 		for key in keys:
 			self.setChoiceEnabled(key, enabled, default=default)
-
+	
 	def setAllChoicesEnabled(self, enabled, default=None):
 		for key in self.getChoicesKeys():
 			self.setChoiceEnabled(key, enabled, default=default)
-
+	
 	def __getChoice(self, key):
 		return self.__choicesWholeMap[key]
-
+	
 	def __getSelectedChoice(self):
 		index = self.Selection
 		if index < 0:

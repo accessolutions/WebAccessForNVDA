@@ -1,0 +1,88 @@
+{
+    "WebModule": {
+        "name": "criteriaPagesJaunes",
+        "url": [
+            "www.pagesjaunes.fr"
+        ],
+        "windowTitle": "",
+        "help": ""
+    },
+    "formatVersion": "0.7-dev",
+    "Rules": {
+        "dans pages jaunes": {
+            "name": "dans pages jaunes",
+            "type": "pageType",
+            "criteria": [
+                {
+                    "name": "page type pages jaunes",
+                    "text": "PagesJaunes",
+                    "role": "19",
+                    "tag": "a",
+                    "id": "metanav-lien-pj",
+                    "className": "actif pj-link"
+                }
+            ],
+            "gestures": {},
+            "multiple": false,
+            "formMode": false,
+            "skip": false,
+            "sayName": true
+        },
+        "dans se connecter": {
+            "name": "dans se connecter",
+            "type": "pageType",
+            "criteria": [
+                {
+                    "name": "page type dans se connecter",
+                    "text": "Mot de passe oubli\u00e9\u00a0?",
+                    "role": "19",
+                    "tag": "a",
+                    "id": "forgotten-pwd",
+                    "className": "pj-link"
+                }
+            ],
+            "gestures": {},
+            "multiple": false,
+            "formMode": false,
+            "skip": false,
+            "sayName": true
+        },
+        "edition": {
+            "name": "edition",
+            "type": "marker",
+            "criteria": [
+                {
+                    "name": "edition page jaunes",
+                    "contextPageType": "dans pages jaunes",
+                    "role": "8",
+                    "tag": "input",
+                    "id": "quoiqui",
+                    "customName": "Test pour \u00e9ditoin page jaunes",
+                    "customValue": "test \u00e9ditoin page jaunes",
+                    "customGestures": {
+                        "kb:alt+e": "testActionCritere"
+                    }
+                },
+                {
+                    "name": "edition se connecter",
+                    "contextPageType": "dans se connecter",
+                    "role": "8",
+                    "tag": "input",
+                    "id": "authentication_password",
+                    "customName": "je suis dans page connexion",
+                    "customValue": "on verra le message",
+                    "customGestures": {
+                        "kb:alt+e": "moveto"
+                    }
+                }
+            ],
+            "gestures": {
+                "kb:alt+e": "sayall"
+            },
+            "multiple": false,
+            "formMode": true,
+            "skip": false,
+            "sayName": true
+        }
+    }
+}

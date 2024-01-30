@@ -437,6 +437,12 @@ msgstr "Pas de critère"
 msgid "Rule Criteria"
 msgstr "Critères de la règle"
 
+#. Translator: The title for the RuleCriteriaEditor dialog.
+#: addon\globalPlugins\webAccess\gui\criteriaEditor.py:219
+msgctxt "webAccess.criteriaEditor"
+msgid "General (Criteria)"
+msgstr "General(Critères)"
+
 #: addon\globalPlugins\webAccess\gui\ruleEditor.py:519
 #: addon\globalPlugins\webAccess\gui\ruleEditor.py:550
 #, python-brace-format

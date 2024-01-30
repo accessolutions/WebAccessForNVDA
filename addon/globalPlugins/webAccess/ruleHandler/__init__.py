@@ -83,7 +83,7 @@ builtinRuleActions = OrderedDict()
 # Translators: Action name
 builtinRuleActions["moveto"] = pgettext("webAccess.action", "Move to")
 # Translators: Action name
-builtinRuleActions["sayall"] = pgettext("webAccess.action", "Say all")
+builtinRuleActions["sayall"] = pgettext("webAccess.action", "Say all") 
 # Translators: Action name
 builtinRuleActions["speak"] = pgettext("webAccess.action", "Speak")
 # Translators: Action name
@@ -122,7 +122,7 @@ def showManager(context):
 
 
 class DefaultScripts(baseObject.ScriptableObject):
-
+	
 	def __init__(self, warningMessage):
 		super(DefaultScripts, self).__init__()
 		self.warningMessage = warningMessage
@@ -138,7 +138,7 @@ class DefaultScripts(baseObject.ScriptableObject):
 
 
 class RuleManager(baseObject.ScriptableObject):
-
+	
 	def __init__(self, webModule):
 		super(RuleManager, self).__init__()
 		self._ready = False
@@ -158,22 +158,22 @@ class RuleManager(baseObject.ScriptableObject):
 		self.defaultScripts = DefaultScripts("Aucun marqueur associé à cette touche")
 		self.timerCheckAutoAction = None
 		self.zone = None
-
+	
 	def _get_webModule(self):
 		return self._webModule()
-
+	
 	def _get_nodeManager(self):
 		return self._nodeManager and self._nodeManager()
-
+	
 	def dump(self, layer):
 		return {name: rule.dump() for name, rule in list(self._layers[layer].items())}
-
+	
 	def load(self, layer, index, data):
 		self.unload(layer)
 		self._initLayer(layer, index)
 		for ruleName, ruleData in list(data.items()):
 			self._loadRule(layer, ruleName, ruleData)
-
+	
 	def _initLayer(self, layer, index):
 		self._layers[layer] = {}
 		if index is not None:
@@ -183,18 +183,18 @@ class RuleManager(baseObject.ScriptableObject):
 		self._layersIndex = dict(
 			((layerName, layerIndex) for layerIndex, layerName in enumerate(self._layers.keys()))
 		)
-
+	
 	def loadRule(self, layer, name, data):
 		if layer not in self._layers:
 			self._initLayer(layer, None)
 		self._loadRule(layer, name, data)
-
+	
 	def _loadRule(self, layer, name, data):
 		rule = self.webModule.createRule(data)
 		rule.layer = layer
 		self._layers[layer][name] = rule
 		self._rules.setdefault(name, OrderedDict())[layer] = rule
-
+	
 	def unload(self, layer):
 		for index in range(len(self._results)):
 			if self._results[index].rule.layer == layer:
@@ -207,16 +207,16 @@ class RuleManager(baseObject.ScriptableObject):
 		self.removeResults(rule)
 		self._rules.pop(rule.name, None)
 		self._layers[rule.layer].pop(rule.name, None)
-
+	
 	def getRules(self, layer=None):
 		if layer not in (None, False):
 			return tuple(self._layers[layer].values())
 		return tuple([
 			rule
 			for ruleLayers in list(self._rules.values())
-			for rule in list(ruleLayers.values())
+			for rule in list(ruleLayers.values()) 
 		])
-
+	
 	def getRule(self, name, layer=None):
 		if layer is None:
 			for layer in list(self._layers.keys()):
@@ -234,10 +234,10 @@ class RuleManager(baseObject.ScriptableObject):
 		if not self.isReady:
 			return []
 		return self._results
-
+	
 	def getResultsByName(self, name, layer=None):
 		return list(self.iterResultsByName(name, layer=layer))
-
+	
 	def iterResultsByName(self, name, layer=None):
 		if not self.isReady:
 			return
@@ -254,7 +254,7 @@ class RuleManager(baseObject.ScriptableObject):
 				or self._layersIndex[layer] >= self._layersIndex[rule.layer]
 			):
 				yield result
-
+	
 	def iterMutatedControls(self, direction="next", offset=None):
 		for entry in (
 			self._mutatedControlsByOffset
@@ -275,15 +275,15 @@ class RuleManager(baseObject.ScriptableObject):
 						"Not supported: direction={}".format(direction)
 					)
 			yield entry
-
+	
 	def getMutatedControl(self, controlId):
 		return self._mutatedControlsById.get(controlId)
-
+	
 	def removeResults(self, rule):
 		for index, result in enumerate(self._results):
 			if result.rule is rule:
 				del self._results[index]
-
+	
 	def getActions(self):
 		actions = builtinRuleActions.copy()
 		prefix = "action_"
@@ -295,7 +295,7 @@ class RuleManager(baseObject.ScriptableObject):
 				actionLabel = "*" + actionLabel
 				actions.setdefault(actionId, actionLabel)
 		return actions
-
+				
 	def getScript(self, gesture):
 		func = super(RuleManager, self).getScript(gesture)
 		if func is not None:
@@ -313,7 +313,7 @@ class RuleManager(baseObject.ScriptableObject):
 				if func is not None:
 					return func
 		return self.defaultScripts.getScript(gesture)
-
+	
 	def _get_isReady(self):
 		if not self._ready or not self.nodeManager or not self.nodeManager.isReady or self.nodeManager.identifier != self.nodeManagerIdentifier:
 			return False
@@ -334,7 +334,7 @@ class RuleManager(baseObject.ScriptableObject):
 		for ruleLayers in list(self._rules.values()):
 			for rule in list(ruleLayers.values()):
 				rule.resetResults()
-
+	
 	def update(self, nodeManager=None, force=False):
 		if self.webModule is None:
 			# This instance has been terminated
@@ -361,7 +361,7 @@ class RuleManager(baseObject.ScriptableObject):
 			for ruleLayers in list(self._rules.values()):
 				for rule in list(ruleLayers.values()):
 					rule.resetResults()
-
+			
 			results = self._results
 			for rule in sorted(
 				[rule for ruleLayers in list(self._rules.values()) for rule in list(ruleLayers.values())],
@@ -373,7 +373,7 @@ class RuleManager(baseObject.ScriptableObject):
 			):
 				results.extend(rule.getResults())
 			results.sort()
-
+			
 			for result in results:
 				if not result.rule.mutation:
 					continue
@@ -402,12 +402,12 @@ class RuleManager(baseObject.ScriptableObject):
 					1,  # Accepts floating point number for sub-second precision
 					self.checkAutoAction
 				)
-				self.timerCheckAutoAction.start()
+				self.timerCheckAutoAction.start()				
 				return True
 			else:
 				log.error("Not yet")
 		return False
-
+		
 	def checkPageTitle(self):
 		if self.webModule is None:
 			# This instance has been terminated
@@ -419,7 +419,7 @@ class RuleManager(baseObject.ScriptableObject):
 			webAppScheduler.scheduler.send(eventName="webApp", name="webApp_pageChanged", obj=title, webApp=webModule)
 			return True
 		return False
-
+	
 	def checkAutoAction(self):
 		self.timerCheckAutoAction = None
 		with self.lock:
@@ -442,7 +442,7 @@ class RuleManager(baseObject.ScriptableObject):
 						self.triggeredIdentifiers[controlIdentifier] = text
 						if autoActionName == "speak":
 							playWebAppSound("errorMessage")
-						elif autoActionName == "moveto":
+						elif autoActionName == "moveto": 
 							if lastText is None:
 								# only if it's a new identifier
 								if funcMoveto is None:
@@ -462,7 +462,7 @@ class RuleManager(baseObject.ScriptableObject):
 									queueHandler.eventQueue,
 									func,
 									None
-								)
+								) 
 							except Exception:
 								log.exception((
 									'Error in rule "{rule}" while executing'
@@ -481,14 +481,14 @@ class RuleManager(baseObject.ScriptableObject):
 					queueHandler.eventQueue,
 					funcMoveto,
 					None
-				)
-
+				) 
+		
 	def getPageTitle(self):
 		with self.lock:
 			if not self.isReady:
 				return None
 			return self._getPageTitle()
-
+	
 	def _getPageTitle(self):
 		parts = [
 			part
@@ -499,7 +499,7 @@ class RuleManager(baseObject.ScriptableObject):
 			if part
 		]
 		return " - ".join(parts)
-
+	
 	def _getPageTitle1(self):
 		for result in self.getResults():
 			if result.rule.type == ruleTypes.PAGE_TITLE_1:
@@ -507,12 +507,12 @@ class RuleManager(baseObject.ScriptableObject):
 		from ..webModuleHandler import getWindowTitle
 		windowTitle = getWindowTitle(self.nodeManager.treeInterceptor.rootNVDAObject)
 		return windowTitle or api.getForegroundObject().name
-
+	
 	def _getPageTitle2(self):
 		for result in self.getResults():
 			if result.rule.type == ruleTypes.PAGE_TITLE_2:
 				return result.value
-
+	
 	def getPageTypes(self):
 		types = []
 		with self.lock:
@@ -593,10 +593,10 @@ class RuleManager(baseObject.ScriptableObject):
 			):
 				return result
 		return None
-
+	
 	def getResultAtCaret(self, focus=None):
 		return next(self.iterResultsAtCaret(focus), None)
-
+	
 	def iterResultsAtCaret(self, focus=None):
 		if focus is None:
 			focus = api.getFocusObject()
@@ -606,7 +606,7 @@ class RuleManager(baseObject.ScriptableObject):
 			return
 		for result in self.iterResultsAtTextInfo(info):
 			yield result
-
+	
 	def iterResultsAtObject(self, obj):
 		try:
 			info = obj.treeInterceptor.makeTextInfo(obj)
@@ -614,7 +614,7 @@ class RuleManager(baseObject.ScriptableObject):
 			return
 		for result in self.iterResultsAtTextInfo(info):
 			yield result
-
+	
 	def iterResultsAtTextInfo(self, info):
 		if not self.isReady:
 			return
@@ -625,7 +625,7 @@ class RuleManager(baseObject.ScriptableObject):
 		offset = info._startOffset
 # 		for result in self.iterResultsAtOffset(offset):
 # 			yield result
-#
+# 	
 # 	def iterResultsAtOffset(self, offset):
 # 		if not self.isReady:
 # 			return
@@ -634,10 +634,10 @@ class RuleManager(baseObject.ScriptableObject):
 		for r in reversed(self.getResults()):
 			if (
 				hasattr(r, "node")
-				and r.node.offset <= offset < r.node.offset + r.node.size
+				and r.node.offset <= offset < r.node.offset + r.node.size 
 			):
 				yield r
-
+	
 	def quickNav(
 		self,
 		previous=False,
@@ -653,16 +653,16 @@ class RuleManager(baseObject.ScriptableObject):
 			playWebAppSound("keyError")
 			ui.message(_("Not ready"))
 			return None
-
+		
 		if position is None:
 			# Search first from the current caret position
 			position = html.getCaretInfo()
-
+		
 		if position is None:
 			playWebAppSound("keyError")
 			ui.message(_("Not ready"))
 			return None
-
+		
 		# If not found after/before the current position, and cycle is True,
 		# return the first/last result.
 		for relative in ((True, False) if cycle else (True,)):
@@ -709,7 +709,7 @@ class RuleManager(baseObject.ScriptableObject):
 			if respectZone and self.zone:
 				msg += " "
 				# Translators: Complement to quickNav error message in zone.
-				msg += _("in this zone.")
+				msg += _("in this zone.") 
 				msg += " "
 				# Translators: Hint on how to cancel zone restriction.
 				msg += _("Press escape to cancel zone restriction.")
@@ -717,19 +717,19 @@ class RuleManager(baseObject.ScriptableObject):
 			return False
 		result.script_moveto(None, fromQuickNav=True)
 		return True
-
+	
 	def quickNavToNextLevel1(self):
 		self.quickNav(types=(ruleTypes.ZONE,), honourSkip=False)
-
+	
 	def quickNavToPreviousLevel1(self):
 		self.quickNav(previous=True, types=(ruleTypes.ZONE,), honourSkip=False)
-
+	
 	def quickNavToNextLevel2(self):
 		self.quickNav(types=(ruleTypes.ZONE, ruleTypes.MARKER))
-
+	
 	def quickNavToPreviousLevel2(self):
 		self.quickNav(previous=True, types=(ruleTypes.ZONE, ruleTypes.MARKER))
-
+	
 	def quickNavToNextLevel3(self):
 		self.quickNav(
 			types=(ruleTypes.ZONE, ruleTypes.MARKER),
@@ -737,7 +737,7 @@ class RuleManager(baseObject.ScriptableObject):
 			honourSkip=False,
 			cycle=False
 		)
-
+	
 	def quickNavToPreviousLevel3(self):
 		self.quickNav(
 			previous=True,
@@ -757,14 +757,14 @@ class CustomActionDispatcher(object):
 		self.standardFunc = standardFunc
 		self.webModules = weakref.WeakSet()
 		self.instance = None
-
+	
 	def __get__(self, obj, type=None):
 		if obj is None:
 			return self
 		bound = CustomActionDispatcher(self.actionId, self.standardFunc)
 		bound.instance = weakref.ref(obj)  # Avoid cyclic references (cf. NVDA #11499)
 		return bound
-
+	
 	def __getattribute__(self, name):
 		# Pass functions attributes such as __doc__, __name__,
 		# category, ignoreTreeInterceptorPassThrough or resumeSayAllMode.
@@ -785,7 +785,7 @@ class CustomActionDispatcher(object):
 				if instance is None:
 					# The bound instance has been terminated.
 					return object.__getattribute__(self, name)
-
+			
 			def funcs():
 				if instance:
 					yield self.getCustomFunc()
@@ -801,7 +801,7 @@ class CustomActionDispatcher(object):
 				except AttributeError:
 					pass
 		return object.__getattribute__(self, name)
-
+	
 	def __call__(self, *args, **kwargs):
 		if self.instance is not None:
 			instance = self.instance()
@@ -820,7 +820,7 @@ class CustomActionDispatcher(object):
 		if not func:
 			raise NotImplementedError
 		func(*args, **kwargs)
-
+	
 	def getCustomFunc(self, webModule=None):
 		if webModule is None:
 			if self.instance is not None:
@@ -837,11 +837,12 @@ class CustomActionDispatcher(object):
 
 
 class Result(baseObject.ScriptableObject):
-
+	
 	def __init__(self, criteria):
 		super(Result, self).__init__()
 		self._criteria = weakref.ref(criteria)
 		rule = criteria.rule
+
 		self._rule = weakref.ref(rule)
 		webModule = rule.ruleManager.webModule
 		prefix = "action_"
@@ -857,38 +858,45 @@ class Result(baseObject.ScriptableObject):
 				dispatcher.webModules.add(webModule)
 				setattr(self.__class__, scriptAttrName, dispatcher)
 				setattr(self, scriptAttrName, dispatcher.__get__(self))
-		self.bindGestures(rule.gestures)
 
+		if criteria.customGestures:
+			self.bindGestures(criteria.customGestures)
+			return
+		else:
+			self.bindGestures(rule.gestures)
+	
 	def _get_criteria(self):
 		return self._criteria()
-
+	
 	def _get_label(self):
 		customName = self.criteria.customName
 		if customName is None:
 			customName = self.rule.customName
-		return customName or self.rule.name
 
+
+		return customName or self.rule.name
+	
 	def _get_name(self):
 		return self.rule.name
-
+	
 	def _get_rule(self):
 		return self._rule()
-
+	
 	def _get_value(self):
 		customValue = self.criteria.customValue
 		if customValue is None:
 			customValue = self.rule.customValue
 		return customValue or self.node.getTreeInterceptorText()
-
+		
 	def script_moveto(self, gesture):
 		raise NotImplementedError
-
+	
 	def script_sayall(self, gesture):
 		raise NotImplementedError
-
+	
 	def script_activate(self, gesture):
 		raise NotImplementedError
-
+	
 	def script_speak(self, gesture):
 		repeat = scriptHandler.getLastScriptRepeatCount() if gesture is not None else 0
 		if repeat == 0:
@@ -900,13 +908,13 @@ class Result(baseObject.ScriptableObject):
 			wx.CallAfter(ui.message, msg)
 		else:
 			self.script_moveto(None, fromSpeak=True)
-
+	
 	def script_mouseMove(self, gesture):
 		raise NotImplementedError
-
+	
 	def __lt__(self, other):
 		raise NotImplementedError
-
+	
 	def getDisplayString(self):
 		return " ".join(
 			[self.name]
@@ -918,17 +926,19 @@ class Result(baseObject.ScriptableObject):
 
 
 class SingleNodeResult(Result):
-
+	
 	def __init__(self, criteria, node, context, index):
+
 		super(SingleNodeResult, self).__init__(criteria)
 		self._node = weakref.ref(node)
 		self.context = context
 		self.index = index
-
+	
 	def _get_node(self):
 		return self._node()
-
+	
 	def script_moveto(self, gesture, fromQuickNav=False, fromSpeak=False):
+
 		if self.node.nodeManager is None:
 			return
 		rule = self.rule
@@ -979,11 +989,12 @@ class SingleNodeResult(Result):
 		focusObject = api.getFocusObject()
 		try:
 			nodeObject = self.node.getNVDAObject()
+
 		except Exception:
 			nodeObject = None
 		if nodeObject == focusObject and focusObject is not None:
 			focusObject.reportFocus()
-
+	
 	def script_sayall(self, gesture, fromQuickNav=False):
 		speech.cancelSpeech()
 		if self.rule.sayName:
@@ -995,7 +1006,7 @@ class SingleNodeResult(Result):
 		try:
 			speech.speechMode = speech.speechMode_off
 			treeInterceptor.passThrough = False
-			browseMode.reportPassThrough.last = treeInterceptor.passThrough
+			browseMode.reportPassThrough.last = treeInterceptor.passThrough 
 			self.node.moveto()
 			html.speakLine()
 			api.processPendingEvents()
@@ -1005,12 +1016,12 @@ class SingleNodeResult(Result):
 		finally:
 			speech.speechMode = speechMode
 		speech.sayAll.SayAllHandler.readText(sayAllHandler.CURSOR_CARET)
-
+	
 	def script_activate(self, gesture):
 		if self.node.nodeManager is None:
 			return
 		if not self.rule.ruleManager.isReady :
-			log.info ("not ready")
+
 			return
 		treeInterceptor = self.node.nodeManager.treeInterceptor
 		if self.rule.sayName:
@@ -1021,8 +1032,8 @@ class SingleNodeResult(Result):
 		if not treeInterceptor:
 			return
 		treeInterceptor.passThrough = self.rule.formMode
-		browseMode.reportPassThrough.last = treeInterceptor.passThrough
-
+		browseMode.reportPassThrough.last = treeInterceptor.passThrough 
+	
 	def script_mouseMove(self, gesture):
 		rule = self.rule
 		if rule.sayName:
@@ -1031,39 +1042,39 @@ class SingleNodeResult(Result):
 		if not treeInterceptor:
 			return
 		treeInterceptor.passThrough = rule.formMode
-		browseMode.reportPassThrough.last = treeInterceptor.passThrough
+		browseMode.reportPassThrough.last = treeInterceptor.passThrough 
 		self.node.mouseMove()
-
+	
 	def getTextInfo(self):
 		return self.node.getTextInfo()
-
+	
 	def __lt__(self, other):
 		if hasattr(other, "node") is None:
 			return other >= self
 		return self.node.offset < other.node.offset
-
+	
 	def getTitle(self):
 		return self.label + " - " + self.node.innerText
 
 
 class Criteria(baseObject.AutoPropertyObject):
-
+	
 	def __init__(self, rule, data):
 		self._rule = weakref.ref(rule)
 		self.load(data)
-
+	
 	def _get_layer(self):
 		return self.rule.layer
-
+	
 	def _get_multiple(self):
 		return self.rule.multiple
-
+	
 	def _get_rule(self):
 		return self._rule()
-
+	
 	def _get_ruleManager(self):
 		return self.rule.ruleManager
-
+	
 	def load(self, data):
 		data = data.copy()
 		self.name = data.pop("name", None)
@@ -1083,6 +1094,7 @@ class Criteria(baseObject.AutoPropertyObject):
 		self.sayName = data.pop("sayName", None)
 		self.customName = data.pop("customName", None)
 		self.customValue = data.pop("customValue", None)
+		self.customGestures = data.pop("customGestures", None)
 		if data:
 			raise ValueError(
 				"Unexpected attribute"
@@ -1090,18 +1102,18 @@ class Criteria(baseObject.AutoPropertyObject):
 				+ ": "
 				+ ", ".join(list(data.keys()))
 			)
-
+	
 	def dump(self):
 		data = OrderedDict()
-
+		
 		def setIfNotDefault(dic, key, value, default=None):
 			if value is not None:
 				dic[key] = value
-
+		
 		def setIfNotNoneOrEmptyString(dic, key, value):
 			if value and value.strip():
 				dic[key] = value
-
+		
 		setIfNotNoneOrEmptyString(data, "name", self.name)
 		setIfNotNoneOrEmptyString(data, "comment", self.comment)
 		setIfNotNoneOrEmptyString(data, "contextPageTitle", self.contextPageTitle)
@@ -1119,9 +1131,10 @@ class Criteria(baseObject.AutoPropertyObject):
 		setIfNotDefault(data, "sayName", self.sayName)
 		setIfNotDefault(data, "customName", self.customName)
 		setIfNotDefault(data, "customValue", self.customValue)
+		setIfNotDefault(data, "customGestures", self.customGestures)
 
 		return data
-
+	
 	def checkContextPageTitle(self):
 		"""
 		Check whether the current page satisfies `contextPageTitle`.
@@ -1129,8 +1142,8 @@ class Criteria(baseObject.AutoPropertyObject):
 		A leading '!' negates the match.
 		A leading '\' escapes the first character to allow for a literal
 		match.
-
-		No further unescaping is performed past the first character.
+		
+		No further unescaping is performed past the first character. 
 		"""
 		expr = (self.contextPageTitle or "").strip()
 		if not expr:
@@ -1148,11 +1161,11 @@ class Criteria(baseObject.AutoPropertyObject):
 		if expr == candidate:
 			return not exclude
 		return exclude
-
+	
 	def checkContextPageType(self):
 		"""
 		Check whether the current page satisfies `contextPageTitle`.
-
+		
 		'|', '!' and '&' are supported, in this order of precedence.
 		"""
 		for expr in (self.contextPageType or "").split("&"):
@@ -1169,16 +1182,18 @@ class Criteria(baseObject.AutoPropertyObject):
 				if not name.strip():
 					continue
 				rule = self.ruleManager.getRule(name, layer=self.layer)
+				#rule = None
 				if rule is None:
 					log.error((
 						"In rule \"{rule}\".contextPageType: "
 						"Rule not found: \"{pageType}\""
 					).format(rule=self.rule.name, pageType=name))
 					return False
-
+				
 				results = rule.getResults()
 				if results:
 					nodes = [result.node for result in results]
+
 					if exclude:
 						return False
 					else:
@@ -1189,11 +1204,44 @@ class Criteria(baseObject.AutoPropertyObject):
 			if not (found or exclude):
 				return False
 		return True
-
+	
 	def createResult(self, node, context, index):
 		return SingleNodeResult(self, node, context, index)
 
+	def iterResultsAtObject(self, obj):
+		try:
+			info = obj.treeInterceptor.makeTextInfo(obj)
+		except AttributeError:
+			return
+		for result in self.iterResultsAtTextInfo(info):
+			yield result
+
+	def iterResultsAtTextInfo(self, info):
+		if not self.isReady:
+			return
+		if not self.getResults():
+			return
+		if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
+			raise ValueError("Not supported {}".format(type(info)))
+		offset = info._startOffset
+		# 		for result in self.iterResultsAtOffset(offset):
+		# 			yield result
+		#
+		# 	def iterResultsAtOffset(self, offset):
+		# 		if not self.isReady:
+		# 			return
+		# 		if not self.results:
+		# 			return
+		for r in reversed(self.getResults()):
+			if (
+					hasattr(r, "node")
+					and r.node.offset <= offset < r.node.offset + r.node.size
+			):
+				yield r
+
 	def iterResults(self):
+
+
 		t = logTimeStart()
 		mgr = self.rule.ruleManager
 		text = self.text
@@ -1221,6 +1269,9 @@ class Criteria(baseObject.AutoPropertyObject):
 				if not name:
 					continue
 				rule = mgr.getRule(name, layer=self.layer)
+
+
+
 				if rule is None:
 					log.error((
 						"In rule \"{rule}\".contextParent: "
@@ -1236,6 +1287,7 @@ class Criteria(baseObject.AutoPropertyObject):
 				if results:
 					nodes = [result.node for result in results]
 					if exclude:
+
 						excludedNodes.update(nodes)
 					else:
 						altRootNodes.update(nodes)
@@ -1255,7 +1307,18 @@ class Criteria(baseObject.AutoPropertyObject):
 			if not newRootNodes:
 				return
 			rootNodes = newRootNodes
+
+		arrayKwargs = ""
+		#if self.name == "dans annuaire inversé":
+		arrayKwargs = self
+
+
+
+
 		kwargs = getSimpleSearchKwargs(self)
+
+
+		#
 		if excludedNodes:
 			kwargs["exclude"] = excludedNodes
 		limit = None
@@ -1265,9 +1328,15 @@ class Criteria(baseObject.AutoPropertyObject):
 		index = 0
 		for root in rootNodes or (mgr.nodeManager.mainNode,):
 			rootLimit = limit
+			rootLimit = limit
+
 			if multipleContext:
 				index = 0
+
 			for node in root.searchNode(limit=rootLimit, **kwargs):
+				arrayKwargs = []
+			#for node in root.searchNode( eq_id= "metanav-eboutique"):
+
 				index += 1  # 1-based
 				if self.index:
 					if index < self.index:
@@ -1280,32 +1349,33 @@ class Criteria(baseObject.AutoPropertyObject):
 					startOffset=root.offset,
 					endOffset=root.offset + root.size
 				) if root is not self.ruleManager.nodeManager.mainNode else None
+
 				yield self.createResult(node, context, index)
 				if not self.multiple and not multipleContext:
 					return
 
 
 class Rule(baseObject.ScriptableObject):
-
+	
 	def __init__(self, ruleManager, data):
 		super(Rule, self).__init__()
 		self.layer = None
 		self._ruleManager = weakref.ref(ruleManager)
 		self._results = None
 		self.load(data)
-
+	
 	def _get_label(self):
 		return self.customName or self.name
-
+	
 	def _get_ruleManager(self):
 		return self._ruleManager()
-
+	
 	def dump(self):
-
+		
 		def setIfNotDefault(dic, key, value, default=None):
 			if value is not None:
 				dic[key] = value
-
+		
 		data = OrderedDict()
 		data["name"] = self.name
 		data["type"] = self.type
@@ -1313,11 +1383,7 @@ class Rule(baseObject.ScriptableObject):
 			items = data["criteria"] = []
 			for criteria in self.criteria:
 				items.append(criteria.dump())
-		setIfNotDefault(
-			data,
-			"mutation",
-			list(MUTATIONS.keys())[list(MUTATIONS.values()).index(self.mutation)] if self.mutation else None
-		)
+		setIfNotDefault(data, "mutation", self.mutation)
 		setIfNotDefault(data, "gestures", self.gestures, {})
 		setIfNotDefault(data, "autoAction", self.autoAction)
 		setIfNotDefault(data, "multiple", self.multiple)
@@ -1327,9 +1393,10 @@ class Rule(baseObject.ScriptableObject):
 		setIfNotDefault(data, "customName", self.customName)
 		setIfNotDefault(data, "customValue", self.customValue)
 		setIfNotDefault(data, "comment", self.comment)
+		setIfNotDefault(data, "customGestures", self.customGestures)
 
 		return data
-
+	
 	def load(self, data):
 		data = data.copy()
 		self.name = data.pop("name")
@@ -1339,7 +1406,7 @@ class Rule(baseObject.ScriptableObject):
 		mutation = data.pop("mutation", None)
 		if mutation:
 			try:
-				self.mutation = MUTATIONS[mutation]
+				self.mutation = None#MUTATIONS[mutation]
 			except LookupError:
 				log.exception((
 					"Unexpected mutation template id \"{mutation}\" "
@@ -1357,6 +1424,7 @@ class Rule(baseObject.ScriptableObject):
 		self.sayName = data.pop("sayName", True)
 		self.customName = data.pop("customName", None)
 		self.customValue = data.pop("customValue", None)
+		self.customGestures = data.pop("customGestures", None)
 		self.comment = data.pop("comment", None)
 		self.createWidget = data.pop("createWidget", False)
 		if data:
@@ -1366,10 +1434,10 @@ class Rule(baseObject.ScriptableObject):
 				+ ": "
 				+ ", ".join(list(data.keys()))
 			)
-
+	
 	def resetResults(self):
 		self._results = None
-
+	
 	def getDisplayString(self):
 		return " ".join(
 			[self.name]
@@ -1378,20 +1446,21 @@ class Rule(baseObject.ScriptableObject):
 				for identifier in list(self._gestureMap.keys())
 			]
 		)
-
+	
 	def script_notFound(self, gesture):
 		speech.speakMessage(_("{ruleName} not found").format(
 			ruleName=self.label)
 		)
-
+	
 	def getResults(self):
 		if self._results is None:
 			self._results = self._getResults()
 		return self._results
-
+	
 	def _getResults(self):
 		t = logTimeStart()
 		for criteria in self.criteria:
+
 			results = list(criteria.iterResults())
 			if results:
 				return results
@@ -1466,26 +1535,27 @@ def getSimpleSearchKwargs(criteria, raiseOnUnsupported=False):
 					prop=prop,
 					index=andIndex
 				)
+
 				kwargs[key] = values
 	return kwargs
 
 
 class Zone(textInfos.offsets.Offsets, TrackedObject):
-
+	
 	def __init__(self, result):
 		rule = result.rule
 		self._ruleManager = weakref.ref(rule.ruleManager)
 		self.name = rule.name
 		super(Zone, self).__init__(startOffset=None, endOffset=None)
 		self._update(result)
-
+	
 	@property
 	def ruleManager(self):
 		return self._ruleManager()
-
+	
 	def __bool__(self):  # Python 3
 		return self.startOffset is not None and self.endOffset is not None
-
+	
 	def __eq__(self, other):
 		return (
 			isinstance(other, Zone)
@@ -1494,29 +1564,29 @@ class Zone(textInfos.offsets.Offsets, TrackedObject):
 			and other.startOffset == self.startOffset
 			and other.endOffset == self.endOffset
 		)
-
+	
 	def __hash__(self):
 		return hash((self.startOffset, self.endOffset))
-
+	
 	def __repr__(self):
 		if not self:
 			return "<Zone {} (invalidated)>".format(repr(self.name))
 		return "<Zone {} at ({}, {})>".format(
 			repr(self.name), self.startOffset, self.endOffset
 		)
-
+	
 	def containsNode(self, node):
 		if not self:
 			return False
 		return self.startOffset <= node.offset < self.endOffset
-
+	
 	def containsResult(self, result):
 		if not self:
 			return False
 		if hasattr(result, "node"):
 			return self.containsNode(result.node)
 		return False
-
+	
 	def containsTextInfo(self, info):
 		if not self:
 			return False
@@ -1526,20 +1596,20 @@ class Zone(textInfos.offsets.Offsets, TrackedObject):
 			self.startOffset <= info._startOffset
 			and info._endOffset <= self.endOffset
 		)
-
+	
 	def getRule(self):
 		return self.ruleManager.getRule(self.name)
-
+	
 	def isTextInfoAtStart(self, info):
 		if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
 			raise ValueError("Not supported {}".format(type(info)))
 		return self and info._startOffset == self.startOffset
-
+	
 	def isTextInfoAtEnd(self, info):
 		if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
 			raise ValueError("Not supported {}".format(type(info)))
 		return self and info._endOffset == self.endOffset
-
+	
 	def restrictTextInfo(self, info):
 		if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
 			raise ValueError("Not supported {}".format(type(info)))
@@ -1559,7 +1629,7 @@ class Zone(textInfos.offsets.Offsets, TrackedObject):
 			res = True
 			info._endOffset = self.endOffset
 		return res
-
+	
 	def update(self):
 		try:
 			result = next(self.ruleManager.iterResultsByName(self.name))
@@ -1567,7 +1637,7 @@ class Zone(textInfos.offsets.Offsets, TrackedObject):
 			self.startOffset = self.endOffset = None
 			return False
 		return self._update(result)
-
+	
 	def _update(self, result):
 		node = result.node
 		if not node:
