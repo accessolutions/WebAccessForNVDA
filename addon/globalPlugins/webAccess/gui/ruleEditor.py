@@ -801,7 +801,7 @@ class PropertiesPanel(ContextualSettingsPanel):
 		self.skipCheckBox.Value = data.get("skip", False)
 		self.sayNameCheckBox.Value = data.get("sayName", True)
 		self.customNameText.Value = data.get("customName", "")
-		self.customValueLabel.Label = self.getAltFieldLabel(ruleType, "customValue")
+		self.customValueLabel.Label = self.getAltFieldLabel(ruleType, "customValue") or ""
 		self.customValueText.Value = data.get("customValue", "")
 
 		self.mutationCombo.Clear()
