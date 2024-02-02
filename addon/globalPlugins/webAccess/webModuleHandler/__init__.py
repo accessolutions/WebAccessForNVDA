@@ -69,6 +69,8 @@ def getCatalog(refresh=False, errors=None):
 			return _catalog
 	else:
 		_webModules = None
+	if store is None:
+		return []
 	_catalog = list(store.catalog(errors=errors))
 	return _catalog
 
