@@ -193,7 +193,6 @@ class WebAppScheduler(threading.Thread):
 				name='node_gainFocus',
 				obj=node, webApp=webModule
 				)
-			#webModule.widgetManager.claimVirtualBufferWidget(reason)
-			if useInternalBrowser is True: #or webModule.activeWidget is not None:
+			if useInternalBrowser is True: 
 				beep(300, 30)
 				wx.CallAfter(webModule.presenter.display, node)

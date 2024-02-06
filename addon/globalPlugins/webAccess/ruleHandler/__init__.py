@@ -55,7 +55,6 @@ from ..webAppLib import (
 	playWebAppSound,
 )
 from .. import webAppScheduler
-from ..widgets import genericCollection
 from .controlMutation import MUTATIONS, MutatedControl
 from . import ruleTypes
 
@@ -1358,7 +1357,6 @@ class Rule(baseObject.ScriptableObject):
 		self.customName = data.pop("customName", None)
 		self.customValue = data.pop("customValue", None)
 		self.comment = data.pop("comment", None)
-		self.createWidget = data.pop("createWidget", False)
 		if data:
 			raise ValueError(
 				"Unexpected attribute"
