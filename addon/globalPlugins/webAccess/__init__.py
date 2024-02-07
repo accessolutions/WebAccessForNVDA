@@ -35,13 +35,6 @@ scripts to them.
 This is used to search for a specific class, tag, role, id, and so on in an
 efficient way throughout the whole web page.
 
-* WidgetManager: Allows web app creators to create and use widgets to identify
-and navigate into specific elements such as eg. tab bars, button bars, or
-tables.
-
-* Presenter: Used to display information using speech and/or braille output
-based on the current context (widget, nodeField, or object).
-
 Monkey-patched NVDA functions:
 * appModules.nvda.AppModule.event_NVDAObject_init
 * eventHandler._EventExecuter.gen
@@ -85,7 +78,6 @@ import virtualBuffers
 
 from . import nodeHandler
 from . import overlay
-from . import presenter
 from . import webAppLib
 from .webAppLib import *
 from .webAppScheduler import WebAppScheduler
@@ -111,7 +103,6 @@ SOUND_DIRECTORY = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..",
 supportedWebAppHosts = ['brave', 'firefox', 'chrome', 'java', 'iexplore', 'microsoftedgecp', 'msedge']
 
 activeWebApp = None
-useInternalBrowser = False
 webAccessEnabled = True
 scheduler = None
 
@@ -409,15 +400,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		gesture="kb:nvda+shift+w"
 	)
 	def script_toggleWebAccessSupport(self, gesture):  # @UnusedVariable
-		global useInternalBrowser
 		global webAccessEnabled
 
 		if webAccessEnabled:
-			useInternalBrowser = False
 			webAccessEnabled = False
 			ui.message(_("Web Access support disabled."))  # FR: u"Support Web Access désactivé."
 		else:
-			#useInternalBrowser = True
 			webAccessEnabled = True
 			ui.message(_("Web Access support enabled."))  # FR: u"Support Web Access activé."
 
@@ -461,7 +449,6 @@ def sendWebAppEvent(eventName, obj, webApp=None):
 
 def eventExecuter_gen(self, eventName, obj):
 	# log.info("Event %s : %s : %s" % (eventName, obj.name, obj.value))
-	global useInternalBrowser
 
 	funcName = "event_%s" % eventName
 
@@ -483,12 +470,6 @@ def eventExecuter_gen(self, eventName, obj):
 				webAppLoseFocus(obj)
 		else:
 			# log.info("Getting method %s -> %s" %(webApp.name, funcName))
-			# if webApp.widgetManager.claimVirtualBufferWidget(nodeHandler.REASON_FOCUS) is False:
-			# 	webApp.widgetManager.claimObject(obj)
-			# if webApp.activeWidget is not None:
-			# 	func = getattr(webApp.activeWidget, funcName, None)
-			# 	if func:
-			# 		yield func,(obj, self.next)
 			func = getattr(webApp, funcName, None)
 			if func:
 				yield func,(obj, self.next)
@@ -500,13 +481,9 @@ def eventExecuter_gen(self, eventName, obj):
 		if func:
 			yield func, (obj, self.next)
 
-	# Use a Presenter object to speak/braille the content
-	presented = False
-	if eventName == 'caret' and activeWebApp is not None and useInternalBrowser is True:
-		presented = True
 	# Tree interceptor level.
 	treeInterceptor = obj.treeInterceptor
-	if presented is False and treeInterceptor:
+	if treeInterceptor:
 		func = getattr(treeInterceptor, funcName, None)
 		if func and (getattr(func,'ignoreIsReady',False) or treeInterceptor.isReady):
 			yield func, (obj, self.next)

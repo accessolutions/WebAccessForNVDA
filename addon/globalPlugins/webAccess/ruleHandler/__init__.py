@@ -55,7 +55,6 @@ from ..webAppLib import (
 	playWebAppSound,
 )
 from .. import webAppScheduler
-from ..widgets import genericCollection
 from .controlMutation import MUTATIONS, MutatedControl
 from . import ruleTypes
 
