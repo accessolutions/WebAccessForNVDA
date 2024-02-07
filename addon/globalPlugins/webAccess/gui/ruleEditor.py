@@ -801,8 +801,39 @@ class PropertiesPanel(ContextualSettingsPanel):
 		self.skipCheckBox.Value = data.get("skip", False)
 		self.sayNameCheckBox.Value = data.get("sayName", True)
 		self.customNameText.Value = data.get("customName", "")
-		self.customValueLabel.Label = self.getAltFieldLabel(ruleType, "customValue")
+		self.customValueLabel.Label = self.getAltFieldLabel(ruleType, "customValue") or ""
 		self.customValueText.Value = data.get("customValue", "")
+
+		self.mutationCombo.Clear()
+		self.mutationCombo.Append(
+			# Translators: The label when there is no control mutation.
+			pgettext("webAccess.controlMutation", "<None>"),
+			""
+		)
+		for id_ in MUTATIONS_BY_RULE_TYPE.get(ruleType, []):
+			label = mutationLabels.get(id_)
+			if label is None:
+				log.error("No label for mutation id: {}".format(id_))
+				label = id_
+			self.mutationCombo.Append(label, id_)
+		mutation = data.get("mutation")
+		if mutation:
+			for index in range(1, self.mutationCombo.Count + 1):
+				id_ = self.mutationCombo.GetClientData(index)
+				if id_ == mutation:
+					break
+			else:
+				# Allow to bypass mutation choice by rule type
+				label = mutationLabels.get(id_)
+				if label is None:
+					log.warning("No label for mutation id: {}".format(id_))
+					label = id_
+				self.mutationCombo.Append(label, id_)
+				index += 1
+		else:
+			index = 0
+		self.mutationCombo.SetSelection(index)
+
 		self.updateData()
 
 	def updateData(self, data=None):
@@ -850,36 +881,6 @@ class PropertiesPanel(ContextualSettingsPanel):
 		self.customNameText.Value = data.get("customName", "")
 		self.customValueLabel.Label = self.getAltFieldLabel(ruleType, "customValue")
 		self.customValueText.Value = data.get("customValue", "")
-
-		self.mutationCombo.Clear()
-		self.mutationCombo.Append(
-			# Translators: The label when there is no control mutation.
-			pgettext("webAccess.controlMutation", "<None>"),
-			""
-		)
-		for id in MUTATIONS_BY_RULE_TYPE.get(ruleType, []):
-			label = mutationLabels.get(id)
-			if label is None:
-				log.error("No label for mutation id: {}".format(id))
-				label = id
-			self.mutationCombo.Append(label, id)
-		mutation = data.get("mutation") # if show else None
-		if mutation:
-			for index in range(1, self.mutationCombo.Count + 1):
-				id = self.mutationCombo.GetClientData(index)
-				if id == mutation:
-					break
-			else:
-				# Allow to bypass mutation choice by rule type
-				label = mutationLabels.get(id)
-				if label is None:
-					log.warning("No label for mutation id: {}".format(id))
-					label = id
-				self.mutationCombo.Append(label, id)
-				index += 1
-		else:
-			index = 0
-		self.mutationCombo.SetSelection(index)
 
 	def onPanelDeactivated(self):
 		self.updateData()
