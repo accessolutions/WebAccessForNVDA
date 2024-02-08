@@ -127,6 +127,9 @@ class Presenter(baseObject.ScriptableObject):
 			ui.message("WebApp is none... snif")
 			return False
 		ret = False
+		widget = self.webApp.activeWidget
+		if widget is not None:
+			ret = self.displayFromContext(element, widget)
 		if ret is False and hasattr(self.webApp, 'getPresentationString') is True:
 			ret = self.displayFromContext(element, self.webApp)
 		if ret is False and isinstance(element, nodeHandler.NodeField):
@@ -136,10 +139,10 @@ class Presenter(baseObject.ScriptableObject):
 	def displayFromContext(self, element, ctx=None):
 		"""
 		Gets the presentation string from the given context.
-		@param ctx: The given context (webapp, node)
+		@param ctx: The given context (widget, webapp, node)
 		@type ctx: any
 		@param element: The given element which has the focus.
-		@type element: WebApp or NodeField
+		@type element: WebAppWidget or WebApp or NodeField
 		@returns True if some text has been output, False otherwise.
 		@rtype Bool
 		"""

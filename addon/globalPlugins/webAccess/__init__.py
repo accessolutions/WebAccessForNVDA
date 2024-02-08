@@ -35,8 +35,12 @@ scripts to them.
 This is used to search for a specific class, tag, role, id, and so on in an
 efficient way throughout the whole web page.
 
+* WidgetManager: Allows web app creators to create and use widgets to identify
+and navigate into specific elements such as eg. tab bars, button bars, or
+tables.
+
 * Presenter: Used to display information using speech and/or braille output
-based on the current context (nodeField or object).
+based on the current context (widget, nodeField, or object).
 
 Monkey-patched NVDA functions:
 * appModules.nvda.AppModule.event_NVDAObject_init
@@ -478,6 +482,13 @@ def eventExecuter_gen(self, eventName, obj):
 				#log.info("Disabling active webApp event %s" % eventName)
 				webAppLoseFocus(obj)
 		else:
+			# log.info("Getting method %s -> %s" %(webApp.name, funcName))
+			# if webApp.widgetManager.claimVirtualBufferWidget(nodeHandler.REASON_FOCUS) is False:
+			# 	webApp.widgetManager.claimObject(obj)
+			# if webApp.activeWidget is not None:
+			# 	func = getattr(webApp.activeWidget, funcName, None)
+			# 	if func:
+			# 		yield func,(obj, self.next)
 			func = getattr(webApp, funcName, None)
 			if func:
 				yield func,(obj, self.next)
