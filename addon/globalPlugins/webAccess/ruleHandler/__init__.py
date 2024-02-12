@@ -29,6 +29,8 @@ from itertools import chain
 from pprint import pformat
 import threading
 import time
+import weakref
+
 import wx
 
 import addonHandler
@@ -36,7 +38,6 @@ import api
 import baseObject
 import browseMode
 import controlTypes
-from core import callLater
 import gui
 import inputCore
 from logHandler import log
@@ -46,7 +47,8 @@ import speech
 import textInfos
 import textInfos.offsets
 import ui
-import weakref
+from core import callLater
+from garbageHandler import TrackedObject
 
 from .. import nodeHandler
 from ..webAppLib import (
@@ -58,18 +60,6 @@ from .. import webAppScheduler
 from .controlMutation import MUTATIONS, MutatedControl
 from . import ruleTypes
 
-try:
-	from garbageHandler import TrackedObject
-except ImportError:
-	# NVDA < 2020.3
-	TrackedObject = object
-
-
-try:
-	REASON_CARET = controlTypes.OutputReason.CARET
-except AttributeError:
-	# NVDA < 2021.1
-	REASON_CARET = controlTypes.REASON_CARET
 
 
 addonHandler.initTranslation()
@@ -972,7 +962,7 @@ class SingleNodeResult(Result):
 			speech.speakTextInfo(
 				info,
 				unit=textInfos.UNIT_LINE,
-				reason=REASON_CARET
+				reason=controlTypes.OutputReason.CARET
 			)
 			return
 		focusObject = api.getFocusObject()

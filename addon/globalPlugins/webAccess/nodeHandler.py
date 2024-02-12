@@ -33,8 +33,9 @@ __authors__ = (
 import gc
 import re
 import time
-from xml.parsers import expat
 import weakref
+from ast import literal_eval
+from xml.parsers import expat
 
 import baseObject
 import controlTypes
@@ -45,27 +46,9 @@ import textInfos
 import treeInterceptorHandler
 import ui
 import winUser
+from garbageHandler import TrackedObject
 
 from .webAppLib import *
-
-
-try:
-	from six import chr
-except ImportError:
-	# NVDA version < 2018.3	
-	pass
-
-try:
-	from ast import literal_eval
-except ImportError:
-	# NVDA < 2018.4
-	from .ast import literal_eval
-
-try:
-	from garbageHandler import TrackedObject	
-except ImportError:
-	# NVDA < 2020.3
-	TrackedObject = object
 
 
 TRACE = lambda *args, **kwargs: None  # noqa: E731
@@ -83,7 +66,7 @@ nodeManagerIndex = 0
 
 
 class NodeManager(baseObject.ScriptableObject):
-	
+
 	def __init__(self, treeInterceptor, callbackNodeMoveto=None):
 		super(NodeManager, self).__init__()
 		global nodeManagerIndex
@@ -103,7 +86,7 @@ class NodeManager(baseObject.ScriptableObject):
 			return
 		self.callbackNodeMoveto = callbackNodeMoveto
 		self.update()
-	
+
 	def _get_treeInterceptor(self):
 		if hasattr(self, "_treeInterceptor"):
 			ti = self._treeInterceptor
@@ -114,25 +97,25 @@ class NodeManager(baseObject.ScriptableObject):
 			else:
 				self._treeInterceptor = None
 				return None
-	
+
 	def _set_treeInterceptor(self, obj):
 		if obj:
 			self._treeInterceptor = weakref.ref(obj)
 		else:
 			self._treeInterceptor = None
-	
+
 	def _get_lastTextNode(self):
 		return self._lastTextNode and self._lastTextNode()
-	
+
 	def _set_lastTextNode(self, value):
 		self._lastTextNode = weakref.ref(value) if value is not None else None
-	
+
 	def _get_currentParentNode(self):
 		return self._currentParentNode and self._currentParentNode()
-	
+
 	def _set_currentParentNode(self, value):
 		self._currentParentNode = weakref.ref(value) if value is not None else None
-	
+
 	def terminate(self):
 		self._ready = False
 		self.treeInterceptor = None
@@ -144,7 +127,7 @@ class NodeManager(baseObject.ScriptableObject):
 		self.callbackNodeMoveto = None
 		self.updating = False
 		self._curNode = self.caretNode = None
-		
+
 	def formatAttributes(self, attrs):
 		s = ""
 		for a in attrs:
@@ -224,7 +207,7 @@ class NodeManager(baseObject.ScriptableObject):
 		self.mainNode = None
 		# trace[:] = []
 		parser.Parse(XMLText.encode('utf-8'))
-	
+
 	def afficheNode(self, node, level=0):
 		if node is None:
 			return ""
@@ -243,7 +226,7 @@ class NodeManager(baseObject.ScriptableObject):
 		for child in node.children:
 			s += self.afficheNode(child, level + 1)
 		return s
-			
+
 	def update(self):
 		# t = logTimeStart()
 		if self.treeInterceptor is None or not self.treeInterceptor.isReady:
@@ -352,7 +335,7 @@ class NodeManager(baseObject.ScriptableObject):
 			return None
 		node = self.devNode if self.devNode else self.mainNode
 		return node.searchOffset(offset)
-	
+
 	def getCaretNode(self):
 		"""
 		Returns the node on which the caret is currently placed.
@@ -386,7 +369,7 @@ class NodeManager(baseObject.ScriptableObject):
 			return
 		self.display(self._curNode)
 		nextHandler()
-		
+
 	def script_nextItem(self, gesture):
 		if not self.isReady:
 			return
@@ -434,7 +417,7 @@ class NodeManager(baseObject.ScriptableObject):
 			return
 		self._curNode.moveto()
 		self._curNode.activate()
-	
+
 	__gestures = {
 		"kb:downarrow": "nextItem",
 		"kb:uparrow": "previousItem",
@@ -443,15 +426,15 @@ class NodeManager(baseObject.ScriptableObject):
 
 
 class NodeField(TrackedObject):
-	
+
 	customText = ""
-	
+
 	@classmethod
 	def getDeepest(cls, node1, node2):
 		"""
 		Given two nodes on the same branch, return the one closest to the tip.
-		
-		Returns `None` if the two nodes are not on the same branch. 
+
+		Returns `None` if the two nodes are not on the same branch.
 		"""
 		if node1 in node2:
 			return node1
@@ -460,7 +443,7 @@ class NodeField(TrackedObject):
 		if node1 == node2:
 			return node1
 		return None
-	
+
 	def __init__(self, nodeType, attrs, parent, offset, nodeManager):
 		super(NodeField, self).__init__()
 		self._nodeManager = weakref.ref(nodeManager)
@@ -518,14 +501,10 @@ class NodeField(TrackedObject):
 		countNode = countNode + 1
 
 	def __del__(self):
-		# log.info(u"dell node")
 		global countNode
 		countNode = countNode - 1
-		# TrackedObject (NVDA >= 2020.3) defines __del__
-		# object (NVDA < 2020.3) does not.
-		if hasattr(super(NodeField, self), "__del__"):
-			super(NodeField, self).__del__()
-		
+		super(NodeField, self)
+
 	def __repr__(self):
 		if hasattr(self, "text"):
 			return "Node text: %s" % repr(self.text)
@@ -537,29 +516,29 @@ class NodeField(TrackedObject):
 			return "Node format"
 		else:
 			return "Node unknown"
-	
+
 	@property
 	def nodeManager(self):
 		return self._nodeManager and self._nodeManager()
-	
+
 	@property
 	def parent(self):
 		return self._parent and self._parent()
-	
+
 	@property
 	def previousTextNode(self):
 		return self._previousTextNode and self._previousTextNode()
-	
+
 	def isReady(self):
 		return self.nodeManager and self.nodeManager.isReady
-	
+
 	def checkNodeManager(self):
 		if self.nodeManager is None or not self.nodeManager.isReady:
 			playWebAppSound("keyError")
 			return False
 		else:
 			return True
-		
+
 	def recursiveDelete(self):
 		n = 1
 		if hasattr(self, "children"):
@@ -575,10 +554,10 @@ class NodeField(TrackedObject):
 		self.customText = None
 		self.controlIdentifier = None
 		return n
-	
+
 	def searchString(self, text, exclude=None, limit=None):
 		"""Searches the current node and its sub-tree for a match with the given text.
-		
+
 		Keyword arguments:
 		  text: The text to search for.
 		  exclude:
@@ -586,7 +565,7 @@ class NodeField(TrackedObject):
 		    children nodes at all.
 		  limit:
 		    If set, only return the specified number of first results.
-		
+
 		Returns a list of the matching nodes.
 		"""  # noqa
 		if not isinstance(text, list):
@@ -621,7 +600,7 @@ class NodeField(TrackedObject):
 			if item == value:
 				return True
 		return False
-	
+
 	def search_in(self, itemList, value):
 		if value is None or value == "":
 			return False
@@ -640,7 +619,7 @@ class NodeField(TrackedObject):
 		**kwargs
 	):
 		"""Searches the current node and its sub-tree for a match with the given criteria.
-		
+
 		Keyword arguments:
 		  exclude:
 		    If specified, set of children nodes not to explore or  True  to not explore
@@ -652,18 +631,18 @@ class NodeField(TrackedObject):
 		    See `walk` for the path expression syntax.
 		  limit:
 		    If set, only return the specified number of first results.
-		  
+
 		Additional keyword arguments names are of the form:
 		  `test_property[#index]`
-		
+
 		All of the criteria must be matched (logical `and`).
 		Values can be lists, in which case any value in the list can match
 		(logical `or`).
 		Supported tests are: `eq`, `notEq`, `in` and `notIn`.
-		
+
 		Properties `text` and `prevText` are mutually exclusive, are only valid
 		for the `in` test and do not support multiple values.
-		
+
 		Returns a list of the matching nodes.
 		"""  # noqa
 		global _count
@@ -686,7 +665,7 @@ class NodeField(TrackedObject):
 			candidateValue = getattr(self, prop)
 			candidateValues = (candidateValue,)
 			if prop == "className":
-				if candidateValue is not None: 
+				if candidateValue is not None:
 					candidateValues = candidateValue.split(" ")
 			elif prop in ("role", "states"):
 				try:
@@ -764,7 +743,7 @@ class NodeField(TrackedObject):
 				if limit <= 0:
 					break
 		return nodeList
-	
+
 
 	def searchOffset(self, offset):
 		if hasattr(self, "text"):
@@ -776,9 +755,9 @@ class NodeField(TrackedObject):
 				if node is not None:
 					return node
 		return None
-	
+
 	RELATIVE_PATH_CRITERIA = re.compile("^{[^}]*}")
-	
+
 	def walk(self, path):
 		"""Walk the node tree and return the destination node.
 	    Returns None if the given path cannot be walked.
@@ -885,13 +864,13 @@ class NodeField(TrackedObject):
 				if not searchKwargs:
 					break
 		return node
-	
+
 	def firstTextNode(self):
 		return self.searchOffset(self.offset)
 
 	def nextTextNode(self):
 		return self.nodeManager.searchOffset(self.offset + self.size)
-	
+
 	def moveto(self, reason=REASON_FOCUS):
 		if not self.checkNodeManager():
 			return False
@@ -904,7 +883,7 @@ class NodeField(TrackedObject):
 			# log.info("node calls onMoveTo")
 			self.nodeManager.callbackNodeMoveto(self, reason)
 		return True
-		
+
 	def activate(self):
 		if not self.checkNodeManager():
 			return False
@@ -952,10 +931,10 @@ class NodeField(TrackedObject):
 		elif self.role is controlTypes.ROLE_HEADING:
 			return "_innerText_ _role_ de niveau %s" % self.control["level"]
 		return "_innerText_ _role_"
-		
+
 	def getBraillePresentationString(self):
 		return False
-				
+
 	# TODO: Thoroughly check this wasn't used anywhere
 	# In Python 3, all classes defining __eq__ must also define __hash__
 # 	def __eq__(self, node):
@@ -964,7 +943,7 @@ class NodeField(TrackedObject):
 # 		if self.offset == node.offset:
 # 			return True
 # 		return False
-	
+
 	def __lt__(self, node):
 		"""
 		Compare nodes based on their offset.
@@ -1013,7 +992,7 @@ class NodeField(TrackedObject):
 
 	def __len__(self):
 		return self.size
-	
+
 	@property
 	def innerText(self):
 		txt = ""
