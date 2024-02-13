@@ -35,6 +35,7 @@ import controlTypes
 import gui
 import inputCore
 from logHandler import log
+import ui
 
 from .. import ruleHandler
 from ..ruleHandler import ruleTypes
@@ -51,6 +52,7 @@ from . import (
 	stripAccel,
 	stripAccelAndColon
 )
+from ..gui import properties as props
 
 
 addonHandler.initTranslation()
@@ -60,7 +62,6 @@ formModeRoles = [
 	controlTypes.ROLE_EDITABLETEXT,
 	controlTypes.ROLE_COMBOBOX,
 ]
-
 
 def getSummary(data):
 	ruleType = data.get("type")
@@ -560,6 +561,7 @@ class ActionsPanel(ContextualSettingsPanel):
 		mgr = self.context["webModule"].ruleManager
 		shortcutDialog.ruleManager = mgr
 		if shortcutDialog.show():
+			log.info("====================================================> sho")
 			self.gestureMapValue[shortcutDialog.resultShortcut] = shortcutDialog.resultActionData
 			self.updateGesturesList(
 				newGestureIdentifier=shortcutDialog.resultShortcut,
@@ -622,6 +624,237 @@ class PropertiesPanel(ContextualSettingsPanel):
 	# Translators: The label for a category in the rule editor
 	title = _("Properties")
 
+	def makeSettings(self, settingsSizer):
+		gbSizer = self.sizer = wx.GridBagSizer()
+		gbSizer.EmptyCellSize = (0, 0)
+		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
+
+		def scale(*args):
+			return tuple([
+				self.scaleSize(arg) if arg > 0 else arg
+				for arg in args
+			])
+
+		row = 0
+		# Translators: Displayed when the selected rule type doesn't support any action
+		item = self.noPropertiesLabel = wx.StaticText(self, label=_("No properties available for the selected rule type."))
+		item.Hide()
+		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
+
+		row +=1
+		# Translators: Keyboard shortcut input label for the rule dialog's action panel.
+		item = wx.StaticText(self, label=_("&Properties List"))
+		gbSizer.Add(item, pos=(row, 0), flag=wx.EXPAND)
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(row + 1, 0))
+		innerGbSizer = wx.GridBagSizer()
+
+		#self.propsListBox = item =self.onWidgetSetup(self.propsListBox = wx.ListBox(self, size=scale(200, 250)),   wx.EVT_KEY_UP, self.onButtonKeyEvent)))
+
+		item = self.propsListBox = wx.ListBox(self, size=scale(220, 250))
+		item.Bind(wx.EVT_LISTBOX, self.selectListBox)
+		item.Bind(wx.EVT_KEY_DOWN, self.onKeyPress)
+		innerGbSizer.Add(item, pos=(0, 0), span=(4, 1), flag=wx.EXPAND)
+		innerGbSizer.Add(scale(guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL, 0), pos=(0, 1))
+
+		self.getScale = scale
+		self.getInnerGbSizer = innerGbSizer
+
+		self.toggleBtn = wx.ToggleButton(self, label=_(" "), size=self.getScale(200, 30))
+		self.toggleBtn.Bind(wx.EVT_TOGGLEBUTTON, self.updateValue)
+		self.getInnerGbSizer.Add(self.toggleBtn, pos=(0, 2) )
+		self.getInnerGbSizer.Add(self.getScale(0, guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL), pos=(1, 1))
+
+		self.editable = wx.TextCtrl(self, size=self.getScale(200, 25))
+		self.editable.Bind(wx.EVT_TEXT, self.updateValue)
+		self.getInnerGbSizer.Add(self.editable, pos=(1, 2))
+		self.getInnerGbSizer.Add(self.getScale(0, guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL), pos=(2, 1))
+
+		self.choice = wx.Choice(self, choices=[], size=self.getScale(200, 30))
+		self.choice.Bind(wx.EVT_CHOICE, self.updateValue)
+		self.getInnerGbSizer.Add(self.choice, pos=(2, 2) )
+		self.getInnerGbSizer.Add(self.getScale(0, guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL), pos=(3, 1))
+
+
+		# Translators: The label for a button in the Rule Editor dialog
+		item = self.btnAddProperties = wx.Button(self, label=_("&Add"))
+		item.Bind(wx.EVT_BUTTON, self.onAddProperties)
+		innerGbSizer.Add(item, pos=(0, 5), flag=wx.EXPAND)
+		innerGbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_BUTTONS_VERTICAL), pos=(4, 4))
+
+		item = self.btnDelProperties = wx.Button(self, label=_("&Delete"))
+		item.Bind(wx.EVT_BUTTON, self.onDeleteProperties)
+		innerGbSizer.Add(item, pos=(1, 5), flag=wx.EXPAND)
+		innerGbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_BUTTONS_VERTICAL), pos=(5, 4))
+		innerGbSizer.AddGrowableCol(0)
+		innerGbSizer.AddGrowableRow(4)
+		gbSizer.Add(innerGbSizer, pos=(row + 3, 0), span=(1, 3), flag=wx.EXPAND)
+		row += 3
+
+	def initData(self, context):
+		self.context = context
+		if self.propsListBox.Count == 0:
+			self.toggleBtn.Disable()
+			self.editable.Disable()
+			self.choice.Disable()
+			self.updateBtnState()
+			self.updatePropertiesList()
+
+	def selectListBox(self, evt):
+		for p in props.propertiesList:
+			listItem=evt.GetString().split("=")
+			if isinstance(p, props.ToggleProperty):
+				if listItem[0] == p.get_displayName():
+					self.choice.Disable()
+					self.editable.Disable()
+					self.toggleBtn.Enable()
+					self.toggleBtn.SetLabel("")
+					self.toggleBtn.SetLabel(p.get_displayName())
+					val = p.get_value()
+					if val:
+						self.toggleBtn.SetValue(True)
+						return
+					else:
+						self.toggleBtn.SetValue(False)
+						return
+			if isinstance(p, props.SingleChoiceProperty):
+				if listItem[0] == p.get_displayName():
+					self.updateChoices(self.choice, p.get_id())
+					self.toggleBtn.Disable()
+					self.toggleBtn.SetLabel("")
+					self.editable.Disable()
+					self.choice.Enable()
+					self.choice.id = p.get_value()
+					if p.get_value() is not None:
+						n = self.choice.FindString(p.get_value(), False)
+						if n!=-1:
+							self.choice.SetSelection(n)
+							return
+			if isinstance(p, props.EditableProperty):
+				if listItem[0] == p.get_displayName():
+					self.choice.Disable()
+					self.toggleBtn.Disable()
+					self.editable.Enable()
+					self.toggleBtn.SetLabel("")
+					if p.get_value() is not None:
+						self.editable.SetValue(p.get_value())
+					else:
+						self.editable.SetValue("")
+						return
+
+	def onKeyPress(self, event):
+		keycode = event.GetKeyCode()
+		if keycode == wx.WXK_SPACE:
+			for p in props.propertiesList:
+				selItem = self.propsListBox.GetSelection()
+				item = self.propsListBox.GetString(selItem)
+				if item != -1:
+					listItem = item.split("=")
+					if listItem[0] in p.get_displayName() and isinstance(p, props.ToggleProperty):
+						val=self.toggleBtn.GetValue()
+						if val:
+							self.toggleBtn.SetValue(False)
+							p.set_value(False)
+							ui.message("{} {}".format(p.get_displayName(), "non coché"))
+							self.updatePropertiesList()
+							return
+						else:
+							self.toggleBtn.SetValue(True)
+							p.set_value(True)
+							ui.message("{} {}".format(p.get_displayName(), "coché"))
+							self.updatePropertiesList()
+							return
+		event.Skip()
+
+	def onAddProperties(self, evt):
+		if props.showPropsDialog(self.context):
+			self.updatePropertiesList()
+
+	def updateBtnState(self):
+		if self.propsListBox.Count == props.PROPS_LEN:
+			self.btnAddProperties.Disable()
+			self.btnDelProperties.Enable()
+		elif self.propsListBox.Count > 0:
+			self.btnDelProperties.Enable()
+			self.btnAddProperties.Enable()
+		elif self.propsListBox.Count == 0:
+			self.btnDelProperties.Disable()
+			self.btnAddProperties.Enable()
+
+	def onEditProperties(self, evt):
+		pass
+
+	def onDeleteProperties(self, evt):
+		selItem = self.propsListBox.GetSelection()
+		if selItem != -1:
+			str = self.propsListBox.GetString(selItem)
+			delVal = str.split("=")
+			for p in props.propertiesList:
+				if p.get_displayName() == delVal[0] :
+					p.set_flag(False)
+					self.propsListBox.Delete(selItem)
+					self.updatePropertiesList()
+					break
+		else:
+			self.btnDelProperties.Disable()
+
+	def updateValue(self, evt):
+		selItem = self.propsListBox.GetSelection()
+		item = self.propsListBox.GetString(selItem)
+		listItem = item.split("=")
+		for p in props.propertiesList:
+			evtObj = evt.GetEventObject()
+			if evt.GetEventType() == wx.EVT_TOGGLEBUTTON.evtType[0]:
+				if evtObj.GetLabel() in  p.get_displayName():
+					state = evtObj.GetValue()
+					if state:
+						p.set_value(True)
+					else:
+						p.set_value(False)
+					return
+			elif evt.GetEventType() == wx.EVT_CHOICE.evtType[0]:
+				if listItem[0] == p.get_displayName():
+					choiceVal=self.choice.GetString(self.choice.GetSelection())
+					if choiceVal!=-1:
+						p.set_value(choiceVal)
+						#self.updatePropertiesList()
+						return
+			elif evt.GetEventType() == wx.EVT_TEXT.evtType[0]:
+				selItem = self.propsListBox.GetSelection()
+				item = self.propsListBox.GetString(selItem)
+				listItem = item.split("=")
+				if listItem[0] == p.get_displayName():
+					p.set_value(evt.GetString())
+					#self.updatePropertiesList()
+					return
+		self.updatePropertiesList()
+
+
+	def updatePropertiesList(self):
+		self.propsListBox.Clear()
+		for p in props.propertiesList:
+			if p.get_flag():
+				self.propsListBox.Append("{}={}".format(p.get_displayName(), p.get_value()))
+				self.updateBtnState()
+			else:
+				log.info("Item exits in listBox: {}".format(p.get_displayName()))
+
+
+	def updateChoices(self,choiceItem ,id):
+		if id == "mutation":
+			choiceItem.Clear()
+			#for i in range(0, len(props.mutation_options)-1):
+			for i in range(0, len(props.mutation_options)):
+				choiceItem.Append(props.mutation_options[i])
+		elif id == "formMode":
+			choiceItem.Clear()
+			# self.listChoice = props.formmode_options
+			for i in range(0, len(props.formmode_options)):
+				choiceItem.Append(props.formmode_options[i])
+
+	def onSave(self):
+		pass
+
+
 	# The semi-column is part of the labels because some localizations
 	# (ie. French) require it to be prepended with one space.
 	FIELDS = OrderedDict((
@@ -674,6 +907,7 @@ class PropertiesPanel(ContextualSettingsPanel):
 				return pgettext("webAccess.ruleProperties", "Custom messa&ge:")
 		return default
 
+	"""
 	def makeSettings(self, settingsSizer):
 		gbSizer = wx.GridBagSizer()
 		gbSizer.EmptyCellSize = (0, 0)
@@ -695,7 +929,10 @@ class PropertiesPanel(ContextualSettingsPanel):
 		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
 
 		row += 1
-		item = self.multipleCheckBox = wx.CheckBox(self, label=self.FIELDS["multiple"])
+		#item = self.multipleCheckBox = wx.CheckBox(self, label=self.FIELDS["multiple"])
+		item = self.multipleCheckBox = wx.CheckBox(self, label=self.propertiesList[0].display_name)
+
+
 		item.Hide()
 		hidable["multiple"] = [item]
 		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
@@ -778,6 +1015,9 @@ class PropertiesPanel(ContextualSettingsPanel):
 
 		row += 1
 		items = hidable["mutation"] = []
+		#MultipleChoiceProperty
+
+		#item = self.mutationLabel = wx.StaticText(self, label=self.FIELDS["mutation"])
 		item = self.mutationLabel = wx.StaticText(self, label=self.FIELDS["mutation"])
 		item.Hide()
 		items.append(item)
@@ -790,8 +1030,6 @@ class PropertiesPanel(ContextualSettingsPanel):
 		items.append(item)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 
-		gbSizer.AddGrowableCol(2)
-
 	def initData(self, context):
 		self.context = context
 		data = self.context["data"]["rule"]
@@ -801,7 +1039,7 @@ class PropertiesPanel(ContextualSettingsPanel):
 		self.skipCheckBox.Value = data.get("skip", False)
 		self.sayNameCheckBox.Value = data.get("sayName", True)
 		self.customNameText.Value = data.get("customName", "")
-		self.customValueLabel.Label = self.getAltFieldLabel(ruleType, "customValue") or ""
+		self.customValueLabel.Label = self.getAltFieldLabel(ruleType, "customValue")
 		self.customValueText.Value = data.get("customValue", "")
 
 		self.mutationCombo.Clear()
@@ -887,8 +1125,7 @@ class PropertiesPanel(ContextualSettingsPanel):
 		super(PropertiesPanel, self).onPanelDeactivated()
 
 	def onSave(self):
-		self.updateData()
-
+		self.updateData()"""
 
 class RuleEditorDialog(ContextualMultiCategorySettingsDialog):
 
