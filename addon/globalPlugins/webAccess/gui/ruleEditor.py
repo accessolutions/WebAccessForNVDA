@@ -796,13 +796,14 @@ class PropertiesPanel(ContextualSettingsPanel):
 		self.context = context
 		data = self.context["data"]["rule"]
 		ruleType = data.get("type")
-		self.multipleCheckBox.Value = data.get("multiple", False)
-		self.formModeCheckBox.Value = data.get("formMode", False)
-		self.skipCheckBox.Value = data.get("skip", False)
-		self.sayNameCheckBox.Value = data.get("sayName", True)
-		self.customNameText.Value = data.get("customName", "")
-		self.customValueLabel.Label = self.getAltFieldLabel(ruleType, "customValue") or ""
-		self.customValueText.Value = data.get("customValue", "")
+		properties = data.get("properties", {})
+		self.multipleCheckBox.Value = properties.get("multiple", False)
+		self.formModeCheckBox.Value = properties.get("formMode", False)
+		self.skipCheckBox.Value = properties.get("skip", False)
+		self.sayNameCheckBox.Value = properties.get("sayName", True)
+		self.customNameText.Value = properties.get("customName", "") or ""
+		self.customValueLabel.Label = self.getAltFieldLabel(ruleType, "customValue")
+		self.customValueText.Value = properties.get("customValue", "") or ""
 
 		self.mutationCombo.Clear()
 		self.mutationCombo.Append(
@@ -816,7 +817,7 @@ class PropertiesPanel(ContextualSettingsPanel):
 				log.error("No label for mutation id: {}".format(id_))
 				label = id_
 			self.mutationCombo.Append(label, id_)
-		mutation = data.get("mutation")
+		mutation = properties.get("mutation")
 		if mutation:
 			for index in range(1, self.mutationCombo.Count + 1):
 				id_ = self.mutationCombo.GetClientData(index)
@@ -841,21 +842,23 @@ class PropertiesPanel(ContextualSettingsPanel):
 			for item in items:
 				item.Show(False)
 		data = self.context["data"]["rule"]
-		updateOrDrop(data, "multiple", self.multipleCheckBox.Value)
-		updateOrDrop(data, "formMode", self.formModeCheckBox.Value)
-		updateOrDrop(data, "skip", self.skipCheckBox.Value)
-		updateOrDrop(data, "sayName", self.sayNameCheckBox.Value)
-		updateOrDrop(data, "customName", self.customNameText.Value)
-		updateOrDrop(data, "customValue", self.customValueText.Value)
+		properties = data.get("properties", {})
+		updateOrDrop(properties, "multiple", self.multipleCheckBox.Value)
+		updateOrDrop(properties, "formMode", self.formModeCheckBox.Value)
+		updateOrDrop(properties, "skip", self.skipCheckBox.Value)
+		updateOrDrop(properties, "sayName", self.sayNameCheckBox.Value)
+		updateOrDrop(properties, "customName", self.customNameText.Value)
+		updateOrDrop(properties, "customValue", self.customValueText.Value)
 		if self.mutationCombo.Selection > 0:
-			data["mutation"] = self.mutationCombo.GetClientData(self.mutationCombo.Selection)
+			properties["mutation"] = self.mutationCombo.GetClientData(self.mutationCombo.Selection)
 		else:
 			data.pop("mutation", None)
 		ruleType = data.get("type")
 		showedFields = self.RULE_TYPE_FIELDS.get(ruleType, {})
 		for field in list(self.FIELDS.keys()):
-			if field not in showedFields and data.get(field):
-				del data[field]
+			if field not in showedFields and properties.get(field):
+				del properties[field]
+		data["properties"] = properties
 
 		ruleType = data.get("type")
 		fields = self.RULE_TYPE_FIELDS.get(ruleType, {})
@@ -874,13 +877,14 @@ class PropertiesPanel(ContextualSettingsPanel):
 		for item in hidable["spacers"][:len(fields) - 1]:
 			item.Show(True)
 
-		self.multipleCheckBox.Value = data.get("multiple", False)
-		self.formModeCheckBox.Value = data.get("formMode", False)
-		self.skipCheckBox.Value = data.get("skip", False)
-		self.sayNameCheckBox.Value = data.get("sayName", True)
-		self.customNameText.Value = data.get("customName", "")
+		properties = data.get("properties", {})
+		self.multipleCheckBox.Value = properties.get("multiple", False)
+		self.formModeCheckBox.Value = properties.get("formMode", False)
+		self.skipCheckBox.Value = properties.get("skip", False)
+		self.sayNameCheckBox.Value = properties.get("sayName", True)
+		self.customNameText.Value = properties.get("customName", "")
 		self.customValueLabel.Label = self.getAltFieldLabel(ruleType, "customValue")
-		self.customValueText.Value = data.get("customValue", "")
+		self.customValueText.Value = properties .get("customValue", "")
 
 	def onPanelDeactivated(self):
 		self.updateData()
