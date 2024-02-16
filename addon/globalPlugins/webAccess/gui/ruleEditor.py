@@ -518,7 +518,7 @@ class ActionsPanel(ContextualSettingsPanel):
 
 		row += 1
 		# Translators: Automatic action at rule detection input label for the rule dialog's action panel.
-		item = wx.StaticText(self, label=_("&Automatic action at rule detection:"))
+		item = wx.StaticText(self, label=_("A&utomatic action at rule detection:"))
 		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item = self.autoActionList = wx.ComboBox(self, style=wx.CB_READONLY)
@@ -544,12 +544,13 @@ class ActionsPanel(ContextualSettingsPanel):
 			self.autoActionList.SetSelection(0)
 		else:
 			self.gestureMapValue = data.get("gestures", {}).copy()
-			self.autoActionList.SetSelection(
-				list(mgr.getActions().keys()).index(
-					data.get("autoAction", "")
-				) + 1  # Empty entry at index 0
-				if "autoAction" in data else 0
-			)
+			index = 0
+			if (
+				"autoAction" in data.get("properties", {})
+				and data["properties"]["autoAction"] in actionsDict
+			):
+				index = list(mgr.getActions().keys()).index(data["properties"]["autoAction"]) + 1
+			self.autoActionList.SetSelection(index)
 		self.updateGesturesList()
 
 	def updateData(self, data=None):
@@ -610,11 +611,11 @@ class ActionsPanel(ContextualSettingsPanel):
 		if ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
 			data["gestures"] = self.gestureMapValue
 			autoAction = self.autoActionList.GetClientData(self.autoActionList.Selection)
-			updateOrDrop(data, "autoAction", autoAction)
+			updateOrDrop(data["properties"], "autoAction", autoAction)
 		else:
 			if data.get("gestures"):
 				del data["gestures"]
-			if data.get("autoAction"):
+			if data.get("properties", {}).get("autoAction"):
 				del data["autoAction"]
 
 
@@ -884,7 +885,7 @@ class PropertiesPanel(ContextualSettingsPanel):
 		self.sayNameCheckBox.Value = properties.get("sayName", True)
 		self.customNameText.Value = properties.get("customName", "")
 		self.customValueLabel.Label = self.getAltFieldLabel(ruleType, "customValue")
-		self.customValueText.Value = properties .get("customValue", "")
+		self.customValueText.Value = properties .get("customValue", "") or ""
 
 	def onPanelDeactivated(self):
 		self.updateData()
