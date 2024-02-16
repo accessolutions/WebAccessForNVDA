@@ -424,7 +424,7 @@ class RuleManager(baseObject.ScriptableObject):
 					controlIdentifier = result.node.controlIdentifier
 					# check only 100 first characters
 					text = result.node.getTreeInterceptorText()[:100]
-					autoActionName = result.rule.autoAction
+					autoActionName = result.get_property("autoAction")
 					func = getattr(result, "script_%s" % autoActionName)
 					lastText = self.triggeredIdentifiers.get(controlIdentifier)
 					if (lastText is None or text != lastText):
@@ -780,6 +780,9 @@ class Properties:
 			"mutation": self.mutation.mutateName if self.mutation else None
 		}
 
+	def __repr__(self):
+		return pformat(self.dump())
+
 
 class OverrideProperties(Properties):
 
@@ -938,7 +941,7 @@ class Result(baseObject.ScriptableObject):
 		return self._rule()
 
 	def _get_value(self):
-		customValue = self.criteria.get_property("customValue")
+		customValue = self.get_property("customValue")
 		if customValue is None:
 			customValue = self.get_property("customValue")
 		return customValue or self.node.getTreeInterceptorText()
@@ -1131,10 +1134,6 @@ class Criteria(baseObject.AutoPropertyObject):
 
 	def _get_ruleManager(self):
 		return self.rule.ruleManager
-
-
-	def _set_override(self, data, override, overrides):
-		overrides[override] = data.get("overrides", {}).pop(override, None)
 
 	def load(self, data):
 		data = data.copy()
@@ -1330,7 +1329,7 @@ class Criteria(baseObject.AutoPropertyObject):
 		if excludedNodes:
 			kwargs["exclude"] = excludedNodes
 		limit = None
-		if not self.overrides.multiple:
+		if not getattr(self.overrides, "multiple", False):
 			limit = self.index or 1
 
 		index = 0
@@ -1352,7 +1351,7 @@ class Criteria(baseObject.AutoPropertyObject):
 					endOffset=root.offset + root.size
 				) if root is not self.ruleManager.nodeManager.mainNode else None
 				yield self.createResult(node, context, index)
-				if not self.overrides.multiple and not multipleContext:
+				if not getattr(self.overrides, "multiple", False) and not multipleContext:
 					return
 
 
