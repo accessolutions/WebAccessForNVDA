@@ -183,7 +183,7 @@ def recoverFrom_0_3_to_0_4(data):
 					del rule[key]
 				except KeyError:
 					pass
-	
+
 	rules.extend(splitTitles)
 	rules.extend(splitMarkers)
 
@@ -198,7 +198,7 @@ def recoverFrom_0_3_to_0_4(data):
 				'Please redefine the required context.'
 				.format(rule.get("name"))
 			)
-		
+
 		for key in (
 			"definesContext",
 			"requiresContext",
@@ -208,10 +208,10 @@ def recoverFrom_0_3_to_0_4(data):
 				del rule[key]
 			except KeyError:
 				pass
-		
+
 		# If it is upper-case (as in non-normalized identifiers),
 		# `keyboardHandler.KeyboardInputGesture.getDisplayTextForIdentifier`
-		# does not properly handle the NVDA key. 
+		# does not properly handle the NVDA key.
 		gestures = rule.get("gestures", {})
 		# Get ready for Python 3: dict.items will return an iterator.
 		for key, value in list(gestures.items()):
@@ -277,12 +277,27 @@ def recoverFrom_0_6_to_0_7(data):
 			if key in rule:
 				criteria[key] = rule.pop(key)
 		rule["criteria"] = [criteria]
+		properties = {}
+		for key in (
+			"autoAction",
+			"customName",
+			"customValue",
+			"formMode",
+			"multiple",
+			"sayName",
+			"skip",
+			"mutation"
+		):
+			if key in rule:
+				properties[key] = rule.pop(key)
+		if properties:
+			rule["properties"] = properties
 		# The following three keys were long abandonned but not removed from earlier versions
 		rule.pop("class", None)
 		rule.pop("createWidget", None)
 		rule.pop("user", None)
 	#log.info("rulesDict: {}".format(list(rulesDict.keys())))
-	
+
 	extra = OrderedDict()
 	for name in list(rulesDict.keys()):
 		alternatives = [rule for rule in rules if rule["name"] == name]
@@ -307,7 +322,7 @@ def recoverFrom_0_6_to_0_7(data):
 # 			break
 # 		else:
 # 			sameGestures = True
-		
+
 		class HashableDict(dict):  # Utility class to help compare dictionaries
 			def __sortedDump(self):
 				return tuple((k, self[k]) for k in sorted(self))
@@ -319,7 +334,7 @@ def recoverFrom_0_6_to_0_7(data):
 			def areUnique(cls, dicts):
 				dicts = [cls(dict) for dict in dicts]
 				return len(dicts) == len(set(dicts))
-		
+
 		# Check gestures only if no priority
 		sameGestures = noPriority and not HashableDict.areUnique([rule.get("gestures", {}) for rule in alternatives])
 		if not sameGestures:
@@ -363,15 +378,15 @@ def recoverFrom_0_6_to_0_7(data):
 		for index, alternative in enumerate(alternatives):
 			overrides = OrderedDict()
 			alternativeComments = []
-			for key, value in list(rule.items()):
+			for key, value in rule.get("properties", {}).items():
 				if key in ("criteria", "priority", "comment"):
 					continue
-				altValue = alternative.get(key)
+				altValue = alternative.get("properties", {}).get(key)
 				if altValue != value:
 					missing = key not in alternative
-					if key in ("customName", "customValue"):
+					if altValue is not None and key in ("autoAction", "customName", "customValue", "formMode", "multiple", "sayName", "skip", "mutation"):
 						if missing:
-							overrides[key] = ""
+							overrides[key] = altValue
 						continue
 					alternativeComments.append(
 						"{!r} was {} instead of {!r}"
@@ -379,7 +394,8 @@ def recoverFrom_0_6_to_0_7(data):
 					)
 			for key, altValue in list(alternative.items()):
 				if key in rule or key in (
-					"criteria", "priority", "comment", "customName", "customValue"
+					"criteria", "priority", "comment", 
+					"autoAction", "customName", "customValue", "formMode", "multiple", "sayName", "skip", "mutation"
 				):
 					continue
 				alternativeComments.append(
@@ -388,7 +404,8 @@ def recoverFrom_0_6_to_0_7(data):
 				)
 			criteria = alternative["criteria"][0]
 			if overrides:
-				criteria.update(overrides)
+				criteria["overrides"] = {}
+				criteria["overrides"].update(overrides)
 			if alternativeComments:
 				if criteria.get("comment"):
 					criteria["comment"] += "\n\n"
