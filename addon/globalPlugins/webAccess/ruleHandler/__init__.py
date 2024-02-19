@@ -1297,7 +1297,7 @@ class Criteria(baseObject.AutoPropertyObject):
 						"Rule not found: \"{parent}\""
 					).format(rule=self.name, parent=name))
 					return
-				if not exclude and rule.multiple:
+				if not exclude and rule.properties.multiple:
 					if multipleContext is None:
 						multipleContext = True
 				else:
@@ -1329,7 +1329,7 @@ class Criteria(baseObject.AutoPropertyObject):
 		if excludedNodes:
 			kwargs["exclude"] = excludedNodes
 		limit = None
-		if not getattr(self.overrides, "multiple", False):
+		if not getattr(self.rule.properties, "multiple", False):
 			limit = self.index or 1
 
 		index = 0
@@ -1351,7 +1351,7 @@ class Criteria(baseObject.AutoPropertyObject):
 					endOffset=root.offset + root.size
 				) if root is not self.ruleManager.nodeManager.mainNode else None
 				yield self.createResult(node, context, index)
-				if not getattr(self.overrides, "multiple", False) and not multipleContext:
+				if not getattr(self.rule.properties, "multiple", False) and not multipleContext:
 					return
 
 
