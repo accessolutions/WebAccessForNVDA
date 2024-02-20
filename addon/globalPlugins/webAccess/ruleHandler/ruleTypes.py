@@ -42,15 +42,15 @@ ZONE = "zone"
 
 ruleTypeLabels = OrderedDict((
 	# Translators: The label for a rule type.
+	(MARKER, _("Marker")),
+	# Translators: The label for a rule type.
+	(ZONE, _("Zone")),
+	# Translators: The label for a rule type.
 	(PAGE_TITLE_1, _("Page main title")),
 	# Translators: The label for a rule type.
 	(PAGE_TITLE_2, _("Page secondary title")),
 	# Translators: The label for a rule type.
 	(PAGE_TYPE, _("Page type")),
 	# Translators: The label for a rule type.
-	(ZONE, _("Zone")),
-	# Translators: The label for a rule type.
 	(PARENT, _("Parent element")),
-	# Translators: The label for a rule type.
-	(MARKER, _("Marker")),
 ))

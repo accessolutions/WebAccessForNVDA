@@ -204,7 +204,7 @@ class GeneralPanel(ContextualSettingsPanel):
 					self.ruleType.SetSelection(index)
 					break
 		else:
-			self.ruleType.SetSelection(-1)
+			self.ruleType.SetSelection(0)
 
 		self.ruleName.Value = data.get("name", "")
 		self.commentText.Value = data.get("comment", "")
