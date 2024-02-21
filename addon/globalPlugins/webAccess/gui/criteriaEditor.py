@@ -47,6 +47,8 @@ from . import (
 	stripAccelAndColon
 )
 from six import iteritems, text_type
+from ..gui import properties as props
+instanceListPropertiesCrit = props.ListProperties()
 
 EXPR_VALUE = re.compile("(([^!&| ])+( (?=[^!&|]))*)+")
 """
@@ -814,47 +816,48 @@ class CriteriaPanel(ContextualSettingsPanel):
 
 # todo: make this panel
 class OverridesPanel(ContextualSettingsPanel):
+
 	# Translators: The label for a Criteria editor category.
 	title = _("Overrides")
+	# Create an instance of properties calss
+	propertiesListCrit = instanceListPropertiesCrit.getProperties()
 
-	# The semi-column is part of the labels because some localizations
-	# (ie. French) require it to be prepended with one space.
-	FIELDS = OrderedDict((
-# 		# Translator: Multiple results checkbox label for the rule dialog's properties panel.
-# 		("multiple", pgettext("webAccess.ruleProperties", u"&Multiple results")),
-# 		# Translator: Activate form mode checkbox label for the rule dialog's properties panel.
-# 		("formMode", pgettext("webAccess.ruleProperties", u"Activate &form mode")),
-# 		# Translator: Skip page down checkbox label for the rule dialog's properties panel.
-# 		("skip", pgettext("webAccess.ruleProperties", u"S&kip with Page Down")),
-# 		# Translator: Speak rule name checkbox label for the rule dialog's properties panel.
-# 		("sayName", pgettext("webAccess.ruleProperties", u"&Speak rule name")),
+	FIELDS = {
+		# Translator: Multiple results item label for the rule dialog's properties panel.
+		"multiple": _("Multiple results"),
+		# Translator: Activate form mode checkbox label for the rule dialog's properties panel.
+		"formMode": _("Activate form mode"),
+		# Translator: Skip page down checkbox label for the rule dialog's properties panel.
+		"skip": _("Skip with Page Down"),
+		# Translator: Speak rule name checkbox label for the rule dialog's properties panel.
+		"sayName": _("Speak rule name"),
 		# Translator: Custom name input label for the rule dialog's properties panel.
-		("customName", pgettext("webAccess.ruleProperties", "Custom &name:")),
+		"customName": _("Custom name"),
 		# Label depends on rule type)
-		("customValue", None),
-# 		# Translator: Transform select label for the rule dialog's properties panel.
-# 		("mutation", pgettext("webAccess.ruleProperties", u"&Transform:")),
-	))
+		"customValue": None,
+		# Translator: Transform select label for the rule dialog's properties panel.
+		"mutation": _("Transform"),
+	}
 
 	RULE_TYPE_FIELDS = OrderedDict((
-		(ruleTypes.PAGE_TITLE_1, ("customValue",)),
+		(ruleTypes.PAGE_TITLE_1, ("customValue")),
 		(ruleTypes.PAGE_TITLE_2, ("customValue",)),
 		(ruleTypes.ZONE, (
-# 			"formMode",
-# 			"skip",
-# 			"sayName",
+			"formMode",
+			"skip",
+			"sayName",
 			"customName",
 			"customValue",
-# 			"mutation"
+			"mutation"
 		)),
 		(ruleTypes.MARKER, (
-# 			"multiple",
-# 			"formMode",
-# 			"skip",
-# 			"sayName",
+			"multiple",
+			"formMode",
+			"skip",
+			"sayName",
 			"customName",
 			"customValue",
-# 			"mutation"
+			"mutation"
 		)),
 	))
 
@@ -863,10 +866,10 @@ class OverridesPanel(ContextualSettingsPanel):
 		if key == "customValue":
 			if ruleType in (ruleTypes.PAGE_TITLE_1, ruleTypes.PAGE_TITLE_2):
 				# Translator: Field label on the RulePropertiesEditor dialog.
-				return pgettext("webAccess.ruleProperties", "Custom page &title:")
+				return pgettext("webAccess.ruleProperties", "Custom page title")
 			elif ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
 				# Translator: Field label on the RulePropertiesEditor dialog.
-				return pgettext("webAccess.ruleProperties", "Custom messa&ge:")
+				return pgettext("webAccess.ruleProperties", "Custom message")
 		return default
 
 	def makeSettings(self, settingsSizer):
@@ -887,193 +890,82 @@ class OverridesPanel(ContextualSettingsPanel):
 		item = self.noPropertiesLabel = wx.StaticText(self, label=_("No property available for the selected rule type"))
 		item.Hide()
 		hidable["noProperties"] = [item]
-		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
 
-# 		row += 1
-# 		item = self.multipleCheckBox = wx.CheckBox(self, label=self.FIELDS["multiple"])
-# 		item.Hide()
-# 		hidable["multiple"] = [item]
-# 		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
-#
-# 		row += 1
-# 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-# 		item.Show(False)
-# 		hidable["spacers"].append(item)
-#
-# 		row += 1
-# 		item = self.formModeCheckBox = wx.CheckBox(self, label=self.FIELDS["formMode"])
-# 		item.Hide()
-# 		hidable["formMode"] = [item]
-# 		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
-#
-# 		row += 1
-# 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-# 		item.Show(False)
-# 		hidable["spacers"].append(item)
-#
-# 		row += 1
-# 		item = self.skipCheckBox = wx.CheckBox(self, label=self.FIELDS["skip"])
-# 		item.Hide()
-# 		hidable["skip"] = [item]
-# 		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
-#
-# 		row += 1
-# 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-# 		item.Show(False)
-# 		hidable["spacers"].append(item)
-#
-# 		row += 1
-# 		item = self.sayNameCheckBox = wx.CheckBox(self, label=self.FIELDS["sayName"])
-# 		item.Hide()
-# 		hidable["sayName"] = [item]
-# 		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
-#
-# 		row += 1
-# 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-# 		item.Show(False)
-# 		hidable["spacers"].append(item)
+		sizer = wx.GridBagSizer(hgap=5, vgap=5)
+		row = 0
+		# Translators: Displayed when the selected rule type doesn't support any action
+		item = self.noPropertiesLabel = wx.StaticText(self,
+		                                              label=_("No properties available for the selected rule type."))
+		item.Hide()
+		sizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
 
 		row += 1
-		items = hidable["customName"] = []
-		item = self.customNameLabel = wx.StaticText(self, label=self.FIELDS["customName"])
-		item.Hide()
-		items.append(item)
-		gbSizer.Add(item, pos=(row, 0))
-		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-		item.Show(False)
-		items.append(item)
-		item = self.customNameText = wx.TextCtrl(self, size=scale(350, -1))
-		item.Hide()
-		items.append(item)
-		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
+		# Translators: Keyboard shortcut input label for the rule dialog's action panel.
+		item = wx.StaticText(self, label=_("&Properties List"))
+		sizer.Add(item, pos=(row, 0), flag=wx.EXPAND)
 
-		row += 1
-		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-		item.Show(False)
-		hidable["spacers"].append(item)
+		self.listCtrlCrit = wx.ListCtrl(self, size=(650, 300), style=wx.LC_REPORT | wx.BORDER_SUNKEN)
+		self.listCtrlCrit.InsertColumn(0, 'Proerties', width=215)
+		self.listCtrlCrit.InsertColumn(1, 'Value', width=215)
+		self.listCtrlCrit.InsertColumn(2, 'Is Overrided', width=215)
 
-		row += 1
-		items = hidable["customValue"] = []
-		item = self.customValueLabel = wx.StaticText(self, label=self.FIELDS["customValue"] or "")
-		item.Hide()
-		items.append(item)
-		gbSizer.Add(item, pos=(row, 0))
-		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-		item.Show(False)
-		items.append(item)
-		item = self.customValueText = wx.TextCtrl(self, size=scale(350, -1))
-		item.Hide()
-		items.append(item)
-		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
+		# innerGbSizer.Add(self.listCtrl, pos=(0, 0), span=(1, 1), flag=wx.EXPAND)
+		self.toggleBtnCrit = wx.ToggleButton(self, label="", size=(325, 30))
+		self.editableCrit = wx.TextCtrl(self, size=(650, 30))
+		self.choiceCrit = wx.Choice(self, choices=[], size=(325, 30))
 
-# 		row += 1
-# 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-# 		item.Show(False)
-# 		hidable["spacers"].append(item)
-#
-# 		row += 1
-# 		items = hidable["mutation"] = []
-# 		item = self.mutationLabel = wx.StaticText(self, label=self.FIELDS["mutation"])
-# 		item.Hide()
-# 		items.append(item)
-# 		gbSizer.Add(item, pos=(row, 0))
-# 		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-# 		item.Show(False)
-# 		items.append(item)
-# 		item = self.mutationCombo = wx.ComboBox(self, style=wx.CB_READONLY)
-# 		item.Hide()
-# 		items.append(item)
-# 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
+		self.btnAddPropsCrit = wx.Button(self, label=_("&Add"), size=(325, 30))
+		self.btnDelPropsCrit = wx.Button(self, label=_("&Delete"), size=(325, 30))
 
-		gbSizer.AddGrowableCol(2)
+		sizer = wx.GridBagSizer(hgap=5, vgap=5)
+		sizer.Add(self.listCtrlCrit, pos=(1, 0), flag=wx.EXPAND)
+
+		sizeEdit = wx.BoxSizer(wx.HORIZONTAL)
+		sizeEdit.Add(self.editableCrit)
+		sizer.Add(sizeEdit, pos=(2, 0), span=(0, 1), flag=wx.EXPAND)
+
+		sizeBox = wx.BoxSizer(wx.HORIZONTAL)
+		sizeBox.Add(self.toggleBtnCrit)
+		sizeBox.Add(self.choiceCrit, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL)
+		sizer.Add(sizeBox, pos=(3, 0), flag=wx.EXPAND)
+
+		btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
+		btn_sizer.Add(self.btnAddPropsCrit)
+
+		btn_sizer.Add(self.btnDelPropsCrit)
+		sizer.Add(btn_sizer, pos=(4, 0), flag=wx.EXPAND)
+
+		self.SetSizer(sizer)
 
 	def initData(self, context):
 		self.context = context
-		for items in list(self.hidable.values()):
-			for item in items:
-				item.Show(False)
-		if not context:
-			for item in self.hidable["noProperties"]:
-				item.Show()
-			return
-		data = context["data"]["criteria"]["overrides"]
+		from ..gui import properties as p
+		objListCtrlCrit= p.ListControl(
+			self,
+			self.propertiesListCrit,
+			self.listCtrlCrit,
+			self.toggleBtnCrit,
+			self.editableCrit,
+			self.choiceCrit,
+			self.btnAddPropsCrit,
+			self.btnDelPropsCrit,
+			self.context,
+		)
+		data = self.context["data"]["criteria"]["overrides"]
+		for props in self.propertiesListCrit:
+			for key, value in data.items():
+				if props.get_id() == key:
+					props.set_flag(True)
+					props.set_value(value)
+		objListCtrlCrit.onInitUpdateListCtrl()
 
-		ruleType = context["data"]["rule"].get("type")
-		fields = self.RULE_TYPE_FIELDS.get(ruleType, {})
-		hidable = self.hidable
-
-		if not fields:
-			for item in hidable["noProperties"]:
-				item.Show(True)
-				return
-
-		for field in fields:
-			if field in hidable:
-				for item in hidable[field]:
-					item.Show(True)
-
-		for item in hidable["spacers"][:len(fields) - 1]:
-			item.Show(True)
-
-# 		self.multipleCheckBox.Value = data.get("multiple", False)
-# 		self.formModeCheckBox.Value = data.get("formMode", False)
-# 		self.skipCheckBox.Value = data.get("skip", False)
-# 		self.sayNameCheckBox.Value = data.get("sayName", True)
-		self.customNameText.Value = data.get("customName", "")
-		self.customValueLabel.Label = self.getAltFieldLabel(ruleType, "customValue")
-		self.customValueText.Value = data.get("customValue", "")
-
-# 		self.mutationCombo.Clear()
-# 		self.mutationCombo.Append(
-# 			# Translators: The label when there is no control mutation.
-# 			pgettext("webAccess.controlMutation", "<None>"),
-# 			""
-# 		)
-# 		for id in MUTATIONS_BY_RULE_TYPE.get(ruleType, []):
-# 			label = mutationLabels.get(id)
-# 			if label is None:
-# 				log.error("No label for mutation id: {}".format(id))
-# 				label = id
-# 			self.mutationCombo.Append(label, id)
-# 		mutation = data.get("mutation") # if show else None
-# 		if mutation:
-# 			for index in range(1, self.mutationCombo.Count + 1):
-# 				id = self.mutationCombo.GetClientData(index)
-# 				if id == mutation:
-# 					break
-# 			else:
-# 				# Allow to bypass mutation choice by rule type
-# 				label = mutationLabels.get(id)
-# 				if label is None:
-# 					log.warning("No label for mutation id: {}".format(id))
-# 					label = id
-# 				self.mutationCombo.Append(label, id)
-# 				index += 1
-# 		else:
-# 			index = 0
-# 		self.mutationCombo.SetSelection(index)
-
-	def updateData(self, data=None):
-		data = self.context["data"]["criteria"]
-# 		updateOrDrop(data, "multiple", str(self.multipleCheckBox.Value))
-# 		updateOrDrop(data, "formMode", str(self.formModeCheckBox.Value))
-# 		updateOrDrop(data, "skip", str(self.skipCheckBox.Value))
-# 		updateOrDrop(data, "sayName", str(self.sayNameCheckBox.Value))
-		overrides = data["overrides"]
-		updateOrDrop(overrides, "customName", self.customNameText.Value)
-		updateOrDrop(overrides, "customValue", self.customValueText.Value)
-# 		if self.mutationCombo.Selection > 0:
-# 			data["mutation"] = self.mutationCombo.GetClientData(self.mutationCombo.Selection)
+	def update(self):
+		data = self.context["data"]["criteria"]["overrides"]
+		for props in self.propertiesListCrit:
+			updateOrDrop(data, props.get_id(), props.get_value())
 
 	def onSave(self):
-		self.updateData()
-		data = self.context["data"]["rule"]
-		ruleType = data["type"]
-		showedFields = self.RULE_TYPE_FIELDS.get(ruleType, {})
-		for field in list(self.FIELDS.keys()):
-			if field not in showedFields and data.get(field):
-				del data[field]
-
+		self.update()
 
 class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
 

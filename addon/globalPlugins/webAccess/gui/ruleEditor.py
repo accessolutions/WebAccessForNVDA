@@ -51,8 +51,9 @@ from . import (
 	stripAccel,
 	stripAccelAndColon
 )
+from ..gui import properties as props
 
-
+instanceListProperties = props.ListProperties()
 addonHandler.initTranslation()
 
 
@@ -60,7 +61,6 @@ formModeRoles = [
 	controlTypes.ROLE_EDITABLETEXT,
 	controlTypes.ROLE_COMBOBOX,
 ]
-
 
 def getSummary(data):
 	ruleType = data.get("type")
@@ -620,8 +620,100 @@ class ActionsPanel(ContextualSettingsPanel):
 
 
 class PropertiesPanel(ContextualSettingsPanel):
+
 	# Translators: The label for a category in the rule editor
 	title = _("Properties")
+	# Create an instance of properties calss
+	propertiesList = instanceListProperties.getProperties()
+
+	def makeSettings(self, settingsSizer):
+		gbSizer = self.sizer = wx.GridBagSizer()
+		gbSizer.EmptyCellSize = (0, 0)
+		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
+
+		def scale(*args):
+			return tuple([
+				self.scaleSize(arg) if arg > 0 else arg
+				for arg in args
+			])
+
+		sizer = wx.GridBagSizer(hgap=5, vgap=5)
+		row = 0
+		# Translators: Displayed when the selected rule type doesn't support any action
+		item = self.noPropertiesLabel = wx.StaticText(self, label=_("No properties available for the selected rule type."))
+		item.Hide()
+		sizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
+
+		row +=1
+		# Translators: Keyboard shortcut input label for the rule dialog's action panel.
+		item = wx.StaticText(self, label=_("&Properties List"))
+		sizer.Add(item, pos=(row, 0), flag=wx.EXPAND)
+
+		self.listCtrl = wx.ListCtrl(self, size=(650, 300), style=wx.LC_REPORT | wx.BORDER_SUNKEN)
+		self.listCtrl.InsertColumn(0, 'Proerties', width=215)
+		self.listCtrl.InsertColumn(1, 'Value', width=215)
+		self.listCtrl.InsertColumn(2, 'Is Overrided', width=215)
+
+		# innerGbSizer.Add(self.listCtrl, pos=(0, 0), span=(1, 1), flag=wx.EXPAND)
+
+		self.editable = wx.TextCtrl(self, size=(650 , 30))
+		self.toggleBtn = wx.ToggleButton(self, label="", size=(325,30))
+		self.choice = wx.Choice(self, choices=[], size=(325, 30))
+
+		self.btnAddProps = wx.Button(self, label=_("&Add"), size=(325, 30))
+		self.btnDelProps = wx.Button(self, label=_("&Delete"), size=(325, 30))
+
+		sizer = wx.GridBagSizer(hgap=5, vgap=5)
+		sizer.Add(self.listCtrl, pos=(1, 0), flag=wx.EXPAND)
+
+		sizeEdit = wx.BoxSizer(wx.HORIZONTAL)
+		sizeEdit.Add(self.editable)
+		sizer.Add(sizeEdit, pos=(2, 0), span=(0, 1), flag=wx.EXPAND)
+
+		sizeBox = wx.BoxSizer(wx.HORIZONTAL)
+		sizeBox.Add(self.toggleBtn)
+		sizeBox.Add(self.choice, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL)
+		sizer.Add(sizeBox, pos=(3, 0), flag=wx.EXPAND)
+
+		btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
+		btn_sizer.Add(self.btnAddProps)
+
+		btn_sizer.Add(self.btnDelProps)
+		sizer.Add(btn_sizer, pos=(4, 0), flag=wx.EXPAND)
+
+		self.SetSizer(sizer)
+
+	def initData(self, context):
+		self.context = context
+		from  ..gui import properties as p
+
+		objListCtrl = p.ListControl(
+			self,
+			self.propertiesList,
+			self.listCtrl,
+			self.toggleBtn,
+			self.editable,
+			self.choice,
+			self.btnAddProps,
+			self.btnDelProps,
+			self.context
+		)
+		data = self.context["data"]["rule"]["properties"]
+		#ruleType = data.get("type")
+		for props in self.propertiesList:
+			for key, value in data.items():
+				if props.get_id() == key:
+					props.set_flag(True)
+					props.set_value(value)
+		objListCtrl.onInitUpdateListCtrl()
+
+	def update(self):
+		data = self.context["data"]["rule"]["properties"]
+		for props in self.propertiesList:
+			updateOrDrop(data, props.get_id(), props.get_value())
+
+	def onSave(self):
+		self.update()
 
 	# The semi-column is part of the labels because some localizations
 	# (ie. French) require it to be prepended with one space.
@@ -675,136 +767,19 @@ class PropertiesPanel(ContextualSettingsPanel):
 				return pgettext("webAccess.ruleProperties", "Custom messa&ge:")
 		return default
 
-	def makeSettings(self, settingsSizer):
-		gbSizer = wx.GridBagSizer()
-		gbSizer.EmptyCellSize = (0, 0)
-		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
 
-		def scale(*args):
-			return tuple([
-				self.scaleSize(arg) if arg > 0 else arg
-				for arg in args
-			])
 
-		hidable = self.hidable = {"spacers": []}
-
-		row = 0
-		# Translators: Displayed when the selected rule type doesn't support any property
-		item = self.noPropertiesLabel = wx.StaticText(self, label=_("No property available for the selected rule type"))
-		item.Hide()
-		hidable["noProperties"] = [item]
-		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
-
-		row += 1
-		item = self.multipleCheckBox = wx.CheckBox(self, label=self.FIELDS["multiple"])
-		item.Hide()
-		hidable["multiple"] = [item]
-		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
-
-		row += 1
-		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-		item.Show(False)
-		hidable["spacers"].append(item)
-
-		row += 1
-		item = self.formModeCheckBox = wx.CheckBox(self, label=self.FIELDS["formMode"])
-		item.Hide()
-		hidable["formMode"] = [item]
-		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
-
-		row += 1
-		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-		item.Show(False)
-		hidable["spacers"].append(item)
-
-		row += 1
-		item = self.skipCheckBox = wx.CheckBox(self, label=self.FIELDS["skip"])
-		item.Hide()
-		hidable["skip"] = [item]
-		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
-
-		row += 1
-		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-		item.Show(False)
-		hidable["spacers"].append(item)
-
-		row += 1
-		item = self.sayNameCheckBox = wx.CheckBox(self, label=self.FIELDS["sayName"])
-		item.Hide()
-		hidable["sayName"] = [item]
-		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
-
-		row += 1
-		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-		item.Show(False)
-		hidable["spacers"].append(item)
-
-		row += 1
-		items = hidable["customName"] = []
-		item = self.customNameLabel = wx.StaticText(self, label=self.FIELDS["customName"])
-		item.Hide()
-		items.append(item)
-		gbSizer.Add(item, pos=(row, 0))
-		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-		item.Show(False)
-		items.append(item)
-		item = self.customNameText = wx.TextCtrl(self, size=scale(350, -1))
-		item.Hide()
-		items.append(item)
-		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-
-		row += 1
-		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-		item.Show(False)
-		hidable["spacers"].append(item)
-
-		row += 1
-		items = hidable["customValue"] = []
-		item = self.customValueLabel = wx.StaticText(self, label=self.FIELDS["customValue"] or "")
-		item.Hide()
-		items.append(item)
-		gbSizer.Add(item, pos=(row, 0))
-		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-		item.Show(False)
-		items.append(item)
-		item = self.customValueText = wx.TextCtrl(self, size=scale(350, -1))
-		item.Hide()
-		items.append(item)
-		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-
-		row += 1
-		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-		item.Show(False)
-		hidable["spacers"].append(item)
-
-		row += 1
-		items = hidable["mutation"] = []
-		item = self.mutationLabel = wx.StaticText(self, label=self.FIELDS["mutation"])
-		item.Hide()
-		items.append(item)
-		gbSizer.Add(item, pos=(row, 0))
-		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-		item.Show(False)
-		items.append(item)
-		item = self.mutationCombo = wx.ComboBox(self, style=wx.CB_READONLY)
-		item.Hide()
-		items.append(item)
-		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-
-		gbSizer.AddGrowableCol(2)
-
-	def initData(self, context):
+	"""def initData(self, context):
 		self.context = context
 		data = self.context["data"]["rule"]
 		ruleType = data.get("type")
-		properties = data.get("properties", {})
-		self.multipleCheckBox.Value = properties.get("multiple", False)
-		self.formModeCheckBox.Value = properties.get("formMode", False)
-		self.skipCheckBox.Value = properties.get("skip", False)
-		self.sayNameCheckBox.Value = properties.get("sayName", True)
-		self.customNameText.Value = properties.get("customName", "") or ""
+		self.multipleCheckBox.Value = data.get("multiple", False)
+		self.formModeCheckBox.Value = data.get("formMode", False)
+		self.skipCheckBox.Value = data.get("skip", False)
+		self.sayNameCheckBox.Value = data.get("sayName", True)
+		self.customNameText.Value = data.get("customName", "")
 		self.customValueLabel.Label = self.getAltFieldLabel(ruleType, "customValue")
-		self.customValueText.Value = properties.get("customValue", "") or ""
+		self.customValueText.Value = data.get("customValue", "")
 
 		self.mutationCombo.Clear()
 		self.mutationCombo.Append(
@@ -818,7 +793,7 @@ class PropertiesPanel(ContextualSettingsPanel):
 				log.error("No label for mutation id: {}".format(id_))
 				label = id_
 			self.mutationCombo.Append(label, id_)
-		mutation = properties.get("mutation")
+		mutation = data.get("mutation")
 		if mutation:
 			for index in range(1, self.mutationCombo.Count + 1):
 				id_ = self.mutationCombo.GetClientData(index)
@@ -843,23 +818,21 @@ class PropertiesPanel(ContextualSettingsPanel):
 			for item in items:
 				item.Show(False)
 		data = self.context["data"]["rule"]
-		properties = data.get("properties", {})
-		updateOrDrop(properties, "multiple", self.multipleCheckBox.Value)
-		updateOrDrop(properties, "formMode", self.formModeCheckBox.Value)
-		updateOrDrop(properties, "skip", self.skipCheckBox.Value)
-		updateOrDrop(properties, "sayName", self.sayNameCheckBox.Value)
-		updateOrDrop(properties, "customName", self.customNameText.Value)
-		updateOrDrop(properties, "customValue", self.customValueText.Value)
+		updateOrDrop(data, "multiple", self.multipleCheckBox.Value)
+		updateOrDrop(data, "formMode", self.formModeCheckBox.Value)
+		updateOrDrop(data, "skip", self.skipCheckBox.Value)
+		updateOrDrop(data, "sayName", self.sayNameCheckBox.Value)
+		updateOrDrop(data, "customName", self.customNameText.Value)
+		updateOrDrop(data, "customValue", self.customValueText.Value)
 		if self.mutationCombo.Selection > 0:
-			properties["mutation"] = self.mutationCombo.GetClientData(self.mutationCombo.Selection)
+			data["mutation"] = self.mutationCombo.GetClientData(self.mutationCombo.Selection)
 		else:
 			data.pop("mutation", None)
 		ruleType = data.get("type")
 		showedFields = self.RULE_TYPE_FIELDS.get(ruleType, {})
 		for field in list(self.FIELDS.keys()):
-			if field not in showedFields and properties.get(field):
-				del properties[field]
-		data["properties"] = properties
+			if field not in showedFields and data.get(field):
+				del data[field]
 
 		ruleType = data.get("type")
 		fields = self.RULE_TYPE_FIELDS.get(ruleType, {})
@@ -878,22 +851,20 @@ class PropertiesPanel(ContextualSettingsPanel):
 		for item in hidable["spacers"][:len(fields) - 1]:
 			item.Show(True)
 
-		properties = data.get("properties", {})
-		self.multipleCheckBox.Value = properties.get("multiple", False)
-		self.formModeCheckBox.Value = properties.get("formMode", False)
-		self.skipCheckBox.Value = properties.get("skip", False)
-		self.sayNameCheckBox.Value = properties.get("sayName", True)
-		self.customNameText.Value = properties.get("customName", "")
+		self.multipleCheckBox.Value = data.get("multiple", False)
+		self.formModeCheckBox.Value = data.get("formMode", False)
+		self.skipCheckBox.Value = data.get("skip", False)
+		self.sayNameCheckBox.Value = data.get("sayName", True)
+		self.customNameText.Value = data.get("customName", "")
 		self.customValueLabel.Label = self.getAltFieldLabel(ruleType, "customValue")
-		self.customValueText.Value = properties .get("customValue", "") or ""
+		self.customValueText.Value = data.get("customValue", "")
 
 	def onPanelDeactivated(self):
 		self.updateData()
 		super(PropertiesPanel, self).onPanelDeactivated()
 
 	def onSave(self):
-		self.updateData()
-
+		self.updateData()"""
 
 class RuleEditorDialog(ContextualMultiCategorySettingsDialog):
 
