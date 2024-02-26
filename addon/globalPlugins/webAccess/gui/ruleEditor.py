@@ -650,8 +650,8 @@ class PropertiesPanel(ContextualSettingsPanel):
 		self.listCtrl.InsertColumn(1, 'Value', width=322)
 		#self.listCtrl.InsertColumn(2, 'Is Overrided', width=215)
 		self.hidable.append(self.listCtrl)
+		row += 1
 
-		# innerGbSizer.Add(self.listCtrl, pos=(0, 0), span=(1, 1), flag=wx.EXPAND)
 		self.editable = wx.TextCtrl(self, size=(650 , 30))
 		self.hidable.append(self.editable)
 
@@ -716,6 +716,8 @@ class PropertiesPanel(ContextualSettingsPanel):
 
 	def setPropertiesData(self, context, objCtrl):
 		self.showItems(display=True)
+		self.btnAddProps.Hide()
+		self.btnDelProps.Hide()
 		data = context["data"]["rule"]["properties"]
 		for props in self.propertiesList:
 			for key, value in data.items():

@@ -104,9 +104,8 @@ class ListControl(object):
 		self.currentSelItem = None
 		self.mutationOptions = []
 		self.autoActionOptions = []
-		self.formmodeOptions = ("", "unchanged", "Enable", "disable")
 
-		#Instanciation of increment values for wx.choice and updates the correspondant wx.listCtrl
+		# Instanciation of increment the values for wx.choice and updates the correspondant wx.listCtrl
 		self.objIncAutoAct = IncrementValue()
 		self.objIncMut = IncrementValue()
 		self.objIncFormMde = IncrementValue()
@@ -128,8 +127,10 @@ class ListControl(object):
 			style=wx.OK | wx.ICON_EXCLAMATION
 		)
 
+	# Translator: State properties boolean "Enable"
+	# Translator: State properties boolean "Disable"
 	def interpretBoolVal(self, val):
-		ret = lambda x: 'Actif' if x == True else ('Inactif' if x == False else x)
+		ret = lambda x: _("Enable") if x == True else (_("Disable") if x == False else x)
 		retVal = lambda x: ret(x) if type(x) == bool else ("vide" if x == None else x)
 		return retVal(val)
 
@@ -280,10 +281,6 @@ class ListControl(object):
 			ruleType = data.get("type")
 			choiceItem.Clear()
 			[choiceItem.Append(mutationLabels.get(i)) for i in MUTATIONS_BY_RULE_TYPE.get(ruleType, [])]
-		elif id == "formMode":
-			choiceItem.Clear()
-			lst = lambda x: choiceItem.Append(x)
-			lst(self.formmodeOptions)
 		elif id == "autoAction":
 			choiceItem.Clear()
 			list(map(lambda x:choiceItem.Append(x[0]), self.autoActionOptions))
@@ -348,11 +345,8 @@ class ListControl(object):
 							log.error("No label for mutation id: {}".format(id_))
 						self.mutationOptions.append(label)
 					return self.mutationOptions
-				elif p.get_id() == "formMode":
-					return self.formmodeOptions
 				elif p.get_id() == "autoAction":
 					return  [i[0] for i in self.autoActionOptions]
-
 
 	def updateChoiceByList(self, listChoice, id):
 		if id == "autoAction":
@@ -361,9 +355,6 @@ class ListControl(object):
 		elif id == "mutation":
 			self.objIncMut.setListChoice(listChoice)
 			return self.objIncMut.getIncrChoice()
-		elif id == "formMode":
-			self.objIncFormMde.setListChoice(listChoice)
-			return self.objIncFormMde.getIncrChoice()
 
 	def getMutationIdByValue(self, value):
 		data = self.context["data"]["rule"]
@@ -629,7 +620,7 @@ class ListProperties:
 		self.__propsMultiple = ToggleProperty("multiple", "Résultats Multiples", False, False)
 		self.__propsCustomName = EditableProperty("customName", "Nom personnalisé", False)
 		self.__propscustomValue = EditableProperty("customValue", "Message personnalisé", False)
-		self.__propsFormMode = SingleChoiceProperty("formMode", "Activer le mode formulaire", False, "")
+		self.__propsFormMode = ToggleProperty("formMode", "Activer le mode formulaire", False, False)
 		self.__propsMutation = SingleChoiceProperty("mutation", "Transformation", False, "")
 
 		self.setProperties()
