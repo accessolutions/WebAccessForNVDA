@@ -876,46 +876,42 @@ class OverridesPanel(ContextualSettingsPanel):
 		gbSizer = wx.GridBagSizer()
 		gbSizer.EmptyCellSize = (0, 0)
 		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
+		self.hidable = []
 
-		def scale(*args):
-			return tuple([
-				self.scaleSize(arg) if arg > 0 else arg
-				for arg in args
-			])
-
-		hidable = self.hidable = {"spacers": []}
-
-		row = 0
 		# Translators: Displayed when the selected rule type doesn't support any property
-		item = self.noPropertiesLabel = wx.StaticText(self, label=_("No property available for the selected rule type"))
-		item.Hide()
-		hidable["noProperties"] = [item]
-
 		sizer = wx.GridBagSizer(hgap=5, vgap=5)
 		row = 0
 		# Translators: Displayed when the selected rule type doesn't support any action
-		item = self.noPropertiesLabel = wx.StaticText(self,
-		                                              label=_("No properties available for the selected rule type."))
-		item.Hide()
-		sizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
+		self.noPropertiesLabel = wx.StaticText(self, label=_("No properties available for the selected rule type."))
+		sizer.Add(self.noPropertiesLabel, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
 
 		row += 1
 		# Translators: Keyboard shortcut input label for the rule dialog's action panel.
-		item = wx.StaticText(self, label=_("&Properties List"))
-		sizer.Add(item, pos=(row, 0), flag=wx.EXPAND)
+		self.propertiesLabel = wx.StaticText(self, label=_("Overrides properties criteria"))
+		sizer.Add(self.propertiesLabel, pos=(row, 0), flag=wx.EXPAND)
+		self.hidable.append(self.propertiesLabel)
 
 		self.listCtrlCrit = wx.ListCtrl(self, size=(650, 300), style=wx.LC_REPORT | wx.BORDER_SUNKEN)
-		self.listCtrlCrit.InsertColumn(0, 'Proerties', width=215)
+		self.listCtrlCrit.InsertColumn(0, 'Properties', width=215)
 		self.listCtrlCrit.InsertColumn(1, 'Value', width=215)
-		self.listCtrlCrit.InsertColumn(2, 'Is Overrided', width=215)
+		self.listCtrlCrit.InsertColumn(2, 'Overrided rule props.', width=215)
+		self.hidable.append(self.listCtrlCrit)
 
 		# innerGbSizer.Add(self.listCtrl, pos=(0, 0), span=(1, 1), flag=wx.EXPAND)
 		self.toggleBtnCrit = wx.ToggleButton(self, label="", size=(325, 30))
+		self.hidable.append(self.toggleBtnCrit)
+
 		self.editableCrit = wx.TextCtrl(self, size=(650, 30))
+		self.hidable.append(self.editableCrit)
+
 		self.choiceCrit = wx.Choice(self, choices=[], size=(325, 30))
+		self.hidable.append(self.choiceCrit)
 
 		self.btnAddPropsCrit = wx.Button(self, label=_("&Add"), size=(325, 30))
+		self.hidable.append(self.btnAddPropsCrit)
+
 		self.btnDelPropsCrit = wx.Button(self, label=_("&Delete"), size=(325, 30))
+		self.hidable.append(self.btnDelPropsCrit)
 
 		sizer = wx.GridBagSizer(hgap=5, vgap=5)
 		sizer.Add(self.listCtrlCrit, pos=(1, 0), flag=wx.EXPAND)
@@ -951,21 +947,51 @@ class OverridesPanel(ContextualSettingsPanel):
 			self.btnDelPropsCrit,
 			self.context,
 		)
-		data = self.context["data"]["criteria"]["overrides"]
+		dataRule = self.context["data"]["rule"]
+		rules = dataRule.get("type")
+		dataTypeCrit = self.context["data"]["criteria"]
+		typeOverride = dataTypeCrit.get("overrides")
+		if rules in (ruleTypes.ZONE, ruleTypes.MARKER):
+			if typeOverride is not None:
+				self.setPropertiesData(self.context, objListCtrlCrit)
+		else:
+			self.showItems(display=False)
+
+	def setPropertiesData(self, context, objCtrl):
+		self.showItems(display=True)
+		data = context["data"]["criteria"]["overrides"]
 		for props in self.propertiesListCrit:
 			for key, value in data.items():
 				if props.get_id() == key:
 					props.set_flag(True)
 					props.set_value(value)
-		objListCtrlCrit.onInitUpdateListCtrl()
+		objCtrl.onInitUpdateListCtrl()
 
-	def update(self):
-		data = self.context["data"]["criteria"]["overrides"]
-		for props in self.propertiesListCrit:
-			updateOrDrop(data, props.get_id(), props.get_value())
+	def updateData(self, data = None):
+		dataRule = self.context["data"]["rule"]
+		rules = dataRule.get("type")
+		dataCrit = self.context["data"]["criteria"]
+		typeOverride = dataCrit.get("overrides")
+		if rules in (ruleTypes.ZONE, ruleTypes.MARKER):
+			if typeOverride is not None:
+				data = dataCrit["overrides"]
+				for props in self.propertiesListCrit:
+					updateOrDrop(data, props.get_id(), props.get_value())
+		else:
+			self.showItems(display=False)
+
+	def showItems(self, display= False):
+		if display:
+			for item in self.hidable:
+				item.Show()
+			self.noPropertiesLabel.Hide()
+		else:
+			for item in self.hidable:
+				item.Hide()
+			self.noPropertiesLabel.Show()
 
 	def onSave(self):
-		self.update()
+		self.updateData()
 
 class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
 

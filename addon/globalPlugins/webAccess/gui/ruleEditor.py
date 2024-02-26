@@ -611,7 +611,7 @@ class ActionsPanel(ContextualSettingsPanel):
 		if ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
 			data["gestures"] = self.gestureMapValue
 			autoAction = self.autoActionList.GetClientData(self.autoActionList.Selection)
-			updateOrDrop(data["properties"], "autoAction", autoAction)
+			#updateOrDrop(data["properties"], "autoAction", autoAction)
 		else:
 			if data.get("gestures"):
 				del data["gestures"]
@@ -631,37 +631,41 @@ class PropertiesPanel(ContextualSettingsPanel):
 		gbSizer.EmptyCellSize = (0, 0)
 		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
 
-		def scale(*args):
-			return tuple([
-				self.scaleSize(arg) if arg > 0 else arg
-				for arg in args
-			])
+		self.hidable =  []
 
 		sizer = wx.GridBagSizer(hgap=5, vgap=5)
 		row = 0
 		# Translators: Displayed when the selected rule type doesn't support any action
-		item = self.noPropertiesLabel = wx.StaticText(self, label=_("No properties available for the selected rule type."))
-		item.Hide()
-		sizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
+		self.noPropertiesLabel = wx.StaticText(self, label=_("No properties available for the selected rule type."))
+		sizer.Add(self.noPropertiesLabel, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
 
 		row +=1
 		# Translators: Keyboard shortcut input label for the rule dialog's action panel.
-		item = wx.StaticText(self, label=_("&Properties List"))
-		sizer.Add(item, pos=(row, 0), flag=wx.EXPAND)
+		self.propertiesLabel = wx.StaticText(self, label=_("&Properties List"))
+		sizer.Add(self.propertiesLabel, pos=(row, 0), flag=wx.EXPAND)
+		self.hidable.append(self.propertiesLabel)
 
 		self.listCtrl = wx.ListCtrl(self, size=(650, 300), style=wx.LC_REPORT | wx.BORDER_SUNKEN)
-		self.listCtrl.InsertColumn(0, 'Proerties', width=215)
-		self.listCtrl.InsertColumn(1, 'Value', width=215)
-		self.listCtrl.InsertColumn(2, 'Is Overrided', width=215)
+		self.listCtrl.InsertColumn(0, 'Proerties', width=322)
+		self.listCtrl.InsertColumn(1, 'Value', width=322)
+		#self.listCtrl.InsertColumn(2, 'Is Overrided', width=215)
+		self.hidable.append(self.listCtrl)
 
 		# innerGbSizer.Add(self.listCtrl, pos=(0, 0), span=(1, 1), flag=wx.EXPAND)
-
 		self.editable = wx.TextCtrl(self, size=(650 , 30))
+		self.hidable.append(self.editable)
+
 		self.toggleBtn = wx.ToggleButton(self, label="", size=(325,30))
+		self.hidable.append(self.toggleBtn)
+
 		self.choice = wx.Choice(self, choices=[], size=(325, 30))
+		self.hidable.append(self.choice)
 
 		self.btnAddProps = wx.Button(self, label=_("&Add"), size=(325, 30))
+		self.hidable.append(self.btnAddProps)
+
 		self.btnDelProps = wx.Button(self, label=_("&Delete"), size=(325, 30))
+		self.hidable.append(self.btnDelProps)
 
 		sizer = wx.GridBagSizer(hgap=5, vgap=5)
 		sizer.Add(self.listCtrl, pos=(1, 0), flag=wx.EXPAND)
@@ -686,7 +690,6 @@ class PropertiesPanel(ContextualSettingsPanel):
 	def initData(self, context):
 		self.context = context
 		from  ..gui import properties as p
-
 		objListCtrl = p.ListControl(
 			self,
 			self.propertiesList,
@@ -698,22 +701,51 @@ class PropertiesPanel(ContextualSettingsPanel):
 			self.btnDelProps,
 			self.context
 		)
-		data = self.context["data"]["rule"]["properties"]
-		#ruleType = data.get("type")
+		dataRule= self.context["data"]["rule"]
+		ruleType = dataRule.get("type")
+		ruleProps = dataRule.get("properties")
+		if ruleType is not None and ruleProps is not None:
+			if ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
+				self.setPropertiesData(self.context, objListCtrl)
+			else:
+				self.showItems(display=False)
+		else:
+			for item in self.hidable:
+				item.Hide()
+			self.noPropertiesLabel.Show()
+
+	def setPropertiesData(self, context, objCtrl):
+		self.showItems(display=True)
+		data = context["data"]["rule"]["properties"]
 		for props in self.propertiesList:
 			for key, value in data.items():
 				if props.get_id() == key:
 					props.set_flag(True)
 					props.set_value(value)
-		objListCtrl.onInitUpdateListCtrl()
+		objCtrl.onInitUpdateListCtrl()
 
-	def update(self):
-		data = self.context["data"]["rule"]["properties"]
-		for props in self.propertiesList:
-			updateOrDrop(data, props.get_id(), props.get_value())
+	def updateData(self, data = None):
+		dataType = self.context["data"]["rule"]
+		ruleType = dataType.get("type")
+		ruleProps = dataType.get("properties")
+		if ruleType is not None and ruleProps is not None:
+			if ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
+				data = self.context["data"]["rule"]["properties"]
+				for props in self.propertiesList:
+					updateOrDrop(data, props.get_id(), props.get_value())
+
+	def showItems(self, display= False):
+		if display:
+			for item in self.hidable:
+				item.Show()
+			self.noPropertiesLabel.Hide()
+		else:
+			for item in self.hidable:
+				item.Hide()
+			self.noPropertiesLabel.Show()
 
 	def onSave(self):
-		self.update()
+		self.updateData()
 
 	# The semi-column is part of the labels because some localizations
 	# (ie. French) require it to be prepended with one space.
@@ -766,105 +798,6 @@ class PropertiesPanel(ContextualSettingsPanel):
 				# Translator: Field label on the RulePropertiesEditor dialog.
 				return pgettext("webAccess.ruleProperties", "Custom messa&ge:")
 		return default
-
-
-
-	"""def initData(self, context):
-		self.context = context
-		data = self.context["data"]["rule"]
-		ruleType = data.get("type")
-		self.multipleCheckBox.Value = data.get("multiple", False)
-		self.formModeCheckBox.Value = data.get("formMode", False)
-		self.skipCheckBox.Value = data.get("skip", False)
-		self.sayNameCheckBox.Value = data.get("sayName", True)
-		self.customNameText.Value = data.get("customName", "")
-		self.customValueLabel.Label = self.getAltFieldLabel(ruleType, "customValue")
-		self.customValueText.Value = data.get("customValue", "")
-
-		self.mutationCombo.Clear()
-		self.mutationCombo.Append(
-			# Translators: The label when there is no control mutation.
-			pgettext("webAccess.controlMutation", "<None>"),
-			""
-		)
-		for id_ in MUTATIONS_BY_RULE_TYPE.get(ruleType, []):
-			label = mutationLabels.get(id_)
-			if label is None:
-				log.error("No label for mutation id: {}".format(id_))
-				label = id_
-			self.mutationCombo.Append(label, id_)
-		mutation = data.get("mutation")
-		if mutation:
-			for index in range(1, self.mutationCombo.Count + 1):
-				id_ = self.mutationCombo.GetClientData(index)
-				if id_ == mutation:
-					break
-			else:
-				# Allow to bypass mutation choice by rule type
-				label = mutationLabels.get(id_)
-				if label is None:
-					log.warning("No label for mutation id: {}".format(id_))
-					label = id_
-				self.mutationCombo.Append(label, id_)
-				index += 1
-		else:
-			index = 0
-		self.mutationCombo.SetSelection(index)
-
-		self.updateData()
-
-	def updateData(self, data=None):
-		for items in list(self.hidable.values()):
-			for item in items:
-				item.Show(False)
-		data = self.context["data"]["rule"]
-		updateOrDrop(data, "multiple", self.multipleCheckBox.Value)
-		updateOrDrop(data, "formMode", self.formModeCheckBox.Value)
-		updateOrDrop(data, "skip", self.skipCheckBox.Value)
-		updateOrDrop(data, "sayName", self.sayNameCheckBox.Value)
-		updateOrDrop(data, "customName", self.customNameText.Value)
-		updateOrDrop(data, "customValue", self.customValueText.Value)
-		if self.mutationCombo.Selection > 0:
-			data["mutation"] = self.mutationCombo.GetClientData(self.mutationCombo.Selection)
-		else:
-			data.pop("mutation", None)
-		ruleType = data.get("type")
-		showedFields = self.RULE_TYPE_FIELDS.get(ruleType, {})
-		for field in list(self.FIELDS.keys()):
-			if field not in showedFields and data.get(field):
-				del data[field]
-
-		ruleType = data.get("type")
-		fields = self.RULE_TYPE_FIELDS.get(ruleType, {})
-		hidable = self.hidable
-
-		if not fields:
-			for item in hidable["noProperties"]:
-				item.Show(True)
-				return
-
-		for field in fields:
-			if field in hidable:
-				for item in hidable[field]:
-					item.Show(True)
-
-		for item in hidable["spacers"][:len(fields) - 1]:
-			item.Show(True)
-
-		self.multipleCheckBox.Value = data.get("multiple", False)
-		self.formModeCheckBox.Value = data.get("formMode", False)
-		self.skipCheckBox.Value = data.get("skip", False)
-		self.sayNameCheckBox.Value = data.get("sayName", True)
-		self.customNameText.Value = data.get("customName", "")
-		self.customValueLabel.Label = self.getAltFieldLabel(ruleType, "customValue")
-		self.customValueText.Value = data.get("customValue", "")
-
-	def onPanelDeactivated(self):
-		self.updateData()
-		super(PropertiesPanel, self).onPanelDeactivated()
-
-	def onSave(self):
-		self.updateData()"""
 
 class RuleEditorDialog(ContextualMultiCategorySettingsDialog):
 

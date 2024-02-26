@@ -25,8 +25,6 @@ from ..utils import updateOrDrop
 from collections import OrderedDict, namedtuple
 import  ui
 
-mutation_options = ("","heading.1", "heading.2", "heading.3", "labelled")
-formmode_options = ("","Inchangé", "Activé", "Désactivé")
 
 FIELDS = OrderedDict((
 		# Translator: Multiple results checkbox label for the rule dialog's properties panel.
@@ -49,6 +47,7 @@ RULE_TYPE_FIELDS = OrderedDict((
 	(ruleTypes.PAGE_TITLE_1, ("customValue",)),
 	(ruleTypes.PAGE_TITLE_2, ("customValue",)),
 	(ruleTypes.ZONE, (
+		"autoAction"
 		"formMode",
 		"skip",
 		"sayName",
@@ -57,6 +56,7 @@ RULE_TYPE_FIELDS = OrderedDict((
 		"mutation"
 	)),
 	(ruleTypes.MARKER, (
+		"autoAction"
 		"multiple",
 		"formMode",
 		"skip",
@@ -77,11 +77,10 @@ class ListControl(object):
 			self,
 	        *args
 	):
-
+		# wx.List control elements from client side
 		super(ListControl, self).__init__()
 		self.propsPanel = args[0]
 		self.propertiesList = args[1]
-		log.info("======================================= properties list==============> {}".format(self.propertiesList))
 		self.listCtrl = args[2]
 		self.toggleBtn = args[3]
 		self.editable = args[4]
@@ -90,19 +89,27 @@ class ListControl(object):
 		self.btnDelProps = args[7]
 		self.context = args[8]
 
+		# wx.List control event binding
 		self.listCtrl.Bind(wx.EVT_LIST_ITEM_SELECTED, self.onItemSelListCtrl)
 		self.listCtrl.Bind(wx.EVT_KEY_DOWN, self.onKeyPress)
 		self.toggleBtn.Bind(wx.EVT_TOGGLEBUTTON, self.updateValueEvtToggle)
-
 		self.editable.Bind(wx.EVT_TEXT, self.updateValueEvtEdit)
-
 		self.choice.Bind(wx.EVT_CHOICE, self.updateValueEvtChoice)
-
 		self.btnAddProps.Bind(wx.EVT_BUTTON, self.onAddProperties)
 		self.btnDelProps.Bind(wx.EVT_BUTTON, self.onDeleteProperties)
+
+		#Local variables
 		self.index = 0
 		self.incr = 0
 		self.currentSelItem = None
+		self.mutationOptions = []
+		self.autoActionOptions = []
+		self.formmodeOptions = ("", "unchanged", "Enable", "disable")
+
+		#Instanciation of increment values for wx.choice and updates the correspondant wx.listCtrl
+		self.objIncAutoAct = IncrementValue()
+		self.objIncMut = IncrementValue()
+		self.objIncFormMde = IncrementValue()
 		self.init()
 
 	def init(self):
@@ -110,22 +117,53 @@ class ListControl(object):
 		self.editable.Disable()
 		self.choice.Disable()
 		self.updateBtnState()
+		self.getAutoActions()
+
+	def messageBox(self, message, caption):
+		gui.messageBox(
+			# Translators: The text of a generic error message dialog
+			message=_("{}".format(message)),
+			# Translators: The title of an error message dialog
+			caption=_("{}".format(caption)),
+			style=wx.OK | wx.ICON_EXCLAMATION
+		)
 
 	def interpretBoolVal(self, val):
 		ret = lambda x: 'Actif' if x == True else ('Inactif' if x == False else x)
 		retVal = lambda x: ret(x) if type(x) == bool else ("vide" if x == None else x)
 		return retVal(val)
 
+	def updatedValues(self, val, id):
+		if id == "autoAction" and val is not None:
+			retAction = lambda targetval: next((t[0] for t in [x for x in self.autoActionOptions if x[1] == targetval]), None)
+			return retAction(val)
+		elif id == "mutation" and val is not None:
+			ret = self.getMutationValueById(val)
+			retMut = "Error" if val is None or type(bool) else ret
+			return retMut
+		elif (type(val) == bool):
+			return self.interpretBoolVal(val)
+		elif val == None:
+			return "vide"
+		else:
+			return val
+
 	def onInitUpdateListCtrl(self):
 		self.listCtrl.DeleteAllItems()
+		clsInstance = self.propsPanel.__class__.__name__
 		for p in self.propertiesList:
 			if p.get_flag():
+				val = self.updatedValues(p.get_value(), p.get_id())
 				self.listCtrl.InsertStringItem(self.index, p.get_displayName())
-				self.listCtrl.SetStringItem(self.index, 1, self.interpretBoolVal(p.get_value()))
-				self.listCtrl.SetStringItem(self.index, 2, "False")
+				self.listCtrl.SetStringItem(self.index, 1, val)
+				if clsInstance == "OverridesPanel":
+					self.listCtrl.SetStringItem(self.index, 2, self.isOverrided(p.get_id()))
 				self.index += 1
 
 	def onAddProperties(self, evt):
+		if self.listCtrl.GetItemCount() == len(self.propertiesList):
+			self.messageBox(message="La liste est complète", caption= "Properties rule editor")
+			return
 		if showPropsDialog(self.context, self.propertiesList):
 			self.appendToList()
 
@@ -148,16 +186,27 @@ class ListControl(object):
 						p.set_value("")
 					break
 
-
 	def appendToList(self):
+		clsInstance = self.propsPanel.__class__.__name__
 		val = AppendListCtrl.lst.pop()
 		obj=self.getPropsObj(val)
 		self.listCtrl.InsertStringItem(self.index, obj.get_displayName())
 		self.listCtrl.SetStringItem(self.index, 1, self.interpretBoolVal(obj.get_value()))
-		self.listCtrl.SetStringItem(self.index, 2, "False")
+		if clsInstance == "OverridesPanel":
+			self.listCtrl.SetStringItem(self.index, 2, self.isOverrided(obj.getId()))
 		self.index += 1
-		#self.listCtrl.SetItemState(self.index+1,  wx.LIST_STATE_FOCUSED, wx.LIST_STATE_SELECTED | wx.LIST_STATE_FOCUSED)
 		self.listCtrl.SetFocus()
+
+	def isOverrided(self, idProps):
+		dataRule = self.context["data"]["rule"]
+		ruleType = dataRule.get("type")
+		ruleProps = dataRule.get("properties")
+
+		if ruleType is not None and ruleProps is not None:
+			if ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
+				for key, value in list(ruleProps.items()):
+					if idProps == key:
+						return self.updatedValues(value, idProps)
 
 	def getPropsObj(self, val):
 		for p in self.propertiesList:
@@ -187,67 +236,57 @@ class ListControl(object):
 				column_values.append(column_value)
 			return  column_values
 
-	def onEvent(self, evt):
-		pass
-
 	def onItemSelListCtrl(self, evt):
 		self.currentSelItem = evt.GetItem()
 		listItem = self.getItemSelRow()
 		for p in self.propertiesList:
+			if not listItem[0] == p.get_displayName():
+				continue
 			if isinstance(p, ToggleProperty):
-				if listItem[0] == p.get_displayName():
-					self.choice.Disable()
-					self.editable.Disable()
-					self.toggleBtn.Enable()
-					self.toggleBtn.SetLabel("")
-					self.toggleBtn.SetLabel(p.get_displayName())
-					val = p.get_value()
-					if val:
-						self.toggleBtn.SetValue(True)
-						return
-					else:
-						self.toggleBtn.SetValue(False)
-						return
-			if isinstance(p, SingleChoiceProperty):
-				if listItem[0] == p.get_displayName():
-					self.updateChoices(self.choice, p.get_id())
-					self.toggleBtn.Disable()
-					self.toggleBtn.SetLabel("")
-					self.editable.Disable()
-					self.choice.Enable()
-					self.choice.id = p.get_value()
-					if p.get_value() is not None:
-						n = self.choice.FindString(p.get_value(), False)
-						if n!=-1:
-							self.choice.SetSelection(n)
-							return
-			if isinstance(p, EditableProperty):
-				if listItem[0] == p.get_displayName():
-					self.choice.Disable()
-					self.toggleBtn.Disable()
-					self.editable.Enable()
-					self.toggleBtn.SetLabel("")
-					if p.get_value() is not None:
-						self.editable.SetValue(p.get_value())
-					else:
-						self.editable.SetValue("")
-						return
+				self.choice.Disable()
+				self.editable.Disable()
+				self.toggleBtn.Enable()
+				self.toggleBtn.SetLabel("")
+				self.toggleBtn.SetLabel(p.get_displayName())
+				val = p.get_value()
+				if val:
+					self.toggleBtn.SetValue(True)
+				else:
+					self.toggleBtn.SetValue(False)
+			elif isinstance(p, SingleChoiceProperty):
+				self.updateChoices(self.choice, p.get_id())
+				self.toggleBtn.Disable()
+				self.toggleBtn.SetLabel("")
+				self.editable.Disable()
+				self.choice.Enable()
+				self.choice.id = p.get_value()
+				if p.get_value() is not None:
+					n = self.choice.FindString(p.get_value(), False)
+					if n!=-1:
+						self.choice.SetSelection(n)
+			elif isinstance(p, EditableProperty):
+				self.choice.Disable()
+				self.toggleBtn.Disable()
+				self.editable.Enable()
+				self.toggleBtn.SetLabel("")
+				if p.get_value() is not None:
+					self.editable.SetValue(p.get_value())
+				else:
+					self.editable.SetValue("")
 
 	def updateChoices(self,choiceItem ,id):
 		if id == "mutation":
-			choiceItem.Clear()
 			data = self.context["data"]["rule"]
 			ruleType = data.get("type")
-			for id_ in MUTATIONS_BY_RULE_TYPE.get(ruleType, []):
-				label = mutationLabels.get(id_)
-				if label is None:
-					log.error("No label for mutation id: {}".format(id_))
-				choiceItem.Append(label)
+			choiceItem.Clear()
+			[choiceItem.Append(mutationLabels.get(i)) for i in MUTATIONS_BY_RULE_TYPE.get(ruleType, [])]
 		elif id == "formMode":
 			choiceItem.Clear()
-			# self.listChoice = props.formmode_options
-			for i in range(0, len(formmode_options)):
-				choiceItem.Append(formmode_options[i])
+			lst = lambda x: choiceItem.Append(x)
+			lst(self.formmodeOptions)
+		elif id == "autoAction":
+			choiceItem.Clear()
+			list(map(lambda x:choiceItem.Append(x[0]), self.autoActionOptions))
 
 	def onKeyPress(self, evt):
 		keycode = evt.GetKeyCode()
@@ -260,11 +299,10 @@ class ListControl(object):
 					retDialog = self.editablDialog(rowItem[0])
 					self.updateEditableProperties(rowItem[0], retDialog)
 				elif isinstance(p, SingleChoiceProperty) and rowItem[0] == p.get_displayName():
-						self.setChoiceList(rowItem[0])
-						retChoiceList = self.setChoiceList(rowItem[0])
-						retChoice = self.updateChoiceByList(retChoiceList)
-						ui.message("{}".format(retChoice))
-						self.updateChoiceProperties(rowItem[0], retChoice)
+					retChoiceList = self.setChoiceList(rowItem[0])
+					retChoice = self.updateChoiceByList(retChoiceList, p.get_id())
+					ui.message("{}".format(retChoice))
+					self.updateChoiceProperties(rowItem[0], retChoice)
 		evt.Skip()
 
 	def updateToggleBtnPropertiest(self, rowItem):
@@ -298,7 +336,7 @@ class ListControl(object):
 		dialog.Destroy()
 
 	def setChoiceList(self, rowItem):
-		mutation_options = []
+		self.mutationOptions =[]
 		for p in self.propertiesList:
 			if rowItem == p.get_displayName():
 				if p.get_id() == "mutation":
@@ -308,36 +346,71 @@ class ListControl(object):
 						label = mutationLabels.get(id_)
 						if label is None:
 							log.error("No label for mutation id: {}".format(id_))
-						mutation_options.append(label)
-					return mutation_options
+						self.mutationOptions.append(label)
+					return self.mutationOptions
 				elif p.get_id() == "formMode":
-					return formmode_options
+					return self.formmodeOptions
+				elif p.get_id() == "autoAction":
+					return  [i[0] for i in self.autoActionOptions]
 
-	def updateChoiceByList(self, listChoice):
-		self.incr = 0 if self.incr == (len(listChoice)-1) else self.incr
-		self.incr += 1
-		return listChoice[self.incr]
+
+	def updateChoiceByList(self, listChoice, id):
+		if id == "autoAction":
+			self.objIncAutoAct.setListChoice(listChoice)
+			return self.objIncAutoAct.getIncrChoice()
+		elif id == "mutation":
+			self.objIncMut.setListChoice(listChoice)
+			return self.objIncMut.getIncrChoice()
+		elif id == "formMode":
+			self.objIncFormMde.setListChoice(listChoice)
+			return self.objIncFormMde.getIncrChoice()
+
+	def getMutationIdByValue(self, value):
+		data = self.context["data"]["rule"]
+		ruleType = data.get("type")
+		for id_ in MUTATIONS_BY_RULE_TYPE.get(ruleType, []):
+			label = mutationLabels.get(id_)
+			if value == label:
+				return id_
+
+	def getMutationValueById(self, id):
+		data = self.context["data"]["rule"]
+		ruleType = data.get("type")
+		for id_ in MUTATIONS_BY_RULE_TYPE.get(ruleType, []):
+			label = mutationLabels.get(id_)
+			if id_ == id:
+				return label
 
 	def updateChoiceProperties(self, rowItem, val):
+		getActionVal = lambda targetval: next((t[0] for t in [x for x in self.autoActionOptions if x[1] == targetval]), None)
+		getActionId = lambda targetId: next((t[1] for t in [x for x in self.autoActionOptions if x[0] == targetId]), None)
+		retId = lambda x, y:  self.getMutationIdByValue(x) if y == "mutation" else (getActionId(x) if y == "autoAction" else x)
+		retValue = lambda x, y: self.getMutationValueById(x) if y == "mutation" else (getActionVal(x) if y == "autoAction" else x)
+
 		for p in self.propertiesList:
 			if p.get_displayName() == rowItem:
+				val = retId(val, p.get_id())
 				p.set_value(val)
-				n = self.choice.FindString(p.get_value(), False)
+				valFindString = retValue(val,p.get_id())
+				n = self.choice.FindString(valFindString, False)
 				if n != -1:
 					self.choice.SetSelection(n)
 					self.updatePropertiesList(rowItem)
 					return
 
 	def updatePropertiesList(self, rowProps):
-		ret = lambda x: 'Actif' if x == True else ('Inactif' if x == False else x)
-		for p in self.propertiesList:
-			if p.get_displayName() == rowProps:
-				id = p.get_id()
-				obj=self.getPropsObj(id)
-
-				index = self.currentSelItem.GetId()
-				self.listCtrl.SetItem(index, 1, ret(obj.get_value()))
-				return
+		# Translator: State properties boolean "Enable"
+		# Translator: State properties boolean "Disable"
+		ret = lambda x: _("Enable") if x == True else ( _("Disable") if x == False else x)
+		forVal = filter(lambda x: x.get_displayName() == rowProps, self.propertiesList)
+		getDisplayVal = lambda targetStr: next((t[0] for t in [x for x in self.autoActionOptions if x[1] == targetStr]), None)
+		listDisVal = lambda x, y: self.getMutationValueById(x) if y == "mutation" else (getDisplayVal(x) if y == "autoAction" else x)
+		res = list(forVal)
+		valProps = res[0].get_value()
+		val = ret(valProps)  if valProps is not None else ""
+		index = self.currentSelItem.GetId()
+		self.listCtrl.SetItem(index, 1, listDisVal(val, res[0].get_id()))
+		return
 
 	def updateValueEvtToggle(self, evt):
 		evtObj = evt.GetEventObject()
@@ -370,6 +443,13 @@ class ListControl(object):
 		self.updateChoiceProperties(selRow[0], choiceVal)
 		self.updatePropertiesList(selRow[0])
 
+	def getAutoActions(self):
+		self.autoActionOptions =[]
+		mgr = self.context["webModule"].ruleManager
+		actionsDict = mgr.getActions()
+		[self.autoActionOptions.append((actionsDict[i], i))for i in actionsDict]
+
+
 class AppendListCtrl(ListControl):
 
 	lst =[]
@@ -383,7 +463,6 @@ class AppendListCtrl(ListControl):
 		else:
 			super(AppendListCtrl, self).appendToList()
 			AppendListCtrl.lst.clear()
-
 
 class PropsMenu(wx.Menu):
 
@@ -473,13 +552,14 @@ class SingleChoiceProperty(Property):
 			id: str,
 			display_name: str,
 			flag: bool,
-			options: Tuple[str, ...],
-			selected_option: Optional[str] = None
+			value: str,
 	):
+		"""options: Tuple[str, ...],
+					selected_option: Optional[str] = None"""
 		super(SingleChoiceProperty, self).__init__(id, display_name, PropertyType.SINGLE_CHOICE)
-		self.options = options
+		self.__value = value
 		self.__flag = flag
-		self.__selected_option = selected_option if selected_option in options else options[0]
+		#self.__selected_option = []
 
 	def get_id(self):
 		return super(SingleChoiceProperty, self).get_id()
@@ -494,50 +574,10 @@ class SingleChoiceProperty(Property):
 		self.__flag = flag
 
 	def get_value(self):
-		return self.__selected_option
+		return self.__value
 
-	def set_value(self, option):
-		self.__selected_option = option
-
-	def updateFlag(self, evt):
-		self.set_flag(True)
-		AppendListCtrl.lst.append(self.get_id())
-
-class MultipleChoiceProperty(Property):
-	def __init__(
-			self,
-			id: str,
-			display_name: str,
-			flag: bool,
-			options: Tuple[str, ...],
-			selected_options: Optional[Tuple[str, ...]] = (1, 3)
-	):
-		super(MultipleChoiceProperty, self).__init__(id, display_name, PropertyType.MULTIPLE_CHOICE)
-		self.__flag = flag
-		self.options = options
-		self.__selected_options = selected_options if all(
-			option in options for option in selected_options
-		) else tuple()
-
-
-	def get_id(self):
-		return super(MultipleChoiceProperty, self).get_id()
-
-	def get_displayName(self):
-		return super(MultipleChoiceProperty, self).get_displayName()
-
-	def get_value(self):
-		return self.__selected_options
-
-
-	def set_value(self, options):
-		self.__selected_options = options
-
-	def get_flag(self):
-		return self.__flag
-
-	def set_flag(self, flag):
-		self.__flag = flag
+	def set_value(self, value):
+		self.__value = value
 
 	def updateFlag(self, evt):
 		self.set_flag(True)
@@ -583,17 +623,20 @@ class ListProperties:
 	propertiesList = []
 
 	def __init__(self):
+		self.__autoAction = SingleChoiceProperty("autoAction", "Auto action", False, "")
 		self.__propsSayName = ToggleProperty("sayName", "Dire le nom de la règle", False, False)
 		self.__propsSkip = ToggleProperty("skip", "Ignorer la page suivante", False, False)
 		self.__propsMultiple = ToggleProperty("multiple", "Résultats Multiples", False, False)
 		self.__propsCustomName = EditableProperty("customName", "Nom personnalisé", False)
 		self.__propscustomValue = EditableProperty("customValue", "Message personnalisé", False)
-		self.__propsFormMode = SingleChoiceProperty("formMode", "Activer le mode formulaire", False, formmode_options)
-		self.__propsMutation = SingleChoiceProperty("mutation", "Transformation", False, mutation_options)
+		self.__propsFormMode = SingleChoiceProperty("formMode", "Activer le mode formulaire", False, "")
+		self.__propsMutation = SingleChoiceProperty("mutation", "Transformation", False, "")
+
 		self.setProperties()
 
 	def setProperties(self):
 		self.propertiesList = [
+			self.__autoAction,
 			self.__propsSayName,
 			self.__propsSkip,
 			self.__propsMultiple,
@@ -602,11 +645,33 @@ class ListProperties:
 			self.__propsFormMode,
 			self.__propsMutation
 		]
+
 	def getProperties(self):
-		log.info(self.propertiesList)
 		return  self.propertiesList
 
 
+class IncrementValue:
+
+	incr = 0
+	listChoice = []
+
+	def __init__(self):
+		pass
+
+	def setListChoice(self, listChoice):
+		self.listChoice = listChoice
+
+	def getIncr(self):
+		return self.incr
+
+	def setIncr(self, val):
+		self.incr = val
+
+	def getIncrChoice(self):
+		self.incr = 0 if self.incr == (len(self.listChoice) - 1) else self.incr
+		self.incr+=1
+		self.setIncr(self.incr)
+		return self.listChoice[self.getIncr()]
 
 
 
