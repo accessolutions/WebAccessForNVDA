@@ -298,6 +298,10 @@ class RuleManager(baseObject.ScriptableObject):
 					return func
 		for rules in reversed(list(self._layers.values())):
 			for rule in list(rules.values()):
+				for criterion in rule.criteria:
+					func = rule.getScript(gesture)
+					if func is not None:
+						return func
 				func = rule.getScript(gesture)
 				if func is not None:
 					return func
@@ -926,13 +930,15 @@ class Result(baseObject.ScriptableObject):
 				setattr(self.__class__, scriptAttrName, dispatcher)
 				setattr(self, scriptAttrName, dispatcher.__get__(self))
 		self.bindGestures(rule.gestures)
+		for criterion in rule.criteria:
+			self.bindGestures(criterion.gestures)
 
 	def _get_criteria(self):
 		return self._criteria()
 
 	def _get_label(self):
 		customName = self.get_property("customName")
-		return customName or self.rule.name
+		return customName or self.rule._get_label()
 
 	def _get_name(self):
 		return self.rule.name
@@ -1120,9 +1126,10 @@ class SingleNodeResult(Result):
 		return self.label + " - " + self.node.innerText
 
 
-class Criteria(baseObject.AutoPropertyObject):
+class Criteria(baseObject.ScriptableObject):
 
 	def __init__(self, rule, data):
+		super(Criteria, self).__init__()
 		self._rule = weakref.ref(rule)
 		self.load(data)
 
@@ -1134,6 +1141,11 @@ class Criteria(baseObject.AutoPropertyObject):
 
 	def _get_ruleManager(self):
 		return self.rule.ruleManager
+
+	def _get_label(self):
+		if hasattr(self.overrides, "customName"):
+			return self.overrides.customName
+		return self.name or self.rule._get_label()
 
 	def load(self, data):
 		data = data.copy()
@@ -1151,6 +1163,11 @@ class Criteria(baseObject.AutoPropertyObject):
 		self.src = data.pop("src", None)
 		self.relativePath = data.pop("relativePath", None)
 		self.index = data.pop("index", None)
+		self.gestures = data.pop("gestures", {})
+		gesturesMap = {}
+		for gestureIdentifier in list(self.gestures.keys()):
+			gesturesMap[gestureIdentifier] = "notFound"
+		self.bindGestures(gesturesMap)
 		overrides = data.pop("overrides", {})
 		self.overrides = OverrideProperties(overrides)
 		if data:
@@ -1354,6 +1371,11 @@ class Criteria(baseObject.AutoPropertyObject):
 				if not getattr(self.rule.properties, "multiple", False) and not multipleContext:
 					return
 
+	def script_notFound(self, gesture):
+		speech.speakMessage(_("{criteriaName} not found").format(
+			criteriaName=self.label)
+		)
+
 
 class Rule(baseObject.ScriptableObject):
 
@@ -1365,7 +1387,7 @@ class Rule(baseObject.ScriptableObject):
 		self.load(data)
 
 	def _get_label(self):
-		return self.customName or self.name
+		return self.properties.customName or self.name
 
 	def _get_ruleManager(self):
 		return self._ruleManager()
