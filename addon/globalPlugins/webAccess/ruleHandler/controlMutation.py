@@ -130,7 +130,7 @@ MUTATIONS_BY_RULE_TYPE = OrderedDict((
 			"landmark.region",
 			"landmark.nav.named",
 			"landmark.nav.unnamed",
-            "button",
+			"button",
 			"link",
 			"table.data",
 			"table.layout",
