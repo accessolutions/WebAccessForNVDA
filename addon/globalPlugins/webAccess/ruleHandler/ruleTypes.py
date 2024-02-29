@@ -33,24 +33,24 @@ addonHandler.initTranslation()
 
 
 MARKER = "marker"
-PAGE_TITLE_1 = "pageTitle1"
-PAGE_TITLE_2 = "pageTitle2"
+ZONE = "zone"
 PAGE_TYPE = "pageType"
 PARENT = "parent"
-ZONE = "zone"
+PAGE_TITLE_1 = "pageTitle1"
+PAGE_TITLE_2 = "pageTitle2"
 
 
-ruleTypeLabels = OrderedDict((
+ruleTypeLabels = {
 	# Translators: The label for a rule type.
-	(MARKER, _("Marker")),
+	MARKER: _("Marker"),
 	# Translators: The label for a rule type.
-	(ZONE, _("Zone")),
+	ZONE: _("Zone"),
 	# Translators: The label for a rule type.
-	(PAGE_TITLE_1, _("Page main title")),
+	PAGE_TYPE: _("Page type"),
 	# Translators: The label for a rule type.
-	(PAGE_TITLE_2, _("Page secondary title")),
+	PARENT: _("Parent element"),
 	# Translators: The label for a rule type.
-	(PAGE_TYPE, _("Page type")),
+	PAGE_TITLE_1: _("Page main title"),
 	# Translators: The label for a rule type.
-	(PARENT, _("Parent element")),
-))
+	PAGE_TITLE_2: _("Page secondary title")
+}
