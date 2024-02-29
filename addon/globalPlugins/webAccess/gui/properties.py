@@ -7,41 +7,13 @@ from typing import Tuple, Optional
 import wx
 import gui
 from logHandler import log
-from .. import ruleHandler
 from ..ruleHandler import ruleTypes
 from ..ruleHandler.controlMutation import (
 	MUTATIONS_BY_RULE_TYPE,
 	mutationLabels
 )
-from . import (
-	ContextualMultiCategorySettingsDialog,
-	ContextualSettingsPanel,
-	guiHelper,
-	stripAccel,
-	stripAccelAndColon
-)
-from ..utils import updateOrDrop
-
 from collections import OrderedDict, namedtuple
 import  ui
-
-
-FIELDS = OrderedDict((
-		# Translator: Multiple results checkbox label for the rule dialog's properties panel.
-		("multiple", pgettext("webAccess.ruleProperties", "&Multiple results")),
-		# Translator: Activate form mode checkbox label for the rule dialog's properties panel.
-		("formMode", pgettext("webAccess.ruleProperties", "Activate &form mode")),
-		# Translator: Skip page down checkbox label for the rule dialog's properties panel.
-		("skip", pgettext("webAccess.ruleProperties", "S&kip with Page Down")),
-		# Translator: Speak rule name checkbox label for the rule dialog's properties panel.
-		("sayName", pgettext("webAccess.ruleProperties", "&Speak rule name")),
-		# Translator: Custom name input label for the rule dialog's properties panel.
-		("customName", pgettext("webAccess.ruleProperties", "Custom &name:")),
-		# Label depends on rule type)
-		("customValue", None),
-		# Translator: Transform select label for the rule dialog's properties panel.
-		("mutation", pgettext("webAccess.ruleProperties", "&Transform:")),
-	))
 
 RULE_TYPE_FIELDS = OrderedDict((
 	(ruleTypes.PAGE_TITLE_1, ("customValue",)),
@@ -75,19 +47,19 @@ class ListControl(object):
 
 	def __init__(
 			self,
-	        *args
+	        propsPanel
 	):
 		# wx.List control elements from client side
 		super(ListControl, self).__init__()
-		self.propsPanel = args[0]
-		self.propertiesList = args[1]
-		self.listCtrl = args[2]
-		self.toggleBtn = args[3]
-		self.editable = args[4]
-		self.choice = args[5]
-		self.btnAddProps = args[6]
-		self.btnDelProps = args[7]
-		self.context = args[8]
+		self.propsPanel = propsPanel
+		self.propertiesList = propsPanel.propertiesList
+		self.listCtrl = propsPanel.listCtrl
+		self.toggleBtn = propsPanel.toggleBtn
+		self.editable = propsPanel.editable
+		self.choice = propsPanel.choice
+		self.btnAddProps = propsPanel.btnAddProps
+		self.btnDelProps = propsPanel.btnDelProps
+		self.context = propsPanel.context
 
 		# wx.List control event binding
 		self.listCtrl.Bind(wx.EVT_LIST_ITEM_SELECTED, self.onItemSelListCtrl)
@@ -120,51 +92,61 @@ class ListControl(object):
 
 	def messageBox(self, message, caption):
 		gui.messageBox(
-			# Translators: The text of a generic error message dialog
-			message=_("{}".format(message)),
-			# Translators: The title of an error message dialog
-			caption=_("{}".format(caption)),
+			message=message,
+			caption=caption,
 			style=wx.OK | wx.ICON_EXCLAMATION
 		)
 
 	# Translator: State properties boolean "Enable"
 	# Translator: State properties boolean "Disable"
-	def interpretBoolVal(self, val):
-		ret = lambda x: _("Enable") if x == True else (_("Disable") if x == False else x)
-		retVal = lambda x: ret(x) if type(x) == bool else ("vide" if x == None else x)
-		return retVal(val)
+	# Translator: State properties boolean "Empty"
+	def translateForDisplay(self, val):
+		if val is True:
+			return _("Enabled")
+		elif val is False:
+			return _("Disabled")
+		elif val is None:
+			return _("Disabled")
 
-	def updatedValues(self, val, id):
-		if id == "autoAction" and val is not None:
-			retAction = lambda targetval: next((t[0] for t in [x for x in self.autoActionOptions if x[1] == targetval]), None)
-			return retAction(val)
-		elif id == "mutation" and val is not None:
-			ret = self.getMutationValueById(val)
-			retMut = "Error" if val is None or type(bool) else ret
-			return retMut
-		elif (type(val) == bool):
-			return self.interpretBoolVal(val)
-		elif val == None:
-			return "vide"
-		else:
-			return val
+	def updatedStrValues(self, val, id):
+		if id == "autoAction":
+			if val:
+				retAction = lambda targetval: next((t[0] for t in [x for x in self.autoActionOptions if x[1] == targetval]),None)
+				if retAction(val) is not None:
+					return retAction(val)
+				return _("Choose a value")
+			else:
+				return _("Choose a value")
+		elif id == "mutation":
+			if val is None or val == "":
+				ret = val
+				retMut = _("Choose a value") if val is None or type(bool) else ret
+				return retMut
+		elif id == "skip" or id == "sayName" or id == "formMode" or id == "multiple":
+			if val:
+				return self.translateForDisplay(val)
+			else:
+				return self.translateForDisplay(val)
+		elif id == "customValue" or id == "customName":
+			if val:
+				return val
+			else:
+				return _("Empty")
 
 	def onInitUpdateListCtrl(self):
 		self.listCtrl.DeleteAllItems()
 		clsInstance = self.propsPanel.__class__.__name__
 		for p in self.propertiesList:
 			if p.get_flag():
-				val = self.updatedValues(p.get_value(), p.get_id())
+				val = self.updatedStrValues(p.get_value(), p.get_id())
 				self.listCtrl.InsertStringItem(self.index, p.get_displayName())
 				self.listCtrl.SetStringItem(self.index, 1, val)
+
 				if clsInstance == "OverridesPanel":
 					self.listCtrl.SetStringItem(self.index, 2, self.isOverrided(p.get_id()))
 				self.index += 1
 
 	def onAddProperties(self, evt):
-		if self.listCtrl.GetItemCount() == len(self.propertiesList):
-			self.messageBox(message="La liste est complète", caption= "Properties rule editor")
-			return
 		if showPropsDialog(self.context, self.propertiesList):
 			self.appendToList()
 
@@ -175,26 +157,28 @@ class ListControl(object):
 			# Delete the selected item
 			self.listCtrl.DeleteItem(index)
 			for p in self.propertiesList:
-				if p.get_displayName() == selRow[0]:
-					if isinstance(p, ToggleProperty):
-						p.set_flag(False)
-						p.set_value(False)
-					elif isinstance(p, EditableProperty):
-						p.set_flag(False)
-						p.set_value("")
-					elif isinstance(p, SingleChoiceProperty):
-						p.set_flag(False)
-						p.set_value("")
-					break
+				if not p.get_displayName() == selRow[0]:
+					continue
+				if isinstance(p, ToggleProperty):
+					p.set_flag(False)
+					p.set_value(False)
+				elif isinstance(p, EditableProperty):
+					p.set_flag(False)
+					p.set_value("")
+				elif isinstance(p, SingleChoiceProperty):
+					p.set_flag(False)
+					p.set_value("")
 
 	def appendToList(self):
 		clsInstance = self.propsPanel.__class__.__name__
 		val = AppendListCtrl.lst.pop()
 		obj=self.getPropsObj(val)
 		self.listCtrl.InsertStringItem(self.index, obj.get_displayName())
-		self.listCtrl.SetStringItem(self.index, 1, self.interpretBoolVal(obj.get_value()))
+		self.listCtrl.SetStringItem(self.index, 1, self.updatedStrValues(obj.get_value(), obj.get_id()))
 		if clsInstance == "OverridesPanel":
-			self.listCtrl.SetStringItem(self.index, 2, self.isOverrided(obj.getId()))
+			overridden = self.isOverrided(obj.get_id())
+			if overridden is not None:
+				self.listCtrl.SetStringItem(self.index, 2, overridden)
 		self.index += 1
 		self.listCtrl.SetFocus()
 
@@ -207,7 +191,7 @@ class ListControl(object):
 			if ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
 				for key, value in list(ruleProps.items()):
 					if idProps == key:
-						return self.updatedValues(value, idProps)
+						return self.updatedStrValues(value, idProps)
 
 	def getPropsObj(self, val):
 		for p in self.propertiesList:
@@ -295,6 +279,10 @@ class ListControl(object):
 				elif isinstance(p, EditableProperty) and rowItem[0] == p.get_displayName():
 					retDialog = self.editablDialog(rowItem[0])
 					self.updateEditableProperties(rowItem[0], retDialog)
+					if retDialog is not None:
+						self.updateEditableProperties(rowItem[0], retDialog)
+					else:
+						log.info("Ret value of dialog is empty!")
 				elif isinstance(p, SingleChoiceProperty) and rowItem[0] == p.get_displayName():
 					retChoiceList = self.setChoiceList(rowItem[0])
 					retChoice = self.updateChoiceByList(retChoiceList, p.get_id())
@@ -612,30 +600,46 @@ class EditableProperty(Property):
 class ListProperties:
 
 	propertiesList = []
+	FIELDS = None
 
 	def __init__(self):
-		self.__autoAction = SingleChoiceProperty("autoAction", "Auto action", False, "")
-		self.__propsSayName = ToggleProperty("sayName", "Dire le nom de la règle", False, False)
-		self.__propsSkip = ToggleProperty("skip", "Ignorer la page suivante", False, False)
-		self.__propsMultiple = ToggleProperty("multiple", "Résultats Multiples", False, False)
-		self.__propsCustomName = EditableProperty("customName", "Nom personnalisé", False)
-		self.__propscustomValue = EditableProperty("customValue", "Message personnalisé", False)
-		self.__propsFormMode = ToggleProperty("formMode", "Activer le mode formulaire", False, False)
-		self.__propsMutation = SingleChoiceProperty("mutation", "Transformation", False, "")
-
-		self.setProperties()
+		self.__propsMultiple = None
+		self.__propsMutation = None
+		self.__propsFormMode = None
+		self.__propsCustomValue = None
+		self.__propsCustomName = None
+		self.__propsSkip = None
+		self.__propsSayName = None
+		self.__autoAction = None
+		self.FIELDS = None
 
 	def setProperties(self):
+		self.FIELDS = self.getFields()
+		self.__autoAction = SingleChoiceProperty("autoAction", self.FIELDS["autoAction"], False, "")
+		self.__propsMultiple = ToggleProperty("multiple", self.FIELDS["multiple"], False, False)
+		self.__propsFormMode = ToggleProperty("formMode", self.FIELDS["formMode"], False, False)
+		self.__propsSkip = ToggleProperty("skip", self.FIELDS["skip"], False, False)
+		self.__propsSayName = ToggleProperty("sayName", self.FIELDS["sayName"], False, False)
+		self.__propsCustomName = EditableProperty("customName", self.FIELDS["customName"], False)
+		self.__propsCustomValue = EditableProperty("customValue", self.FIELDS["customValue"], False)
+		self.__propsMutation = SingleChoiceProperty("mutation", self.FIELDS["mutation"], False, "")
+
 		self.propertiesList = [
 			self.__autoAction,
-			self.__propsSayName,
-			self.__propsSkip,
 			self.__propsMultiple,
-			self.__propsCustomName,
-			self.__propscustomValue,
 			self.__propsFormMode,
+			self.__propsSkip,
+			self.__propsSayName,
+			self.__propsCustomName,
+			self.__propsCustomValue,
 			self.__propsMutation
 		]
+
+	def setFields(self, fields):
+		self.FIELDS = fields
+
+	def getFields(self):
+		return self.FIELDS
 
 	def getProperties(self):
 		return  self.propertiesList

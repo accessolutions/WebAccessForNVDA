@@ -119,6 +119,7 @@ MUTATIONS = {
 MUTATIONS_BY_RULE_TYPE = OrderedDict((
 	(
 		ruleTypes.MARKER, [
+			"button",
 			"heading.1",
 			"heading.2",
 			"heading.3",
@@ -130,7 +131,6 @@ MUTATIONS_BY_RULE_TYPE = OrderedDict((
 			"landmark.region",
 			"landmark.nav.named",
 			"landmark.nav.unnamed",
-			"button",
 			"link",
 			"table.data",
 			"table.layout",

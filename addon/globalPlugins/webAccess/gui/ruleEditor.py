@@ -623,10 +623,11 @@ class PropertiesPanel(ContextualSettingsPanel):
 
 	# Translators: The label for a category in the rule editor
 	title = _("Properties")
-	# Create an instance of properties calss
-	propertiesList = instanceListProperties.getProperties()
+	propertiesList = None
+	objListCtrl = None
 
 	def makeSettings(self, settingsSizer):
+
 		gbSizer = self.sizer = wx.GridBagSizer()
 		gbSizer.EmptyCellSize = (0, 0)
 		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
@@ -684,57 +685,56 @@ class PropertiesPanel(ContextualSettingsPanel):
 
 		btn_sizer.Add(self.btnDelProps)
 		sizer.Add(btn_sizer, pos=(4, 0), flag=wx.EXPAND)
-
 		self.SetSizer(sizer)
 
 	def initData(self, context):
 		self.context = context
+		self.initPropertiesList()
 		from  ..gui import properties as p
-		objListCtrl = p.ListControl(
-			self,
-			self.propertiesList,
-			self.listCtrl,
-			self.toggleBtn,
-			self.editable,
-			self.choice,
-			self.btnAddProps,
-			self.btnDelProps,
-			self.context
-		)
+		self.objListCtrl = p.ListControl(self)
+		self.onPanelActivated()
 		dataRule= self.context["data"]["rule"]
 		ruleType = dataRule.get("type")
 		ruleProps = dataRule.get("properties")
-		if ruleType is not None and ruleProps is not None:
-			if ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
-				self.setPropertiesData(self.context, objListCtrl)
+		if ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
+			if ruleProps is None:
+				self.setPropertiesData(False, self.context, self.objListCtrl)
 			else:
-				self.showItems(display=False)
-		else:
-			for item in self.hidable:
-				item.Hide()
-			self.noPropertiesLabel.Show()
+				self.setPropertiesData(True, self.context, self.objListCtrl)
 
-	def setPropertiesData(self, context, objCtrl):
+	def initPropertiesList(self):
+		instanceListProperties.setFields(self.FIELDS)
+		instanceListProperties.setProperties()
+		self.propertiesList = instanceListProperties.getProperties()
+
+	def setPropertiesData(self, isRuleExits, context, objCtrl):
 		self.showItems(display=True)
 		self.btnAddProps.Hide()
 		self.btnDelProps.Hide()
-		data = context["data"]["rule"]["properties"]
-		for props in self.propertiesList:
-			for key, value in data.items():
-				if props.get_id() == key:
-					props.set_flag(True)
-					props.set_value(value)
-		objCtrl.onInitUpdateListCtrl()
+		if isRuleExits:
+			data = context["data"]["rule"]["properties"]
+			for props in self.propertiesList:
+				for key, value in data.items():
+					if props.get_id() == key:
+						props.set_flag(True)
+						props.set_value(value)
+			objCtrl.onInitUpdateListCtrl()
+		else:
+			for props in self.propertiesList:
+				props.set_flag(True)
+			objCtrl.onInitUpdateListCtrl()
 
 	def updateData(self, data = None):
-		dataType = self.context["data"]["rule"]
-		ruleType = dataType.get("type")
-		ruleProps = dataType.get("properties")
-		if ruleType is not None and ruleProps is not None:
+		self.propertiesMapValue = {}
+		data = self.context["data"]["rule"]
+		ruleType = data.get("type")
+		if ruleType is not None:
 			if ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
-				data = self.context["data"]["rule"]["properties"]
 				for props in self.propertiesList:
-					updateOrDrop(data, props.get_id(), props.get_value())
+					self.propertiesMapValue[props.get_id()] = props.get_value() if props.get_value() else None
+				if data.get("properties"):
+					del data["properties"]
+				data["properties"] = self.propertiesMapValue
 
 	def showItems(self, display= False):
 		if display:
@@ -746,28 +746,36 @@ class PropertiesPanel(ContextualSettingsPanel):
 				item.Hide()
 			self.noPropertiesLabel.Show()
 
+	def onPanelActivated(self):
+		dataRule = self.context["data"]["rule"]
+		ruleType = dataRule.get("type")
+		show = ruleType in (ruleTypes.ZONE, ruleTypes.MARKER)
+		self.showItems(show)
+		super(PropertiesPanel, self).onPanelActivated()
+
 	def onSave(self):
 		self.updateData()
 
 	# The semi-column is part of the labels because some localizations
 	# (ie. French) require it to be prepended with one space.
-	FIELDS = OrderedDict((
+	FIELDS = {
 		# Translator: Multiple results checkbox label for the rule dialog's properties panel.
-		("multiple", pgettext("webAccess.ruleProperties", "&Multiple results")),
+		"autoAction": pgettext("webAccess.ruleProperties", "Auto Actions"),
+		# Translator: Multiple results checkbox label for the rule dialog's properties panel.
+		"multiple": pgettext("webAccess.ruleProperties", "Multiple results"),
 		# Translator: Activate form mode checkbox label for the rule dialog's properties panel.
-		("formMode", pgettext("webAccess.ruleProperties", "Activate &form mode")),
+		"formMode": pgettext("webAccess.ruleProperties", "Activate form mode"),
 		# Translator: Skip page down checkbox label for the rule dialog's properties panel.
-		("skip", pgettext("webAccess.ruleProperties", "S&kip with Page Down")),
+		"skip": pgettext("webAccess.ruleProperties", "Skip with Page Down"),
 		# Translator: Speak rule name checkbox label for the rule dialog's properties panel.
-		("sayName", pgettext("webAccess.ruleProperties", "&Speak rule name")),
+		"sayName": pgettext("webAccess.ruleProperties", "Speak rule name"),
 		# Translator: Custom name input label for the rule dialog's properties panel.
-		("customName", pgettext("webAccess.ruleProperties", "Custom &name:")),
+		"customName": pgettext("webAccess.ruleProperties", "Custom name:"),
 		# Label depends on rule type)
-		("customValue", None),
+		"customValue": pgettext("webAccess.ruleProperties", "Custom value:"),
 		# Translator: Transform select label for the rule dialog's properties panel.
-		("mutation", pgettext("webAccess.ruleProperties", "&Transform:")),
-	))
-
+		"mutation": pgettext("webAccess.ruleProperties", "Transform:"),
+	}
 	RULE_TYPE_FIELDS = OrderedDict((
 		(ruleTypes.PAGE_TITLE_1, ("customValue",)),
 		(ruleTypes.PAGE_TITLE_2, ("customValue",)),
@@ -831,7 +839,9 @@ class RuleEditorDialog(ContextualMultiCategorySettingsDialog):
 			node = mgr.nodeManager.getCaretNode()
 			while node is not None:
 				if node.role in formModeRoles:
-					data["formMode"] = True
+					dataProps = data.get("properties")
+					if dataProps:
+						dataProps["properties"]["formMode"] = False
 					break
 				node = node.parent
 		super(RuleEditorDialog, self).initData(context)

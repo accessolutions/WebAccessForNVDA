@@ -819,24 +819,28 @@ class OverridesPanel(ContextualSettingsPanel):
 
 	# Translators: The label for a Criteria editor category.
 	title = _("Overrides")
-	# Create an instance of properties calss
-	propertiesListCrit = instanceListPropertiesCrit.getProperties()
 
+	propertiesList = []
+
+	# The semi-column is part of the labels because some localizations
+	# (ie. French) require it to be prepended with one space.
 	FIELDS = {
-		# Translator: Multiple results item label for the rule dialog's properties panel.
-		"multiple": _("Multiple results"),
+		# Translator: Multiple results checkbox label for the rule dialog's properties panel.
+		"autoAction": pgettext("webAccess.ruleProperties", "Auto Actions"),
+		# Translator: Multiple results checkbox label for the rule dialog's properties panel.
+		"multiple": pgettext("webAccess.ruleProperties", "Multiple results"),
 		# Translator: Activate form mode checkbox label for the rule dialog's properties panel.
-		"formMode": _("Activate form mode"),
+		"formMode": pgettext("webAccess.ruleProperties", "Activate form mode"),
 		# Translator: Skip page down checkbox label for the rule dialog's properties panel.
-		"skip": _("Skip with Page Down"),
+		"skip": pgettext("webAccess.ruleProperties", "Skip with Page Down"),
 		# Translator: Speak rule name checkbox label for the rule dialog's properties panel.
-		"sayName": _("Speak rule name"),
+		"sayName": pgettext("webAccess.ruleProperties", "Speak rule name"),
 		# Translator: Custom name input label for the rule dialog's properties panel.
-		"customName": _("Custom name"),
+		"customName": pgettext("webAccess.ruleProperties", "Custom name:"),
 		# Label depends on rule type)
-		"customValue": None,
+		"customValue": pgettext("webAccess.ruleProperties", "Custom value:"),
 		# Translator: Transform select label for the rule dialog's properties panel.
-		"mutation": _("Transform"),
+		"mutation": pgettext("webAccess.ruleProperties", "Transform:"),
 	}
 
 	RULE_TYPE_FIELDS = OrderedDict((
@@ -878,6 +882,10 @@ class OverridesPanel(ContextualSettingsPanel):
 		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
 		self.hidable = []
 
+		self.initPropertiesList()
+		instanceListPropertiesCrit.setProperties()
+		self.propertiesList = instanceListPropertiesCrit.getProperties()
+
 		# Translators: Displayed when the selected rule type doesn't support any property
 		sizer = wx.GridBagSizer(hgap=5, vgap=5)
 		row = 0
@@ -891,76 +899,72 @@ class OverridesPanel(ContextualSettingsPanel):
 		sizer.Add(self.propertiesLabel, pos=(row, 0), flag=wx.EXPAND)
 		self.hidable.append(self.propertiesLabel)
 
-		self.listCtrlCrit = wx.ListCtrl(self, size=(650, 300), style=wx.LC_REPORT | wx.BORDER_SUNKEN)
-		self.listCtrlCrit.InsertColumn(0, 'Properties', width=215)
-		self.listCtrlCrit.InsertColumn(1, 'Value', width=215)
-		self.listCtrlCrit.InsertColumn(2, 'Overrided rule props.', width=215)
-		self.hidable.append(self.listCtrlCrit)
+		self.listCtrl = wx.ListCtrl(self, size=(650, 300), style=wx.LC_REPORT | wx.BORDER_SUNKEN)
+		self.listCtrl.InsertColumn(0, 'Properties', width=215)
+		self.listCtrl.InsertColumn(1, 'Value', width=215)
+		self.listCtrl.InsertColumn(2, 'Overrided rule props.', width=215)
+		self.hidable.append(self.listCtrl)
 
 		# innerGbSizer.Add(self.listCtrl, pos=(0, 0), span=(1, 1), flag=wx.EXPAND)
-		self.toggleBtnCrit = wx.ToggleButton(self, label="", size=(325, 30))
-		self.hidable.append(self.toggleBtnCrit)
+		self.toggleBtn = wx.ToggleButton(self, label="", size=(325, 30))
+		self.hidable.append(self.toggleBtn)
 
-		self.editableCrit = wx.TextCtrl(self, size=(650, 30))
-		self.hidable.append(self.editableCrit)
+		self.editable = wx.TextCtrl(self, size=(650, 30))
+		self.hidable.append(self.editable)
 
-		self.choiceCrit = wx.Choice(self, choices=[], size=(325, 30))
-		self.hidable.append(self.choiceCrit)
+		self.choice = wx.Choice(self, choices=[], size=(325, 30))
+		self.hidable.append(self.choice)
 
-		self.btnAddPropsCrit = wx.Button(self, label=_("&Add"), size=(325, 30))
-		self.hidable.append(self.btnAddPropsCrit)
+		self.btnAddProps = wx.Button(self, label=_("&Add"), size=(325, 30))
+		self.hidable.append(self.btnAddProps)
 
-		self.btnDelPropsCrit = wx.Button(self, label=_("&Delete"), size=(325, 30))
-		self.hidable.append(self.btnDelPropsCrit)
+		self.btnDelProps = wx.Button(self, label=_("&Delete"), size=(325, 30))
+		self.hidable.append(self.btnDelProps)
 
 		sizer = wx.GridBagSizer(hgap=5, vgap=5)
-		sizer.Add(self.listCtrlCrit, pos=(1, 0), flag=wx.EXPAND)
+		sizer.Add(self.listCtrl, pos=(1, 0), flag=wx.EXPAND)
 
 		sizeEdit = wx.BoxSizer(wx.HORIZONTAL)
-		sizeEdit.Add(self.editableCrit)
+		sizeEdit.Add(self.editable)
 		sizer.Add(sizeEdit, pos=(2, 0), span=(0, 1), flag=wx.EXPAND)
 
 		sizeBox = wx.BoxSizer(wx.HORIZONTAL)
-		sizeBox.Add(self.toggleBtnCrit)
-		sizeBox.Add(self.choiceCrit, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL)
+		sizeBox.Add(self.toggleBtn)
+		sizeBox.Add(self.choice, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL)
 		sizer.Add(sizeBox, pos=(3, 0), flag=wx.EXPAND)
 
 		btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
-		btn_sizer.Add(self.btnAddPropsCrit)
+		btn_sizer.Add(self.btnAddProps)
 
-		btn_sizer.Add(self.btnDelPropsCrit)
+		btn_sizer.Add(self.btnDelProps)
 		sizer.Add(btn_sizer, pos=(4, 0), flag=wx.EXPAND)
 
 		self.SetSizer(sizer)
 
 	def initData(self, context):
 		self.context = context
+		self.initPropertiesList()
 		from ..gui import properties as p
-		objListCtrlCrit= p.ListControl(
-			self,
-			self.propertiesListCrit,
-			self.listCtrlCrit,
-			self.toggleBtnCrit,
-			self.editableCrit,
-			self.choiceCrit,
-			self.btnAddPropsCrit,
-			self.btnDelPropsCrit,
-			self.context,
-		)
+		objListCtrl= p.ListControl(self)
 		dataRule = self.context["data"]["rule"]
 		rules = dataRule.get("type")
 		dataTypeCrit = self.context["data"]["criteria"]
 		typeOverride = dataTypeCrit.get("overrides")
 		if rules in (ruleTypes.ZONE, ruleTypes.MARKER):
 			if typeOverride is not None:
-				self.setPropertiesData(self.context, objListCtrlCrit)
+				self.setPropertiesData(self.context, objListCtrl)
 		else:
 			self.showItems(display=False)
+
+	def initPropertiesList(self):
+		instanceListPropertiesCrit.setFields(self.FIELDS)
+		instanceListPropertiesCrit.setProperties()
+		self.propertiesList = instanceListPropertiesCrit.getProperties()
 
 	def setPropertiesData(self, context, objCtrl):
 		self.showItems(display=True)
 		data = context["data"]["criteria"]["overrides"]
-		for props in self.propertiesListCrit:
+		for props in self.propertiesList:
 			for key, value in data.items():
 				if props.get_id() == key:
 					props.set_flag(True)
@@ -968,15 +972,17 @@ class OverridesPanel(ContextualSettingsPanel):
 		objCtrl.onInitUpdateListCtrl()
 
 	def updateData(self, data = None):
-		dataRule = self.context["data"]["rule"]
-		rules = dataRule.get("type")
+		self.propertiesMapValue = {}
+		data = self.context["data"]["rule"]
+		ruleType = data.get("type")
 		dataCrit = self.context["data"]["criteria"]
-		typeOverride = dataCrit.get("overrides")
-		if rules in (ruleTypes.ZONE, ruleTypes.MARKER):
-			if typeOverride is not None:
-				data = dataCrit["overrides"]
-				for props in self.propertiesListCrit:
-					updateOrDrop(data, props.get_id(), props.get_value())
+		if ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
+			for props in self.propertiesList:
+				if props.get_value():
+					self.propertiesMapValue[props.get_id()] = props.get_value()
+			if data.get("overrides"):
+				del data["overrides"]
+			dataCrit["overrides"] = self.propertiesMapValue
 		else:
 			self.showItems(display=False)
 

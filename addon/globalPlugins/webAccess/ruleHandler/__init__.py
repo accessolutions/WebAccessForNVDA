@@ -752,7 +752,7 @@ class Properties:
 		self.multiple = data.pop("multiple", False)
 		self.formMode = data.pop("formMode", False)
 		self.skip = data.pop("skip", False)
-		self.sayName = data.pop("sayName", True)
+		self.sayName = data.pop("sayName", False)
 		self.customName = data.pop("customName", None)
 		self.customValue = data.pop("customValue", None)
 		self.mutation = None
@@ -790,7 +790,7 @@ class Properties:
 
 class OverrideProperties(Properties):
 
-	_keys = ("autoAction", "customName", "customValue", "formMode", "multiple", "sayName", "skip")
+	_keys = ("autoAction", "multiple","formMode","skip", "sayName",  "customName", "customValue", "mutation")
 
 	def load(self, data):
 		data = data.copy()
@@ -806,7 +806,7 @@ class OverrideProperties(Properties):
 				log.exception((
 					"Unexpected mutation template id \"{mutation}\" "
 					"in rule \"{rule}\"."
-				).format(mutation=mutation, rule=self.name))
+				).format(mutation=mutation, rule=self.mutation))
 		if data:
 			raise ValueError(
 				"Unexpected attribute"
@@ -938,7 +938,7 @@ class Result(baseObject.ScriptableObject):
 
 	def _get_label(self):
 		customName = self.get_property("customName")
-		return customName or self.rule._get_label()
+		return customName or self.rule.name
 
 	def _get_name(self):
 		return self.rule.name
@@ -1170,6 +1170,9 @@ class Criteria(baseObject.ScriptableObject):
 		self.bindGestures(gesturesMap)
 		overrides = data.pop("overrides", {})
 		self.overrides = OverrideProperties(overrides)
+		properties = data.pop("properties", {})
+		self.properties = Properties(properties)
+
 		if data:
 			raise ValueError(
 				"Unexpected attribute"
