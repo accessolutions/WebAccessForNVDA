@@ -72,10 +72,9 @@ class ListControl(object):
 
 		#Local variables
 		self.index = 0
-		self.incr = 0
 		self.currentSelItem = None
 		self.mutationOptions = []
-		self.autoActionOptions = []
+		self.autoActionOptions = ["", "default"]
 
 		# Instanciation of increment the values for wx.choice and updates the correspondant wx.listCtrl
 		self.objIncAutoAct = IncrementValue()
@@ -89,6 +88,7 @@ class ListControl(object):
 		self.choice.Disable()
 		self.updateBtnState()
 		self.getAutoActions()
+		self.getMutationOptions()
 
 	def messageBox(self, message, caption):
 		gui.messageBox(
@@ -261,10 +261,8 @@ class ListControl(object):
 
 	def updateChoices(self,choiceItem ,id):
 		if id == "mutation":
-			data = self.context["data"]["rule"]
-			ruleType = data.get("type")
 			choiceItem.Clear()
-			[choiceItem.Append(mutationLabels.get(i)) for i in MUTATIONS_BY_RULE_TYPE.get(ruleType, [])]
+			list(map(lambda x: choiceItem.Append(x[0]), self.mutationOptions))
 		elif id == "autoAction":
 			choiceItem.Clear()
 			list(map(lambda x:choiceItem.Append(x[0]), self.autoActionOptions))
@@ -321,25 +319,17 @@ class ListControl(object):
 		dialog.Destroy()
 
 	def setChoiceList(self, rowItem):
-		self.mutationOptions =[]
 		for p in self.propertiesList:
 			if rowItem == p.get_displayName():
 				if p.get_id() == "mutation":
-					data = self.context["data"]["rule"]
-					ruleType = data.get("type")
-					for id_ in MUTATIONS_BY_RULE_TYPE.get(ruleType, []):
-						label = mutationLabels.get(id_)
-						if label is None:
-							log.error("No label for mutation id: {}".format(id_))
-						self.mutationOptions.append(label)
-					return self.mutationOptions
+					return [i[0] for i in self.mutationOptions]
 				elif p.get_id() == "autoAction":
 					return  [i[0] for i in self.autoActionOptions]
 
 	def updateChoiceByList(self, listChoice, id):
 		if id == "autoAction":
 			self.objIncAutoAct.setListChoice(listChoice)
-			return self.objIncAutoAct.getIncrChoice()
+			return  self.objIncAutoAct.getIncrChoice()
 		elif id == "mutation":
 			self.objIncMut.setListChoice(listChoice)
 			return self.objIncMut.getIncrChoice()
@@ -360,12 +350,20 @@ class ListControl(object):
 			if id_ == id:
 				return label
 
-	def updateChoiceProperties(self, rowItem, val):
+	# Function returs id or value of mutation and autoActions according to the requirements
+	def getChoiceIdOrValues(self, val, id, target):
 		getActionVal = lambda targetval: next((t[0] for t in [x for x in self.autoActionOptions if x[1] == targetval]), None)
 		getActionId = lambda targetId: next((t[1] for t in [x for x in self.autoActionOptions if x[0] == targetId]), None)
-		retId = lambda x, y:  self.getMutationIdByValue(x) if y == "mutation" else (getActionId(x) if y == "autoAction" else x)
-		retValue = lambda x, y: self.getMutationValueById(x) if y == "mutation" else (getActionVal(x) if y == "autoAction" else x)
+		getMutVal = lambda targetval: next((t[0] for t in [x for x in self.mutationOptions if x[1] == targetval]), None)
+		getMutId = lambda targetId: next((t[1] for t in [x for x in self.mutationOptions if x[0] == targetId]), None)
+		if target == "id":
+			return  getMutId(val) if id == "mutation" else (getActionId(val) if id == "autoAction" else val)
+		elif target == "val":
+			return  getMutVal(val) if id == "mutation" else (getActionVal(val) if id == "autoAction" else val)
 
+	def updateChoiceProperties(self, rowItem, val):
+		retId = lambda x,y: self.getChoiceIdOrValues(x, y, "id")
+		retValue = lambda x,y: self.getChoiceIdOrValues(x, y, "val")
 		for p in self.propertiesList:
 			if p.get_displayName() == rowItem:
 				val = retId(val, p.get_id())
@@ -383,7 +381,8 @@ class ListControl(object):
 		ret = lambda x: _("Enable") if x == True else ( _("Disable") if x == False else x)
 		forVal = filter(lambda x: x.get_displayName() == rowProps, self.propertiesList)
 		getDisplayVal = lambda targetStr: next((t[0] for t in [x for x in self.autoActionOptions if x[1] == targetStr]), None)
-		listDisVal = lambda x, y: self.getMutationValueById(x) if y == "mutation" else (getDisplayVal(x) if y == "autoAction" else x)
+		getMutId = lambda targetId: next((t[0] for t in [x for x in self.mutationOptions if x[1] == targetId]), None)
+		listDisVal = lambda x, y: getMutId(x) if y == "mutation" else (getDisplayVal(x) if y == "autoAction" else x)
 		res = list(forVal)
 		valProps = res[0].get_value()
 		val = ret(valProps)  if valProps is not None else ""
@@ -426,8 +425,15 @@ class ListControl(object):
 		self.autoActionOptions =[]
 		mgr = self.context["webModule"].ruleManager
 		actionsDict = mgr.getActions()
+		defaultval = ("", "")
 		[self.autoActionOptions.append((actionsDict[i], i))for i in actionsDict]
+		self.autoActionOptions.insert(0, defaultval)
 
+	def getMutationOptions(self):
+		self.mutationOptions = []
+		defaultval = ("", "")
+		[self.mutationOptions.append((mutationLabels[i], i)) for i in mutationLabels]
+		self.mutationOptions.insert(0, defaultval)
 
 class AppendListCtrl(ListControl):
 
@@ -664,9 +670,10 @@ class IncrementValue:
 
 	def getIncrChoice(self):
 		self.incr = 0 if self.incr == (len(self.listChoice) - 1) else self.incr
-		self.incr+=1
+		ret = self.listChoice[self.getIncr()]
+		self.incr += 1
 		self.setIncr(self.incr)
-		return self.listChoice[self.getIncr()]
+		return ret
 
 
 

@@ -709,8 +709,6 @@ class PropertiesPanel(ContextualSettingsPanel):
 
 	def setPropertiesData(self, isRuleExits, context, objCtrl):
 		self.showItems(display=True)
-		self.btnAddProps.Hide()
-		self.btnDelProps.Hide()
 		if isRuleExits:
 			data = context["data"]["rule"]["properties"]
 			for props in self.propertiesList:
@@ -740,6 +738,8 @@ class PropertiesPanel(ContextualSettingsPanel):
 		if display:
 			for item in self.hidable:
 				item.Show()
+			self.btnAddProps.Hide()
+			self.btnDelProps.Hide()
 			self.noPropertiesLabel.Hide()
 		else:
 			for item in self.hidable:
@@ -751,6 +751,7 @@ class PropertiesPanel(ContextualSettingsPanel):
 		ruleType = dataRule.get("type")
 		show = ruleType in (ruleTypes.ZONE, ruleTypes.MARKER)
 		self.showItems(show)
+
 		super(PropertiesPanel, self).onPanelActivated()
 
 	def onSave(self):
