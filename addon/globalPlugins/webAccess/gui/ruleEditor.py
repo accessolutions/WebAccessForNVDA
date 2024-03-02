@@ -621,6 +621,47 @@ class ActionsPanel(ContextualSettingsPanel):
 
 class PropertiesPanel(ContextualSettingsPanel):
 
+	# The semi-column is part of the labels because some localizations
+	# (ie. French) require it to be prepended with one space.
+	FIELDS = {
+		# Translator: Multiple results checkbox label for the rule dialog's properties panel.
+		"autoAction": pgettext("webAccess.ruleProperties", "Auto Actions"),
+		# Translator: Multiple results checkbox label for the rule dialog's properties panel.
+		"multiple": pgettext("webAccess.ruleProperties", "Multiple results"),
+		# Translator: Activate form mode checkbox label for the rule dialog's properties panel.
+		"formMode": pgettext("webAccess.ruleProperties", "Activate form mode"),
+		# Translator: Skip page down checkbox label for the rule dialog's properties panel.
+		"skip": pgettext("webAccess.ruleProperties", "Skip with Page Down"),
+		# Translator: Speak rule name checkbox label for the rule dialog's properties panel.
+		"sayName": pgettext("webAccess.ruleProperties", "Speak rule name"),
+		# Translator: Custom name input label for the rule dialog's properties panel.
+		"customName": pgettext("webAccess.ruleProperties", "Custom name:"),
+		# Label depends on rule type)
+		"customValue": pgettext("webAccess.ruleProperties", "Custom value:"),
+		# Translator: Transform select label for the rule dialog's properties panel.
+		"mutation": pgettext("webAccess.ruleProperties", "Transform:"),
+	}
+	RULE_TYPE_FIELDS = OrderedDict((
+		(ruleTypes.PAGE_TITLE_1, ("customValue",)),
+		(ruleTypes.PAGE_TITLE_2, ("customValue",)),
+		(ruleTypes.ZONE, (
+			"formMode",
+			"skip",
+			"sayName",
+			"customName",
+			"customValue",
+			"mutation"
+		)),
+		(ruleTypes.MARKER, (
+			"multiple",
+			"formMode",
+			"skip",
+			"sayName",
+			"customName",
+			"customValue",
+			"mutation"
+		)),
+	))
 	# Translators: The label for a category in the rule editor
 	title = _("Properties")
 	propertiesList = None
@@ -687,20 +728,24 @@ class PropertiesPanel(ContextualSettingsPanel):
 		sizer.Add(btn_sizer, pos=(4, 0), flag=wx.EXPAND)
 		self.SetSizer(sizer)
 
+	def loadPropertiesInPanel(self):
+		from ..gui import properties as p
+		self.objListCtrl = p.ListControl(self)
+		return self.objListCtrl
+
 	def initData(self, context):
 		self.context = context
 		self.initPropertiesList()
-		from  ..gui import properties as p
-		self.objListCtrl = p.ListControl(self)
-		self.onPanelActivated()
+		objListCtrl = self.loadPropertiesInPanel()
 		dataRule= self.context["data"]["rule"]
 		ruleType = dataRule.get("type")
 		ruleProps = dataRule.get("properties")
 		if ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
 			if ruleProps is None:
-				self.setPropertiesData(False, self.context, self.objListCtrl)
+				self.setPropertiesData(False, self.context, objListCtrl)
 			else:
-				self.setPropertiesData(True, self.context, self.objListCtrl)
+				self.setPropertiesData(True, self.context, objListCtrl)
+		self.onPanelActivated()
 
 	def initPropertiesList(self):
 		instanceListProperties.setFields(self.FIELDS)
@@ -750,54 +795,13 @@ class PropertiesPanel(ContextualSettingsPanel):
 		dataRule = self.context["data"]["rule"]
 		ruleType = dataRule.get("type")
 		show = ruleType in (ruleTypes.ZONE, ruleTypes.MARKER)
+		objListCtrl=self.loadPropertiesInPanel()
+		self.setPropertiesData(False, self.context, objListCtrl)
 		self.showItems(show)
-
 		super(PropertiesPanel, self).onPanelActivated()
 
 	def onSave(self):
 		self.updateData()
-
-	# The semi-column is part of the labels because some localizations
-	# (ie. French) require it to be prepended with one space.
-	FIELDS = {
-		# Translator: Multiple results checkbox label for the rule dialog's properties panel.
-		"autoAction": pgettext("webAccess.ruleProperties", "Auto Actions"),
-		# Translator: Multiple results checkbox label for the rule dialog's properties panel.
-		"multiple": pgettext("webAccess.ruleProperties", "Multiple results"),
-		# Translator: Activate form mode checkbox label for the rule dialog's properties panel.
-		"formMode": pgettext("webAccess.ruleProperties", "Activate form mode"),
-		# Translator: Skip page down checkbox label for the rule dialog's properties panel.
-		"skip": pgettext("webAccess.ruleProperties", "Skip with Page Down"),
-		# Translator: Speak rule name checkbox label for the rule dialog's properties panel.
-		"sayName": pgettext("webAccess.ruleProperties", "Speak rule name"),
-		# Translator: Custom name input label for the rule dialog's properties panel.
-		"customName": pgettext("webAccess.ruleProperties", "Custom name:"),
-		# Label depends on rule type)
-		"customValue": pgettext("webAccess.ruleProperties", "Custom value:"),
-		# Translator: Transform select label for the rule dialog's properties panel.
-		"mutation": pgettext("webAccess.ruleProperties", "Transform:"),
-	}
-	RULE_TYPE_FIELDS = OrderedDict((
-		(ruleTypes.PAGE_TITLE_1, ("customValue",)),
-		(ruleTypes.PAGE_TITLE_2, ("customValue",)),
-		(ruleTypes.ZONE, (
-			"formMode",
-			"skip",
-			"sayName",
-			"customName",
-			"customValue",
-			"mutation"
-		)),
-		(ruleTypes.MARKER, (
-			"multiple",
-			"formMode",
-			"skip",
-			"sayName",
-			"customName",
-			"customValue",
-			"mutation"
-		)),
-	))
 
 	@staticmethod
 	def getAltFieldLabel(ruleType, key, default=None):
