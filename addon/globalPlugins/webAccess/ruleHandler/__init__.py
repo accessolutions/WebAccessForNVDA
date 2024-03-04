@@ -781,7 +781,9 @@ class Properties:
 			"sayName": self.sayName,
 			"customName": self.customName,
 			"customValue": self.customValue,
-			"mutation": self.mutation.mutateName if self.mutation else None
+			"mutation": list(MUTATIONS.keys())[
+				list(MUTATIONS.values()).index(self.mutation)
+			] if self.mutation else None
 		}
 
 	def __repr__(self):

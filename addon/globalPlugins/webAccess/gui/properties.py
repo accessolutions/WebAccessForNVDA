@@ -19,6 +19,7 @@ def showPropsDialog(context, properties):
 	PropsMenu(context, properties).ShowModal()
 	return True
 
+
 class ListControl(object):
 
 	def __init__(
@@ -92,23 +93,17 @@ class ListControl(object):
 				retAction = lambda targetval: next((t[0] for t in [x for x in self.autoActionOptions if x[1] == targetval]),None)
 				if retAction(val) is not None:
 					return retAction(val)
-				return _("Choose a value")
-			else:
-				return _("Choose a value")
+			return _("Choose a value")
 		elif id == "mutation":
-			if not val:
-				retMut = _("Choose a value") if val is None or type(bool) else val
-				return retMut
-		elif id == "skip" or id == "sayName" or id == "formMode" or id == "multiple":
 			if val:
-				return self.translateForDisplay(val)
-			else:
-				return self.translateForDisplay(val)
-		elif id == "customValue" or id == "customName":
-			if val:
-				return val
-			else:
-				return _("Empty")
+				retMut = lambda targetval: next((t[0] for t in [x for x in self.mutationOptions if x[1] == targetval]), None)
+				if retMut(val) is not None:
+					return retMut(val)
+			return _("Choose a value")
+		elif id in ("skip", "sayName", "formMode", "multiple"):
+			return self.translateForDisplay(val)
+		elif id in ("customValue", "customName"):
+			return val or ""
 
 	# Set fresh values on init for properties
 	def onInitUpdateListCtrl(self):
@@ -446,6 +441,7 @@ class ListControl(object):
 		[self.mutationOptions.append((mutationLabels[i], i)) for i in mutationLabels]
 		self.mutationOptions.insert(0, defaultval)
 
+
 class AppendListCtrl(ListControl):
 
 	lst =[]
@@ -459,6 +455,7 @@ class AppendListCtrl(ListControl):
 		else:
 			super(AppendListCtrl, self).appendToList()
 			AppendListCtrl.lst.clear()
+
 
 class PropsMenu(wx.Menu):
 
@@ -482,11 +479,13 @@ class PropsMenu(wx.Menu):
 		gui.mainFrame.PopupMenu(self)
 		gui.mainFrame.postPopup()
 
+
 class PropertyType(Enum):
 	TOGGLE = "toggle"  # True / False
 	EDITABLE = "editable"
 	SINGLE_CHOICE = "singleChoice"
 	MULTIPLE_CHOICE = "multipleChoice"
+
 
 class Property(ABC):
 	@abstractmethod
@@ -507,6 +506,7 @@ class Property(ABC):
 	@abstractmethod
 	def get_displayName(self):
 		return self.__display_name
+
 
 class ToggleProperty(Property):
 	def __init__(
@@ -542,6 +542,7 @@ class ToggleProperty(Property):
 		self.set_flag(True)
 		AppendListCtrl.lst.append(self.get_id())
 
+
 class SingleChoiceProperty(Property):
 	def __init__(
 			self,
@@ -575,6 +576,7 @@ class SingleChoiceProperty(Property):
 	def updateFlag(self, evt):
 		self.set_flag(True)
 		AppendListCtrl.lst.append(self.get_id())
+
 
 class EditableProperty(Property):
 
@@ -610,6 +612,7 @@ class EditableProperty(Property):
 	def updateFlag(self, evt):
 		self.set_flag(True)
 		AppendListCtrl.lst.append(self.get_id())
+
 
 # Initialising List of properties
 class ListProperties:
@@ -658,6 +661,7 @@ class ListProperties:
 
 	def getProperties(self):
 		return  self.propertiesList
+
 
 # Class increments and decrements a list
 class IncrDecrListPos:
