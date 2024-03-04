@@ -1,9 +1,11 @@
 
 __version__ = "2024.03.02"
 __author__ = "Sendhil Randon <sendhil.randon-ext@pole.-emploi.fr>"
+
+import addonHandler
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Tuple, Optional
+from typing import Optional
 import wx
 import gui
 from logHandler import log
@@ -12,13 +14,12 @@ from ..ruleHandler.controlMutation import (
 	MUTATIONS_BY_RULE_TYPE,
 	mutationLabels
 )
-from collections import OrderedDict, namedtuple
 import  ui
+#addonHandler.initTranslation()
 
 def showPropsDialog(context, properties):
 	PropsMenu(context, properties).ShowModal()
 	return True
-
 
 class ListControl(object):
 
@@ -77,29 +78,23 @@ class ListControl(object):
 
 	# Translator: State properties boolean "Enable"
 	# Translator: State properties boolean "Disable"
-	# Translator: State properties boolean "Empty"
 	def translateForDisplay(self, val):
-		if val is True:
-			return _("Enabled")
-		elif val is False:
-			return _("Disabled")
-		elif val is None:
-			return _("Disabled")
+		return  _("Enabled") if val else  _("Disabled")
 
 	# Function set default updatable properties on panel activation
 	def updatedStrValues(self, val, id):
 		if id == "autoAction":
 			if val:
-				retAction = lambda targetval: next((t[0] for t in [x for x in self.autoActionOptions if x[1] == targetval]),None)
+				retAction = lambda targetval: next(
+					(t[0] for t in [x for x in self.autoActionOptions if x[1] == targetval]), None)
 				if retAction(val) is not None:
 					return retAction(val)
-			return _("Choose a value")
-		elif id == "mutation":
-			if val:
-				retMut = lambda targetval: next((t[0] for t in [x for x in self.mutationOptions if x[1] == targetval]), None)
-				if retMut(val) is not None:
-					return retMut(val)
-			return _("Choose a value")
+			self.choice.SetSelection(1)
+			self.objIncAutoAct.setPos(1)
+			return self.autoActionOptions[0][0]
+		elif id == "mutation" and not val:
+
+			return self.mutationOptions[0][0] if val is None  or type(bool) else val
 		elif id in ("skip", "sayName", "formMode", "multiple"):
 			return self.translateForDisplay(val)
 		elif id in ("customValue", "customName"):
@@ -162,12 +157,14 @@ class ListControl(object):
 		dataRule = self.context["data"]["rule"]
 		ruleType = dataRule.get("type")
 		ruleProps = dataRule.get("properties")
-
 		if ruleType is not None and ruleProps is not None:
 			if ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
 				for key, value in list(ruleProps.items()):
-					if idProps == key:
+					if idProps == key and value is not None:
 						return self.updatedStrValues(value, idProps)
+					else:
+						# Translator: State properties "Not assigned"
+						return _("Not assigned")
 
 	# Function returns the properties obj using if of an object
 	def getPropsObj(self, val):
@@ -226,9 +223,12 @@ class ListControl(object):
 				self.choice.Enable()
 				self.choice.id = p.get_value()
 				if p.get_value() is not None:
-					n = self.choice.FindString(p.get_value(), False)
-					if n!=-1:
+					retVal, n =self.updateChoiceDropDown(p.get_value(), p.get_id())
+					if retVal is not None:
 						self.choice.SetSelection(n)
+				else:
+					self.objIncAutoAct.setPos(1) if p.get_id() == "autoAction" else (self.objIncMut.setPos(1) if p.get_id() == "mutation" else None)
+					self.choice.SetSelection(0)
 			elif isinstance(p, EditableProperty):
 				self.choice.Disable()
 				self.toggleBtn.Disable()
@@ -239,7 +239,18 @@ class ListControl(object):
 				else:
 					self.editable.SetValue("")
 
-	# on init fucnction updates the mutation and autoActions list
+	# Function updates the dropdown list and set the postion to the selected value
+	def updateChoiceDropDown(self, val, idProps):
+		lst = self.autoActionOptions if idProps == "autoAction" else (self.mutationOptions if  idProps == "mutation" else None)
+		getTupleVal = lambda targetval: next((t[0] for t in [x for x in lst if x[1] == targetval]), None)
+		n = self.choice.FindString(getTupleVal(val), False)
+		if n != -1:
+			self.choice.SetSelection(n)
+			pos = self.choice.GetSelection()
+			self.objIncAutoAct.setPos(pos+1) if idProps == "autoAction"  else (self.objIncMut.setPos(pos+1) if  idProps == "mutation" else None)
+			return getTupleVal(val), n
+
+	# on init function updates the mutation and autoActions list
 	def updateChoices(self,choiceItem ,id):
 		if id == "mutation":
 			choiceItem.Clear()
@@ -286,7 +297,6 @@ class ListControl(object):
 					retChoice = self.updateChoiceByList("decr", retChoiceList, p.get_id())
 					ui.message("{}".format(retChoice))
 					self.updateChoiceProperties(rowItem[0], retChoice)
-					log.info("Pressed shift key")
 					return
 		evt.Skip()
 
@@ -295,18 +305,13 @@ class ListControl(object):
 		for p in self.propertiesList:
 			if rowItem in p.get_displayName() and isinstance(p, ToggleProperty):
 				val = self.toggleBtn.GetValue()
-				if val:
-					self.toggleBtn.SetValue(False)
-					p.set_value(False)
-					ui.message("{} {}".format(p.get_displayName(), "non coché"))
-					self.updatePropertiesList(rowItem)
-					return
-				else:
-					self.toggleBtn.SetValue(True)
-					p.set_value(True)
-					ui.message("{} {}".format(p.get_displayName(), "coché"))
-					self.updatePropertiesList(rowItem)
-					return
+				val = not bool(self.toggleBtn.GetValue())
+				self.toggleBtn.SetValue(val)
+				p.set_value(val)
+				# Translator: State properties "unchecked"
+				# Translator: State properties"checked"
+				ui.message(_("checked") if val else _("unchecked"))
+				self.updatePropertiesList(rowItem)
 
 	# Function updates the editable properties list
 	def updateEditableProperties(self, rowItem, val):
@@ -423,24 +428,29 @@ class ListControl(object):
 		choiceVal = self.choice.GetString(self.choice.GetSelection())
 		selRow = self.getItemSelRow()
 		self.updateChoiceProperties(selRow[0], choiceVal)
+		forVal = filter(lambda x: x.get_displayName() == selRow[0], self.propertiesList)
+		res = list(forVal)
+		pos = self.choice.GetSelection()
+		self.objIncAutoAct.setPos(pos+1) if res[0].get_id() == "autoAction" else (self.objIncMut.setPos(pos+1) if res[0].get_id() == "mutation" else None)
 		self.updatePropertiesList(selRow[0])
 
-	# On init function updated the run time autoActions list
+	# On init, function updates theautoActions list on run time
 	def getAutoActions(self):
 		self.autoActionOptions =[]
 		mgr = self.context["webModule"].ruleManager
 		actionsDict = mgr.getActions()
-		defaultval = ("", "")
+		# Translator: State properties "unchecked"
+		defaultval = ("Choose an option", "")
 		[self.autoActionOptions.append((actionsDict[i], i))for i in actionsDict]
 		self.autoActionOptions.insert(0, defaultval)
 
 	# On init function updated the run time mutation list
 	def getMutationOptions(self):
 		self.mutationOptions = []
-		defaultval = ("", "")
+		# Translator: State properties "unchecked"
+		defaultval = ("Choose an option", "")
 		[self.mutationOptions.append((mutationLabels[i], i)) for i in mutationLabels]
 		self.mutationOptions.insert(0, defaultval)
-
 
 class AppendListCtrl(ListControl):
 
@@ -455,7 +465,6 @@ class AppendListCtrl(ListControl):
 		else:
 			super(AppendListCtrl, self).appendToList()
 			AppendListCtrl.lst.clear()
-
 
 class PropsMenu(wx.Menu):
 
@@ -479,13 +488,11 @@ class PropsMenu(wx.Menu):
 		gui.mainFrame.PopupMenu(self)
 		gui.mainFrame.postPopup()
 
-
 class PropertyType(Enum):
 	TOGGLE = "toggle"  # True / False
 	EDITABLE = "editable"
 	SINGLE_CHOICE = "singleChoice"
 	MULTIPLE_CHOICE = "multipleChoice"
-
 
 class Property(ABC):
 	@abstractmethod
@@ -506,7 +513,6 @@ class Property(ABC):
 	@abstractmethod
 	def get_displayName(self):
 		return self.__display_name
-
 
 class ToggleProperty(Property):
 	def __init__(
@@ -542,7 +548,6 @@ class ToggleProperty(Property):
 		self.set_flag(True)
 		AppendListCtrl.lst.append(self.get_id())
 
-
 class SingleChoiceProperty(Property):
 	def __init__(
 			self,
@@ -576,7 +581,6 @@ class SingleChoiceProperty(Property):
 	def updateFlag(self, evt):
 		self.set_flag(True)
 		AppendListCtrl.lst.append(self.get_id())
-
 
 class EditableProperty(Property):
 
@@ -612,7 +616,6 @@ class EditableProperty(Property):
 	def updateFlag(self, evt):
 		self.set_flag(True)
 		AppendListCtrl.lst.append(self.get_id())
-
 
 # Initialising List of properties
 class ListProperties:
@@ -662,7 +665,6 @@ class ListProperties:
 	def getProperties(self):
 		return  self.propertiesList
 
-
 # Class increments and decrements a list
 class IncrDecrListPos:
 
@@ -675,8 +677,8 @@ class IncrDecrListPos:
 	def setListChoice(self, listChoice):
 		self.listChoice = listChoice
 
-	def setPos(self, val):
-		self.pos = val
+	def setPos(self, pos):
+		self.pos = pos
 
 	def getPos(self):
 		return self.pos
@@ -685,8 +687,8 @@ class IncrDecrListPos:
 	def getIncrChoice(self):
 		self.pos = 0 if self.pos == (len(self.listChoice)) else self.getPos()
 		ret = self.listChoice[self.getPos()]
-		self.pos += 1
 		self.setPos(self.pos)
+		self.pos += 1
 		return ret
 
 	def getDecrChoice(self):
