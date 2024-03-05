@@ -208,6 +208,7 @@ class GeneralPanel(ContextualSettingsPanel):
 
 		self.ruleName.Value = data.get("name", "")
 		self.commentText.Value = data.get("comment", "")
+		self.onTypeChange(None)
 		self.refreshSummary()
 
 	def updateData(self, data=None):
