@@ -192,7 +192,9 @@ def testCriteria(context):
 	ruleData = context["data"]["rule"].copy()
 	ruleData["name"] = "tmp"
 	ruleData.setdefault("type", ruleTypes.MARKER)
-	ruleData["multiple"] = True
+	if "properties" not in ruleData:
+		ruleData["properties"] = {}
+	ruleData["properties"]["multiple"] = True
 	critData = context["data"]["criteria"].copy()
 	critData.pop("criteriaIndex", None)
 	critData.pop("new", None)
