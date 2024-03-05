@@ -84,21 +84,23 @@ class ListControl(object):
 	# Function set default updatable properties on panel activation
 	def updatedStrValues(self, val, id):
 		if id == "autoAction":
-			if val:
-				retAction = lambda targetval: next(
-					(t[0] for t in [x for x in self.autoActionOptions if x[1] == targetval]), None)
-				if retAction(val) is not None:
-					return retAction(val)
+			retAction = lambda targetval: next((t[0] for t in [x for x in self.autoActionOptions if x[1] == targetval]), None)
+			if retAction(val) is not None:
+				return retAction(val)
 			self.choice.SetSelection(1)
 			self.objIncAutoAct.setPos(1)
 			return self.autoActionOptions[0][0]
-		elif id == "mutation" and not val:
-
-			return self.mutationOptions[0][0] if val is None  or type(bool) else val
+		elif id == "mutation":
+			retAction = lambda targetval: next((t[0] for t in [x for x in self.mutationOptions if x[1] == targetval]), None)
+			if retAction(val) is not None:
+				return retAction(val)
+			self.choice.SetSelection(1)
+			self.objIncMut.setPos(1)
+			return self.mutationOptions[0][0]
 		elif id in ("skip", "sayName", "formMode", "multiple"):
 			return self.translateForDisplay(val)
 		elif id in ("customValue", "customName"):
-			return val or ""
+			return val if val else _("Empty")
 
 	# Set fresh values on init for properties
 	def onInitUpdateListCtrl(self):
@@ -160,13 +162,11 @@ class ListControl(object):
 		if ruleType is not None and ruleProps is not None:
 			if ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
 				for key, value in list(ruleProps.items()):
-					if idProps == key and value is not None:
-						return self.updatedStrValues(value, idProps)
-					else:
+					if idProps == key:
 						# Translator: State properties "Not assigned"
-						return _("Not assigned")
+						return self.updatedStrValues(value, idProps) if value else _("Not assigned")
 
-	# Function returns the properties obj using if of an object
+	# Function returns the properties obj
 	def getPropsObj(self, val):
 		for p in self.propertiesList:
 			if val == p.get_id():
@@ -304,7 +304,6 @@ class ListControl(object):
 	def updateToggleBtnPropertiest(self, rowItem):
 		for p in self.propertiesList:
 			if rowItem in p.get_displayName() and isinstance(p, ToggleProperty):
-				val = self.toggleBtn.GetValue()
 				val = not bool(self.toggleBtn.GetValue())
 				self.toggleBtn.SetValue(val)
 				p.set_value(val)
