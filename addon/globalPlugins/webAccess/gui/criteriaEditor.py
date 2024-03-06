@@ -166,20 +166,24 @@ def getSummary(data, indent="", condensed=False):
 		else:
 			parts.extend(subParts)
 	subParts = []
-	for key, label in list(OverridesPanel.FIELDS.items()):
-		if key not in data:
-			continue
-		value = data[key]
-		subParts.append("{} {}".format(stripAccel(label), value))
+	data = data.get("overrides")
+	if data:
+		for key, label in list(OverridesPanel.FIELDS.items()):
+			if key not in data:
+				continue
+			value = data[key]
+			if value:
+				subParts.append("{}:{}".format(stripAccel(label), value))
 	if subParts:
 		if condensed:
-			parts.append("{} {}".format(
-				_("Overrides:"),
+			parts.append("{}:{}".format(
+				_("Overrides"),
 				", ".join(subParts)
 			))
 		else:
+			parts.append(_("Overrides:"))
 			for subPart in subParts:
-				parts.append("{} {}".format(_("Overrides"), subPart))
+				parts.append("{}".format(subPart))
 	if parts:
 		return "{}{}".format(indent, "\n{}".format(indent).join(parts))
 	else:

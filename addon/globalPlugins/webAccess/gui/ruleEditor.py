@@ -91,6 +91,7 @@ def getSummary(data):
 				parts.append(getCriteriaSummary(alternative, condensed=True, indent="    "))
 	# Properties
 	subParts = []
+	data = data.get("properties")
 	for key, label in list(PropertiesPanel.FIELDS.items()):
 		if key not in PropertiesPanel.RULE_TYPE_FIELDS.get(ruleType, []):
 			continue
@@ -792,6 +793,7 @@ class PropertiesPanel(ContextualSettingsPanel):
 			self.noPropertiesLabel.Show()
 
 	def onPanelActivated(self):
+		self.updateData()
 		dataRule = self.context["data"]["rule"]
 		ruleType = dataRule.get("type")
 		show = ruleType in (ruleTypes.ZONE, ruleTypes.MARKER)
