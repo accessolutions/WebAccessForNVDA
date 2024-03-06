@@ -301,9 +301,9 @@ class GeneralPanel(ContextualSettingsPanel):
 				self.sequenceOrderChoice.Append(str(index + 1))
 			index = data.get("criteriaIndex", nbCriteria + 1)
 			self.sequenceOrderChoice.SetSelection(index)
-			self.criteriaName.Value = data.get("name", "")
-			self.commentText.Value = data.get("comment", "")
-			self.refreshSummary()
+		self.criteriaName.Value = data.get("name", "")
+		self.commentText.Value = data.get("comment", "")
+		self.refreshSummary()
 
 	def updateData(self, data=None):
 		if data is None:
