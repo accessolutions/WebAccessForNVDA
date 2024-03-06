@@ -19,20 +19,15 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-# Get ready for Python 3
-
 
 __version__ = "2019.12.05"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
-from collections import OrderedDict
-
 import addonHandler
 import controlTypes
 
 from . import ruleTypes
-
 
 addonHandler.initTranslation()
 
@@ -75,7 +70,7 @@ class MutatedControl(object):
 
 	def apply(self, result):
 		rule = result.rule
-		mutation = rule.mutation
+		mutation = result.get_property("mutation")
 		if mutation is None:
 			raise ValueError("No mutation defined for this rule: {}".format(
 				rule.name
@@ -116,82 +111,74 @@ MUTATIONS = {
 	"table.layout": Mutation({"table-layout": True}, False)
 }
 
-MUTATIONS_BY_RULE_TYPE = OrderedDict((
-	(
-		ruleTypes.MARKER, [
-			"heading.1",
-			"heading.2",
-			"heading.3",
-			"heading.4",
-			"heading.5",
-			"heading.6",
-			"labelled",
-			"section",
-			"landmark.region",
-			"landmark.nav.named",
-			"landmark.nav.unnamed",
-			"button",
-			"link",
-			"table.data",
-			"table.layout",
-		]
-	),
-	(
-		ruleTypes.ZONE, [
-			"labelled",
-			"section",
-			"landmark.region",
-			"landmark.nav.named",
-			"landmark.nav.unnamed",
-			"table.data",
-			"table.layout",
-		]
-	)
-))
-
-mutationLabels = OrderedDict((
-	# Translators: The label for a control mutation.
-	("button", pgettext("webAccess.controlMutation", "Button")),
-	# Translators: The label for a control mutation.
-	("heading.1", pgettext("webAccess.controlMutation", "Header level 1")),
-	# Translators: The label for a control mutation.
-	("heading.2", pgettext("webAccess.controlMutation", "Header level 2")),
-	# Translators: The label for a control mutation.
-	("heading.3", pgettext("webAccess.controlMutation", "Header level 3")),
-	# Translators: The label for a control mutation.
-	("heading.4", pgettext("webAccess.controlMutation", "Header level 4")),
-	# Translators: The label for a control mutation.
-	("heading.5", pgettext("webAccess.controlMutation", "Header level 5")),
-	# Translators: The label for a control mutation.
-	("heading.6", pgettext("webAccess.controlMutation", "Header level 6")),
-	# Translators: The label for a control mutation.
-	("labelled", pgettext("webAccess.controlMutation", "Add a label")),
-	# Translators: The label for a control mutation.
-	("section", pgettext("webAccess.controlMutation", "Section")),
-	(
+MUTATIONS_BY_RULE_TYPE = {
+	ruleTypes.MARKER: (
+		"heading.1",
+		"heading.2",
+		"heading.3",
+		"heading.4",
+		"heading.5",
+		"heading.6",
+		"labelled",
+		"section",
 		"landmark.region",
-		# Translators: The label for a control mutation.
-		pgettext("webAccess.controlMutation", "Region")
-	),
-	(
 		"landmark.nav.named",
-		# Translators: The label for a control mutation.
-		pgettext("webAccess.controlMutation", "Navigation (named)")
-	),
-	(
 		"landmark.nav.unnamed",
-		# Translators: The label for a control mutation.
-		pgettext("webAccess.controlMutation", "Navigation (unnamed)")
-	),
-	# Translators: The label for a control mutation.
-	("link", pgettext("webAccess.controlMutation", "Link")),
-	(
+		"button",
+		"link",
 		"table.data",
-		pgettext(
-			# Translators: The label for a control mutation.
-			"webAccess.controlMutation", "Data table (Internet Explorer only)"
-		)
+		"table.layout",
 	),
+	ruleTypes.ZONE: (
+		"labelled",
+		"section",
+		"landmark.region",
+		"landmark.nav.named",
+		"landmark.nav.unnamed",
+		"table.data",
+		"table.layout"
+	)
+}
+
+mutationLabels = {
 	# Translators: The label for a control mutation.
-	("table.layout", pgettext("webAccess.controlMutation", "Layout table")),
-))
+	"button": pgettext("webAccess.controlMutation", "Button"),
+	# Translators: The label for a control mutation.
+	"heading.1": pgettext("webAccess.controlMutation", "Header level 1"),
+	# Translators: The label for a control mutation.
+	"heading.2": pgettext("webAccess.controlMutation", "Header level 2"),
+	# Translators: The label for a control mutation.
+	"heading.3": pgettext("webAccess.controlMutation", "Header level 3"),
+	# Translators: The label for a control mutation.
+	"heading.4": pgettext("webAccess.controlMutation", "Header level 4"),
+	# Translators: The label for a control mutation.
+	"heading.5": pgettext("webAccess.controlMutation", "Header level 5"),
+	# Translators: The label for a control mutation.
+	"heading.6": pgettext("webAccess.controlMutation", "Header level 6"),
+	# Translators: The label for a control mutation.
+	"labelled": pgettext("webAccess.controlMutation", "Add a label"),
+	# Translators: The label for a control mutation.
+	"section": pgettext("webAccess.controlMutation", "Section"),
+	# Translators: The label for a control mutation.
+	"landmark.region": pgettext("webAccess.controlMutation", "Region"),
+	# Translators: The label for a control mutation.
+	"landmark.nav.named": pgettext("webAccess.controlMutation", "Navigation (named)"),
+	# Translators: The label for a control mutation.
+	"landmark.nav.unnamed": pgettext("webAccess.controlMutation", "Navigation (unnamed)"),
+	# Translators: The label for a control mutation.
+	"link": pgettext("webAccess.controlMutation", "Link"),
+	# Translators: The label for a control mutation.
+	"table.data": pgettext("webAccess.controlMutation", "Data table (Internet Explorer only)"),
+	# Translators: The label for a control mutation.
+	"table.layout": pgettext("webAccess.controlMutation", "Layout table")
+}
+
+def getMutationId(
+	mutation: Mutation
+):
+	"""
+	Get the mutation ID from the mutation object.
+	"""
+	return list(MUTATIONS.keys())[
+		list(MUTATIONS.values()).index(mutation)
+	] if mutation else None

@@ -24,7 +24,6 @@ __version__ = "2021.03.26"
 __author__ = "Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
-from collections import OrderedDict
 from itertools import chain
 from pprint import pformat
 import threading
@@ -57,7 +56,7 @@ from ..webAppLib import (
 	playWebAppSound,
 )
 from .. import webAppScheduler
-from .controlMutation import MUTATIONS, MutatedControl
+from .controlMutation import MUTATIONS, MutatedControl, getMutationId
 from . import ruleTypes
 
 
@@ -68,7 +67,7 @@ addonHandler.initTranslation()
 SCRIPT_CATEGORY = "WebAccess"
 
 
-builtinRuleActions = OrderedDict()
+builtinRuleActions = {}
 # Translators: Action name
 builtinRuleActions["moveto"] = pgettext("webAccess.action", "Move to")
 # Translators: Action name
@@ -135,7 +134,7 @@ class RuleManager(baseObject.ScriptableObject):
 		self._nodeManager = None
 		self.nodeManagerIdentifier = None
 		self.lock = threading.RLock()
-		self._layers = OrderedDict()
+		self._layers = {}
 		self._layersIndex = {}
 		self._rules = {}
 		self._results = []
@@ -182,7 +181,7 @@ class RuleManager(baseObject.ScriptableObject):
 		rule = self.webModule.createRule(data)
 		rule.layer = layer
 		self._layers[layer][name] = rule
-		self._rules.setdefault(name, OrderedDict())[layer] = rule
+		self._rules.setdefault(name, {})[layer] = rule
 
 	def unload(self, layer):
 		for index in range(len(self._results)):
@@ -781,9 +780,7 @@ class Properties:
 			"sayName": self.sayName,
 			"customName": self.customName,
 			"customValue": self.customValue,
-			"mutation": list(MUTATIONS.keys())[
-				list(MUTATIONS.values()).index(self.mutation)
-			] if self.mutation else None
+			"mutation": getMutationId(self.mutation)
 		}
 
 	def __repr__(self):
@@ -792,23 +789,30 @@ class Properties:
 
 class OverrideProperties(Properties):
 
-	_keys = ("autoAction", "multiple","formMode","skip", "sayName",  "customName", "customValue", "mutation")
+	_keys = (
+		"autoAction", "customName", "customValue",
+		"formMode", "multiple", "sayName", "skip"
+	)
 
 	def load(self, data):
 		data = data.copy()
 		for key in self._keys:
 			if key in data:
 				setattr(self, key, data.pop(key))
-		self.mutation = None
-		mutation = data.pop("mutation", None)
-		if mutation:
-			try:
-				self.mutation = MUTATIONS[mutation]
-			except LookupError:
-				log.exception((
-					"Unexpected mutation template id \"{mutation}\" "
-					"in rule \"{rule}\"."
-				).format(mutation=mutation, rule=self.mutation))
+		if "mutation" in data:
+			self.mutation = None
+			mutation = data.pop("mutation", None)
+			if mutation:
+				try:
+					self.mutation = MUTATIONS[mutation]
+				except LookupError:
+					log.exception((
+						"Unexpected mutation template id \"{mutation}\" "
+						"in rule \"{rule}\"."
+					).format(
+						mutation=mutation,
+						rule=self.mutation
+					))
 		if data:
 			raise ValueError(
 				"Unexpected attribute"
@@ -817,9 +821,12 @@ class OverrideProperties(Properties):
 			)
 
 	def dump(self):
-		return {
+		data = {
 			key: getattr(self, key) for key in self._keys if hasattr(self, key)
 		}
+		if hasattr(self, "mutation"):
+			data["mutation"] = getMutationId(self.mutation)
+		return data
 
 
 class CustomActionDispatcher(object):
@@ -1184,7 +1191,7 @@ class Criteria(baseObject.ScriptableObject):
 			)
 
 	def dump(self):
-		data = OrderedDict()
+		data = {}
 
 		def setIfNotDefault(dic, key, value, default=None):
 			if value is not None:
@@ -1403,7 +1410,7 @@ class Rule(baseObject.ScriptableObject):
 			if value is not None:
 				dic[key] = value
 
-		data = OrderedDict()
+		data = {}
 		data["name"] = self.name
 		data["type"] = self.type
 		setIfNotDefault(data, "gestures", self.gestures, {})
