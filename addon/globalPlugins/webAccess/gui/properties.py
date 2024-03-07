@@ -1,5 +1,5 @@
 
-__version__ = "2024.03.02"
+__version__ = "2024.03.07"
 __author__ = "Sendhil Randon <sendhil.randon-ext@pole.-emploi.fr>"
 
 import addonHandler
@@ -15,7 +15,7 @@ from ..ruleHandler.controlMutation import (
 	mutationLabels
 )
 import  ui
-#addonHandler.initTranslation()
+addonHandler.initTranslation()
 
 def showPropsDialog(context, properties):
 	PropsMenu(context, properties).ShowModal()
@@ -76,30 +76,32 @@ class ListControl(object):
 			style=wx.OK | wx.ICON_EXCLAMATION
 		)
 
-	# Translator: State properties boolean "Enable"
-	# Translator: State properties boolean "Disable"
-	def translateForDisplay(self, val):
-		return  _("Enabled") if val else  _("Disabled")
+	# Function set default updatable properties on panel activation
+	def setValueSingleChoiceProps(self, val, id):
+		retChoiceVal = lambda targetval, l: next((t[0] for t in [x for x in l if x[1] == targetval]), None)
+		if id == "autoAction":
+			ret = retChoiceVal(val, self.autoActionOptions)
+			return ret if ret else self.setDefaultChoice(self.objIncAutoAct, self.autoActionOptions)
+		elif id == "mutation":
+			ret = retChoiceVal(val, self.mutationOptions)
+			return ret if ret else self.setDefaultChoice(self.objIncMut, self.mutationOptions)
+
+	# Set the choice dropdown to default value if none is retrived
+	def setDefaultChoice(self, objToIncr, lst):
+		self.choice.SetSelection(1)
+		objToIncr.setPos(1)
+		return lst[0][0]
 
 	# Function set default updatable properties on panel activation
 	def updatedStrValues(self, val, id):
-		if id == "autoAction":
-			retAction = lambda targetval: next((t[0] for t in [x for x in self.autoActionOptions if x[1] == targetval]), None)
-			if retAction(val) is not None:
-				return retAction(val)
-			self.choice.SetSelection(1)
-			self.objIncAutoAct.setPos(1)
-			return self.autoActionOptions[0][0]
-		elif id == "mutation":
-			retAction = lambda targetval: next((t[0] for t in [x for x in self.mutationOptions if x[1] == targetval]), None)
-			if retAction(val) is not None:
-				return retAction(val)
-			self.choice.SetSelection(1)
-			self.objIncMut.setPos(1)
-			return self.mutationOptions[0][0]
-		elif id in ("skip", "sayName", "formMode", "multiple"):
-			return self.translateForDisplay(val)
-		elif id in ("customValue", "customName"):
+		if isinstance(self.getPropsObj(id), SingleChoiceProperty):
+			return self.setValueSingleChoiceProps(val, id)
+		elif isinstance(self.getPropsObj(id), ToggleProperty):
+			# Translator: State properties boolean "Enabled"
+			# Translator: State properties boolean "Disabled"
+			return _("Enabled") if val else _("Disabled")
+		elif isinstance(self.getPropsObj(id), EditableProperty):
+			# Translator: State properties editable "Empty"
 			return val if val else _("Empty")
 
 	# Set fresh values on init for properties
@@ -681,7 +683,6 @@ class IncrDecrListPos:
 
 	def getPos(self):
 		return self.pos
-
 
 	def getIncrChoice(self):
 		self.pos = 0 if self.pos == (len(self.listChoice)) else self.getPos()
