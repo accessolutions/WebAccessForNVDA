@@ -307,6 +307,7 @@ class ListControl(object):
 		for p in self.propertiesList:
 			if rowItem in p.get_displayName() and isinstance(p, ToggleProperty):
 				val = not bool(self.toggleBtn.GetValue())
+				log.info("===================================================================== UDPATE TOGGLE PROPERTEIES ====================> bool => {}".format(val))
 				self.toggleBtn.SetValue(val)
 				p.set_value(val)
 				# Translator: State properties "unchecked"
@@ -623,6 +624,7 @@ class ListProperties:
 
 	propertiesList = []
 	FIELDS = None
+	RULE_TYPE_FIELDS = None
 
 	def __init__(self):
 		self.__propsMultiple = None
@@ -635,8 +637,12 @@ class ListProperties:
 		self.__autoAction = None
 		self.FIELDS = None
 
-	def setProperties(self):
+	def setProperties(self, context):
 		self.FIELDS = self.getFields()
+		self.RULE_TYPE_FIELDS = self.getRuleTypeFields()
+		dataRule = context["data"]["rule"]
+		ruleType = dataRule.get("type")
+
 		self.__autoAction = SingleChoiceProperty("autoAction", self.FIELDS["autoAction"], False, "")
 		self.__propsMultiple = ToggleProperty("multiple", self.FIELDS["multiple"], False, False)
 		self.__propsFormMode = ToggleProperty("formMode", self.FIELDS["formMode"], False, False)
@@ -646,7 +652,7 @@ class ListProperties:
 		self.__propsCustomValue = EditableProperty("customValue", self.FIELDS["customValue"], False)
 		self.__propsMutation = SingleChoiceProperty("mutation", self.FIELDS["mutation"], False, "")
 
-		self.propertiesList = [
+		availProps = [
 			self.__autoAction,
 			self.__propsMultiple,
 			self.__propsFormMode,
@@ -657,6 +663,12 @@ class ListProperties:
 			self.__propsMutation
 		]
 
+		self.propertiesList = []
+		p = self.RULE_TYPE_FIELDS.get(ruleType)
+		for ap in availProps:
+			if ap is not None and ap.get_id() in p:
+				self.propertiesList.append(ap)
+
 	def setFields(self, fields):
 		self.FIELDS = fields
 
@@ -665,6 +677,12 @@ class ListProperties:
 
 	def getProperties(self):
 		return  self.propertiesList
+
+	def setRuleTypeFields(self, ruleTypeFields):
+		self.RULE_TYPE_FIELDS = ruleTypeFields
+
+	def getRuleTypeFields(self):
+		return  self.RULE_TYPE_FIELDS
 
 # Class increments and decrements a list
 class IncrDecrListPos:

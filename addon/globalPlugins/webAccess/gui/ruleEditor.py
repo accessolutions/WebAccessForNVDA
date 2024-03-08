@@ -92,25 +92,26 @@ def getSummary(data):
 	# Properties
 	subParts = []
 	data = data.get("properties")
-	for key, label in list(PropertiesPanel.FIELDS.items()):
-		if key not in PropertiesPanel.RULE_TYPE_FIELDS.get(ruleType, []):
-			continue
-		if key == "sayName":
-			value = data.get(key, True)
-		elif key not in data:
-			continue
-		else:
-			value = data[key]
-		label = PropertiesPanel.getAltFieldLabel(ruleType, key, label)
-		label = stripAccel(label)
-		if key == "mutation":
-			value = mutationLabels.get(value)
-		elif isinstance(value, bool):
-			if value:
-				label = stripAccelAndColon(label)
-				subParts.append("  {}".format(label))
-			continue
-		subParts.append("  {} {}".format(label, value))
+	if data:
+		for key, label in list(PropertiesPanel.FIELDS.items()):
+			if key not in PropertiesPanel.RULE_TYPE_FIELDS.get(ruleType, []):
+				continue
+			if key == "sayName":
+				value = data.get(key, True)
+			elif key not in data:
+				continue
+			else:
+				value = data[key]
+			label = PropertiesPanel.getAltFieldLabel(ruleType, key, label)
+			label = stripAccel(label)
+			if key == "mutation":
+				value = mutationLabels.get(value)
+			elif isinstance(value, bool):
+				if value:
+					label = stripAccelAndColon(label)
+					subParts.append("  {}".format(label))
+				continue
+			subParts.append("  {} {}".format(label, value))
 	if subParts:
 		parts.append(_("Properties"))
 		parts.extend(subParts)
@@ -599,7 +600,6 @@ class ActionsPanel(ContextualSettingsPanel):
 	def onPanelActivated(self):
 		data = self.context["data"]["rule"] if hasattr(self, "context") else {}
 		ruleType = data.get("type")
-
 		show = ruleType in (ruleTypes.ZONE, ruleTypes.MARKER)
 		self.sizer.ShowItems(show)
 		self.noActionsLabel.Show(not show)
@@ -642,10 +642,12 @@ class PropertiesPanel(ContextualSettingsPanel):
 		# Translator: Transform select label for the rule dialog's properties panel.
 		"mutation": pgettext("webAccess.ruleProperties", "Transform:"),
 	}
+
 	RULE_TYPE_FIELDS = OrderedDict((
 		(ruleTypes.PAGE_TITLE_1, ("customValue",)),
 		(ruleTypes.PAGE_TITLE_2, ("customValue",)),
 		(ruleTypes.ZONE, (
+			"autoAction",
 			"formMode",
 			"skip",
 			"sayName",
@@ -654,6 +656,7 @@ class PropertiesPanel(ContextualSettingsPanel):
 			"mutation"
 		)),
 		(ruleTypes.MARKER, (
+			"autoAction",
 			"multiple",
 			"formMode",
 			"skip",
@@ -737,50 +740,44 @@ class PropertiesPanel(ContextualSettingsPanel):
 	def initData(self, context):
 		self.context = context
 		self.initPropertiesList()
-		objListCtrl = self.loadPropertiesInPanel()
-		dataRule= self.context["data"]["rule"]
-		ruleType = dataRule.get("type")
-		ruleProps = dataRule.get("properties")
-		if ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
-			if ruleProps is None:
-				self.setPropertiesData(False, self.context, objListCtrl)
-			else:
-				self.setPropertiesData(True, self.context, objListCtrl)
-		self.onPanelActivated()
 
 	def initPropertiesList(self):
 		instanceListProperties.setFields(self.FIELDS)
-		instanceListProperties.setProperties()
+		instanceListProperties.setRuleTypeFields(self.RULE_TYPE_FIELDS)
+		instanceListProperties.setProperties(self.context)
 		self.propertiesList = instanceListProperties.getProperties()
 
-	def setPropertiesData(self, isRuleExits, context, objCtrl):
-		self.showItems(display=True)
-		if isRuleExits:
-			data = context["data"]["rule"]["properties"]
-			for props in self.propertiesList:
-				for key, value in data.items():
-					if props.get_id() == key:
-						props.set_flag(True)
-						props.set_value(value)
-			objCtrl.onInitUpdateListCtrl()
+	def setPropertiesData(self, dataRule, context, objCtrl):
+		dataProps = dataRule.get("properties")
+		if self.propertiesList:
+			self.showItems(True)
+			if dataProps:
+				data = context["data"]["rule"]["properties"]
+				for props in self.propertiesList:
+					for key, value in data.items():
+						if props.get_id() == key:
+							props.set_flag(True)
+							props.set_value(value)
+				objCtrl.onInitUpdateListCtrl()
+			else:
+				for props in self.propertiesList:
+					props.set_flag(True)
+				objCtrl.onInitUpdateListCtrl()
 		else:
-			for props in self.propertiesList:
-				props.set_flag(True)
-			objCtrl.onInitUpdateListCtrl()
+			self.showItems(False)
 
 	def updateData(self, data = None):
 		self.propertiesMapValue = {}
 		data = self.context["data"]["rule"]
 		ruleType = data.get("type")
 		if ruleType is not None:
-			if ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
-				for props in self.propertiesList:
-					self.propertiesMapValue[props.get_id()] = props.get_value()
-				if data.get("properties"):
-					del data["properties"]
-				data["properties"] = self.propertiesMapValue
+			for props in self.propertiesList:
+				self.propertiesMapValue[props.get_id()] = props.get_value()
+			if data.get("properties"):
+				del data["properties"]
+			data["properties"] = self.propertiesMapValue
 
-	def showItems(self, display= False):
+	def showItems(self, display):
 		if display:
 			for item in self.hidable:
 				item.Show()
@@ -793,13 +790,10 @@ class PropertiesPanel(ContextualSettingsPanel):
 			self.noPropertiesLabel.Show()
 
 	def onPanelActivated(self):
-		self.updateData()
+		self.initPropertiesList()
+		objListCtrl = self.loadPropertiesInPanel()
 		dataRule = self.context["data"]["rule"]
-		ruleType = dataRule.get("type")
-		show = ruleType in (ruleTypes.ZONE, ruleTypes.MARKER)
-		objListCtrl=self.loadPropertiesInPanel()
-		self.setPropertiesData(False, self.context, objListCtrl)
-		self.showItems(show)
+		self.setPropertiesData(dataRule, self.context, objListCtrl)
 		super(PropertiesPanel, self).onPanelActivated()
 
 	def onSave(self):
