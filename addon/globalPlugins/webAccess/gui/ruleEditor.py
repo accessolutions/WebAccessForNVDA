@@ -21,7 +21,7 @@
 
 
 
-__version__ = "2021.03.26"
+__version__ = "2021.03.08"
 __author__ = "Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
@@ -775,7 +775,7 @@ class PropertiesPanel(ContextualSettingsPanel):
 		if ruleType is not None:
 			if ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
 				for props in self.propertiesList:
-					self.propertiesMapValue[props.get_id()] = props.get_value() if props.get_value() else None
+					self.propertiesMapValue[props.get_id()] = props.get_value()
 				if data.get("properties"):
 					del data["properties"]
 				data["properties"] = self.propertiesMapValue
