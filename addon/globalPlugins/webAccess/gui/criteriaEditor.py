@@ -34,6 +34,7 @@ import controlTypes
 import gui
 from logHandler import log
 
+from .properties import ListControl
 from ..ruleHandler import ruleTypes
 from ..utils import guarded, updateOrDrop
 from . import (
@@ -137,7 +138,7 @@ def translateStatesLblToId(expr, raiseOnError=True):
 def getSummary(data, indent="", condensed=False):
 	parts = []
 	subParts = []
-	for key, label in list(CriteriaPanel.FIELDS.items()):
+	for key, label in list(props.FIELDS.items()):
 		if key not in CriteriaPanel.CONTEXT_FIELDS or key not in data:
 			continue
 		value = data[key]
@@ -168,7 +169,7 @@ def getSummary(data, indent="", condensed=False):
 	subParts = []
 	data = data.get("overrides")
 	if data:
-		for key, label in list(OverridesPanel.FIELDS.items()):
+		for key, label in list(props.FIELDS.items()):
 			if key not in data:
 				continue
 			value = data[key]
@@ -825,51 +826,8 @@ class OverridesPanel(ContextualSettingsPanel):
 
 	# Translators: The label for a Criteria editor category.
 	title = _("Overrides")
-
-	propertiesList = []
-
-	# The semi-column is part of the labels because some localizations
-	# (ie. French) require it to be prepended with one space.
-	FIELDS = {
-		# Translator: Multiple results checkbox label for the rule dialog's properties panel.
-		"autoAction": pgettext("webAccess.ruleProperties", "Auto Actions"),
-		# Translator: Multiple results checkbox label for the rule dialog's properties panel.
-		"multiple": pgettext("webAccess.ruleProperties", "Multiple results"),
-		# Translator: Activate form mode checkbox label for the rule dialog's properties panel.
-		"formMode": pgettext("webAccess.ruleProperties", "Activate form mode"),
-		# Translator: Skip page down checkbox label for the rule dialog's properties panel.
-		"skip": pgettext("webAccess.ruleProperties", "Skip with Page Down"),
-		# Translator: Speak rule name checkbox label for the rule dialog's properties panel.
-		"sayName": pgettext("webAccess.ruleProperties", "Speak rule name"),
-		# Translator: Custom name input label for the rule dialog's properties panel.
-		"customName": pgettext("webAccess.ruleProperties", "Custom name:"),
-		# Label depends on rule type)
-		"customValue": pgettext("webAccess.ruleProperties", "Custom value:"),
-		# Translator: Transform select label for the rule dialog's properties panel.
-		"mutation": pgettext("webAccess.ruleProperties", "Transform:"),
-	}
-
-	RULE_TYPE_FIELDS = OrderedDict((
-		(ruleTypes.PAGE_TITLE_1, ("customValue")),
-		(ruleTypes.PAGE_TITLE_2, ("customValue",)),
-		(ruleTypes.ZONE, (
-			"formMode",
-			"skip",
-			"sayName",
-			"customName",
-			"customValue",
-			"mutation"
-		)),
-		(ruleTypes.MARKER, (
-			"multiple",
-			"formMode",
-			"skip",
-			"sayName",
-			"customName",
-			"customValue",
-			"mutation"
-		)),
-	))
+	propertiesList = None
+	hidable = []
 
 	@staticmethod
 	def getAltFieldLabel(ruleType, key, default=None):
@@ -886,11 +844,6 @@ class OverridesPanel(ContextualSettingsPanel):
 		gbSizer = wx.GridBagSizer()
 		gbSizer.EmptyCellSize = (0, 0)
 		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
-		self.hidable = []
-
-		self.initPropertiesList()
-		instanceListPropertiesCrit.setProperties()
-		self.propertiesList = instanceListPropertiesCrit.getProperties()
 
 		# Translators: Displayed when the selected rule type doesn't support any property
 		sizer = wx.GridBagSizer(hgap=5, vgap=5)
@@ -944,55 +897,51 @@ class OverridesPanel(ContextualSettingsPanel):
 
 		btn_sizer.Add(self.btnDelProps)
 		sizer.Add(btn_sizer, pos=(4, 0), flag=wx.EXPAND)
-
 		self.SetSizer(sizer)
 
 	def initData(self, context):
+		self.showItems(display=True)
+		self.hidable.clear()
 		self.context = context
 		self.initPropertiesList()
+
+	def loadPropsOverridePanel(self):
 		from ..gui import properties as p
-		objListCtrl= p.ListControl(self)
-		dataRule = self.context["data"]["rule"]
-		rules = dataRule.get("type")
-		dataTypeCrit = self.context["data"]["criteria"]
-		typeOverride = dataTypeCrit.get("overrides")
-		if rules in (ruleTypes.ZONE, ruleTypes.MARKER):
-			if typeOverride is not None:
-				self.setPropertiesData(self.context, objListCtrl)
-		else:
-			self.showItems(display=False)
+		objListCtrl = p.ListControl(self)
+		return objListCtrl
 
 	def initPropertiesList(self):
-		instanceListPropertiesCrit.setFields(self.FIELDS)
-		instanceListPropertiesCrit.setProperties()
-		self.propertiesList = instanceListPropertiesCrit.getProperties()
+		instanceListPropertiesCrit.setPropertiesByRuleType(self.context)
+		self.propertiesList = instanceListPropertiesCrit.getPropertiesByRuleType()
+		dataTypeCrit = self.context["data"]["criteria"]
+		typeOverride = dataTypeCrit.get("overrides")
+		objListCtrlCrit = self.loadPropsOverridePanel()
+		if typeOverride:
+			dataOveride = dataTypeCrit["overrides"]
+			self.setPropertiesData(dataOveride, objListCtrlCrit)
 
-	def setPropertiesData(self, context, objCtrl):
-		self.showItems(display=True)
-		data = context["data"]["criteria"]["overrides"]
+	def setPropertiesData(self, dataOverride, objCtrl):
 		for props in self.propertiesList:
-			for key, value in data.items():
+			for key, value in dataOverride.items():
 				if props.get_id() == key:
 					props.set_flag(True)
 					props.set_value(value)
 		objCtrl.onInitUpdateListCtrl()
 
 	def updateData(self, data = None):
-		self.propertiesMapValue = {}
+		propertiesMapValue = {}
 		data = self.context["data"]["rule"]
 		ruleType = data.get("type")
 		dataCrit = self.context["data"]["criteria"]
-		if ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
+		if ruleType is not None:
 			for props in self.propertiesList:
 				if props.get_value():
-					self.propertiesMapValue[props.get_id()] = props.get_value()
+					propertiesMapValue[props.get_id()] = props.get_value()
 			if data.get("overrides"):
 				del data["overrides"]
-			dataCrit["overrides"] = self.propertiesMapValue
-		else:
-			self.showItems(display=False)
+			dataCrit["overrides"] = propertiesMapValue
 
-	def showItems(self, display= False):
+	def showItems(self, display=False):
 		if display:
 			for item in self.hidable:
 				item.Show()
@@ -1001,6 +950,11 @@ class OverridesPanel(ContextualSettingsPanel):
 			for item in self.hidable:
 				item.Hide()
 			self.noPropertiesLabel.Show()
+
+	def onPanelActivated(self):
+
+		self.initPropertiesList()
+		super(OverridesPanel, self).onPanelActivated()
 
 	def onSave(self):
 		self.updateData()

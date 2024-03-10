@@ -2,6 +2,7 @@
 __version__ = "2024.03.07"
 __author__ = "Sendhil Randon <sendhil.randon-ext@pole.-emploi.fr>"
 
+from collections import OrderedDict
 import addonHandler
 from abc import ABC, abstractmethod
 from enum import Enum
@@ -16,6 +17,55 @@ from ..ruleHandler.controlMutation import (
 )
 import  ui
 addonHandler.initTranslation()
+
+# event hander constants
+EVT_KEY_DOWN = 10057
+EVT_CHAR_HOOK = 10055
+
+# The semi-column is part of the labels because some localizations
+# (ie. French) require it to be prepended with one space.
+FIELDS = {
+	# Translator: Multiple results checkbox label for the rule dialog's properties panel.
+	"autoAction": pgettext("webAccess.ruleProperties", "Auto Actions"),
+	# Translator: Multiple results checkbox label for the rule dialog's properties panel.
+	"multiple": pgettext("webAccess.ruleProperties", "Multiple results"),
+	# Translator: Activate form mode checkbox label for the rule dialog's properties panel.
+	"formMode": pgettext("webAccess.ruleProperties", "Activate form mode"),
+	# Translator: Skip page down checkbox label for the rule dialog's properties panel.
+	"skip": pgettext("webAccess.ruleProperties", "Skip with Page Down"),
+	# Translator: Speak rule name checkbox label for the rule dialog's properties panel.
+	"sayName": pgettext("webAccess.ruleProperties", "Speak rule name"),
+	# Translator: Custom name input label for the rule dialog's properties panel.
+	"customName": pgettext("webAccess.ruleProperties", "Custom name"),
+	# Label depends on rule type)
+	"customValue": pgettext("webAccess.ruleProperties", "Custom value"),
+	# Translator: Transform select label for the rule dialog's properties panel.
+	"mutation": pgettext("webAccess.ruleProperties", "Transform"),
+}
+
+RULE_TYPE_FIELDS = OrderedDict((
+	(ruleTypes.PAGE_TITLE_1, ("customValue",)),
+	(ruleTypes.PAGE_TITLE_2, ("customValue",)),
+	(ruleTypes.ZONE, (
+		"autoAction",
+		"formMode",
+		"skip",
+		"sayName",
+		"customName",
+		"customValue",
+		"mutation"
+	)),
+	(ruleTypes.MARKER, (
+		"autoAction",
+		"multiple",
+		"formMode",
+		"skip",
+		"sayName",
+		"customName",
+		"customValue",
+		"mutation"
+	)),
+))
 
 def showPropsDialog(context, properties):
 	PropsMenu(context, properties).ShowModal()
@@ -35,8 +85,6 @@ class ListControl(object):
 		self.toggleBtn = propsPanel.toggleBtn
 		self.editable = propsPanel.editable
 		self.choice = propsPanel.choice
-		self.btnAddProps = propsPanel.btnAddProps
-		self.btnDelProps = propsPanel.btnDelProps
 		self.context = propsPanel.context
 
 		# wx.List control event binding
@@ -46,8 +94,6 @@ class ListControl(object):
 		self.toggleBtn.Bind(wx.EVT_TOGGLEBUTTON, self.updateValueEvtToggle)
 		self.editable.Bind(wx.EVT_TEXT, self.updateValueEvtEdit)
 		self.choice.Bind(wx.EVT_CHOICE, self.updateValueEvtChoice)
-		self.btnAddProps.Bind(wx.EVT_BUTTON, self.onAddProperties)
-		self.btnDelProps.Bind(wx.EVT_BUTTON, self.onDeleteProperties)
 
 		#Local variables
 		self.index = 0
@@ -61,10 +107,10 @@ class ListControl(object):
 		self.init()
 
 	def init(self):
+		self.updateBtnState()
 		self.toggleBtn.Disable()
 		self.editable.Disable()
 		self.choice.Disable()
-		self.updateBtnState()
 		self.getAutoActions()
 		self.getMutationOptions()
 
@@ -161,12 +207,13 @@ class ListControl(object):
 		dataRule = self.context["data"]["rule"]
 		ruleType = dataRule.get("type")
 		ruleProps = dataRule.get("properties")
+		typeRule = RULE_TYPE_FIELDS.get(ruleType)
 		if ruleType is not None and ruleProps is not None:
-			if ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
-				for key, value in list(ruleProps.items()):
-					if idProps == key:
-						# Translator: State properties "Not assigned"
-						return self.updatedStrValues(value, idProps) if value else _("Not assigned")
+			#if idProps in typeRule:
+			for key, value in list(ruleProps.items()):
+				if  idProps in typeRule and idProps == key:
+					# Translator: State properties "Not assigned"
+					return self.updatedStrValues(value, idProps) if value else _("Not assigned")
 
 	# Function returns the properties obj
 	def getPropsObj(self, val):
@@ -174,19 +221,13 @@ class ListControl(object):
 			if val == p.get_id():
 				return p
 
-	# TODO
 	def updateBtnState(self):
-		return
-		nbRow = self.listCtrl.GetItemCount()
-		if nbRow == len(propertiesList):
-			self.btnAddProps.Disable()
-			self.btnDelProps.Enable()
-		elif nbRow > 0:
-			self.btnDelProps.Enable()
-			self.btnAddProps.Enable()
-		elif nbRow == 0:
-			self.btnDelProps.Disable()
-			self.btnAddProps.Enable()
+		if self.propsPanel.__class__.__name__ ==  "OverridesPanel":
+			self.btnAddProps = self.propsPanel.btnAddProps
+			self.btnDelProps = self.propsPanel.btnDelProps
+			self.btnAddProps.Bind(wx.EVT_BUTTON, self.onAddProperties)
+			self.btnDelProps.Bind(wx.EVT_BUTTON, self.onDeleteProperties)
+
 
 	# Retruns the selected item from the properties list
 	def getItemSelRow(self):
@@ -281,7 +322,7 @@ class ListControl(object):
 						log.info("Ret value of dialog is empty!")
 				elif isinstance(p, SingleChoiceProperty) and rowItem[0] == p.get_displayName():
 					retChoiceList = self.setChoiceList(rowItem[0])
-					retChoice = self.updateChoiceByList("incr",retChoiceList, p.get_id())
+					retChoice = self.updateChoiceByList(evt.EventType, retChoiceList, p.get_id())
 					ui.message("{}".format(retChoice))
 					self.updateChoiceProperties(rowItem[0], retChoice)
 					return
@@ -296,7 +337,7 @@ class ListControl(object):
 			for p in self.propertiesList:
 				if isinstance(p, SingleChoiceProperty) and rowItem[0] == p.get_displayName():
 					retChoiceList = self.setChoiceList(rowItem[0])
-					retChoice = self.updateChoiceByList("decr", retChoiceList, p.get_id())
+					retChoice = self.updateChoiceByList(evt.EventType, retChoiceList, p.get_id())
 					ui.message("{}".format(retChoice))
 					self.updateChoiceProperties(rowItem[0], retChoice)
 					return
@@ -307,7 +348,6 @@ class ListControl(object):
 		for p in self.propertiesList:
 			if rowItem in p.get_displayName() and isinstance(p, ToggleProperty):
 				val = not bool(self.toggleBtn.GetValue())
-				log.info("===================================================================== UDPATE TOGGLE PROPERTEIES ====================> bool => {}".format(val))
 				self.toggleBtn.SetValue(val)
 				p.set_value(val)
 				# Translator: State properties "unchecked"
@@ -340,19 +380,19 @@ class ListControl(object):
 					return  [i[0] for i in self.autoActionOptions]
 
 	# Function updates the choices uses binded onkeyPress events for increment and keyShiftSpace events for decrement the lists
-	def updateChoiceByList(self, var ,listChoice, id):
+	def updateChoiceByList(self, eventType ,listChoice, id):
 		if id == "autoAction":
-			if var is "incr":
+			if eventType == EVT_KEY_DOWN:
 				self.objIncAutoAct.setListChoice(listChoice)
 				return  self.objIncAutoAct.getIncrChoice()
-			elif var is "decr":
+			elif eventType == EVT_CHAR_HOOK:
 				self.objIncAutoAct.setListChoice(listChoice)
 				return self.objIncAutoAct.getDecrChoice()
 		elif id == "mutation":
-			if var is "incr":
+			if eventType == EVT_KEY_DOWN:
 				self.objIncMut.setListChoice(listChoice)
 				return  self.objIncMut.getIncrChoice()
-			elif var is "decr":
+			elif eventType == EVT_CHAR_HOOK:
 				self.objIncMut.setListChoice(listChoice)
 				return self.objIncMut.getDecrChoice()
 
@@ -623,8 +663,9 @@ class EditableProperty(Property):
 class ListProperties:
 
 	propertiesList = []
-	FIELDS = None
-	RULE_TYPE_FIELDS = None
+	dataRule = None
+	ruleType =None
+	context = None
 
 	def __init__(self):
 		self.__propsMultiple = None
@@ -635,22 +676,18 @@ class ListProperties:
 		self.__propsSkip = None
 		self.__propsSayName = None
 		self.__autoAction = None
-		self.FIELDS = None
 
-	def setProperties(self, context):
-		self.FIELDS = self.getFields()
-		self.RULE_TYPE_FIELDS = self.getRuleTypeFields()
-		dataRule = context["data"]["rule"]
-		ruleType = dataRule.get("type")
-
-		self.__autoAction = SingleChoiceProperty("autoAction", self.FIELDS["autoAction"], False, "")
-		self.__propsMultiple = ToggleProperty("multiple", self.FIELDS["multiple"], False, False)
-		self.__propsFormMode = ToggleProperty("formMode", self.FIELDS["formMode"], False, False)
-		self.__propsSkip = ToggleProperty("skip", self.FIELDS["skip"], False, False)
-		self.__propsSayName = ToggleProperty("sayName", self.FIELDS["sayName"], False, False)
-		self.__propsCustomName = EditableProperty("customName", self.FIELDS["customName"], False)
-		self.__propsCustomValue = EditableProperty("customValue", self.FIELDS["customValue"], False)
-		self.__propsMutation = SingleChoiceProperty("mutation", self.FIELDS["mutation"], False, "")
+	def setPropertiesByRuleType(self, context):
+		self.dataRule = context["data"]["rule"]
+		self.ruleType = self.dataRule.get("type")
+		self.__autoAction = SingleChoiceProperty("autoAction", FIELDS["autoAction"], False, "")
+		self.__propsMultiple = ToggleProperty("multiple", FIELDS["multiple"], False, False)
+		self.__propsFormMode = ToggleProperty("formMode", FIELDS["formMode"], False, False)
+		self.__propsSkip = ToggleProperty("skip", FIELDS["skip"], False, False)
+		self.__propsSayName = ToggleProperty("sayName", FIELDS["sayName"], False, False)
+		self.__propsCustomName = EditableProperty("customName", FIELDS["customName"], False)
+		self.__propsCustomValue = EditableProperty("customValue", FIELDS["customValue"], False)
+		self.__propsMutation = SingleChoiceProperty("mutation", FIELDS["mutation"], False, "")
 
 		availProps = [
 			self.__autoAction,
@@ -662,27 +699,17 @@ class ListProperties:
 			self.__propsCustomValue,
 			self.__propsMutation
 		]
-
+		self.context = context
 		self.propertiesList = []
-		p = self.RULE_TYPE_FIELDS.get(ruleType)
-		for ap in availProps:
-			if ap is not None and ap.get_id() in p:
-				self.propertiesList.append(ap)
+		typeValues = RULE_TYPE_FIELDS.get(self.ruleType)
 
-	def setFields(self, fields):
-		self.FIELDS = fields
+		if typeValues:
+			for props in availProps:
+				if props.get_id() in typeValues:
+					self.propertiesList.append(props)
 
-	def getFields(self):
-		return self.FIELDS
-
-	def getProperties(self):
-		return  self.propertiesList
-
-	def setRuleTypeFields(self, ruleTypeFields):
-		self.RULE_TYPE_FIELDS = ruleTypeFields
-
-	def getRuleTypeFields(self):
-		return  self.RULE_TYPE_FIELDS
+	def getPropertiesByRuleType(self):
+		return self.propertiesList
 
 # Class increments and decrements a list
 class IncrDecrListPos:

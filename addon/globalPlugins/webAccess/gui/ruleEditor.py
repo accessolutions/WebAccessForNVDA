@@ -93,8 +93,8 @@ def getSummary(data):
 	subParts = []
 	data = data.get("properties")
 	if data:
-		for key, label in list(PropertiesPanel.FIELDS.items()):
-			if key not in PropertiesPanel.RULE_TYPE_FIELDS.get(ruleType, []):
+		for key, label in list(props.FIELDS.items()):
+			if key not in props.RULE_TYPE_FIELDS.get(ruleType, []):
 				continue
 			if key == "sayName":
 				value = data.get(key, True)
@@ -622,62 +622,21 @@ class ActionsPanel(ContextualSettingsPanel):
 
 class PropertiesPanel(ContextualSettingsPanel):
 
-	# The semi-column is part of the labels because some localizations
-	# (ie. French) require it to be prepended with one space.
-	FIELDS = {
-		# Translator: Multiple results checkbox label for the rule dialog's properties panel.
-		"autoAction": pgettext("webAccess.ruleProperties", "Auto Actions"),
-		# Translator: Multiple results checkbox label for the rule dialog's properties panel.
-		"multiple": pgettext("webAccess.ruleProperties", "Multiple results"),
-		# Translator: Activate form mode checkbox label for the rule dialog's properties panel.
-		"formMode": pgettext("webAccess.ruleProperties", "Activate form mode"),
-		# Translator: Skip page down checkbox label for the rule dialog's properties panel.
-		"skip": pgettext("webAccess.ruleProperties", "Skip with Page Down"),
-		# Translator: Speak rule name checkbox label for the rule dialog's properties panel.
-		"sayName": pgettext("webAccess.ruleProperties", "Speak rule name"),
-		# Translator: Custom name input label for the rule dialog's properties panel.
-		"customName": pgettext("webAccess.ruleProperties", "Custom name:"),
-		# Label depends on rule type)
-		"customValue": pgettext("webAccess.ruleProperties", "Custom value:"),
-		# Translator: Transform select label for the rule dialog's properties panel.
-		"mutation": pgettext("webAccess.ruleProperties", "Transform:"),
-	}
 
-	RULE_TYPE_FIELDS = OrderedDict((
-		(ruleTypes.PAGE_TITLE_1, ("customValue",)),
-		(ruleTypes.PAGE_TITLE_2, ("customValue",)),
-		(ruleTypes.ZONE, (
-			"autoAction",
-			"formMode",
-			"skip",
-			"sayName",
-			"customName",
-			"customValue",
-			"mutation"
-		)),
-		(ruleTypes.MARKER, (
-			"autoAction",
-			"multiple",
-			"formMode",
-			"skip",
-			"sayName",
-			"customName",
-			"customValue",
-			"mutation"
-		)),
-	))
 	# Translators: The label for a category in the rule editor
 	title = _("Properties")
 	propertiesList = None
 	objListCtrl = None
+	context = None
+	hidable = []
 
 	def makeSettings(self, settingsSizer):
+
+		self. hidable = []
 
 		gbSizer = self.sizer = wx.GridBagSizer()
 		gbSizer.EmptyCellSize = (0, 0)
 		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
-
-		self.hidable =  []
 
 		sizer = wx.GridBagSizer(hgap=5, vgap=5)
 		row = 0
@@ -707,11 +666,11 @@ class PropertiesPanel(ContextualSettingsPanel):
 		self.choice = wx.Choice(self, choices=[], size=(325, 30))
 		self.hidable.append(self.choice)
 
-		self.btnAddProps = wx.Button(self, label=_("&Add"), size=(325, 30))
+		"""self.btnAddProps = wx.Button(self, label=_("&Add"), size=(325, 30))
 		self.hidable.append(self.btnAddProps)
 
 		self.btnDelProps = wx.Button(self, label=_("&Delete"), size=(325, 30))
-		self.hidable.append(self.btnDelProps)
+		self.hidable.append(self.btnDelProps)"""
 
 		sizer = wx.GridBagSizer(hgap=5, vgap=5)
 		sizer.Add(self.listCtrl, pos=(1, 0), flag=wx.EXPAND)
@@ -724,77 +683,68 @@ class PropertiesPanel(ContextualSettingsPanel):
 		sizeBox.Add(self.toggleBtn)
 		sizeBox.Add(self.choice, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL)
 		sizer.Add(sizeBox, pos=(3, 0), flag=wx.EXPAND)
-
-		btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
-		btn_sizer.Add(self.btnAddProps)
-
-		btn_sizer.Add(self.btnDelProps)
-		sizer.Add(btn_sizer, pos=(4, 0), flag=wx.EXPAND)
 		self.SetSizer(sizer)
-
-	def loadPropertiesInPanel(self):
-		from ..gui import properties as p
-		self.objListCtrl = p.ListControl(self)
-		return self.objListCtrl
 
 	def initData(self, context):
 		self.context = context
 		self.initPropertiesList()
 
-	def initPropertiesList(self):
-		instanceListProperties.setFields(self.FIELDS)
-		instanceListProperties.setRuleTypeFields(self.RULE_TYPE_FIELDS)
-		instanceListProperties.setProperties(self.context)
-		self.propertiesList = instanceListProperties.getProperties()
+	def loadPropsRulePanel(self):
+		from ..gui import properties as p
+		objListCtrl = p.ListControl(self)
+		return objListCtrl
 
-	def setPropertiesData(self, dataRule, context, objCtrl):
+	def initPropertiesList(self):
+		instanceListProperties.setPropertiesByRuleType(self.context)
+		self.propertiesList = instanceListProperties.getPropertiesByRuleType()
+		dataRule = self.context["data"]["rule"]
+		self.setPropertiesData(dataRule,  self.loadPropsRulePanel())
+		self.showItems(display=True)
+		self.hidable.clear()
+
+	def setPropertiesData(self, dataRule, objCtrl):
 		dataProps = dataRule.get("properties")
-		if self.propertiesList:
-			self.showItems(True)
-			if dataProps:
-				data = context["data"]["rule"]["properties"]
-				for props in self.propertiesList:
-					for key, value in data.items():
-						if props.get_id() == key:
-							props.set_flag(True)
-							props.set_value(value)
-				objCtrl.onInitUpdateListCtrl()
-			else:
-				for props in self.propertiesList:
-					props.set_flag(True)
-				objCtrl.onInitUpdateListCtrl()
+		if dataProps:
+			data = dataRule["properties"]
+			for props in self.propertiesList:
+				for key, value in data.items():
+					if props.get_id() == key:
+						props.set_flag(True)
+						props.set_value(value)
+			objCtrl.onInitUpdateListCtrl()
 		else:
-			self.showItems(False)
+			for props in self.propertiesList:
+				props.set_flag(True)
+			objCtrl.onInitUpdateListCtrl()
 
 	def updateData(self, data = None):
-		self.propertiesMapValue = {}
+		propertiesMapValue = {}
 		data = self.context["data"]["rule"]
 		ruleType = data.get("type")
-		if ruleType is not None:
+		if ruleType is not None and self.propertiesList:
 			for props in self.propertiesList:
-				self.propertiesMapValue[props.get_id()] = props.get_value()
+				propertiesMapValue[props.get_id()] = props.get_value()
 			if data.get("properties"):
 				del data["properties"]
-			data["properties"] = self.propertiesMapValue
+			data["properties"] = propertiesMapValue
 
 	def showItems(self, display):
 		if display:
 			for item in self.hidable:
 				item.Show()
-			self.btnAddProps.Hide()
-			self.btnDelProps.Hide()
+#			self.btnAddProps.Hide()
+#			self.btnDelProps.Hide()
 			self.noPropertiesLabel.Hide()
 		else:
 			for item in self.hidable:
 				item.Hide()
 			self.noPropertiesLabel.Show()
 
+
 	def onPanelActivated(self):
 		self.initPropertiesList()
-		objListCtrl = self.loadPropertiesInPanel()
-		dataRule = self.context["data"]["rule"]
-		self.setPropertiesData(dataRule, self.context, objListCtrl)
 		super(PropertiesPanel, self).onPanelActivated()
+		self.showItems(True) if self.propertiesList else self.showItems(False)
 
 	def onSave(self):
 		self.updateData()
