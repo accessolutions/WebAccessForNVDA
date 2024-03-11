@@ -605,10 +605,8 @@ class Dialog(wx.Dialog):
 		context = self.context.copy()  # Shallow copy
 		context["rule"] = rule
 		if showEditor(context, parent=self):
-			self.Close()
-			return
-# 			# Pass the eventually changed rule name
-# 			self.refreshRuleList(context["data"]["rule"]["name"])
+			# Pass the eventually changed rule name
+			self.refreshRuleList(context["data"]["rule"]["name"])
 		wx.CallAfter(self.tree.SetFocus)
 
 	def onRuleNew(self, evt):
