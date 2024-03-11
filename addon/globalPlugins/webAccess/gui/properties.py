@@ -127,6 +127,23 @@ class ListControl(object):
 			# Translator: State properties editable "Empty"
 			return val if val else _("Empty")
 
+	@staticmethod
+	def getAltFieldLabel(ruleType, key, default=None):
+		if key == "customValue":
+			if ruleType in (ruleTypes.PAGE_TITLE_1, ruleTypes.PAGE_TITLE_2):
+				# Translator: Field label on the RulePropertiesEditor dialog.
+				return _("Custom page title")
+			elif ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
+				# Translator: Field label on the RulePropertiesEditor dialog.
+				return  _("Custom message")
+		return default
+
+	def customDisplayLabel(self, props):
+		dataRule = self.context["data"]["rule"]
+		ruleType = dataRule.get("type")
+		if isinstance(props, EditableProperty):
+			return ListControl.getAltFieldLabel(ruleType, props.get_id())
+
 	# Set fresh values on init for properties
 	def onInitUpdateListCtrl(self):
 		self.listCtrl.DeleteAllItems()
@@ -134,7 +151,8 @@ class ListControl(object):
 		for p in self.propertiesList:
 			if p.get_flag():
 				val = self.updatedStrValues(p.get_value(), p.get_id())
-				self.listCtrl.InsertStringItem(self.index, p.get_displayName())
+				displayName = p.get_displayName() if  self.customDisplayLabel(p) is None else self.customDisplayLabel(p)
+				self.listCtrl.InsertStringItem(self.index, displayName)
 				self.listCtrl.SetStringItem(self.index, 1, val)
 				if clsInstance == "OverridesPanel":
 					self.listCtrl.SetStringItem(self.index, 2, self.isOverrided(p.get_id()))
@@ -289,7 +307,7 @@ class ListControl(object):
 				if isinstance(p ,ToggleProperty) and rowItem[0] == p.get_displayName():
 					self.updateToggleBtnPropertiest(rowItem[0])
 					return
-				elif isinstance(p, EditableProperty) and rowItem[0] == p.get_displayName():
+				elif isinstance(p, EditableProperty) and rowItem[0] == self.customDisplayLabel(p):
 					retDialog = self.editablDialog(rowItem[0])
 					self.updateEditableProperties(rowItem[0], retDialog)
 					if retDialog is not None:
@@ -335,7 +353,7 @@ class ListControl(object):
 	# Function updates the editable properties list
 	def updateEditableProperties(self, rowItem, val):
 		for p in self.propertiesList:
-			if p.get_displayName() == rowItem:
+			if self.customDisplayLabel(p) == rowItem:
 				p.set_value(val)
 				self.editable.SetValue(val)
 		self.updatePropertiesList(rowItem)
@@ -471,7 +489,9 @@ class ListControl(object):
 		[self.mutationOptions.append((mutationLabels[i], i)) for i in mutationLabels]
 		self.mutationOptions.insert(0, defaultval)
 
+
 class AppendListCtrl(ListControl):
+
 
 	lst =[]
 	def __init__(self, clientListBox):
@@ -485,7 +505,9 @@ class AppendListCtrl(ListControl):
 			super(AppendListCtrl, self).appendToList()
 			AppendListCtrl.lst.clear()
 
+
 class PropsMenu(wx.Menu):
+
 
 	def __init__(self, context, properties):
 		super(PropsMenu, self).__init__()
@@ -642,7 +664,6 @@ class ListProperties:
 	propertiesList = []
 	dataRule = None
 	ruleType =None
-	context = None
 
 	def __init__(self):
 		self.__propsMultiple = None
@@ -655,6 +676,7 @@ class ListProperties:
 		self.__autoAction = None
 
 	def setPropertiesByRuleType(self, context):
+		self.propertiesList =[]
 		self.dataRule = context["data"]["rule"]
 		self.ruleType = self.dataRule.get("type")
 		self.__autoAction = SingleChoiceProperty("autoAction", FIELDS["autoAction"], False, "")
@@ -676,10 +698,7 @@ class ListProperties:
 			self.__propsCustomValue,
 			self.__propsMutation
 		]
-		self.context = context
-		self.propertiesList = []
 		typeValues = RULE_TYPE_FIELDS.get(self.ruleType)
-
 		if typeValues:
 			for props in availProps:
 				if props.get_id() in typeValues:

@@ -52,7 +52,6 @@ from . import (
 	stripAccelAndColon
 )
 from ..gui import properties as props
-
 instanceListProperties = props.ListProperties()
 addonHandler.initTranslation()
 
@@ -102,7 +101,7 @@ def getSummary(data):
 				continue
 			else:
 				value = data[key]
-			label = PropertiesPanel.getAltFieldLabel(ruleType, key, label)
+			label = props.ListControl.getAltFieldLabel(ruleType, key, label)
 			label = stripAccel(label)
 			if key == "mutation":
 				value = mutationLabels.get(value)
@@ -626,7 +625,7 @@ class PropertiesPanel(ContextualSettingsPanel):
 
 	# Translators: The label for a category in the rule editor
 	title = _("Properties")
-	propertiesList = None
+	propertiesList = []
 	objListCtrl = None
 	context = None
 	hidable = []
@@ -667,12 +666,6 @@ class PropertiesPanel(ContextualSettingsPanel):
 		self.choice = wx.Choice(self, choices=[], size=(325, 30))
 		self.hidable.append(self.choice)
 
-		"""self.btnAddProps = wx.Button(self, label=_("&Add"), size=(325, 30))
-		self.hidable.append(self.btnAddProps)
-
-		self.btnDelProps = wx.Button(self, label=_("&Delete"), size=(325, 30))
-		self.hidable.append(self.btnDelProps)"""
-
 		sizer = wx.GridBagSizer(hgap=5, vgap=5)
 		sizer.Add(self.listCtrl, pos=(1, 0), flag=wx.EXPAND)
 
@@ -688,33 +681,30 @@ class PropertiesPanel(ContextualSettingsPanel):
 
 	def initData(self, context):
 		self.context = context
+		self.updateData()
 		self.initPropertiesList()
 
 	def loadPropsRulePanel(self):
 		from ..gui import properties as p
-		objListCtrl = p.ListControl(self)
+		objListCtrl =p.ListControl(self)
 		return objListCtrl
 
 	def initPropertiesList(self):
-		dataRule = self.context["data"]["rule"]
-		self.showItems(dataRule)
 		instanceListProperties.setPropertiesByRuleType(self.context)
 		self.propertiesList = instanceListProperties.getPropertiesByRuleType()
-		self.setPropertiesData(dataRule, self.loadPropsRulePanel())
+		self.updateListCtrl(self.context["data"]["rule"])
 
-	def setPropertiesData(self, dataRule, objCtrl):
-		dataProps = dataRule.get("properties")
-		if dataProps:
+	def updateListCtrl(self, dataRule):
+		self.showItems(dataRule)
+		ruleProps = dataRule.get("properties")
+		if ruleProps:
 			data = dataRule["properties"]
 			for props in self.propertiesList:
 				for key, value in data.items():
 					if props.get_id() == key:
 						props.set_flag(True)
 						props.set_value(value)
-		else:
-			for props in self.propertiesList:
-				props.set_flag(True)
-		objCtrl.onInitUpdateListCtrl()
+		self.loadPropsRulePanel().onInitUpdateListCtrl()
 
 	def updateData(self, data = None):
 		propertiesMapValue = {}
@@ -726,6 +716,8 @@ class PropertiesPanel(ContextualSettingsPanel):
 			if data.get("properties"):
 				del data["properties"]
 			data["properties"] = propertiesMapValue
+		self.propertiesList.clear()
+
 
 	def showItems(self, data):
 		ruleType = data.get("type")
@@ -741,21 +733,12 @@ class PropertiesPanel(ContextualSettingsPanel):
 
 	def onPanelActivated(self):
 		self.initPropertiesList()
+		self.updateData()
+		self.initPropertiesList()
 		super(PropertiesPanel, self).onPanelActivated()
 
 	def onSave(self):
 		self.updateData()
-
-	@staticmethod
-	def getAltFieldLabel(ruleType, key, default=None):
-		if key == "customValue":
-			if ruleType in (ruleTypes.PAGE_TITLE_1, ruleTypes.PAGE_TITLE_2):
-				# Translator: Field label on the RulePropertiesEditor dialog.
-				return pgettext("webAccess.ruleProperties", "Custom page &title:")
-			elif ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
-				# Translator: Field label on the RulePropertiesEditor dialog.
-				return pgettext("webAccess.ruleProperties", "Custom messa&ge:")
-		return default
 
 class RuleEditorDialog(ContextualMultiCategorySettingsDialog):
 

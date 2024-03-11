@@ -952,7 +952,6 @@ class OverridesPanel(ContextualSettingsPanel):
 			self.noPropertiesLabel.Show()
 
 	def onPanelActivated(self):
-
 		self.initPropertiesList()
 		super(OverridesPanel, self).onPanelActivated()
 
