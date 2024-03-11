@@ -695,12 +695,11 @@ class PropertiesPanel(ContextualSettingsPanel):
 		return objListCtrl
 
 	def initPropertiesList(self):
+		dataRule = self.context["data"]["rule"]
+		self.showItems(dataRule)
 		instanceListProperties.setPropertiesByRuleType(self.context)
 		self.propertiesList = instanceListProperties.getPropertiesByRuleType()
-		dataRule = self.context["data"]["rule"]
-		self.setPropertiesData(dataRule,  self.loadPropsRulePanel())
-		self.showItems(display=True)
-		self.hidable.clear()
+		self.setPropertiesData(dataRule, self.loadPropsRulePanel())
 
 	def setPropertiesData(self, dataRule, objCtrl):
 		dataProps = dataRule.get("properties")
@@ -711,11 +710,10 @@ class PropertiesPanel(ContextualSettingsPanel):
 					if props.get_id() == key:
 						props.set_flag(True)
 						props.set_value(value)
-			objCtrl.onInitUpdateListCtrl()
 		else:
 			for props in self.propertiesList:
 				props.set_flag(True)
-			objCtrl.onInitUpdateListCtrl()
+		objCtrl.onInitUpdateListCtrl()
 
 	def updateData(self, data = None):
 		propertiesMapValue = {}
@@ -728,23 +726,21 @@ class PropertiesPanel(ContextualSettingsPanel):
 				del data["properties"]
 			data["properties"] = propertiesMapValue
 
-	def showItems(self, display):
-		if display:
-			for item in self.hidable:
-				item.Show()
-#			self.btnAddProps.Hide()
-#			self.btnDelProps.Hide()
-			self.noPropertiesLabel.Hide()
-		else:
+	def showItems(self, data):
+		ruleType = data.get("type")
+		typeValues = props.RULE_TYPE_FIELDS.get(ruleType)
+		if typeValues is None:
 			for item in self.hidable:
 				item.Hide()
 			self.noPropertiesLabel.Show()
-
+		else:
+			for item in self.hidable:
+				item.Show()
+			self.noPropertiesLabel.Hide()
 
 	def onPanelActivated(self):
 		self.initPropertiesList()
 		super(PropertiesPanel, self).onPanelActivated()
-		self.showItems(True) if self.propertiesList else self.showItems(False)
 
 	def onSave(self):
 		self.updateData()
