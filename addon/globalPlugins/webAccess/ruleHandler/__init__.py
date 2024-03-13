@@ -119,23 +119,6 @@ def showManager(context):
 	from ..gui import rulesManager as dlg
 	dlg.show(context)
 
-
-class DefaultScripts(baseObject.ScriptableObject):
-
-	def __init__(self, warningMessage):
-		super(DefaultScripts, self).__init__()
-		self.warningMessage = warningMessage
-		for ascii in range(ord("a"), ord("z")+1):
-			character = chr(ascii)
-			self.__class__.__gestures["kb:control+shift+%s" % character] = "notAssigned"
-
-	def script_notAssigned(self, gesture):
-		playWebAppSound("keyError")
-		callLater(200, ui.message, self.warningMessage)
-
-	__gestures = {}
-
-
 class RuleManager(baseObject.ScriptableObject):
 
 	def __init__(self, webModule):
@@ -154,7 +137,6 @@ class RuleManager(baseObject.ScriptableObject):
 		self.triggeredIdentifiers = {}
 		self.lastAutoMoveto = None
 		self.lastAutoMovetoTime = 0
-		self.defaultScripts = DefaultScripts("Aucun marqueur associé à cette touche")
 		self.timerCheckAutoAction = None
 		self.zone = None
 
@@ -311,7 +293,7 @@ class RuleManager(baseObject.ScriptableObject):
 				func = rule.getScript(gesture)
 				if func is not None:
 					return func
-		return self.defaultScripts.getScript(gesture)
+		return None
 
 	def _get_isReady(self):
 		if not self._ready or not self.nodeManager or not self.nodeManager.isReady or self.nodeManager.identifier != self.nodeManagerIdentifier:
