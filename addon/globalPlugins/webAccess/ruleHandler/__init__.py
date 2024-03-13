@@ -59,13 +59,9 @@ from .. import webAppScheduler
 from .controlMutation import MUTATIONS, MutatedControl, getMutationId
 from . import ruleTypes
 
-
-
 addonHandler.initTranslation()
 
-
 SCRIPT_CATEGORY = "WebAccess"
-
 
 builtinRuleActions = {}
 # Translators: Action name
@@ -740,67 +736,76 @@ class RuleManager(baseObject.ScriptableObject):
 		)
 
 
-class Properties:
+class RuleProperties:
 
-	def __init__(self, data):
+	def __init__(
+		self,
+		data: dict,
+		validFields: tuple
+	):
+		self.validFields = validFields
 		self.load(data)
 
 	def load(self, data):
 		data = data.copy()
-		self.autoAction = data.pop("autoAction", None)
-		self.multiple = data.pop("multiple", False)
-		self.formMode = data.pop("formMode", False)
-		self.skip = data.pop("skip", False)
-		self.sayName = data.pop("sayName", False)
-		self.customName = data.pop("customName", None)
-		self.customValue = data.pop("customValue", None)
-		self.mutation = None
-		mutation = data.pop("mutation", None)
-		if mutation:
-			try:
-				self.mutation = MUTATIONS[mutation]
-			except LookupError:
-				log.exception((
-					"Unexpected mutation template id \"{mutation}\" "
-					"in rule \"{rule}\"."
-				).format(mutation=mutation, rule=self.name))
+		validFields = self.validFields
+		if "multiple" in validFields:
+			self.multiple = data.pop("multiple", False)
+		if "formMode" in validFields:
+			self.formMode = data.pop("formMode", False)
+		if "skip" in validFields:
+			self.skip = data.pop("skip", False)
+		if "sayName" in validFields:
+			self.sayName = data.pop("sayName", False)
+		if "autoAction" in validFields:
+			self.autoAction = data.pop("autoAction", None)
+		if "customName" in validFields:
+			self.customName = data.pop("customName", None)
+		if "customValue" in validFields:
+			self.customValue = data.pop("customValue", None)
+		if "mutation" in validFields:
+			self.mutation = None
+			mutation = data.pop("mutation", None)
+			if mutation:
+				try:
+					self.mutation = MUTATIONS[mutation] if mutation in MUTATIONS else None
+				except LookupError:
+					log.exception((
+						"Unexpected mutation template id \"{mutation}\" "
+						"in rule \"{rule}\"."
+					).format(mutation=mutation, rule=self.name))
 		if data:
-			raise ValueError(
+			raise Exception(
 				"Unexpected attribute"
 				+ ("s" if len(data) > 1 else "")
 				+ ": " + ", ".join(data)
 			)
 
 	def dump(self):
-		return {
-			"autoAction": self.autoAction,
-			"multiple": self.multiple,
-			"formMode": self.formMode,
-			"skip": self.skip,
-			"sayName": self.sayName,
-			"customName": self.customName,
-			"customValue": self.customValue,
-			"mutation": getMutationId(self.mutation)
-		}
+		data = {}
+		for validField in self.validFields:
+			if hasattr(self, validField) and validField != "mutation":
+				data[validField] = getattr(self, validField)
+		if "mutation" in self.validFields and hasattr(self, "mutation"):
+			data["mutation"] = getMutationId(self.mutation)
+		return data
 
 	def __repr__(self):
 		return pformat(self.dump())
 
 
-class OverrideProperties(Properties):
+class OverrideRuleProperties:
 
-	_keys = (
-		"autoAction", "customName", "customValue",
-		"formMode", "multiple", "sayName", "skip"
-	)
+	def __init__(self, data, validFields):
+		self.validFields = validFields
+		self.load(data)
 
 	def load(self, data):
 		data = data.copy()
-		for key in self._keys:
-			if key in data:
-				setattr(self, key, data.pop(key))
-		if "mutation" in data:
-			self.mutation = None
+		for validField in self.validFields:
+			if validField in data and validField != "mutation":
+				setattr(self, validField, data.pop(validField))
+		if "mutation" in self.validFields and "mutation" in data:
 			mutation = data.pop("mutation", None)
 			if mutation:
 				try:
@@ -813,20 +818,17 @@ class OverrideProperties(Properties):
 						mutation=mutation,
 						rule=self.mutation
 					))
-		if data:
-			raise ValueError(
-				"Unexpected attribute"
-				+ ("s" if len(data) > 1 else "")
-				+ ": " + ", ".join(data)
-			)
 
 	def dump(self):
 		data = {
-			key: getattr(self, key) for key in self._keys if hasattr(self, key)
+			validField: getattr(self, validField) for validField in self.validFields if hasattr(self, validField) and validField != "mutation"
 		}
-		if hasattr(self, "mutation"):
+		if hasattr(self, "mutation") and "mutation" in self.validFields:
 			data["mutation"] = getMutationId(self.mutation)
 		return data
+
+	def __repr__(self):
+		return pformat(self.dump())
 
 
 class CustomActionDispatcher(object):
@@ -965,7 +967,7 @@ class Result(baseObject.ScriptableObject):
 		return getattr(
 			self.criteria.overrides,
 			name,
-			getattr(self.rule.properties, name)
+			getattr(self.rule.properties, name, None)
 		)
 
 	def script_moveto(self, gesture):
@@ -1017,7 +1019,7 @@ class SingleNodeResult(Result):
 		return self._node()
 
 	def script_moveto(self, gesture, fromQuickNav=False, fromSpeak=False):
-		if self.node.nodeManager is None:
+		if self.node is None or self.node.nodeManager is None:
 			return
 		rule = self.rule
 		reason = nodeHandler.REASON_FOCUS
@@ -1178,10 +1180,8 @@ class Criteria(baseObject.ScriptableObject):
 			gesturesMap[gestureIdentifier] = "notFound"
 		self.bindGestures(gesturesMap)
 		overrides = data.pop("overrides", {})
-		self.overrides = OverrideProperties(overrides)
-		properties = data.pop("properties", {})
-		self.properties = Properties(properties)
-
+		ruleTypeFields = ruleTypes.RULE_TYPE_FIELDS.get(self.rule.type, ())
+		self.overrides = OverrideRuleProperties(overrides, ruleTypeFields)
 		if data:
 			raise ValueError(
 				"Unexpected attribute"
@@ -1435,8 +1435,20 @@ class Rule(baseObject.ScriptableObject):
 		properties = data.pop("properties", {})
 		if not properties: # compatiiblity with old format
 			keys = ("autoAction", "customName", "customValue", "mutation", "formMode", "multiple", "sayName", "skip")
-			properties = {key: data.pop(key, None) for key in keys}
-		self.properties = Properties(properties)
+			properties = {key: data.pop(key, None) for key in keys if key in data}
+		ruleTypeFields = ruleTypes.RULE_TYPE_FIELDS.get(self.type, ())
+		try:
+			self.properties = RuleProperties(properties, ruleTypeFields)
+		except Exception as e:
+			log.exception((
+				"Error while loading properties for rule \"{ruleName}\". type={ruleType} properties={ruleProperties}\n{err}"
+			).format(
+				ruleName=self.name,
+				ruleType=self.type,
+				ruleProperties=repr(properties),
+				err=e
+			))
+			self.properties = RuleProperties({}, ())
 		if data:
 			raise ValueError(
 				"Unexpected attribute"

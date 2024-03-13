@@ -10,7 +10,7 @@ from typing import Optional
 import wx
 import gui
 from logHandler import log
-from ..ruleHandler import ruleTypes
+from ..ruleHandler.ruleTypes import RULE_TYPE_FIELDS
 from ..ruleHandler.controlMutation import (
 	MUTATIONS_BY_RULE_TYPE,
 	mutationLabels
@@ -43,29 +43,6 @@ FIELDS = {
 	"mutation": pgettext("webAccess.ruleProperties", "Transform"),
 }
 
-RULE_TYPE_FIELDS = OrderedDict((
-	(ruleTypes.PAGE_TITLE_1, ("customValue",)),
-	(ruleTypes.PAGE_TITLE_2, ("customValue",)),
-	(ruleTypes.ZONE, (
-		"autoAction",
-		"formMode",
-		"skip",
-		"sayName",
-		"customName",
-		"customValue",
-		"mutation"
-	)),
-	(ruleTypes.MARKER, (
-		"autoAction",
-		"multiple",
-		"formMode",
-		"skip",
-		"sayName",
-		"customName",
-		"customValue",
-		"mutation"
-	)),
-))
 
 def showPropsDialog(context, properties):
 	PropsMenu(context, properties).ShowModal()
@@ -742,13 +719,3 @@ class IncrDecrListPos:
 		self.pos -= 1
 		ret = self.listChoice[self.getPos()-1]
 		return ret
-
-# End of file
-
-
-
-
-
-
-
-

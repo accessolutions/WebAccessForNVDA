@@ -173,12 +173,23 @@ mutationLabels = {
 	"table.layout": pgettext("webAccess.controlMutation", "Layout table")
 }
 
+
 def getMutationId(
 	mutation: Mutation
 ):
 	"""
 	Get the mutation ID from the mutation object.
 	"""
+	if mutation is None:
+		return None
+	if isinstance(mutation, str):
+		if mutation not in MUTATIONS:
+			raise ValueError("Unknown mutation: {}".format(mutation))
+		return mutation
+	if not isinstance(mutation, Mutation):
+		raise TypeError("The mutation must be an instance of Mutation. Got: {}".format(
+			type(mutation)
+		))
 	return list(MUTATIONS.keys())[
 		list(MUTATIONS.values()).index(mutation)
 	] if mutation else None

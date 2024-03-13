@@ -23,11 +23,7 @@
 __version__ = "2018.12.14"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
-
-from collections import OrderedDict
-
 import addonHandler
-
 
 addonHandler.initTranslation()
 
@@ -53,4 +49,28 @@ ruleTypeLabels = {
 	PAGE_TITLE_1: _("Page main title"),
 	# Translators: The label for a rule type.
 	PAGE_TITLE_2: _("Page secondary title")
+}
+
+RULE_TYPE_FIELDS = {
+	MARKER: (
+		"autoAction",
+		"multiple",
+		"formMode",
+		"skip",
+		"sayName",
+		"customName",
+		"customValue",
+		"mutation"
+	),
+	ZONE: (
+		"autoAction",
+		"formMode",
+		"skip",
+		"sayName",
+		"customName",
+		"customValue",
+		"mutation"
+	),
+	PAGE_TITLE_1: ("customValue"),
+	PAGE_TITLE_2: ("customValue")
 }
