@@ -81,6 +81,7 @@ class NodeManager(baseObject.ScriptableObject):
 		self.devNode = None
 		self.callbackNodeMoveto = None
 		self.updating = False
+		self.documentNVDAObject = {}
 		if treeInterceptor is None:
 			log.info("nodeManager created with none treeInterceptor")
 			return
@@ -228,7 +229,7 @@ class NodeManager(baseObject.ScriptableObject):
 		return s
 
 	def update(self):
-		t = logTimeStart()
+		# t = logTimeStart()
 		if self.treeInterceptor is None or not self.treeInterceptor.isReady:
 			self._ready = False
 			return False
@@ -260,7 +261,7 @@ class NodeManager(baseObject.ScriptableObject):
 			if self.mainNode is not None:
 				self.mainNode.recursiveDelete()
 			self.parseXML(text)
-			logTime("Update node manager %d, text=%d" % (self.index, len(text)), t)
+			# logTime("Update node manager %d, text=%d" % (self.index, len(text)), t)
 			self.info = None
 			gc.collect()
 		else:
@@ -507,12 +508,18 @@ class NodeField(TrackedObject):
 	def searchDocumentURL (self):
 		# The URL is not available in the treeInterceptor attributs, so we use the value property of the NVDAObject located at this location
 		try:
+			cid = self.control["controlIdentifier_ID"]
+			if cid in self.nodeManager.documentNVDAObject:
+				obj = self.nodeManager.documentNVDAObject[cid]
+				url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
+				return url
 			info =  self.nodeManager.treeInterceptor.makeTextInfo(
 				textInfos.offsets.Offsets(self.offset, self.offset + self.size)
 			)
 			obj = info.NVDAObjectAtStart
-			while obj is not None and obj.IA2UniqueID != int (self.control["controlIdentifier_ID"]):
+			while obj is not None and obj.IA2UniqueID != int(cid):
 				obj = obj.parent
+			self.nodeManager.documentNVDAObject[cid] = obj
 			url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
 			return url
 		except:
