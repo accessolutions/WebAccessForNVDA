@@ -228,7 +228,7 @@ class NodeManager(baseObject.ScriptableObject):
 		return s
 
 	def update(self):
-		# t = logTimeStart()
+		t = logTimeStart()
 		if self.treeInterceptor is None or not self.treeInterceptor.isReady:
 			self._ready = False
 			return False
@@ -260,7 +260,7 @@ class NodeManager(baseObject.ScriptableObject):
 			if self.mainNode is not None:
 				self.mainNode.recursiveDelete()
 			self.parseXML(text)
-			# logTime("Update node manager %d, text=%d" % (self.index, len(text)), t)
+			logTime("Update node manager %d, text=%d" % (self.index, len(text)), t)
 			self.info = None
 			gc.collect()
 		else:
@@ -473,6 +473,7 @@ class NodeField(TrackedObject):
 			# tag is reported lowercase in Chrome and FF, but uppercase in IE.
 			if self.tag:
 				self.tag = self.tag.lower()
+
 			self.id = attrs.get("IAccessible2::attribute_id")
 			if not self.id:
 				self.id = attrs.get("HTMLAttrib::id")
@@ -484,6 +485,9 @@ class NodeField(TrackedObject):
 			self.src = attrs.get("IAccessible2::attribute_src")
 			if not self.src:
 				self.src = attrs.get("HTMLAttrib::src")
+			self.url = None
+			if self.tag in ("#document", "body"):
+				self.url = self.searchDocumentURL ()
 			self.children = []
 		else:
 			raise ValueError(
@@ -499,6 +503,20 @@ class NodeField(TrackedObject):
 			self.index = 0
 		global countNode
 		countNode = countNode + 1
+
+	def searchDocumentURL (self):
+		# The URL is not available in the treeInterceptor attributs, so we use the value property of the NVDAObject located at this location
+		try:
+			info =  self.nodeManager.treeInterceptor.makeTextInfo(
+				textInfos.offsets.Offsets(self.offset, self.offset + self.size)
+			)
+			obj = info.NVDAObjectAtStart
+			while obj is not None and obj.IA2UniqueID != int (self.control["controlIdentifier_ID"]):
+				obj = obj.parent
+			url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
+			return url
+		except:
+			return ""
 
 	def __del__(self):
 		global countNode

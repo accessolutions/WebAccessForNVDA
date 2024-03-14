@@ -132,6 +132,8 @@ def getNodeDescription():
 			)))))
 		if node.src:
 			parts.append("    src %s" % node.src)
+		if node.url:
+			parts.append("    url %s" % node.url)
 		parts.append("    text %s" % truncText(node))
 		branch.append("\n".join(parts))
 		node = node.parent
