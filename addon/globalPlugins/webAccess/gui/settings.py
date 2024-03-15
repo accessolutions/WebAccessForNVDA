@@ -22,7 +22,7 @@
 """Web Access GUI."""
 
 
-__version__ = "2021.02.04"
+__version__ = "2024.03.15"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -31,9 +31,10 @@ import wx
 import addonHandler
 import config
 import gui
+from logHandler import log
 
-
-from gui import guiHelper, SettingsDialog, SettingsPanel
+import gui
+#mport gui.guiHelper, SettingsDialog, SettingsPanel
 
 
 addonHandler.initTranslation()
@@ -46,7 +47,7 @@ def terminate():
 	gui.NVDASettingsDialog.categoryClasses.remove(WebAccessSettingsPanel)
 
 
-class WebAccessSettingsDialog(SettingsDialog):
+class WebAccessSettingsDialog(gui.SettingsDialog):
 
 	panel = None
 	# Translators: The title of a dialog
@@ -58,7 +59,7 @@ class WebAccessSettingsDialog(SettingsDialog):
 			panel,
 			flag=wx.EXPAND | wx.ALL,
 			proportion=1,
-			border=guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL
+			border=gui.guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL
 		)
 
 	def postInit(self):
@@ -86,12 +87,12 @@ class WebAccessSettingsDialog(SettingsDialog):
 		super(WebAccessSettingsDialog, self).onCancel(evt)
 
 
-class WebAccessSettingsPanel(SettingsPanel):
+class WebAccessSettingsPanel(gui.SettingsDialog):
 	# Translators: The label for a category in the settings dialog
 	title = _("WebAccess")
 
 	def makeSettings(self, settingsSizer):
-		sHelper = guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
+		sHelper = gui.guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
 		item = self.devMode = sHelper.addItem(
 			# Translators: The label for a settings in the WebAccess settings panel
 			wx.CheckBox(self, label=_("&Developer mode"))

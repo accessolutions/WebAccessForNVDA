@@ -45,7 +45,7 @@ Monkey-patched NVDA functions:
 """
 
 
-__version__ = "2021.03.12"
+__version__ = "2024.03.15"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
@@ -75,6 +75,7 @@ import scriptHandler
 import speech
 import ui
 import virtualBuffers
+import importlib
 
 from . import nodeHandler
 from . import overlay
@@ -83,7 +84,8 @@ from .webAppLib import *
 from .webAppScheduler import WebAppScheduler
 from . import webModuleHandler
 
-
+# importing buildin nvda gui
+buildin_gui_nvda = importlib.import_module('gui')
 addonHandler.initTranslation()
 
 
@@ -148,11 +150,12 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		from .config import initialize as config_initialize
 		config_initialize()
+
 		from .gui.settings import initialize as settings_initialize
 		# FIXME:
 		# After the above import, it appears that the `gui` name now points to the `.gui` module
 		# rather that NVDA's `gui`… No clue why…
-		import gui
+
 		settings_initialize()
 
 		global scheduler
@@ -169,16 +172,17 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		virtualBuffers.VirtualBuffer._loadBufferDone = virtualBuffer_loadBufferDone
 
 		# Used to announce the opening of the Web Access menu
-		mainFrame_prePopup.super = gui.mainFrame.prePopup
-		gui.mainFrame.prePopup = mainFrame_prePopup.__get__(gui.mainFrame, gui.MainFrame)
-		mainFrame_postPopup.super = gui.mainFrame.postPopup
-		gui.mainFrame.postPopup = mainFrame_postPopup.__get__(gui.mainFrame, gui.MainFrame)
+		mainFrame_prePopup.super = buildin_gui_nvda.mainFrame.prePopup
+		buildin_gui_nvda.mainFrame.prePopup = mainFrame_prePopup.__get__(buildin_gui_nvda.mainFrame, buildin_gui_nvda.MainFrame)
+		mainFrame_postPopup.super = buildin_gui_nvda.mainFrame.postPopup
+		buildin_gui_nvda.mainFrame.postPopup = mainFrame_postPopup.__get__(buildin_gui_nvda.mainFrame, buildin_gui_nvda.MainFrame)
 		from appModules.nvda import AppModule as NvdaAppModule
 		appModule_nvda_event_NVDAObject_init.super = NvdaAppModule.event_NVDAObject_init
 		# The NVDA AppModule should not yet have been instanciated at this stage
 		NvdaAppModule.event_NVDAObject_init = appModule_nvda_event_NVDAObject_init
 
-		core.callLater (2000, self.loadWebModules)
+		core.callLater (100, self.loadWebModules)
+
 
 	def loadWebModules(self):
 		webModuleHandler.initialize()
@@ -252,8 +256,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# FIXME:
 		# After the above import, it appears that the `gui` name now points to the `.gui` module
 		# rather that NVDA's `gui`… No clue why…
-		import gui
-		gui.mainFrame._popupSettingsDialog(WebAccessSettingsDialog)
+		buildin_gui_nvda.mainFrame._popupSettingsDialog(WebAccessSettingsDialog)
 
 	@script(
 		# Translators: Input help mode message for a command.
@@ -391,6 +394,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			ui.message(_("You must be on the web page to use Web Access."))
 			return
 		from .gui import elementDescription
+
 		elementDescription.showElementDescriptionDialog()
 
 
@@ -520,7 +524,7 @@ def appModule_nvda_event_NVDAObject_init(self, obj):
 		obj.name = popupContextMenuName
 		popupContextMenuName = None
 	# Stock method was stored unbound
-	appModule_nvda_event_NVDAObject_init.super.__get__(self)(obj)
+	appModule_nvda_event_NVDAObject_init.__get__(self, obj)
 
 
 def showWebModulesLoadErrors():
@@ -595,12 +599,11 @@ def showWebModulesLoadErrors():
 			))
 	if parts:
 		msg = "\n\n".join(parts)
-		import gui
 		wx.CallAfter(
-			gui.messageBox,
+			buildin_gui_nvda.messageBox,
 			message=msg,
 			# Translators: The title of an error message dialog
 			caption=_("Web Access for NVDA"),
 			style=wx.ICON_WARNING,
-			parent=gui.mainFrame
+			parent=buildin_gui_nvda.mainFrame
 		)

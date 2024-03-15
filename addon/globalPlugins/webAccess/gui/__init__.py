@@ -21,7 +21,7 @@
 
 
 
-__version__ = "2021.04.06"
+__version__ = "2024.03.15"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -179,8 +179,7 @@ def configuredSettingsDialogType(**config):
 	class Type(SettingsDialog):
 		def __init__(self, *args, **kwargs):
 			kwargs.update(config)
-			return super(Type, self).__init__(*args, **kwargs)
-
+			super(Type, self).__init__(*args, **kwargs)
 	return Type
 
 
