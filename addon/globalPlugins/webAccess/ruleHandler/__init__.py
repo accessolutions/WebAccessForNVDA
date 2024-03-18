@@ -93,7 +93,7 @@ def showEditor(context, parent=None):
 	return ruleEditor.show(context, parent=parent)
 
 
-def showManager(context):
+def showManager(context, parent=None):
 	api.processPendingEvents()
 	webModule = context["webModule"]
 	mgr = webModule.ruleManager
@@ -107,7 +107,7 @@ def showManager(context):
 	focus = context["focusObject"]
 	context["rule"] = mgr.getResultAtCaret(focus=focus)
 	from ..gui import rulesManager as dlg
-	dlg.show(context)
+	dlg.show(context, parent)
 
 
 class DefaultScripts(baseObject.ScriptableObject):

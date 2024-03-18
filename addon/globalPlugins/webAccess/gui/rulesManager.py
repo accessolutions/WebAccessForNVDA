@@ -68,9 +68,9 @@ lastGroupBy = "position"
 lastActiveOnly = False
 
 
-def show(context):
+def show(context, parent):
 	gui.mainFrame.prePopup()
-	Dialog(gui.mainFrame).ShowModal(context)
+	Dialog(gui.mainFrame).ShowModal(context, parent)
 	gui.mainFrame.postPopup()
 
 
@@ -656,9 +656,10 @@ class Dialog(wx.Dialog):
 			self.ruleSummary.Value = getSummary(rule.dump())
 			self.ruleComment.Value = rule.comment or ""
 
-	def ShowModal(self, context):
+	def ShowModal(self, context, parent):
 		self.initData(context)
 		self.Fit()
 		self.CentreOnScreen()
 		self.tree.SetFocus()
-		return super(Dialog, self).ShowModal()
+		from . import showContextualDialog
+		return showContextualDialog(Dialog, context, parent)
