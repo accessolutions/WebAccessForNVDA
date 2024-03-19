@@ -22,7 +22,7 @@
 """Web Access GUI."""
 
 
-__version__ = "2024.03.15"
+__version__ = "2021.02.04"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -32,10 +32,7 @@ import addonHandler
 import config
 import gui
 from logHandler import log
-
-import gui
-#mport gui.guiHelper, SettingsDialog, SettingsPanel
-
+from gui.settingsDialogs import guiHelper, SettingsDialog, SettingsPanel
 
 addonHandler.initTranslation()
 
@@ -87,7 +84,7 @@ class WebAccessSettingsDialog(gui.SettingsDialog):
 		super(WebAccessSettingsDialog, self).onCancel(evt)
 
 
-class WebAccessSettingsPanel(gui.SettingsDialog):
+class WebAccessSettingsPanel(SettingsPanel):
 	# Translators: The label for a category in the settings dialog
 	title = _("WebAccess")
 

@@ -44,7 +44,7 @@ from ..lib.packaging import version
 from ..overlay import WebAccessBmdti
 from ..store import DuplicateRefError
 from ..store import MalformedRefError
-
+import addonHandler
 
 store = None
 _catalog = None
@@ -478,7 +478,9 @@ def initialize():
 	webModules.__path__ = list()
 	import sys
 	sys.modules["webModulesMC"] = webModules
-	config.addConfigDirsToPythonPackagePath(webModules)
+	addConfDir = addonHandler.packaging.addDirsToPythonPackagePath
+	addConfDir(webModules)
+	#config.addConfigDirsToPythonPackagePath(webModules)
 	_importers = list(pkgutil.iter_importers("webModulesMC.__init__"))
 
 	from ..store.webModule import WebModuleStore
