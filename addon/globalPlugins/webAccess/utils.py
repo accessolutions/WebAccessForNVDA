@@ -50,6 +50,7 @@ def notifyError(logMsg, exc_info=True):
 	from logHandler import log
 	log.exception(logMsg, exc_info=exc_info)
 	import gui
+	import wx
 	gui.messageBox(
 		# Translators: A generic error message
 		_("An error occured. See NVDA log for more details."),
@@ -58,7 +59,7 @@ def notifyError(logMsg, exc_info=True):
 
 
 def guarded(func):
-	
+
 	def wrapper(*args, **kwargs):
 		try:
 			return func(*args, **kwargs)
@@ -66,5 +67,5 @@ def guarded(func):
 			notifyError("Uncaught error while processing {!r}(args={!r}, kwargs={!r}".format(
 				func, args, kwargs
 			))
-	
+
 	return wrapper
