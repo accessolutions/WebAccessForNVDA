@@ -21,7 +21,7 @@
 
 
 
-__version__ = "2021.03.08"
+__version__ = "2024.03.28"
 __author__ = "Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
@@ -651,9 +651,8 @@ class PropertiesPanel(ContextualSettingsPanel):
 		self.hidable.append(self.propertiesLabel)
 
 		self.listCtrl = wx.ListCtrl(self, size=(650, 300), style=wx.LC_REPORT | wx.BORDER_SUNKEN)
-		self.listCtrl.InsertColumn(0, 'Proerties', width=322)
+		self.listCtrl.InsertColumn(0, 'Properties', width=322)
 		self.listCtrl.InsertColumn(1, 'Value', width=322)
-		#self.listCtrl.InsertColumn(2, 'Is Overrided', width=215)
 		self.hidable.append(self.listCtrl)
 		row += 1
 

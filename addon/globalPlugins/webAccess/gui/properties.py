@@ -1,5 +1,5 @@
 
-__version__ = "2024.03.07"
+__version__ = "2024.03.28"
 __author__ = "Sendhil Randon <sendhil.randon-ext@pole.-emploi.fr>"
 
 from collections import OrderedDict
@@ -10,7 +10,7 @@ from typing import Optional
 import wx
 import gui
 from logHandler import log
-from ..ruleHandler.ruleTypes import RULE_TYPE_FIELDS
+from ..ruleHandler import ruleTypes
 from ..ruleHandler.controlMutation import (
 	MUTATIONS_BY_RULE_TYPE,
 	mutationLabels
@@ -22,34 +22,57 @@ addonHandler.initTranslation()
 EVT_KEY_DOWN = 10057
 EVT_CHAR_HOOK = 10055
 
-# The semi-column is part of the labels because some localizations
-# (ie. French) require it to be prepended with one space.
 FIELDS = {
 	# Translator: Multiple results checkbox label for the rule dialog's properties panel.
-	"autoAction": pgettext("webAccess.ruleProperties", "Auto Actions"),
+	"autoAction": _("Auto Actions"),
 	# Translator: Multiple results checkbox label for the rule dialog's properties panel.
-	"multiple": pgettext("webAccess.ruleProperties", "Multiple results"),
+	"multiple": _("Multiple results"),
 	# Translator: Activate form mode checkbox label for the rule dialog's properties panel.
-	"formMode": pgettext("webAccess.ruleProperties", "Activate form mode"),
+	"formMode": _("Activate form mode"),
 	# Translator: Skip page down checkbox label for the rule dialog's properties panel.
-	"skip": pgettext("webAccess.ruleProperties", "Skip with Page Down"),
+	"skip": _("Skip with Page Down"),
 	# Translator: Speak rule name checkbox label for the rule dialog's properties panel.
-	"sayName": pgettext("webAccess.ruleProperties", "Speak rule name"),
+	"sayName": _("Speak rule name"),
 	# Translator: Custom name input label for the rule dialog's properties panel.
-	"customName": pgettext("webAccess.ruleProperties", "Custom name"),
+	"customName": _("Custom name"),
 	# Label depends on rule type)
-	"customValue": pgettext("webAccess.ruleProperties", "Custom value"),
+	"customValue": _("Custom value"),
 	# Translator: Transform select label for the rule dialog's properties panel.
-	"mutation": pgettext("webAccess.ruleProperties", "Transform"),
+	"mutation": _("Transform")
 }
 
+RULE_TYPE_FIELDS = {
+	ruleTypes.PAGE_TITLE_1 :"customValue",
+	ruleTypes.PAGE_TITLE_2 : "customValue",
+	ruleTypes.ZONE:
+		(
+			"autoAction", "formMode",
+			"skip", "sayName",
+			"customName", "customValue",
+			"mutation"
+		),
+
+	ruleTypes.MARKER:
+		(
+			"autoAction", "multiple",
+			"formMode", "skip",
+			"sayName", "customName",
+			"customValue", "mutation"
+		)
+}
 
 def showPropsDialog(context, properties):
+	"""
+	Display context menu by clicking add button on properties criteira panel
+	"""
 	PropsMenu(context, properties).ShowModal()
 	return True
 
-class ListControl(object):
 
+class ListControl(object):
+	"""
+	Class creates wx listcontrol object
+	"""
 	def __init__(
 			self,
 	        propsPanel
@@ -75,48 +98,122 @@ class ListControl(object):
 		#Local variables
 		self.index = 0
 		self.currentSelItem = None
+		self.autoActionOptions = []
 		self.mutationOptions = []
-		self.autoActionOptions = ["", "default"]
+		self.gesturesOptions = []
 
 		# Instanciation of increment the values for wx.choice and updates the correspondant wx.listCtrl
 		self.objIncAutoAct = IncrDecrListPos()
 		self.objIncMut = IncrDecrListPos()
+		self.objIncGest = IncrDecrListPos()
 		self.init()
 
+
 	def init(self):
+		"""
+		Init wx.listCtrl elements
+		"""
 		self.updateBtnState()
 		self.toggleBtn.Disable()
 		self.editable.Disable()
 		self.choice.Disable()
 		self.getAutoActions()
 		self.getMutationOptions()
+		self.getGestureOptions()
 
-	# Message box function displays the given message and caption in a popup
+
+	@staticmethod
+	def getAltFieldLabel(ruleType, key, default=None):
+		"""
+		Function defines as static to customize customvalue and customName properties
+		according to the rule
+		"""
+		if key == "customValue":
+			if ruleType in (ruleTypes.PAGE_TITLE_1, ruleTypes.PAGE_TITLE_2):
+				# Translator: Field label on the RulePropertiesEditor dialog.
+				return _("Custom page title")
+			elif ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
+				# Translator: Field label on the RulePropertiesEditor dialog.
+				return _("Custom message")
+		elif key == "customName" and ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
+			# Translator: Field label on the RulePropertiesEditor dialog.
+			return _("Custom name")
+		return default
+
+
+	def customDisplayLabel(self, props):
+		"""
+		Function calls "getAltFieldLabel" static function and filter the Editable
+		object and rule and return the appropriate display value
+		"""
+		dataRule = self.context["data"]["rule"]
+		ruleType = dataRule.get("type")
+		if isinstance(props, EditableProperty):
+			return ListControl.getAltFieldLabel(ruleType, props.get_id())
+
+
 	def messageBox(self, message, caption):
+		"""
+		Message box function displays the given message and caption in a popup
+		"""
 		gui.messageBox(
 			message=message,
 			caption=caption,
 			style=wx.OK | wx.ICON_EXCLAMATION
 		)
 
-	# Function set default updatable properties on panel activation
-	def setValueSingleChoiceProps(self, val, id):
-		retChoiceVal = lambda targetval, l: next((t[0] for t in [x for x in l if x[1] == targetval]), None)
-		if id == "autoAction":
-			ret = retChoiceVal(val, self.autoActionOptions)
-			return ret if ret else self.setDefaultChoice(self.objIncAutoAct, self.autoActionOptions)
-		elif id == "mutation":
-			ret = retChoiceVal(val, self.mutationOptions)
-			return ret if ret else self.setDefaultChoice(self.objIncMut, self.mutationOptions)
 
-	# Set the choice dropdown to default value if none is retrived
+	def getChoiceOptionById(self, idOption):
+		"""
+		function return the list according to the option id
+		"""
+		choiceOption = {
+			"autoAction": self.autoActionOptions,
+			"mutation": self.mutationOptions,
+			"gestures": self.gesturesOptions
+
+		}
+		return  choiceOption[idOption] if idOption in choiceOption else []
+
+
+	def getIncDecObjById(self, idOption):
+		"""
+		function return the incrDecr object according to the option id
+		which is used to set the pos of the next element of the dropdown
+		"""
+		objIncDecPos = {
+			"autoAction": self.objIncAutoAct,
+			"mutation": self.objIncMut,
+			"gestures": self.objIncGest
+		}
+		return objIncDecPos[idOption] if idOption in objIncDecPos else None
+
+
+	def setValueSingleChoiceProps(self, val, id):
+		"""
+		Function set default updatable properties on panel activation
+		"""
+		retChoiceVal = lambda targetval, l: next((t[0] for t in [x for x in l if x[1] == targetval]), None)
+		if id:
+			retChoice = self.getChoiceOptionById(id)
+			retObjIncr = self.getIncDecObjById(id)
+			ret = retChoiceVal(val, retChoice)
+			return ret if ret else self.setDefaultChoice(retObjIncr, retChoice)
+
+
 	def setDefaultChoice(self, objToIncr, lst):
+		"""
+		Set the choice dropdown to default value if none is retrived
+		"""
 		self.choice.SetSelection(1)
 		objToIncr.setPos(1)
 		return lst[0][0]
 
-	# Function set default updatable properties on panel activation
+
 	def updatedStrValues(self, val, id):
+		"""
+		Function set default updatable properties on panel activation
+		"""
 		if isinstance(self.getPropsObj(id), SingleChoiceProperty):
 			return self.setValueSingleChoiceProps(val, id)
 		elif isinstance(self.getPropsObj(id), ToggleProperty):
@@ -127,25 +224,11 @@ class ListControl(object):
 			# Translator: State properties editable "Empty"
 			return val if val else _("Empty")
 
-	@staticmethod
-	def getAltFieldLabel(ruleType, key, default=None):
-		if key == "customValue":
-			if ruleType in (ruleTypes.PAGE_TITLE_1, ruleTypes.PAGE_TITLE_2):
-				# Translator: Field label on the RulePropertiesEditor dialog.
-				return _("Custom page title")
-			elif ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
-				# Translator: Field label on the RulePropertiesEditor dialog.
-				return  _("Custom message")
-		return default
 
-	def customDisplayLabel(self, props):
-		dataRule = self.context["data"]["rule"]
-		ruleType = dataRule.get("type")
-		if isinstance(props, EditableProperty):
-			return ListControl.getAltFieldLabel(ruleType, props.get_id())
-
-	# Set fresh values on init for properties
 	def onInitUpdateListCtrl(self):
+		"""
+		set fresh values on init for properties on wx.listCtrl
+		"""
 		self.listCtrl.DeleteAllItems()
 		clsInstance = self.propsPanel.__class__.__name__
 		for p in self.propertiesList:
@@ -158,13 +241,19 @@ class ListControl(object):
 					self.listCtrl.SetStringItem(self.index, 2, self.isOverrided(p.get_id()))
 				self.index += 1
 
-	# wx.add button applicable only on criteria properties panel
+
 	def onAddProperties(self, evt):
+		"""
+		wx.add button applicable only on criteria properties panel
+		"""
 		if showPropsDialog(self.context, self.propertiesList):
 			self.appendToList()
 
-	# wx.delete add applicable only on criteria properties panel
+
 	def onDeleteProperties(self, evt):
+		"""
+		wx.delete add applicable only on criteria properties panel
+		"""
 		selRow= self.getItemSelRow()
 		index = self.listCtrl.GetNextItem(-1, wx.LIST_NEXT_ALL, wx.LIST_STATE_SELECTED)
 		if index != -1:
@@ -183,8 +272,11 @@ class ListControl(object):
 					p.set_flag(False)
 					p.set_value("")
 
-	# Append to list the chossen properties in the list on criteria editor panel
+
 	def appendToList(self):
+		"""
+		Append to list the chossen properties in the list on criteria editor panel
+		"""
 		clsInstance = self.propsPanel.__class__.__name__
 		val = AppendListCtrl.lst.pop()
 		obj=self.getPropsObj(val)
@@ -197,8 +289,11 @@ class ListControl(object):
 		self.index += 1
 		self.listCtrl.SetFocus()
 
-	# Function updates the overrided values on the criteria editor panel 3rd Column
+
 	def isOverrided(self, idProps):
+		"""
+		Function updates the overrided values on the criteria editor panel 3rd Column
+		"""
 		dataRule = self.context["data"]["rule"]
 		ruleType = dataRule.get("type")
 		ruleProps = dataRule.get("properties")
@@ -210,13 +305,20 @@ class ListControl(object):
 					# Translator: State properties "Not assigned"
 					return self.updatedStrValues(value, idProps) if value else _("Not assigned")
 
-	# Function returns the properties obj
+
 	def getPropsObj(self, val):
+		"""
+		Function returns the properties obj
+		"""
 		for p in self.propertiesList:
 			if val == p.get_id():
 				return p
 
+
 	def updateBtnState(self):
+		"""
+		Function update the button state according to instance
+		"""
 		if self.propsPanel.__class__.__name__ ==  "OverridesPanel":
 			self.btnAddProps = self.propsPanel.btnAddProps
 			self.btnDelProps = self.propsPanel.btnDelProps
@@ -224,8 +326,10 @@ class ListControl(object):
 			self.btnDelProps.Bind(wx.EVT_BUTTON, self.onDeleteProperties)
 
 
-	# Retruns the selected item from the properties list
 	def getItemSelRow(self):
+		"""
+		Returns the selected item from the properties list
+		"""
 		column_values = []
 		focused_item = self.listCtrl.GetFocusedItem()
 		if focused_item != -1:
@@ -235,8 +339,11 @@ class ListControl(object):
 				column_values.append(column_value)
 			return  column_values
 
-	# Event handler function binded over while browsing on the properties list
+
 	def onItemSelListCtrl(self, evt):
+		"""
+		Event handler function binded over while browsing on the properties list
+		"""
 		self.currentSelItem = evt.GetItem()
 		listItem = self.getItemSelRow()
 		for p in self.propertiesList:
@@ -265,7 +372,9 @@ class ListControl(object):
 					if retVal is not None:
 						self.choice.SetSelection(n)
 				else:
-					self.objIncAutoAct.setPos(1) if p.get_id() == "autoAction" else (self.objIncMut.setPos(1) if p.get_id() == "mutation" else None)
+					retChoice = self.getChoiceOptionById(p.get_id())
+					retObjIncr = self.getIncDecObjById(p.get_id())
+					retObjIncr.setPos(1) if retChoice else None
 					self.choice.SetSelection(0)
 			elif isinstance(p, EditableProperty):
 				self.choice.Disable()
@@ -277,28 +386,38 @@ class ListControl(object):
 				else:
 					self.editable.SetValue("")
 
-	# Function updates the dropdown list and set the postion to the selected value
+
 	def updateChoiceDropDown(self, val, idProps):
-		lst = self.autoActionOptions if idProps == "autoAction" else (self.mutationOptions if  idProps == "mutation" else None)
+		"""
+		Function updates the dropdown list and set the position to the selected value
+		"""
+		retChoice = self.getChoiceOptionById(idProps)
+		retObjIncr = self.getIncDecObjById(idProps)
+		lst =retChoice if retChoice is not None else None
 		getTupleVal = lambda targetval: next((t[0] for t in [x for x in lst if x[1] == targetval]), None)
 		n = self.choice.FindString(getTupleVal(val), False)
 		if n != -1:
 			self.choice.SetSelection(n)
 			pos = self.choice.GetSelection()
-			self.objIncAutoAct.setPos(pos+1) if idProps == "autoAction"  else (self.objIncMut.setPos(pos+1) if  idProps == "mutation" else None)
+			retObjIncr.setPos(pos+1) if retObjIncr else None
 			return getTupleVal(val), n
 
-	# on init function updates the mutation and autoActions list
-	def updateChoices(self,choiceItem ,id):
-		if id == "mutation":
-			choiceItem.Clear()
-			list(map(lambda x: choiceItem.Append(x[0]), self.mutationOptions))
-		elif id == "autoAction":
-			choiceItem.Clear()
-			list(map(lambda x:choiceItem.Append(x[0]), self.autoActionOptions))
 
-	# Event handler function binded to space key
+	def updateChoices(self,choiceItem ,id):
+		"""
+		on init function updates the mutation and autoActions list
+		"""
+		if id:
+			choiceItem.Clear()
+			list(map(lambda x: choiceItem.Append(x[0]), self.getChoiceOptionById(id)))
+		else:
+			return
+
+
 	def onKeyPress(self, evt):
+		"""
+		Event handler function binded to space key
+		"""
 		keycode = evt.GetKeyCode()
 		modifiers = evt.GetModifiers()
 		if keycode == wx.WXK_SPACE and not modifiers:
@@ -323,8 +442,11 @@ class ListControl(object):
 					return
 		evt.Skip()
 
-	# Event handler function binded to shift+space key inorder to decrement the position of list
+
 	def keyShiftSpace(self, evt):
+		"""
+		Event handler function binded to shift+space key inorder to decrement the position of list
+		"""
 		keycode = evt.GetKeyCode()
 		modifiers = evt.GetModifiers()
 		if modifiers == wx.MOD_SHIFT and keycode == wx.WXK_SPACE:
@@ -338,8 +460,11 @@ class ListControl(object):
 					return
 		evt.Skip()
 
-	# Function updates the toggle btn display and sets value after the event from the onKeyPress fun.
+
 	def updateToggleBtnPropertiest(self, rowItem):
+		"""
+		Function updates the toggle btn display and sets value after the event from the onKeyPress fun.
+		"""
 		for p in self.propertiesList:
 			if rowItem in p.get_displayName() and isinstance(p, ToggleProperty):
 				val = not bool(self.toggleBtn.GetValue())
@@ -350,91 +475,109 @@ class ListControl(object):
 				ui.message(_("checked") if val else _("unchecked"))
 				self.updatePropertiesList(rowItem)
 
-	# Function updates the editable properties list
+
 	def updateEditableProperties(self, rowItem, val):
+		"""
+		Function updates the editable properties list
+		"""
 		for p in self.propertiesList:
 			if self.customDisplayLabel(p) == rowItem:
 				p.set_value(val)
 				self.editable.SetValue(val)
 		self.updatePropertiesList(rowItem)
 
-	# Function displays an input dialog after onkyepress event for ediable properteis
+
 	def editablDialog(self, label):
+		"""
+		Function displays an input dialog after onkyepress event for ediable properteis
+		"""
 		dialog = wx.TextEntryDialog(self.propsPanel, label, label)
 		if dialog.ShowModal() == wx.ID_OK:
 			return dialog.GetValue()
 		dialog.Destroy()
 
-	# Function set and option choosen from the dropDown list or onKeyPress event in the properties list
+
 	def setChoiceList(self, rowItem):
+		"""
+		Function set and option choosen from the dropDown list or onKeyPress event in the properties list
+		"""
 		for p in self.propertiesList:
 			if rowItem == p.get_displayName():
-				if p.get_id() == "mutation":
-					return [i[0] for i in self.mutationOptions]
-				elif p.get_id() == "autoAction":
-					return  [i[0] for i in self.autoActionOptions]
+				retOptions = self.getChoiceOptionById(p.get_id())
+				return  [i[0] for i in retOptions]
 
-	# Function updates the choices uses binded onkeyPress events for increment and keyShiftSpace events for decrement the lists
+
 	def updateChoiceByList(self, eventType ,listChoice, id):
-		if id == "autoAction":
+		"""
+		Function updates the choices uses binded onkeyPress events
+		for increment and keyShiftSpace events for decrement the lists
+		"""
+		if id:
+			retObjIncr = self.getIncDecObjById(id)
 			if eventType == EVT_KEY_DOWN:
-				self.objIncAutoAct.setListChoice(listChoice)
-				return  self.objIncAutoAct.getIncrChoice()
+				retObjIncr.setListChoice(listChoice)
+				return  retObjIncr.getIncrChoice()
 			elif eventType == EVT_CHAR_HOOK:
-				self.objIncAutoAct.setListChoice(listChoice)
-				return self.objIncAutoAct.getDecrChoice()
-		elif id == "mutation":
-			if eventType == EVT_KEY_DOWN:
-				self.objIncMut.setListChoice(listChoice)
-				return  self.objIncMut.getIncrChoice()
-			elif eventType == EVT_CHAR_HOOK:
-				self.objIncMut.setListChoice(listChoice)
-				return self.objIncMut.getDecrChoice()
+				retObjIncr.setListChoice(listChoice)
+				return retObjIncr.getDecrChoice()
 
-	# Function returs id or value of mutation and autoActions according to the requirements
-	def getChoiceIdOrValues(self, val, id, target):
-		getActionVal = lambda targetval: next((t[0] for t in [x for x in self.autoActionOptions if x[1] == targetval]), None)
-		getActionId = lambda targetId: next((t[1] for t in [x for x in self.autoActionOptions if x[0] == targetId]), None)
-		getMutVal = lambda targetval: next((t[0] for t in [x for x in self.mutationOptions if x[1] == targetval]), None)
-		getMutId = lambda targetId: next((t[1] for t in [x for x in self.mutationOptions if x[0] == targetId]), None)
-		if target == "id":
-			return  getMutId(val) if id == "mutation" else (getActionId(val) if id == "autoAction" else val)
-		elif target == "val":
-			return  getMutVal(val) if id == "mutation" else (getActionVal(val) if id == "autoAction" else val)
 
-	# Updates the choice properties in the list from tab events as well as dropdown events
+	def getChoiceKeyByValue(self, val, idOption):
+		"""
+		Function returns list key of a tuple according to the value
+		"""
+		options = self.getChoiceOptionById(idOption)
+		getId = lambda x: next((t[1] for t in [x for x in options if x[0] == val]), val)
+		return getId(val)
+
+
+	def getChoiceValueByKey(self, key, idOption):
+		"""
+		Function returns list value of a tuple according to the key
+		"""
+		options = self.getChoiceOptionById(idOption)
+		getValue = lambda x: next((t[0] for t in [x for x in options if x[1] == key]), key)
+		return getValue(key)
+
+
+
 	def updateChoiceProperties(self, rowItem, val):
-		retId = lambda x,y: self.getChoiceIdOrValues(x, y, "id")
-		retValue = lambda x,y: self.getChoiceIdOrValues(x, y, "val")
+		"""
+		Updates the choice properties in the list from tab events as well as dropdown events
+		"""
 		for p in self.propertiesList:
 			if p.get_displayName() == rowItem:
-				val = retId(val, p.get_id())
+				val = self.getChoiceKeyByValue(val, p.get_id())
 				p.set_value(val)
-				valFindString = retValue(val,p.get_id())
+				valFindString = self.getChoiceValueByKey(val, p.get_id())
 				n = self.choice.FindString(valFindString, False)
 				if n != -1:
 					self.choice.SetSelection(n)
 					self.updatePropertiesList(rowItem)
 					return
 
-	# Function updates the values in the properties list control globally
+
 	def updatePropertiesList(self, rowProps):
+		"""
+		Function updates the values in the properties list control globally
+		"""
 		# Translator: State properties boolean "Enable"
 		# Translator: State properties boolean "Disable"
 		ret = lambda x: _("Enable") if x == True else ( _("Disable") if x == False else x)
 		forVal = filter(lambda x: x.get_displayName() == rowProps, self.propertiesList)
-		getDisplayVal = lambda targetStr: next((t[0] for t in [x for x in self.autoActionOptions if x[1] == targetStr]), None)
-		getMutId = lambda targetId: next((t[0] for t in [x for x in self.mutationOptions if x[1] == targetId]), None)
-		listDisVal = lambda x, y: getMutId(x) if y == "mutation" else (getDisplayVal(x) if y == "autoAction" else x)
 		res = list(forVal)
 		valProps = res[0].get_value()
-		val = ret(valProps)  if valProps is not None else ""
+		val = ret(valProps) if valProps is not None else ""
 		index = self.currentSelItem.GetId()
-		self.listCtrl.SetItem(index, 1, listDisVal(val, res[0].get_id()))
+		updateVal = self.getChoiceValueByKey(val, res[0].get_id())
+		self.listCtrl.SetItem(index, 1, updateVal)
 		return
 
-	# Event handler to update toggle button properties
+
 	def updateValueEvtToggle(self, evt):
+		"""
+		Event handler to update toggle button properties
+		"""
 		evtObj = evt.GetEventObject()
 		for p in self.propertiesList:
 			if evt.GetEventType() == wx.EVT_TOGGLEBUTTON.evtType[0]:
@@ -450,8 +593,11 @@ class ListControl(object):
 						self.updatePropertiesList(evtObj.GetLabel())
 					return
 
-	# Event handler updates Editable properties
+
 	def updateValueEvtEdit(self, evt):
+		"""
+		Event handler updates Editable properties
+		"""
 		text = self.editable.GetValue()
 		index = self.currentSelItem.GetId()
 		item = self.getItemSelRow()
@@ -460,19 +606,26 @@ class ListControl(object):
 				p.set_value(text)
 		self.listCtrl.SetItem(index, 1, text)
 
-	# Event handler updates choice properties
+
 	def updateValueEvtChoice(self, evt):
+		"""
+		Event handler updates choice properties
+		"""
 		choiceVal = self.choice.GetString(self.choice.GetSelection())
 		selRow = self.getItemSelRow()
 		self.updateChoiceProperties(selRow[0], choiceVal)
 		forVal = filter(lambda x: x.get_displayName() == selRow[0], self.propertiesList)
 		res = list(forVal)
 		pos = self.choice.GetSelection()
-		self.objIncAutoAct.setPos(pos+1) if res[0].get_id() == "autoAction" else (self.objIncMut.setPos(pos+1) if res[0].get_id() == "mutation" else None)
+		retObjIncr = self.getIncDecObjById(res[0].get_id())
+		retObjIncr.setPos(pos + 1) if res[0].get_id() else None
 		self.updatePropertiesList(selRow[0])
 
-	# On init, function updates theautoActions list on run time
+
 	def getAutoActions(self):
+		"""
+		On init, function updates the autoActions list on run time
+		"""
 		self.autoActionOptions =[]
 		mgr = self.context["webModule"].ruleManager
 		actionsDict = mgr.getActions()
@@ -481,18 +634,30 @@ class ListControl(object):
 		[self.autoActionOptions.append((actionsDict[i], i))for i in actionsDict]
 		self.autoActionOptions.insert(0, defaultval)
 
-	# On init function updated the run time mutation list
+
 	def getMutationOptions(self):
+		"""
+		On init function updates the run time mutation list
+		"""
 		self.mutationOptions = []
 		# Translator: State properties "unchecked"
 		defaultval = ("Choose an option", "")
 		[self.mutationOptions.append((mutationLabels[i], i)) for i in mutationLabels]
 		self.mutationOptions.insert(0, defaultval)
 
+	def getGestureOptions(self):
+		"""
+		On init function updates the run time gestures list
+		"""
+		self.gestures = []
+		defaultval = ("Choose an option", "")
+		self.gestures.insert(0, defaultval)
+
 
 class AppendListCtrl(ListControl):
-
-
+	"""
+	Class append the context properties to the list
+	"""
 	lst =[]
 	def __init__(self, clientListBox):
 		super(AppendListCtrl, self).__init__(clientListBox)
@@ -507,8 +672,9 @@ class AppendListCtrl(ListControl):
 
 
 class PropsMenu(wx.Menu):
-
-
+	"""
+	Class displays the context menu for criteria panel properties
+	"""
 	def __init__(self, context, properties):
 		super(PropsMenu, self).__init__()
 		self.context = context
@@ -529,6 +695,7 @@ class PropsMenu(wx.Menu):
 		gui.mainFrame.PopupMenu(self)
 		gui.mainFrame.postPopup()
 
+
 class PropertyType(Enum):
 	TOGGLE = "toggle"  # True / False
 	EDITABLE = "editable"
@@ -536,6 +703,9 @@ class PropertyType(Enum):
 	MULTIPLE_CHOICE = "multipleChoice"
 
 class Property(ABC):
+	"""
+	Abstract class for properties
+	"""
 	@abstractmethod
 	def __init__(
 			self,
@@ -555,7 +725,11 @@ class Property(ABC):
 	def get_displayName(self):
 		return self.__display_name
 
+
 class ToggleProperty(Property):
+	"""
+	Class creates toggle properties which takes boolean
+	"""
 	def __init__(
 			self,
 			id: str,
@@ -590,6 +764,9 @@ class ToggleProperty(Property):
 		AppendListCtrl.lst.append(self.get_id())
 
 class SingleChoiceProperty(Property):
+	"""
+	Class creates choice properites
+	"""
 	def __init__(
 			self,
 			id: str,
@@ -624,7 +801,9 @@ class SingleChoiceProperty(Property):
 		AppendListCtrl.lst.append(self.get_id())
 
 class EditableProperty(Property):
-
+	"""
+	Class creates editable properites and set flag as a boolean
+	"""
 	def __init__(
 			self,
 			id: str,
@@ -658,58 +837,51 @@ class EditableProperty(Property):
 		self.set_flag(True)
 		AppendListCtrl.lst.append(self.get_id())
 
-# Initialising List of properties
-class ListProperties:
 
+class ListProperties:
+	"""
+	Initialising List of properties and append to the listProperties according
+	to the rule
+	"""
 	propertiesList = []
+	availProps = None
 	dataRule = None
 	ruleType =None
 
 	def __init__(self):
-		self.__propsMultiple = None
-		self.__propsMutation = None
-		self.__propsFormMode = None
-		self.__propsCustomValue = None
-		self.__propsCustomName = None
-		self.__propsSkip = None
-		self.__propsSayName = None
-		self.__autoAction = None
+		self.availProps = {}
 
 	def setPropertiesByRuleType(self, context):
+		self.availProps = {
+			SingleChoiceProperty("autoAction", FIELDS["autoAction"], False, ""),
+			ToggleProperty("multiple", FIELDS["multiple"], False, False),
+			ToggleProperty("formMode", FIELDS["formMode"], False, False),
+			ToggleProperty("skip", FIELDS["skip"], False, False),
+			ToggleProperty("sayName", FIELDS["sayName"], False, False),
+			EditableProperty("customName", FIELDS["customName"], False),
+			EditableProperty("customValue", FIELDS["customValue"], False),
+			SingleChoiceProperty("mutation", FIELDS["mutation"], False, "")
+		}
 		self.propertiesList =[]
 		self.dataRule = context["data"]["rule"]
 		self.ruleType = self.dataRule.get("type")
-		self.__autoAction = SingleChoiceProperty("autoAction", FIELDS["autoAction"], False, "")
-		self.__propsMultiple = ToggleProperty("multiple", FIELDS["multiple"], False, False)
-		self.__propsFormMode = ToggleProperty("formMode", FIELDS["formMode"], False, False)
-		self.__propsSkip = ToggleProperty("skip", FIELDS["skip"], False, False)
-		self.__propsSayName = ToggleProperty("sayName", FIELDS["sayName"], False, False)
-		self.__propsCustomName = EditableProperty("customName", FIELDS["customName"], False)
-		self.__propsCustomValue = EditableProperty("customValue", FIELDS["customValue"], False)
-		self.__propsMutation = SingleChoiceProperty("mutation", FIELDS["mutation"], False, "")
 
-		availProps = [
-			self.__autoAction,
-			self.__propsMultiple,
-			self.__propsFormMode,
-			self.__propsSkip,
-			self.__propsSayName,
-			self.__propsCustomName,
-			self.__propsCustomValue,
-			self.__propsMutation
-		]
 		typeValues = RULE_TYPE_FIELDS.get(self.ruleType)
 		if typeValues:
-			for props in availProps:
-				if props.get_id() in typeValues:
-					self.propertiesList.append(props)
+			for pObj in self.availProps:
+				if pObj.get_id() in typeValues:
+					self.propertiesList.append(pObj)
 
 	def getPropertiesByRuleType(self):
 		return self.propertiesList
 
-# Class increments and decrements a list
-class IncrDecrListPos:
 
+class IncrDecrListPos:
+	"""
+	class increments and decrements a choosen list and
+	it sets the get the positions of a list.
+	This class is utilised by the single choice property
+	"""
 	pos = 0
 	listChoice = []
 
@@ -738,3 +910,13 @@ class IncrDecrListPos:
 		self.pos -= 1
 		ret = self.listChoice[self.getPos()-1]
 		return ret
+
+# End of file
+
+
+
+
+
+
+
+
