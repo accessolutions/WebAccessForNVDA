@@ -1,5 +1,5 @@
 
-__version__ = "2024.03.28"
+__version__ = "2024.03.07"
 __author__ = "Sendhil Randon <sendhil.randon-ext@pole.-emploi.fr>"
 
 from collections import OrderedDict
@@ -139,6 +139,16 @@ class ListControl(object):
 			# Translator: Field label on the RulePropertiesEditor dialog.
 			return _("Custom name")
 		return default
+
+
+	def getKeyByRuleType(self, displayName):
+		"""
+		Function converts the appropriate display name to the listctrl activate funtions
+		"""
+		if displayName == "customCustom page title" or displayName == "Custom message":
+			return "Custom value"
+		else:
+			return displayName
 
 
 	def customDisplayLabel(self, props):
@@ -346,8 +356,9 @@ class ListControl(object):
 		"""
 		self.currentSelItem = evt.GetItem()
 		listItem = self.getItemSelRow()
+		customItem = self.getKeyByRuleType(listItem[0])
 		for p in self.propertiesList:
-			if not listItem[0] == p.get_displayName():
+			if not customItem == p.get_displayName():
 				continue
 			if isinstance(p, ToggleProperty):
 				self.choice.Disable()
@@ -377,14 +388,14 @@ class ListControl(object):
 					retObjIncr.setPos(1) if retChoice else None
 					self.choice.SetSelection(0)
 			elif isinstance(p, EditableProperty):
+				self.editable.Enable()
 				self.choice.Disable()
 				self.toggleBtn.Disable()
-				self.editable.Enable()
 				self.toggleBtn.SetLabel("")
 				if p.get_value() is not None:
 					self.editable.SetValue(p.get_value())
 				else:
-					self.editable.SetValue("")
+					pass
 
 
 	def updateChoiceDropDown(self, val, idProps):
@@ -434,6 +445,7 @@ class ListControl(object):
 						return
 					else:
 						log.info("Ret value of dialog is empty!")
+						return
 				elif isinstance(p, SingleChoiceProperty) and rowItem[0] == p.get_displayName():
 					retChoiceList = self.setChoiceList(rowItem[0])
 					retChoice = self.updateChoiceByList(evt.EventType, retChoiceList, p.get_id())
@@ -483,8 +495,9 @@ class ListControl(object):
 		for p in self.propertiesList:
 			if self.customDisplayLabel(p) == rowItem:
 				p.set_value(val)
-				self.editable.SetValue(val)
-		self.updatePropertiesList(rowItem)
+				if val:
+					self.editable.SetValue(val)
+					return
 
 
 	def editablDialog(self, label):
@@ -540,7 +553,6 @@ class ListControl(object):
 		return getValue(key)
 
 
-
 	def updateChoiceProperties(self, rowItem, val):
 		"""
 		Updates the choice properties in the list from tab events as well as dropdown events
@@ -550,10 +562,12 @@ class ListControl(object):
 				val = self.getChoiceKeyByValue(val, p.get_id())
 				p.set_value(val)
 				valFindString = self.getChoiceValueByKey(val, p.get_id())
-				n = self.choice.FindString(valFindString, False)
-				if n != -1:
-					self.choice.SetSelection(n)
-					self.updatePropertiesList(rowItem)
+				if valFindString:
+					n = self.choice.FindString(valFindString, False)
+					if n != -1:
+						self.choice.SetSelection(n)
+						self.updatePropertiesList(rowItem)
+						return
 					return
 
 
@@ -566,11 +580,14 @@ class ListControl(object):
 		ret = lambda x: _("Enable") if x == True else ( _("Disable") if x == False else x)
 		forVal = filter(lambda x: x.get_displayName() == rowProps, self.propertiesList)
 		res = list(forVal)
-		valProps = res[0].get_value()
-		val = ret(valProps) if valProps is not None else ""
-		index = self.currentSelItem.GetId()
-		updateVal = self.getChoiceValueByKey(val, res[0].get_id())
-		self.listCtrl.SetItem(index, 1, updateVal)
+
+		if res:
+			valProps = res[0].get_value()
+			val = ret(valProps) if valProps is not None else None
+			index = self.currentSelItem.GetId()
+			updateVal = self.getChoiceValueByKey(val, res[0].get_id())
+			self.listCtrl.SetItem(index, 1, updateVal)
+			return
 		return
 
 
@@ -772,7 +789,7 @@ class SingleChoiceProperty(Property):
 			id: str,
 			display_name: str,
 			flag: bool,
-			value: str,
+			value: Optional[str] = None,
 	):
 		super(SingleChoiceProperty, self).__init__(id, display_name, PropertyType.SINGLE_CHOICE)
 		self.__value = value
@@ -844,33 +861,49 @@ class ListProperties:
 	to the rule
 	"""
 	propertiesList = []
-	availProps = None
 	dataRule = None
-	ruleType =None
+	ruleType = None
 
 	def __init__(self):
-		self.availProps = {}
+		self.__propsMultiple = None
+		self.__propsMutation = None
+		self.__propsFormMode = None
+		self.__propsCustomValue = None
+		self.__propsCustomName = None
+		self.__propsSkip = None
+		self.__propsSayName = None
+		self.__autoAction = None
+
 
 	def setPropertiesByRuleType(self, context):
-		self.availProps = {
-			SingleChoiceProperty("autoAction", FIELDS["autoAction"], False, ""),
-			ToggleProperty("multiple", FIELDS["multiple"], False, False),
-			ToggleProperty("formMode", FIELDS["formMode"], False, False),
-			ToggleProperty("skip", FIELDS["skip"], False, False),
-			ToggleProperty("sayName", FIELDS["sayName"], False, False),
-			EditableProperty("customName", FIELDS["customName"], False),
-			EditableProperty("customValue", FIELDS["customValue"], False),
-			SingleChoiceProperty("mutation", FIELDS["mutation"], False, "")
-		}
-		self.propertiesList =[]
+		self.propertiesList = []
 		self.dataRule = context["data"]["rule"]
 		self.ruleType = self.dataRule.get("type")
+		self.__autoAction = SingleChoiceProperty("autoAction", FIELDS["autoAction"], False)
+		self.__propsMultiple = ToggleProperty("multiple", FIELDS["multiple"], False, False)
+		self.__propsFormMode = ToggleProperty("formMode", FIELDS["formMode"], False, False)
+		self.__propsSkip = ToggleProperty("skip", FIELDS["skip"], False, False)
+		self.__propsSayName = ToggleProperty("sayName", FIELDS["sayName"], False, False)
+		self.__propsCustomName = EditableProperty("customName", FIELDS["customName"], False)
+		self.__propsCustomValue = EditableProperty("customValue", FIELDS["customValue"], False)
+		self.__propsMutation = SingleChoiceProperty("mutation", FIELDS["mutation"], False)
 
+		availProps = [
+			self.__autoAction,
+			self.__propsMultiple,
+			self.__propsFormMode,
+			self.__propsSkip,
+			self.__propsSayName,
+			self.__propsCustomName,
+			self.__propsCustomValue,
+			self.__propsMutation
+		]
 		typeValues = RULE_TYPE_FIELDS.get(self.ruleType)
 		if typeValues:
-			for pObj in self.availProps:
-				if pObj.get_id() in typeValues:
-					self.propertiesList.append(pObj)
+			for props in availProps:
+				if props.get_id() in typeValues:
+					self.propertiesList.append(props)
+
 
 	def getPropertiesByRuleType(self):
 		return self.propertiesList
