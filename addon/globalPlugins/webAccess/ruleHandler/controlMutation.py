@@ -111,6 +111,7 @@ MUTATIONS = {
 	"landmark.nav.named": Mutation({"landmark": "navigation"}, True),
 	"landmark.nav.unnamed": Mutation({"landmark": "navigation"}, False),
 	"link": Mutation({"role": controlTypes.ROLE_LINK}, False),
+	"redundant.object": Mutation({"role": controlTypes.ROLE_REDUNDANTOBJECT}, False),
 	"section": Mutation({"role": controlTypes.ROLE_SECTION}, False),
 	"table.data": Mutation({"table-layout": False}, False),
 	"table.layout": Mutation({"table-layout": True}, False)
@@ -126,6 +127,7 @@ MUTATIONS_BY_RULE_TYPE = OrderedDict((
 			"heading.5",
 			"heading.6",
 			"labelled",
+			"redundant.object",
 			"section",
 			"landmark.region",
 			"landmark.nav.named",
@@ -166,6 +168,8 @@ mutationLabels = OrderedDict((
 	("heading.6", pgettext("webAccess.controlMutation", "Header level 6")),
 	# Translators: The label for a control mutation.
 	("labelled", pgettext("webAccess.controlMutation", "Add a label")),
+	# Translators: The label for a control mutation.
+	("redundant.object", pgettext("webAccess.controlMutation", "Redundant object")),
 	# Translators: The label for a control mutation.
 	("section", pgettext("webAccess.controlMutation", "Section")),
 	(
