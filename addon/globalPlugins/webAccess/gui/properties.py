@@ -18,9 +18,9 @@ from ..ruleHandler.controlMutation import (
 import  ui
 addonHandler.initTranslation()
 
-# event hander constants
-EVT_KEY_DOWN = 10057
-EVT_CHAR_HOOK = 10055
+# event handler constants
+EVT_KEY_DOWN = wx.EVT_KEY_DOWN.typeId
+EVT_CHAR_HOOK = wx.EVT_CHAR_HOOK.typeId
 
 FIELDS = {
 	# Translator: Multiple results checkbox label for the rule dialog's properties panel.
