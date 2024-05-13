@@ -1081,9 +1081,9 @@ class SingleNodeResult(Result):
 		treeInterceptor = html.getTreeInterceptor()
 		if not treeInterceptor:
 			return
-		speechMode = speech.speechMode
+		speechMode = speech.getState().speechMode
 		try:
-			speech.speechMode = speech.speechMode_off
+			speech.setSpeechMode(speech.SpeechMode.off)
 			treeInterceptor.passThrough = False
 			browseMode.reportPassThrough.last = treeInterceptor.passThrough
 			self.node.moveto()
@@ -1093,8 +1093,10 @@ class SingleNodeResult(Result):
 			log.exception("Error during script_sayall")
 			return
 		finally:
-			speech.speechMode = speechMode
-		speech.sayAll.SayAllHandler.readText(sayAllHandler.CURSOR_CARET)
+			speech.setSpeechMode(speechMode)
+		speech.sayAll.SayAllHandler.readText(
+			speech.sayAll.CURSOR.CARET
+		)
 
 	def script_activate(self, gesture):
 		if self.node.nodeManager is None:

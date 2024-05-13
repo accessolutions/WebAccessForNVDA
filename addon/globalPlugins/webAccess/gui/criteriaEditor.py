@@ -394,7 +394,7 @@ class CriteriaPanel(ContextualSettingsPanel):
 		hidable = self.hidable = {}
 
 		row = 0
-		item = wx.StaticText(self, label=_("Contexte:"))
+		item = wx.StaticText(self, label=_("Context:"))
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item = self.contextMacroDropDown = DropDownWithHideableChoices(self)
 		item.setChoices((

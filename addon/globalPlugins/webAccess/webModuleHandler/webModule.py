@@ -45,7 +45,7 @@ from logHandler import log
 import scriptHandler
 import speech
 import ui
-
+from ..lib.markdown2 import markdown
 from ..lib.packaging import version
 from ..webAppLib import playWebAppSound
 from .. import ruleHandler
@@ -313,19 +313,11 @@ class WebModule(baseObject.ScriptableObject):
 			# Translators: Presented when requesting a missing contextual help
 			ui.message(_("No contextual help available."))
 			return
-		rootDirs = []
-		for storeRef in self.alternatives:
-			if storeRef[0] == "userConfig":
-				rootDirs.append(globalVars.appArgs.configPath)
-			elif storeRef[0] == "addons":
-				rootDirs.append(os.path.join(globalVars.appArgs.configPath, "addons", storeRef[1]))
-		from ..lib.browsableMessage import browsableMessage
-		browsableMessage(
-			self.help,
-			"markdown",
+		ui.browseableMessage(
+			markdown(self.help),
 			# Translators: Title of the Contextual Help dialog
 			_("Contextual Help"),
-			rootDirs,
+			True
 		)
 
 	def script_title(self, gesture):

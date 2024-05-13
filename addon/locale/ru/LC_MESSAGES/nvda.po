@@ -1,0 +1,1422 @@
+# nvda.po
+# -*- coding: utf-8 -*-
+# This file is part of Web Access for NVDA.
+# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# See the file COPYING.txt at the root of this distribution for more details.
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: nvda-translations@freelists.org\n"
+"POT-Creation-Date: 2021-02-09 10:54+0100\n"
+"PO-Revision-Date: 2024-04-09 14:23+0300\n"
+"Last-Translator: Danil Kostenkov <danilkostenkov38@gmail.com>\n"
+"Language-Team: \n"
+"Language: ru_RU\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+"Generated-By: pygettext.py 1.5\n"
+"X-Generator: Poedit 3.4.2\n"
+"X-Poedit-Basepath: ../../..\n"
+"X-Poedit-KeywordsList: pgettext:1c,2\n"
+"X-Poedit-Bookmarks: -1,2,-1,-1,-1,-1,-1,-1,-1,-1\n"
+"X-Poedit-SearchPath-0: .\n"
+
+#: addon\globalPlugins\webAccess\overlay.py:504
+msgid "Zone border"
+msgstr "Граница области"
+
+#. Translators: Hint on how to cancel zone restriction.
+#: addon\globalPlugins\webAccess\overlay.py:508
+#: addon\globalPlugins\webAccess\overlay.py:832
+#: addon\globalPlugins\webAccess\overlay.py:853
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:766
+msgid "Press escape to cancel zone restriction."
+msgstr "Нажмите клавишу escape, чтобы отменить ограничение области."
+
+#. Translators: Complement to quickNav error message in zone.
+#: addon\globalPlugins\webAccess\overlay.py:829
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:763
+msgid "in this zone."
+msgstr "в этой области."
+
+#: addon\globalPlugins\webAccess\overlay.py:844
+msgid "No more focusable element in this zone."
+msgstr "В этой области нет следующего фокусируемого элемента."
+
+#: addon\globalPlugins\webAccess\overlay.py:846
+msgid "No previous focusable element in this zone."
+msgstr "В этой области нет предыдущего фокусируемого элемента."
+
+#. Translators: Hint on how to cancel zone restriction.
+#: addon\globalPlugins\webAccess\overlay.py:850
+msgid "Press escape twice to cancel zone restriction."
+msgstr "Дважды нажмите клавишу escape, чтобы отменить ограничение области."
+
+#: addon\globalPlugins\webAccess\overlay.py:872
+#: addon\globalPlugins\webAccess\overlay.py:889
+#, python-format
+msgid "text \"%s\" not found"
+msgstr "текст \"%s\" не найден"
+
+#: addon\globalPlugins\webAccess\overlay.py:874
+msgid "Cancel zone restriction and retry?"
+msgstr "Отменить ограничение области и попробовать ещё раз ?"
+
+#: addon\globalPlugins\webAccess\overlay.py:876
+#: addon\globalPlugins\webAccess\overlay.py:890
+msgid "Find Error"
+msgstr "Найти ошибку"
+
+#. Translators: The description for the passThrough script (back-ported from NVDA 2019.2)
+#: addon\globalPlugins\webAccess\overlay.py:928
+msgid "Passes gesture through to the application"
+msgstr "Передать жест непосредственно приложению"
+
+#: addon\globalPlugins\webAccess\overlay.py:963
+msgid "Zone restriction cancelled"
+msgstr "Ограничение области отменено"
+
+#. Translators: The description for the elementsListInZone script
+#: addon\globalPlugins\webAccess\overlay.py:998
+msgid "Lists various types of elements in the current zone"
+msgstr "Перечисляет различные типы элементов в текущей области"
+
+#. Translators: The description for the quickNavToNextResultLevel1 script
+#: addon\globalPlugins\webAccess\overlay.py:1007
+msgid "Move to next zone."
+msgstr "Перейти к следующей области."
+
+#. Translators: The description for the quickNavToPreviousResultLevel1 script
+#: addon\globalPlugins\webAccess\overlay.py:1016
+msgid "Move to previous zone."
+msgstr "Перейти к предыдущей области."
+
+#. Translators: The description for the quickNavToNextResultLevel2 script
+#: addon\globalPlugins\webAccess\overlay.py:1025
+msgid "Move to next global marker."
+msgstr "Перейти к следующему глобальному маркеру."
+
+#. Translators: The description for the quickNavToPreviousResultLevel2 script
+#: addon\globalPlugins\webAccess\overlay.py:1034
+msgid "Move to previous global marker."
+msgstr "Перейти к предыдущему глобальному маркеру."
+
+#. Translators: The description for the quickNavToNextResultLevel3 script
+#: addon\globalPlugins\webAccess\overlay.py:1043
+msgid "Move to next local marker."
+msgstr "Перейти к следующему локальному маркеру."
+
+#. Translators: The description for the quickNavToPreviousResultLevel3 script
+#: addon\globalPlugins\webAccess\overlay.py:1052
+msgid "Move to previous local marker."
+msgstr "Перейти к предыдущему локальному маркеру."
+
+#. Translators: Notified when manually refreshing results
+#. Translators: The description for the refreshResults script
+#: addon\globalPlugins\webAccess\overlay.py:1059
+#: addon\globalPlugins\webAccess\overlay.py:1063
+msgid "Refresh results"
+msgstr "Обновить результаты"
+
+#. Translators: Input help mode message for show Web Access menu command.
+#: addon\globalPlugins\webAccess\__init__.py:224
+msgid "Show the Web Access menu."
+msgstr "Показать меню Web Access ."
+
+#. Translators: Error message when attempting to show the Web Access GUI.
+#: addon\globalPlugins\webAccess\__init__.py:232
+#: addon\globalPlugins\webAccess\__init__.py:385
+msgid "The current object does not support Web Access."
+msgstr "Этот объект не поддерживается Web Access."
+
+#. Translators: Error message when attempting to show the Web Access GUI.
+#: addon\globalPlugins\webAccess\__init__.py:236
+msgid "You must be in a web browser to use Web Access."
+msgstr "Перейдите в веб-браузер, чтобы использовать Web Access."
+
+#. Translators: Error message when attempting to show the Web Access GUI.
+#: addon\globalPlugins\webAccess\__init__.py:240
+#: addon\globalPlugins\webAccess\__init__.py:389
+msgid "You must be on the web page to use Web Access."
+msgstr "Перейдите на веб-страницу, чтобы использовать Web Access."
+
+#. Translators: Input help mode message for a command.
+#: addon\globalPlugins\webAccess\__init__.py:262
+msgid "Open the Web Access Settings."
+msgstr "Открыть настройки Web Access."
+
+#. Translators: Input help mode message for show Web Access menu command.
+#: addon\globalPlugins\webAccess\__init__.py:395
+msgid "Show the element description."
+msgstr "Показать описание элемента."
+
+#: addon\globalPlugins\webAccess\__init__.py:406
+msgid "Web Access support disabled."
+msgstr "Поддержка веб-доступа отключена."
+
+#: addon\globalPlugins\webAccess\__init__.py:410
+msgid "Web Access support enabled."
+msgstr "Поддержка веб-доступа включена."
+
+#: addon\globalPlugins\webAccess\__init__.py:563
+msgid ""
+"This web module has been created by a newer version of Web Access for NVDA "
+"and could not be loaded:"
+msgstr ""
+"Этот веб-модуль нельзя использовать, поскольку он был создан с "
+"использованием более новой версии Web Access для NVDA :"
+
+#: addon\globalPlugins\webAccess\__init__.py:567
+msgid ""
+"These web modules have been created by a newer version of Web Access for "
+"NVDA and could not be loaded:"
+msgstr ""
+"Эти веб-модули нельзя использовать, поскольку они были созданы с "
+"использованием более новой версии Web Access для NVDA :"
+
+#: addon\globalPlugins\webAccess\__init__.py:574
+msgid ""
+"This Python web module uses a different API version of Web Access for NVDA "
+"and could not be loaded:"
+msgstr ""
+"Этот веб-модуль Python нельзя использовать, поскольку он предназначен для "
+"другой версии API Web Access для NVDA :"
+
+#: addon\globalPlugins\webAccess\__init__.py:578
+msgid ""
+"These Python web modules use a different API version of Web Access for NVDA "
+"and could not be loaded:"
+msgstr ""
+"Эти веб-модули Python используют другую версию API Web Access для NVDA и не "
+"могут быть загружены:"
+
+#: addon\globalPlugins\webAccess\__init__.py:585
+msgid "An unexpected error occurred while attempting to load this web module:"
+msgstr "При попытке загрузить этот веб-модуль произошла непредвиденная ошибка:"
+
+#: addon\globalPlugins\webAccess\__init__.py:589
+msgid ""
+"An unexpected error occurred while attempting to load these web modules:"
+msgstr "При попытке загрузить эти веб-модули произошла непредвиденная ошибка:"
+
+#. Translators: The title of an error message dialog
+#. Add-on summary, usually the user visible name of the addon.
+#. Translators: Summary for this add-on to be shown on installation and add-on information.
+#: addon\globalPlugins\webAccess\__init__.py:624
+#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:246
+#: buildVars.py:17
+msgid "Web Access for NVDA"
+msgstr "Веб-доступ для NVDA"
+
+#. Translators: The Ok button on a NVDA dialog. This button will accept any changes and dismiss the dialog.
+#: addon\globalPlugins\webAccess\backports\nvda_2018_2\gui_settingsDialogs.py:122
+msgid "OK"
+msgstr "ОК"
+
+#. Translators: The cancel button on a NVDA dialog. This button will discard any changes and dismiss the dialog.
+#. Translator: Canceling web module creation.
+#: addon\globalPlugins\webAccess\backports\nvda_2018_2\gui_settingsDialogs.py:124
+#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:327
+msgid "Cancel"
+msgstr "Отменить"
+
+#. Translators: The Apply button on a NVDA dialog. This button will accept any changes but will not dismiss the dialog.
+#: addon\globalPlugins\webAccess\backports\nvda_2018_2\gui_settingsDialogs.py:127
+msgid "Apply"
+msgstr "Применить"
+
+#. Translators: The label for the list of categories in a multi category settings dialog.
+#: addon\globalPlugins\webAccess\backports\nvda_2018_2\gui_settingsDialogs.py:386
+msgid "&Categories:"
+msgstr "&Категории :"
+
+#. Set the label for the container, this is exposed via the Name property on an NVDAObject.
+#. For one or another reason, doing this before SetupScrolling causes this to be ignored by NVDA in some cases.
+#. Translators: This is the label for a category within the settings dialog. It is announced when the user presses `ctl+tab` or `ctrl+shift+tab` while focus is on a control withing the NVDA settings dialog. The %s will be replaced with the name of the panel (eg: General, Speech, Braille, etc)
+#: addon\globalPlugins\webAccess\backports\nvda_2018_2\gui_settingsDialogs.py:560
+#, python-format
+msgid "%s Settings Category"
+msgstr "параметры категории %s"
+
+#: addon\globalPlugins\webAccess\gui\elementDescription.py:50
+msgctxt "webAccess.elementDescription"
+msgid "elements"
+msgstr "элементы"
+
+#: addon\globalPlugins\webAccess\gui\elementDescription.py:52
+msgctxt "webAccess.elementDescription"
+msgid "element"
+msgstr "элемент"
+
+#: addon\globalPlugins\webAccess\gui\elementDescription.py:65
+msgctxt "webAccess.elementDescription"
+msgid "from:"
+msgstr "от:"
+
+#: addon\globalPlugins\webAccess\gui\elementDescription.py:69
+msgctxt "webAccess.elementDescription"
+msgid "to:"
+msgstr "до:"
+
+#: addon\globalPlugins\webAccess\gui\elementDescription.py:107
+msgid "No NodeManager"
+msgstr "Нет NodeManager"
+
+#: addon\globalPlugins\webAccess\gui\elementDescription.py:158
+msgid "Element description"
+msgstr "Описание элемента"
+
+#. Translators: Web Access menu item label.
+#. Translator: The label for a button on the RulesManager dialog.
+#: addon\globalPlugins\webAccess\gui\menu.py:61
+#: addon\globalPlugins\webAccess\gui\rulesManager.py:381
+msgid "&New rule..."
+msgstr "&Новое правило..."
+
+#. Translators: Web Access menu item label.
+#. Translators: The label for a button in the Web Modules Manager dialog
+#: addon\globalPlugins\webAccess\gui\menu.py:79
+#: addon\globalPlugins\webAccess\gui\webModulesManager.py:157
+msgid "Manage &rules..."
+msgstr "Управление &правилами..."
+
+#. Translators: Web Access menu item label.
+#. Translators: The label for a button in the Web Modules Manager
+#: addon\globalPlugins\webAccess\gui\menu.py:88
+#: addon\globalPlugins\webAccess\gui\webModulesManager.py:147
+msgid "&New web module..."
+msgstr "&Новый веб-модуль..."
+
+#. Translators: Web Access menu item label.
+#: addon\globalPlugins\webAccess\gui\menu.py:94
+#, python-format
+msgid "Edit &web module %s..."
+msgstr "Редактировать &веб-модуль %s..."
+
+#. Translators: Web Access menu item label.
+#: addon\globalPlugins\webAccess\gui\menu.py:100
+msgid "Manage web &modules..."
+msgstr "Управление &веб-модулями..."
+
+#. Translators: Web Access menu item label.
+#: addon\globalPlugins\webAccess\gui\menu.py:109
+msgid "Temporarily &disable all web modules"
+msgstr "Временно &отключить все веб-модули"
+
+#. Translator: Field label on the RuleContextEditor dialog.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:206
+msgctxt "webAccess.ruleContext"
+msgid "Page &title:"
+msgstr "&Заголовок страницы :"
+
+#. Translator: Field label on the RuleContextEditor dialog.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:211
+msgctxt "webAccess.ruleContext"
+msgid "Page t&ype:"
+msgstr "&Тип страницы:"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:216
+msgctxt "webAccess.ruleContext"
+msgid "&Parent element:"
+msgstr "&Родительский элемент:"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:221
+msgctxt "webAccess.ruleContext"
+msgid "Pri&ority:"
+msgstr "&Приоритет:"
+
+#. Translators: Fail-back context summary in RuleEditor dialog.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:235
+msgid "Global - Applies to the whole web module."
+msgstr "Глобальный - Применяется ко всему веб-модулю."
+
+#. Translator: The title for the RuleContextEditor dialog.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:241
+msgid "Rule Context"
+msgstr "Контекст правила"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:325
+msgid "Priority, if set, must be a positive integer."
+msgstr "Приоритет, если он задан, должен быть положительным целым числом."
+
+#. Translators: The title of an error message dialog
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:326
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:521
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:533
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:552
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:564
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:586
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:1375
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:1385
+#: addon\globalPlugins\webAccess\gui\shortcutDialog.py:175
+#: addon\globalPlugins\webAccess\gui\shortcutDialog.py:184
+#: addon\globalPlugins\webAccess\gui\webModuleEditor.py:283
+#: addon\globalPlugins\webAccess\gui\webModuleEditor.py:296
+#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:383
+msgid "Error"
+msgstr "Ошибка"
+
+#. Translator: Field label on the RuleCriteriaEditor dialog.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:356
+msgctxt "webAccess.ruleCriteria"
+msgid "&Text:"
+msgstr "&Текст:"
+
+#. Translator: Field label on the RuleCriteriaEditor dialog.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:358
+msgctxt "webAccess.ruleCriteria"
+msgid "&Role:"
+msgstr "&Роль:"
+
+#. Translator: Field label on the RuleCriteriaEditor dialog.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:360
+msgctxt "webAccess.ruleCriteria"
+msgid "T&ag:"
+msgstr "&Тег:"
+
+#. Translator: Field label on the RuleCriteriaEditor dialog.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:362
+msgctxt "webAccess.ruleCriteria"
+msgid "&ID:"
+msgstr "&Идентификатор:"
+
+#. Translator: Field label on the RuleCriteriaEditor dialog.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:364
+msgctxt "webAccess.ruleCriteria"
+msgid "&Class:"
+msgstr "&Класс :"
+
+#. Translator: Field label on the RuleCriteriaEditor dialog.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:366
+msgctxt "webAccess.ruleCriteria"
+msgid "&States:"
+msgstr "&Состояния:"
+
+#. Translator: Field label on the RuleCriteriaEditor dialog.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:368
+msgctxt "webAccess.ruleCriteria"
+msgid "Ima&ge source:"
+msgstr "Источник &изображения:"
+
+#. Translator: Field label on the RuleCriteriaEditor dialog.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:372
+msgctxt "webAccess.ruleCriteria"
+msgid "R&elative path:"
+msgstr "Относительный &Путь :"
+
+#. Translator: Field label on the RuleCriteriaEditor dialog.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:375
+msgctxt "webAccess.ruleCriteria"
+msgid "Inde&x:"
+msgstr "&Индекс:"
+
+#. Translators: Fail-back criteria summary in RuleEditor dialog.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:393
+msgid "No criteria"
+msgstr "Нет критериев"
+
+#. Translator: The title for the RuleContextEditor dialog.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:399
+msgid "Rule Criteria"
+msgstr "Критерии правила"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:519
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:550
+#, python-brace-format
+msgid "Syntax error in the field \"{field}\""
+msgstr "Синтаксическая ошибка в поле \"{field}\""
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:531
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:562
+#, python-brace-format
+msgid "Unknown identifier in the field \"{field}\""
+msgstr "Неизвестный идентификатор в поле \"{field}\""
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:585
+msgid "Index, if set, must be a positive integer."
+msgstr "Индекс, если он задан, должен быть положительным целым числом."
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:616
+msgctxt "webAccess.ruleProperties"
+msgid "&Multiple results"
+msgstr "&Множественные результаты"
+
+#. Translator: Field label on the RulePropertiesEditor dialog.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:622
+msgctxt "webAccess.ruleProperties"
+msgid "Activate &form mode"
+msgstr "Активировать &режим форм"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:627
+msgctxt "webAccess.ruleProperties"
+msgid "S&kip with Page Down"
+msgstr "&Перейти на страницу вниз"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:632
+msgctxt "webAccess.ruleProperties"
+msgid "&Speak rule name"
+msgstr "&Проговорить название правила"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:637
+msgctxt "webAccess.ruleProperties"
+msgid "Custom &name:"
+msgstr "&Пользовательское имя:"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:643
+msgctxt "webAccess.ruleProperties"
+msgid "&Transform:"
+msgstr "&Преобразовать:"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:681
+msgctxt "webAccess.ruleProperties"
+msgid "Custom page &title:"
+msgstr "&Настраиваемый заголовок страницы:"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:686
+msgctxt "webAccess.ruleProperties"
+msgid "Custom messa&ge:"
+msgstr "&Пользовательское сообщение:"
+
+#. Translators: Fail-back property summary in RuleEditor dialog.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:713
+msgid "None."
+msgstr "Нет."
+
+#. Translator: The title for the RulePropertiesEditor dialog.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:719
+msgid "Rule Properties"
+msgstr "Свойства правила"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:765
+msgid "S&kip with Page Down"
+msgstr "&Перейти на страницу вниз"
+
+#. Translators: The label when there is no control mutation.
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:895
+msgctxt "webAccess.controlMutation"
+msgid "<None>"
+msgstr "<Нет>"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:1007
+msgid "Rule &type:"
+msgstr "&Тип правила :"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:1015
+msgid "Rule &name:"
+msgstr "&Название правила :"
+
+#. Context Box
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:1023
+msgid "Context"
+msgstr "Контекст"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:1036
+msgid "Edit conte&xt"
+msgstr "Изменить &контекст"
+
+#. Criteria Box
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:1043
+msgid "Criteria"
+msgstr "Критерий"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:1055
+msgid "Edit c&riteria"
+msgstr "Изменить &критерий"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:1063
+msgid "Actions"
+msgstr "Действия"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:1071
+msgid "&Keyboard shortcut"
+msgstr "&Сочетание клавиш"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:1077
+msgid "Add a keyboard shortcut"
+msgstr "Добавить сочетания клавиш"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:1083
+msgid "Delete this shortcut"
+msgstr "Удалить сочетания клавиш"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:1090
+msgid "&Automatic action at rule detection"
+msgstr "&автоматическое действие при обнаружении правила"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:1106
+msgid "Properties"
+msgstr "Свойства"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:1120
+msgid "Edit &properties"
+msgstr "Редактировать &свойства"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:1131
+msgid "&Comment"
+msgstr "&Комментарий"
+
+#. Translators: Action name
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:1180
+msgctxt "webAccess.action"
+msgid "No action"
+msgstr "Действие не требуется"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:1192
+msgid "New rule"
+msgstr "Новое правило"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:1205
+msgid "Edit rule"
+msgstr "Изменить правило"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:1374
+msgid "You must choose a type for this rule"
+msgstr "Вы должны выбрать тип для этого правила"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:1384
+msgid "You must enter a name for this rule"
+msgstr "Вам необходимо ввести имя для этого правила"
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:1420
+msgid ""
+"There is another rule with the same name.\n"
+"\n"
+"You probably should consider setting a priority."
+msgstr ""
+"Есть ещё одно правило с таким же названием.\n"
+"\n"
+"Вероятно, вам следует указать приоритет."
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:1426
+msgid ""
+"There are other rules with the same name.\n"
+"\n"
+"You probably should consider setting a priority."
+msgstr ""
+"Есть другие правила с таким же названием.\n"
+"\n"
+"Вероятно, вам следует указать приоритет."
+
+#: addon\globalPlugins\webAccess\gui\ruleEditor.py:1432
+#: addon\globalPlugins\webAccess\gui\webModulesManager.py:85
+msgid "Warning"
+msgstr "Предупреждение"
+
+#. Translator: TreeItem label on the RulesManager dialog.
+#: addon\globalPlugins\webAccess\gui\rulesManager.py:154
+msgctxt "webAccess.ruleGesture"
+msgid "<None>"
+msgstr "<Нет>"
+
+#. Translator: Grouping option on the RulesManager dialog.
+#: addon\globalPlugins\webAccess\gui\rulesManager.py:271
+msgctxt "webAccess.rulesGroupBy"
+msgid "&Position"
+msgstr "&Положение"
+
+#. Translator: Grouping option on the RulesManager dialog.
+#: addon\globalPlugins\webAccess\gui\rulesManager.py:277
+msgctxt "webAccess.rulesGroupBy"
+msgid "&Type"
+msgstr "&Тип"
+
+#. Translator: Grouping option on the RulesManager dialog.
+#: addon\globalPlugins\webAccess\gui\rulesManager.py:283
+msgctxt "webAccess.rulesGroupBy"
+msgid "&Gestures"
+msgstr "&Жесты"
+
+#. Translator: Grouping option on the RulesManager dialog.
+#: addon\globalPlugins\webAccess\gui\rulesManager.py:289
+msgctxt "webAccess.rulesGroupBy"
+msgid "Nam&e"
+msgstr "&Название"
+
+#. Translator: A label on the RulesManager dialog.
+#: addon\globalPlugins\webAccess\gui\rulesManager.py:310
+msgid "Group by: "
+msgstr "Группировать по : "
+
+#. Translator: A label on the RulesManager dialog.
+#: addon\globalPlugins\webAccess\gui\rulesManager.py:323
+msgid "&Filter: "
+msgstr "&Фильтр : "
+
+#. Translator: A label on the RulesManager dialog.
+#: addon\globalPlugins\webAccess\gui\rulesManager.py:334
+msgid "Include only rules &active on the current page"
+msgstr "Включать только правила, &действующие на текущей странице"
+
+#. Translator: The label for a button on the RulesManager dialog.
+#: addon\globalPlugins\webAccess\gui\rulesManager.py:372
+msgid "Move to"
+msgstr "Перейти к"
+
+#. Translator: The label for a button on the RulesManager dialog.
+#. Translators: The label for a button in the Web Modules Manager dialog
+#: addon\globalPlugins\webAccess\gui\rulesManager.py:388
+#: addon\globalPlugins\webAccess\gui\webModulesManager.py:152
+msgid "&Edit..."
+msgstr "&Изменить..."
+
+#. Translator: The label for a button on the RulesManager dialog.
+#. Translators: The label for a button in the
+#. Web Modules Manager dialog
+#: addon\globalPlugins\webAccess\gui\rulesManager.py:396
+#: addon\globalPlugins\webAccess\gui\webModulesManager.py:165
+msgid "&Delete"
+msgstr "&Удалить"
+
+#. Translator: A confirmation prompt on the RulesManager dialog.
+#: addon\globalPlugins\webAccess\gui\rulesManager.py:557
+msgid "Are you sure you want to delete this rule?"
+msgstr "Вы уверены, что хотите удалить это правило ?"
+
+#. Translator: The title for a confirmation prompt on the
+#. RulesManager dialog.
+#: addon\globalPlugins\webAccess\gui\rulesManager.py:563
+msgid "Confirm Deletion"
+msgstr "Подтверждение удаления"
+
+#. Translators: An item in NVDA's Preferences menu
+#: addon\globalPlugins\webAccess\gui\settings.py:62
+msgid "&WebAccess..."
+msgstr "&WebAccess..."
+
+#. Translators: The contextual help for an item in NVDA's Preferences menu
+#. Translators: The title of a dialog
+#: addon\globalPlugins\webAccess\gui\settings.py:64
+#: addon\globalPlugins\webAccess\gui\settings.py:88
+msgid "WebAccess Preferences"
+msgstr "Параметры Web Access"
+
+#. Translators: The label for a category in the settings dialog
+#: addon\globalPlugins\webAccess\gui\settings.py:126
+msgid "WebAccess"
+msgstr "WebAccess"
+
+#. Translators: The label for a settings in the WebAccess settings panel
+#: addon\globalPlugins\webAccess\gui\settings.py:132
+msgid "&Developer mode"
+msgstr "&Режим разработчика"
+
+#. Translators: The label for a settings in the WebAccess settings panel
+#: addon\globalPlugins\webAccess\gui\settings.py:137
+msgid "Disable all &user WebModules (activate only scratchpad and addons)"
+msgstr ""
+"Отключить все &пользовательские веб-модули (включить только блокнот и "
+"дополнения)"
+
+#. Translators: The label for a settings in the WebAccess settings panel
+#: addon\globalPlugins\webAccess\gui\settings.py:142
+msgid "Write into add-ons' \"webModules\" folder (not recommended)"
+msgstr ""
+"Запись дополнений непосредственно в папку \"webModules\" (не рекомендуется)"
+
+#: addon\globalPlugins\webAccess\gui\shortcutDialog.py:65
+msgid "&Type shortcut"
+msgstr "&Введите сочетание клавиш"
+
+#. style=wx.TE_READONLY | wx.TAB_TRAVERSAL,
+#: addon\globalPlugins\webAccess\gui\shortcutDialog.py:72
+#: addon\globalPlugins\webAccess\gui\shortcutDialog.py:114
+msgid "NONE"
+msgstr "НЕТ"
+
+#: addon\globalPlugins\webAccess\gui\shortcutDialog.py:80
+msgid "&Action to execute"
+msgstr "&Действие, которое необходимо выполнить"
+
+#: addon\globalPlugins\webAccess\gui\shortcutDialog.py:112
+msgid "Shortcut dialog"
+msgstr "Диалог быстрого доступа"
+
+#: addon\globalPlugins\webAccess\gui\shortcutDialog.py:155
+#, python-format
+msgid "Shortcut set to %s"
+msgstr "Сочетание клавиш изменено на %s"
+
+#: addon\globalPlugins\webAccess\gui\shortcutDialog.py:174
+msgid "You must define a shortcut"
+msgstr "Вы должны назначить сочетания клавиш"
+
+#: addon\globalPlugins\webAccess\gui\shortcutDialog.py:183
+msgid "You must define an action"
+msgstr "Вы должны определить действие"
+
+#. Translators: Error message while naming a web module.
+#: addon\globalPlugins\webAccess\gui\webModuleEditor.py:57
+msgid "A web module already exists with this name."
+msgstr "Веб - модуль с таким именем уже существует."
+
+#. Translators: Prompt before overwriting a web module.
+#: addon\globalPlugins\webAccess\gui\webModuleEditor.py:60
+msgid "Do you want to overwrite it?"
+msgstr "Вы хотите переписать его?"
+
+#: addon\globalPlugins\webAccess\gui\webModuleEditor.py:95
+msgid "Web module name:"
+msgstr "Название веб-модуля :"
+
+#: addon\globalPlugins\webAccess\gui\webModuleEditor.py:111
+msgid "URL:"
+msgstr "URL-АДРЕС:"
+
+#: addon\globalPlugins\webAccess\gui\webModuleEditor.py:127
+msgid "Window title:"
+msgstr "Заголовок окна :"
+
+#: addon\globalPlugins\webAccess\gui\webModuleEditor.py:143
+msgid "Help (in Markdown):"
+msgstr "Справка по модулю (в формате Markdown)"
+
+#. Translators: Web module creation dialog title
+#: addon\globalPlugins\webAccess\gui\webModuleEditor.py:188
+msgid "New Web Module"
+msgstr "Новый веб-модуль"
+
+#. Translators: Web module edition dialog title
+#: addon\globalPlugins\webAccess\gui\webModuleEditor.py:201
+msgid "Edit Web Module"
+msgstr "Редактировать Веб-модуль"
+
+#: addon\globalPlugins\webAccess\gui\webModuleEditor.py:221
+msgid "URL not found"
+msgstr "URL не найден"
+
+#: addon\globalPlugins\webAccess\gui\webModuleEditor.py:282
+msgid "You must enter a name for this web module"
+msgstr "Вы должны указать название этого веб-модуля"
+
+#: addon\globalPlugins\webAccess\gui\webModuleEditor.py:295
+msgid "You must specify at least a URL or a window title."
+msgstr "Вы должны указать, по крайней мере, URL-адрес или заголовок окна."
+
+#. Translators: Prompt before deleting a web module.
+#: addon\globalPlugins\webAccess\gui\webModulesManager.py:50
+msgid "Do you really want to delete this web module?"
+msgstr "Вы уверены, что хотите удалить этот веб-модуль ?"
+
+#: addon\globalPlugins\webAccess\gui\webModulesManager.py:76
+#, python-brace-format
+msgid ""
+"This web module comes with the add-on {addonSummary}.\n"
+"It cannot be modified at its current location.\n"
+"\n"
+"Do you want to make a copy in your scratchpad?\n"
+msgstr ""
+"Этот веб-модуль поставляется в комплекте с дополнением {addonSummary}.\n"
+"Он не может быть изменён в его текущем местоположении.\n"
+"\n"
+"Вы хотите сделать его копию в своём каталоге Блокнота разработчика "
+"(scratchpad) ?\n"
+
+#. Translators: The title of the Web Modules Manager dialog
+#: addon\globalPlugins\webAccess\gui\webModulesManager.py:112
+msgid "Web Modules Manager"
+msgstr "Управление веб-модулями"
+
+#. Translators: The label for the modules list in the
+#. Web Modules dialog.
+#: addon\globalPlugins\webAccess\gui\webModulesManager.py:121
+msgid "Available Web Modules:"
+msgstr "Доступные веб-модули :"
+
+#. Translators: The label for a column of the web modules list
+#: addon\globalPlugins\webAccess\gui\webModulesManager.py:130
+msgid "Name"
+msgstr "Название"
+
+#. Translators: The label for a column of the web modules list
+#: addon\globalPlugins\webAccess\gui\webModulesManager.py:132
+msgid "Trigger"
+msgstr "Триггер"
+
+#: addon\globalPlugins\webAccess\gui\webModulesManager.py:260
+msgid "and"
+msgstr "и"
+
+#. Translators: Default HTML document template for browsable messages
+#: addon\globalPlugins\webAccess\lib\browsableMessage\transforms.py:42
+#, python-brace-format
+msgid ""
+"<html lang=\"{lang}\">\n"
+"<head>\n"
+"<meta charset=\"utf-8\"/>\n"
+"</head>\n"
+"<body>\n"
+"{body}\n"
+"</body>\n"
+"</html>"
+msgstr ""
+"<html lang=\"{lang}\">\n"
+"<head>\n"
+"<meta charset=\"utf-8\"/>\n"
+"</head>\n"
+"<body>\n"
+"{body}\n"
+"</body>\n"
+"</html>"
+
+#. Translators: The title for the dialog used to present general NVDA messages in browse mode.
+#: addon\globalPlugins\webAccess\lib\browsableMessage\__init__.py:132
+msgid "NVDA Message"
+msgstr "Сообщение NVDA"
+
+#. Translators: The label for a control mutation.
+#: addon\globalPlugins\webAccess\ruleHandler\controlMutation.py:154
+msgctxt "webAccess.controlMutation"
+msgid "Button"
+msgstr "Кнопка"
+
+#. Translators: The label for a control mutation.
+#: addon\globalPlugins\webAccess\ruleHandler\controlMutation.py:156
+msgctxt "webAccess.controlMutation"
+msgid "Header level 1"
+msgstr "Заголовок    уровень 1"
+
+#. Translators: The label for a control mutation.
+#: addon\globalPlugins\webAccess\ruleHandler\controlMutation.py:158
+msgctxt "webAccess.controlMutation"
+msgid "Header level 2"
+msgstr "Заголовок    уровень 2"
+
+#. Translators: The label for a control mutation.
+#: addon\globalPlugins\webAccess\ruleHandler\controlMutation.py:160
+msgctxt "webAccess.controlMutation"
+msgid "Header level 3"
+msgstr "Заголовок    уровень 3"
+
+#. Translators: The label for a control mutation.
+#: addon\globalPlugins\webAccess\ruleHandler\controlMutation.py:162
+msgctxt "webAccess.controlMutation"
+msgid "Header level 4"
+msgstr "Заголовок    уровень 4"
+
+#. Translators: The label for a control mutation.
+#: addon\globalPlugins\webAccess\ruleHandler\controlMutation.py:164
+msgctxt "webAccess.controlMutation"
+msgid "Header level 5"
+msgstr "Заголовок    уровень 5"
+
+#. Translators: The label for a control mutation.
+#: addon\globalPlugins\webAccess\ruleHandler\controlMutation.py:166
+msgctxt "webAccess.controlMutation"
+msgid "Header level 6"
+msgstr "Заголовок    уровень 6"
+
+#. Translators: The label for a control mutation.
+#: addon\globalPlugins\webAccess\ruleHandler\controlMutation.py:168
+msgctxt "webAccess.controlMutation"
+msgid "Add a label"
+msgstr "Добавить метку"
+
+#. Translators: The label for a control mutation.
+#: addon\globalPlugins\webAccess\ruleHandler\controlMutation.py:170
+msgctxt "webAccess.controlMutation"
+msgid "Section"
+msgstr "Раздел"
+
+#. Translators: The label for a control mutation.
+#: addon\globalPlugins\webAccess\ruleHandler\controlMutation.py:174
+msgctxt "webAccess.controlMutation"
+msgid "Region"
+msgstr "Регион"
+
+#. Translators: The label for a control mutation.
+#: addon\globalPlugins\webAccess\ruleHandler\controlMutation.py:179
+msgctxt "webAccess.controlMutation"
+msgid "Navigation (named)"
+msgstr "Навигация (именованная)"
+
+#. Translators: The label for a control mutation.
+#: addon\globalPlugins\webAccess\ruleHandler\controlMutation.py:184
+msgctxt "webAccess.controlMutation"
+msgid "Navigation (unnamed)"
+msgstr "Навигация (безымянная)"
+
+#. Translators: The label for a control mutation.
+#: addon\globalPlugins\webAccess\ruleHandler\controlMutation.py:187
+msgctxt "webAccess.controlMutation"
+msgid "Link"
+msgstr "Ссылка"
+
+#. Translators: The label for a control mutation.
+#: addon\globalPlugins\webAccess\ruleHandler\controlMutation.py:192
+msgctxt "webAccess.controlMutation"
+msgid "Data table (Internet Explorer only)"
+msgstr "Таблица данных (только для Internet Explorer)"
+
+#. Translators: The label for a control mutation.
+#: addon\globalPlugins\webAccess\ruleHandler\controlMutation.py:196
+msgctxt "webAccess.controlMutation"
+msgid "Layout table"
+msgstr "Таблица представления"
+
+#. Translators: The label for a rule type.
+#: addon\globalPlugins\webAccess\ruleHandler\ruleTypes.py:47
+msgid "Page main title"
+msgstr "Заголовок главной страницы"
+
+#. Translators: The label for a rule type.
+#: addon\globalPlugins\webAccess\ruleHandler\ruleTypes.py:49
+msgid "Page secondary title"
+msgstr "Дополнительный заголовок страницы"
+
+#. Translators: The label for a rule type.
+#: addon\globalPlugins\webAccess\ruleHandler\ruleTypes.py:51
+msgid "Page type"
+msgstr "Тип страницы"
+
+#. Translators: The label for a rule type.
+#: addon\globalPlugins\webAccess\ruleHandler\ruleTypes.py:53
+msgid "Zone"
+msgstr "Область"
+
+#. Translators: The label for a rule type.
+#: addon\globalPlugins\webAccess\ruleHandler\ruleTypes.py:55
+msgid "Parent element"
+msgstr "Родительский элемент"
+
+#. Translators: The label for a rule type.
+#: addon\globalPlugins\webAccess\ruleHandler\ruleTypes.py:57
+msgid "Marker"
+msgstr "Маркер"
+
+#. Translators: Action name
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:77
+msgctxt "webAccess.action"
+msgid "Move to"
+msgstr "Перейти к"
+
+#. Translators: Action name
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:79
+msgctxt "webAccess.action"
+msgid "Say all"
+msgstr "Проговорить всё"
+
+#. Translators: Action name
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:81
+msgctxt "webAccess.action"
+msgid "Speak"
+msgstr "Проговорить"
+
+#. Translators: Action name
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:83
+msgctxt "webAccess.action"
+msgid "Activate"
+msgstr "Активировать"
+
+#. Translators: Action name
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:85
+msgctxt "webAccess.action"
+msgid "Mouse move"
+msgstr "Переместить мышь"
+
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:705
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:714
+msgid "Not ready"
+msgstr "Не готов"
+
+#. Translator: Error message in quickNav (page up/down)
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:743
+msgid "No previous zone"
+msgstr "Нет предыдущей области"
+
+#. Translator: Error message in quickNav (page up/down)
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:746
+msgid "No next zone"
+msgstr "Нет следующей области"
+
+#. Translator: Error message in quickNav (page up/down)
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:749
+msgid "No zone"
+msgstr "Нет области"
+
+#. Translator: Error message in quickNav (page up/down)
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:753
+msgid "No marker"
+msgstr "Нет маркера"
+
+#. Translator: Error message in quickNav (page up/down)
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:756
+msgid "No previous marker"
+msgstr "Нет предыдущего маркера"
+
+#. Translator: Error message in quickNav (page up/down)
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:759
+msgid "No next marker"
+msgstr "Нет следующего маркера"
+
+#. Translators: Speak rule name on "Move to" action
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:977
+#, python-brace-format
+msgid "Move to {ruleName}"
+msgstr "Перейти к {ruleName}"
+
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:1140
+#, python-brace-format
+msgid "{ruleName} not found"
+msgstr "{ruleName} не найдено"
+
+#. Translators: Presented when requesting a missing contextual help
+#: addon\globalPlugins\webAccess\webModuleHandler\webModule.py:336
+msgid "No contextual help available."
+msgstr "Контекстная справка недоступна."
+
+#. Translators: Title of the Contextual Help dialog
+#: addon\globalPlugins\webAccess\webModuleHandler\webModule.py:349
+msgid "Contextual Help"
+msgstr "Контекстная справка"
+
+#: addon\globalPlugins\webAccess\webModuleHandler\webModule.py:362
+#, python-format
+msgid "%s copied to clipboard"
+msgstr "%s скопировано в буфер обмена"
+
+#. Translators: Speak name of current web module
+#: addon\globalPlugins\webAccess\webModuleHandler\webModule.py:366
+#, python-brace-format
+msgid "Current web module is: {name}"
+msgstr "Текущий веб-модуль : {name}"
+
+#. Translators: Confirmation message after web module creation.
+#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:213
+#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:289
+#, python-brace-format
+msgid "Your new web module {name} has been created."
+msgstr "Новый веб-модуль {name} был создан."
+
+#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:227
+#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:311
+msgid "The web module name should be a valid file name."
+msgstr "Имя веб-модуля должно быть допустимым именем файла."
+
+#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:229
+#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:313
+msgid "It should not contain any of the following:"
+msgstr "Он не должен содержать ни одного из следующих символов :"
+
+#. Translators: The text of a generic error message dialog
+#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:244
+msgid ""
+"An error occured.\n"
+"\n"
+"Please consult NVDA's log."
+msgstr ""
+"Произошла ошибка.\n"
+"\n"
+"Ознакомьтесь с журналом NVDA для получения более подробной информации."
+
+#. Translators: An error message upon attempting to save a modification
+#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:351
+msgid "This modification cannot be saved under the current configuration."
+msgstr "Это изменение не может быть сохранено в текущей конфигурации."
+
+#. Translators: A hint on how to allow to save a modification
+#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:355
+msgid "• In the WebAccess category, enable User WebModules."
+msgstr "• В категории WebAccess включите пользовательские веб-модули."
+
+#. Translators: A hint on how to allow to save a modification
+#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:361
+msgid "• In the WebAccess category, enable Developper Mode."
+msgstr "• В категории WebAccess включите режим разработчика."
+
+#. Translators: A hint on how to allow to save a modification
+#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:371
+msgid "• In the Advanced category, enable loading of the Scratchpad directory"
+msgstr ""
+"• В категории \"дополнительно\" включите загрузку пользовательского кода из "
+"каталога Scratchpad"
+
+#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:374
+msgid "or"
+msgstr "или"
+
+#. Translators: An introduction to hints on how to allow to save a modification
+#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:377
+msgid "You may, in NVDA Preferences:"
+msgstr "Вы можете в настройках NVDA :"
+
+#. Add-on description
+#. Translators: Long description to be shown for this add-on on add-on information from add-ons manager
+#: buildVars.py:20
+msgid "Web application modules support for modern or complex web sites."
+msgstr ""
+"Поддержка модулей веб-приложений для современных или сложных веб-сайтов."
+
+#, fuzzy
+#~| msgid "Web Access support enabled."
+#~ msgid "WebAccess preferences"
+#~ msgstr "Web Access activé."
+
+#~ msgid "Do you want to make a copy in your user configuration?"
+#~ msgstr ""
+#~ "Voulez-vous en faire une copie dans votre dossier de configuration "
+#~ "utilisateur ?"
+
+#~ msgid "Web module updated."
+#~ msgstr "Module web mis à jour."
+
+#~ msgctxt "webAccess.ruleCriteria"
+#~ msgid "Ta&g:"
+#~ msgstr "&Balise :"
+
+#~ msgctxt "webAccess.ruleCriteria"
+#~ msgid "Image s&ource:"
+#~ msgstr "S&ource de l'image :"
+
+#~ msgctxt "webAccess.ruleCriteria"
+#~ msgid "Image &source:"
+#~ msgstr "&Source de l'image :"
+
+#~ msgid ""
+#~ "There is another rule with this same name.\n"
+#~ "\n"
+#~ "You probably should consider setting a priority."
+#~ msgstr ""
+#~ "Il existe une autre règle avec ce même nom.\n"
+#~ "\n"
+#~ "Vous devriez probablement spécifier une priorité."
+
+#~ msgid ""
+#~ "There are other rules with this same name.\n"
+#~ "\n"
+#~ "You probably should consider setting a priority."
+#~ msgstr ""
+#~ "Il existe d'autres règles avec ce même nom.\n"
+#~ "\n"
+#~ "Vous devriez probablement spécifier une priorité."
+
+#~ msgid ""
+#~ "There are other rules with the same name, will you continue and associate "
+#~ "rules ?"
+#~ msgstr ""
+#~ "Il existe d'autres marqueurs avec ce même nom, Voulez-vous continuer et "
+#~ "associer ces marqueurs ?"
+
+#~ msgid "Display only &active rules"
+#~ msgstr "Afficher uniquement les règles &actives"
+
+#~ msgid "Active rules"
+#~ msgstr "Liste des règles actives"
+
+#~ msgid "Rules"
+#~ msgstr "Liste des règles"
+
+#~ msgctxt "webAccess.ruleProperties"
+#~ msgid "&Multiple results available:"
+#~ msgstr "Résultats &multiples"
+
+#~ msgctxt "webAccess.ruleProperties"
+#~ msgid "Activate &form mode:"
+#~ msgstr "Activer le mode &formulaire"
+
+#~ msgctxt "webAccess.ruleProperties"
+#~ msgid "S&kip with Page Down:"
+#~ msgstr "Ig&norer avec Page Suivante"
+
+#~ msgctxt "webAccess.ruleProperties"
+#~ msgid "&Speak rule name:"
+#~ msgstr "Én&oncer le nom de la règle"
+
+#~ msgid "Add rule"
+#~ msgstr "Ajouter une &règle"
+
+#~ msgid "Define rule properties"
+#~ msgstr "Définir les propriétés de la règle"
+
+#~ msgid "Rule &name"
+#~ msgstr "&Nom de la règle"
+
+#~ msgid "Conte&xt"
+#~ msgstr "Conte&xte"
+
+#~ msgid "Search &text"
+#~ msgstr "&Texte à rechercher"
+
+#~ msgid "&Role"
+#~ msgstr "&Rôle"
+
+#~ msgid "&Tag"
+#~ msgstr "&Tag"
+
+#~ msgid "&ID"
+#~ msgstr "&ID"
+
+#~ msgid "&Class"
+#~ msgstr "&Classe"
+
+#~ msgid "&Image source"
+#~ msgstr "Source de l'&image"
+
+#~ msgid "&Multiple results available"
+#~ msgstr "Résultats &multiples"
+
+#~ msgid "&Index"
+#~ msgstr "&Index"
+
+#~ msgid "Define shortcuts"
+#~ msgstr "Définir les raccourcis"
+
+#~ msgid "Activate &form mode"
+#~ msgstr "Activer le mode &formulaire"
+
+#~ msgid "Speak r&ule name"
+#~ msgstr "&Lire le nom de la règle"
+
+#~ msgid "&Page title"
+#~ msgstr "Titre de &page"
+
+#~ msgid "Defines a conte&xt"
+#~ msgstr "Défini un conte&xt"
+
+#~ msgid "Create a &list of items"
+#~ msgstr "Créer une liste d'&éléments"
+
+#~ msgid "page identifier"
+#~ msgstr "page spécifique"
+
+#~ msgid "page type"
+#~ msgstr "type de page"
+
+#~ msgid "zone"
+#~ msgstr "zone"
+
+#~ msgctxt "webAccess.elementDescription"
+#~ msgid "from"
+#~ msgstr "de"
+
+#~ msgctxt "webAccess.elementDescription"
+#~ msgid "to"
+#~ msgstr "à"
+
+#~ msgid "Shows the Web Access menu."
+#~ msgstr "Afficher le menu Web Access."
+
+#~ msgid "&Is a context"
+#~ msgstr "&Est un contexte"
+
+#~ msgid "Current web module is: %s"
+#~ msgstr "Le module web actuel est : %s"
+
+#~ msgid "Move to %s"
+#~ msgstr "Aller à %s"
+
+#~ msgid "(Type shortcut)"
+#~ msgstr "(Tappez le raccourci)"
+
+#~ msgid "customAction not found"
+#~ msgstr "customAction introuvable"
+
+#~ msgid "Your new web module %s has been created."
+#~ msgstr "Votre nouveau module web %s créé."
+
+#~ msgid "Ta&g :"
+#~ msgstr "Ta&g :"
+
+#~ msgid "&Src :"
+#~ msgstr "&Src :"
+
+#~ msgid "Inde&x :"
+#~ msgstr "Inde&x :"
+
+#~ msgid "Modify rule"
+#~ msgstr "Modifier la règle"
+
+#~ msgid "&Close"
+#~ msgstr "Fermer"
+
+#~ msgid ""
+#~ "The web module name should be a valid file name. It should not contain "
+#~ "any of \\ / : * ? \" | "
+#~ msgstr ""
+#~ "Le nom d'un module web doit être un nom de fichier valide. Il ne doit pas "
+#~ "contenir \\ / : * ? \" | "
+
+#~ msgid "New rule..."
+#~ msgstr "Nouvelle règle..."
+
+#~ msgid "Manage rules..."
+#~ msgstr "Gérer les règles..."
+
+#~ msgid "New web module..."
+#~ msgstr "Nouveau module web..."
+
+#~ msgid "Edit web module %s..."
+#~ msgstr "Modifier le module web %s..."
+
+#~ msgid "Manage web modules..."
+#~ msgstr "Gérer les modules web..."
+
+#~ msgid "Temporarily disable all web modules"
+#~ msgstr "Désactiver temporairement tout les modules web"
+
+#~ msgid "Edit current web module..."
+#~ msgstr "Modifier le module web..."
+
+#~ msgid "Enable Web Access support"
+#~ msgstr "Activer Web Access."
+
+#~ msgid "Manage rules of current web module..."
+#~ msgstr "Gérer les règles de ce module web..."
+
+#~ msgid "Edit current rule..."
+#~ msgstr "Modifier la règle..."
+
+#~ msgid "&Modify..."
+#~ msgstr "&Modifier..."
+
+#~ msgctxt "webAccess.WebModuleManager"
+#~ msgid "&New..."
+#~ msgstr "&Nouveau..."
+
+#~ msgid "&New..."
+#~ msgstr "&Nouvelle..."
+
+#~ msgid "&Edit web module..."
+#~ msgstr "&Modifier le module web..."
+
+#~ msgid "&Delete web module..."
+#~ msgstr "&Supprimer le module web..."
+
+#~ msgid "Say all"
+#~ msgstr "Lancer la lecture"
+
+#~ msgid "Speak"
+#~ msgstr "Annoncer"
+
+#~ msgid "Activate"
+#~ msgstr "Cliquer"
+
+#~ msgid "Mouse move"
+#~ msgstr "Déplacer la souris"
+
+#~ msgid "Current WebApp is : %s"
+#~ msgstr "La WebApp actuelle est : %s"
+
+#~ msgid "You must enter a name for this WEBApp"
+#~ msgstr "Vous devez entrer un nom pour cette WebApp"
+
+#~ msgid "&New"
+#~ msgstr "&Nouveau"
+
+#~ msgid "&Modify ..."
+#~ msgstr "&Modifier ..."

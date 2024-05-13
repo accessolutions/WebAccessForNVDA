@@ -26,7 +26,7 @@ addon_info = {
 	# Translators: Long description to be shown for this add-on on add-on information from add-ons manager
 	"addon_description" : _("""Web application modules support for modern or complex web sites."""),
 	# version
-	"addon_version" : "2024.03.06",
+	"addon_version" : "2024.04.11",
 	# Author(s)
 	"addon_author" : (
 		"Accessolutions <dev@accessolutions.fr>, "
