@@ -31,6 +31,7 @@ import wx
 # from wx.lib.expando import EVT_ETC_LAYOUT_NEEDED, ExpandoTextCtrl
 
 import controlTypes
+import inputCore
 import gui
 from logHandler import log
 
@@ -45,7 +46,8 @@ from . import (
 	ValidationError,
 	guiHelper,
 	stripAccel,
-	stripAccelAndColon
+	stripAccelAndColon,
+	ruleEditor
 )
 from six import iteritems, text_type
 from ..gui import properties as props
@@ -820,8 +822,6 @@ class CriteriaPanel(ContextualSettingsPanel):
 	def onSave(self):
 		self.updateData()
 
-
-# todo: make this panel
 class OverridesPanel(ContextualSettingsPanel):
 
 	# Translators: The label for a Criteria editor category.
@@ -844,6 +844,9 @@ class OverridesPanel(ContextualSettingsPanel):
 		gbSizer = wx.GridBagSizer()
 		gbSizer.EmptyCellSize = (0, 0)
 		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
+
+		def scale(*args):
+			return self.scaleSize(args)
 
 		# Translators: Displayed when the selected rule type doesn't support any property
 		sizer = wx.GridBagSizer(hgap=5, vgap=5)
@@ -897,7 +900,8 @@ class OverridesPanel(ContextualSettingsPanel):
 
 		btn_sizer.Add(self.btnDelProps)
 		sizer.Add(btn_sizer, pos=(4, 0), flag=wx.EXPAND)
-		self.SetSizer(sizer)
+		self.SetSizerAndFit(sizer)
+		sizer.Fit(self)
 
 	def initData(self, context):
 		self.showItems(display=True)
@@ -952,19 +956,61 @@ class OverridesPanel(ContextualSettingsPanel):
 			self.noPropertiesLabel.Show()
 
 	def onPanelActivated(self):
-		self.initPropertiesList()
+		#self.initPropertiesList()
 		super(OverridesPanel, self).onPanelActivated()
 
 	def onSave(self):
 		self.updateData()
 
+# gesture overriden
+class GestureOverride(ruleEditor.ActionsPanel):
+
+	title = _("Actions Overrides")
+
+	def makeSettings(self, settingsSizer):
+		super(GestureOverride, self).makeSettings(settingsSizer)
+
+	def initData(self, context):
+		self.context = context
+		data = self.context["data"]["criteria"]
+		self.gestureMapValue = {}
+		self.gestureMapValue = data.get("gesturesOverrides", {}).copy()
+		self.updateGesturesList()
+		
+	def onPanelActivated(self):
+		#self.updateGesturesList()
+		super(GestureOverride, self).onPanelActivated()
+
+	def onAddGesture(self, evt):
+		self.updateGesturesList()
+		super(GestureOverride, self).onAddGesture(evt)
+	
+	def updateGesturesList(self, newGestureIdentifier=None, focus=False):
+		super(GestureOverride, self).updateGesturesList(newGestureIdentifier=None, focus=False)
+
+	def onDeleteGesture(self, evt):
+		super(GestureOverride, self).onDeleteGesture(evt)
+
+	def updateData(self, data = None):
+		rule = self.context["data"]["rule"]
+		data = self.context["data"]["criteria"]
+		ruleType = rule.get("type")
+		if ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
+			data["gesturesOverrides"] = self.gestureMapValue
+		else:
+			if data.get("gestures"):
+				del data["gestures"]
+
+	def onSave(self):
+		self.updateData()
+
+
 class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
 
 	# Translators: This is the label for the WebAccess criteria settings dialog.
 	title = _("WebAccess Criteria set editor")
-	categoryClasses = [GeneralPanel, CriteriaPanel, OverridesPanel]
+	categoryClasses = [GeneralPanel, CriteriaPanel, OverridesPanel, GestureOverride]
 	INITIAL_SIZE = (800, 480)
-
 	def makeSettings(self, settingsSizer):
 		super(CriteriaEditorDialog, self).makeSettings(settingsSizer)
 		idTestCriteria = wx.NewId()
@@ -978,6 +1024,7 @@ class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
 		testCriteria(self.context)
 
 	def updateData(self):
+
 		for panel in list(self.catIdToInstanceMap.values()):
 			panel.updateData()
 
