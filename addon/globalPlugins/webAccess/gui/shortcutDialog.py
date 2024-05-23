@@ -25,7 +25,6 @@ __author__ = "Shirley Noel <shirley.noel@pole-emploi.fr>"
 
 
 import wx
-
 import addonHandler
 import inputCore
 import gui
@@ -49,7 +48,7 @@ resultActionData = ""
 
 
 class Dialog(wx.Dialog):
-	
+
 	def __init__(self, parent):
 		super(Dialog, self).__init__(
 			parent,
@@ -157,12 +156,12 @@ class Dialog(wx.Dialog):
 		elif gestureIdentifier == "kb:shift+tab":
 			return True
 		elif gestureIdentifier == "kb:escape":
-			self.onCancel(None)
+			self.hitEscape()
 		elif gestureIdentifier == "kb:enter":
 			speech.cancelSpeech()
 			self.onOk(None)
 		return False
-	
+
 	def onInputShortcutBlur(self, evt):
 		inputCore.manager._captureFunc = None
 	
@@ -189,10 +188,13 @@ class Dialog(wx.Dialog):
 		resultActionData = self.action.GetClientData(self.action.Selection)
 		assert self.IsModal()
 		self.EndModal(wx.ID_OK)
-	
+
 	def onCancel(self, evt):
-		self.EndModal(wx.ID_CANCEL)
-	
+		self.EndModal(wx.CANCEL)
+
+	def hitEscape(self):
+		wx.CallAfter(self.Close, True)
+
 	def ShowModal(self):
 		self.initData()
 		self.Fit()
