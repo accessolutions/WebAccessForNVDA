@@ -21,7 +21,7 @@
 
 
 
-__version__ = "2024.03.28"
+__version__ = "2024.05.24"
 __author__ = "Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
@@ -520,11 +520,11 @@ class ActionsPanel(ContextualSettingsPanel):
 
 		row += 1
 		# Translators: Automatic action at rule detection input label for the rule dialog's action panel.
-		item = wx.StaticText(self, label=_("A&utomatic action at rule detection:"))
-		gbSizer.Add(item, pos=(row, 0))
+		self.labelAutoactions = wx.StaticText(self, label=_("A&utomatic action at rule detection:"))
+		gbSizer.Add(self.labelAutoactions, pos=(row, 0))
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-		item = self.autoActionList = wx.ComboBox(self, style=wx.CB_READONLY)
-		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
+		self.autoActionList = wx.ComboBox(self, style=wx.CB_READONLY)
+		gbSizer.Add(self.autoActionList, pos=(row, 2), flag=wx.EXPAND)
 
 		gbSizer.AddGrowableCol(2)
 

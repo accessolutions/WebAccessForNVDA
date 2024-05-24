@@ -956,7 +956,7 @@ class OverridesPanel(ContextualSettingsPanel):
 			self.noPropertiesLabel.Show()
 
 	def onPanelActivated(self):
-		#self.initPropertiesList()
+		self.initPropertiesList()
 		super(OverridesPanel, self).onPanelActivated()
 
 	def onSave(self):
@@ -969,6 +969,8 @@ class GestureOverride(ruleEditor.ActionsPanel):
 
 	def makeSettings(self, settingsSizer):
 		super(GestureOverride, self).makeSettings(settingsSizer)
+		self.autoActionList.Destroy()
+		self.labelAutoactions.Destroy()
 
 	def initData(self, context):
 		self.context = context
@@ -976,15 +978,14 @@ class GestureOverride(ruleEditor.ActionsPanel):
 		self.gestureMapValue = {}
 		self.gestureMapValue = data.get("gesturesOverrides", {}).copy()
 		self.updateGesturesList()
-		
+
 	def onPanelActivated(self):
-		#self.updateGesturesList()
 		super(GestureOverride, self).onPanelActivated()
 
 	def onAddGesture(self, evt):
 		self.updateGesturesList()
 		super(GestureOverride, self).onAddGesture(evt)
-	
+
 	def updateGesturesList(self, newGestureIdentifier=None, focus=False):
 		super(GestureOverride, self).updateGesturesList(newGestureIdentifier=None, focus=False)
 
