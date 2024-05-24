@@ -1,5 +1,5 @@
 
-__version__ = "2024.03.07"
+__version__ = "2024.05.24"
 __author__ = "Sendhil Randon <sendhil.randon-ext@pole.-emploi.fr>"
 
 from collections import OrderedDict
@@ -297,7 +297,23 @@ class ListControl(object):
 			if overridden is not None:
 				self.listCtrl.SetStringItem(self.index, 2, overridden)
 		self.index += 1
+		size = self.listCtrl.GetItemCount()
+		self.focusListCtrl(size-1)
+
+
+	def focusListCtrl(self, size):
+		"""
+		Set to the focus to the last appended item to the list control
+		"""
+		firstItem = self.listCtrl.GetFirstSelected()
+		self.listCtrl.Select(firstItem)
+		if firstItem != -1:
+			previous = firstItem
+			self.listCtrl.Select(previous, False)
 		self.listCtrl.SetFocus()
+		self.listCtrl.SetItemState(size, wx.LIST_STATE_FOCUSED, wx.LIST_STATE_FOCUSED)
+		self.listCtrl.SetItemState(size, wx.LIST_STATE_SELECTED, wx.LIST_STATE_SELECTED)
+
 
 
 	def isOverrided(self, idProps):
