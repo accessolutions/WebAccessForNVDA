@@ -74,6 +74,18 @@ def getCatalog(refresh=False, errors=None):
 	_catalog = list(store.catalog(errors=errors))
 	return _catalog
 
+def getWebModuleAtCaret(treeInterceptor):
+	nodeManager = treeInterceptor.webAccess.nodeManager
+	node = nodeManager.getCaretNode()
+	while node is not None :
+		if hasattr (node, "url") and node.url is not None:  
+			url = node.url
+			log.info ("url : %s" % url)
+			webModule = getWebModuleForUrl(url)
+			if webModule is not None:
+				return webModule
+		node = node.parent
+	return None
 
 def getWebModuleForTreeInterceptor(treeInterceptor):
 	obj = treeInterceptor.rootNVDAObject

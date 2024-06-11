@@ -512,6 +512,8 @@ class NodeField(TrackedObject):
 			if cid in self.nodeManager.documentNVDAObject:
 				obj = self.nodeManager.documentNVDAObject[cid]
 				url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
+				if url is not None and url == "":
+					return None 
 				return url
 			info =  self.nodeManager.treeInterceptor.makeTextInfo(
 				textInfos.offsets.Offsets(self.offset, self.offset + self.size)
@@ -521,9 +523,11 @@ class NodeField(TrackedObject):
 				obj = obj.parent
 			self.nodeManager.documentNVDAObject[cid] = obj
 			url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
+			if url is not None and url == "":
+				return None
 			return url
 		except:
-			return ""
+			return None
 
 	def __del__(self):
 		global countNode

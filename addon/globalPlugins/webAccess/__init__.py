@@ -255,6 +255,15 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		import gui
 		gui.mainFrame._popupSettingsDialog(WebAccessSettingsDialog)
 
+	def essai (self):
+		from . import webModuleHandler
+		treeInterceptor = api.getFocusObject ().treeInterceptor
+		webModule = webModuleHandler.getWebModuleAtCaret (treeInterceptor)
+		if webModule is None:
+			ui.message ("webModule introuvable")
+			return
+		ui.message ("%s" % webModule)
+		
 	@script(
 		# Translators: Input help mode message for a command.
 		description=_("Toggle debug mode."),
@@ -262,6 +271,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		gesture="kb:nvda+control+shift+w"
 	)
 	def script_debugWebModule(self, gesture):  # @UnusedVariable
+		self.essai ()
+		return
 		global activeWebApp
 		focus = api.getFocusObject()
 		if \
