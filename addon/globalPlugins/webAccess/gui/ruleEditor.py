@@ -288,15 +288,16 @@ class GeneralPanel(ContextualSettingsPanel):
 		if rule is not None:
 			moduleRules = self.context["webModule"].ruleManager.getRules()
 			isExists = [True if i.name is rule.name else False for i in moduleRules]
-			if isExists:
-				gui.messageBox(
-					# Translators: Error message when another rule with the same name already exists
-					message=_("There already is another rule with the same name."),
-					caption=_("Error"),
-					style=wx.ICON_ERROR | wx.OK,
-					parent=self
-				)
-				return False
+			if "new" in self.context and self.context["new"]:
+				if isExists:
+					gui.messageBox(
+						# Translators: Error message when another rule with the same name already exists
+						message=_("There already is another rule with the same name."),
+						caption=_("Error"),
+						style=wx.ICON_ERROR | wx.OK,
+						parent=self
+					)
+					return False
 		return True
 
 	def onSave(self):
