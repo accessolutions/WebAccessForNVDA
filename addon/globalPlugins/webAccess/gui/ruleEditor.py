@@ -285,16 +285,18 @@ class GeneralPanel(ContextualSettingsPanel):
 			rule = mgr.getRule(self.ruleName.Value, layer=layerName)
 		except LookupError:
 			rule = None
-		if rule is not None and rule.name is not self.context.get("rule").name:
-			gui.messageBox(
-				# Translators: Error message when another rule with the same name already exists
-				message=_("There already is another rule with the same name."),
-				caption=_("Error"),
-				style=wx.ICON_ERROR | wx.OK,
-				parent=self
-			)
-			return False
-
+		if rule is not None:
+			moduleRules = self.context["webModule"].ruleManager.getRules()
+			isExists = [True if i.name is rule.name else False for i in moduleRules]
+			if isExists:
+				gui.messageBox(
+					# Translators: Error message when another rule with the same name already exists
+					message=_("There already is another rule with the same name."),
+					caption=_("Error"),
+					style=wx.ICON_ERROR | wx.OK,
+					parent=self
+				)
+				return False
 		return True
 
 	def onSave(self):
