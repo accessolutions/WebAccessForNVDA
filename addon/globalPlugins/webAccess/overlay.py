@@ -152,10 +152,13 @@ class WebAccessBmdtiHelper(TrackedObject):
 		self._nodeManager = None
 		self._treeInterceptor = weakref.ref(treeInterceptor)
 		self._webModule = None
+		self._subWebModule = None
+		self.caretOffset = 0
 
 	def terminate(self):
 		if self._webModule is not None:
 			self._webModule.terminate()
+		self._subWebModule = None
 		self._webModule = None
 		if self._nodeManager is not None:
 			self._nodeManager.terminate()
@@ -199,18 +202,30 @@ class WebAccessBmdtiHelper(TrackedObject):
 		ti = self.treeInterceptor
 		if not ti:
 			self._webModule = None
+			self._subWebModule = None
 			return None
 		webModule = self._webModule
-		if not webModule:
+		if webModule:
+			# Check if the caret has moved.
+			caretOffset = self.getCaretOffset()
+			if caretOffset != self.caretOffset:
+				self.caretOffset = caretOffset
+				# The caret has moved, so we need to re-evaluate the subWebModule.
+				self._subWebModule = webModule.getSubWebModule(self.caretOffset)
+			return self._subWebModule
+		else:
 			obj = ti.rootNVDAObject
 			if not supportWebApp(obj):
 				return None
 			from . import webModuleHandler
 			try:
 				webModule = self._webModule = webModuleHandler.getWebModuleForTreeInterceptor(ti)
+				if webModule:
+					self._subWebModule = webModule.getSubWebModule(self.caretOffset)
 			except Exception:
 				log.exception()
-		return webModule
+				return None
+		return self._subWebModule
 
 	@property
 	def zone(self):
@@ -231,6 +246,9 @@ class WebAccessBmdtiHelper(TrackedObject):
 		# Properly raise AttributeError if there is no RuleManager.
 		self.ruleManager.zone = value
 
+	def getCaretOffset(self):
+		info = self.treeInterceptor.makeTextInfo(textInfos.POSITION_CARET)
+		return info._startOffset
 
 class WebAccessBmdtiTextInfo(textInfos.offsets.OffsetsTextInfo):
 	"""

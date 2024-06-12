@@ -105,6 +105,7 @@ class WebModule(baseObject.ScriptableObject):
 		self.activePageTitle = None
 		self.activePageIdentifier = None
 		self.ruleManager = ruleHandler.RuleManager(self)
+		self.subWebModules = []
 
 	def __repr__(self):
 		return "WebModule {name}".format(
@@ -283,6 +284,15 @@ class WebModule(baseObject.ScriptableObject):
 			if data["overrides"].get(name) != overridden:
 				layer.dirty = True
 				data["overrides"][name] = overridden
+
+	def getSubWebModule (self, offset):
+		""" Return the best nested subWebModule for the given offset"""
+		bestWebModule = self
+		for subWebModule in self.subWebModules:
+			if webModule.startOffset <= offset and webModule.endOffset >= offset:
+				if bestWebModule.startOffset <= subWebModule.startOffset and bestWebModule.endOffset >= subWebModule.endOffset:
+					bestWebModule = subWebModule
+		return bestWebModule
 
 	def event_webApp_init(self, obj, nextHandler):
 		self.loadUserFile()
