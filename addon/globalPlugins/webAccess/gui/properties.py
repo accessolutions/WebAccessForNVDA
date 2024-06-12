@@ -1,6 +1,6 @@
 
-__version__ = "2024.05.24"
-__author__ = "Sendhil Randon <sendhil.randon-ext@pole.-emploi.fr>"
+__version__ = "2024.06.12"
+__author__ = "Sendhil Randon <sendhil.randon-ext@francetravail.fr>"
 
 from collections import OrderedDict
 import addonHandler
@@ -329,7 +329,7 @@ class ListControl(object):
 			for key, value in list(ruleProps.items()):
 				if  idProps in typeRule and idProps == key:
 					# Translator: State properties "Not assigned"
-					return self.updatedStrValues(value, idProps) if value else _("Not assigned")
+					return self.updatedStrValues(value, idProps) if isinstance(self.getPropsObj(idProps), ToggleProperty) else _("Not assigned")
 
 
 	def getPropsObj(self, val):
