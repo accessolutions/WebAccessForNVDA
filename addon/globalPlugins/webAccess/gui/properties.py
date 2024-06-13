@@ -1,5 +1,5 @@
 
-__version__ = "2024.06.12"
+__version__ = "2024.06.13"
 __author__ = "Sendhil Randon <sendhil.randon-ext@francetravail.fr>"
 
 from collections import OrderedDict
@@ -288,32 +288,35 @@ class ListControl(object):
 		Append to list the chossen properties in the list on criteria editor panel
 		"""
 		clsInstance = self.propsPanel.__class__.__name__
-		val = AppendListCtrl.lst.pop()
-		obj=self.getPropsObj(val)
-		self.listCtrl.InsertStringItem(self.index, obj.get_displayName())
-		self.listCtrl.SetStringItem(self.index, 1, self.updatedStrValues(obj.get_value(), obj.get_id()))
-		if clsInstance == "OverridesPanel":
-			overridden = self.isOverrided(obj.get_id())
-			if overridden is not None:
-				self.listCtrl.SetStringItem(self.index, 2, overridden)
-		self.index += 1
-		size = self.listCtrl.GetItemCount()
-		self.focusListCtrl(size-1)
+		if AppendListCtrl.lst:
+			val = AppendListCtrl.lst.pop()
+			obj=self.getPropsObj(val)
+			self.listCtrl.InsertStringItem(self.index, obj.get_displayName())
+			self.listCtrl.SetStringItem(self.index, 1, self.updatedStrValues(obj.get_value(), obj.get_id()))
+			if clsInstance == "OverridesPanel":
+				overridden = self.isOverrided(obj.get_id())
+				if overridden is not None:
+					self.listCtrl.SetStringItem(self.index, 2, overridden)
+			self.index += 1
+			size = self.listCtrl.GetItemCount()
+			self.focusListCtrl(size-1, True)
+		else:
+			log.debug("Context menu closed without chosen any")
 
 
-	def focusListCtrl(self, size):
+	def focusListCtrl(self, size, appendList=None):
 		"""
 		Set to the focus to the last appended item to the list control
 		"""
 		firstItem = self.listCtrl.GetFirstSelected()
-		self.listCtrl.Select(firstItem)
+		#self.listCtrl.Select(firstItem)
 		if firstItem != -1:
 			previous = firstItem
 			self.listCtrl.Select(previous, False)
-		self.listCtrl.SetFocus()
+		if appendList:
+			self.listCtrl.SetFocus()
 		self.listCtrl.SetItemState(size, wx.LIST_STATE_FOCUSED, wx.LIST_STATE_FOCUSED)
 		self.listCtrl.SetItemState(size, wx.LIST_STATE_SELECTED, wx.LIST_STATE_SELECTED)
-
 
 
 	def isOverrided(self, idProps):
@@ -372,7 +375,7 @@ class ListControl(object):
 		"""
 		self.currentSelItem = evt.GetItem()
 		listItem = self.getItemSelRow()
-		customItem = self.getKeyByRuleType(listItem[0])
+		customItem = self.getKeyByRuleType(listItem[0]) if listItem is not None else None
 		for p in self.propertiesList:
 			if not customItem == p.get_displayName():
 				continue
@@ -460,7 +463,7 @@ class ListControl(object):
 						self.updateEditableProperties(rowItem[0], retDialog)
 						return
 					else:
-						log.info("Ret value of dialog is empty!")
+						log.debug("Ret value of dialog is empty!")
 						return
 				elif isinstance(p, SingleChoiceProperty) and rowItem[0] == p.get_displayName():
 					retChoiceList = self.setChoiceList(rowItem[0])

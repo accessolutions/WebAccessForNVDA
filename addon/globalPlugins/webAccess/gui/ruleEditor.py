@@ -21,7 +21,7 @@
 
 
 
-__version__ = "2024.05.24"
+__version__ = "2024.06.13"
 __author__ = "Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
@@ -169,11 +169,6 @@ class GeneralPanel(ContextualSettingsPanel):
 		item = wx.StaticText(self, label=_("&Summary"))
 		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add((guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-# 		item = self.summaryText = ExpandoTextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY)
-# 		item.Bind(EVT_ETC_LAYOUT_NEEDED, lambda evt: self._sendLayoutUpdatedEvent())
-# 		item.Bind(wx.EVT_TEXT_ENTER, lambda evt: self.Parent.Parent.ProcessEvent(wx.CommandEvent(
-# 			wx.wxEVT_COMMAND_BUTTON_CLICKED, wx.ID_OK
-# 		)))
 		item = self.summaryText = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 		gbSizer.AddGrowableRow(row)
@@ -185,9 +180,6 @@ class GeneralPanel(ContextualSettingsPanel):
 		# Translator: The label for a field on the Rule editor
 		item = wx.StaticText(self, label=_("Technical &notes"))
 		gbSizer.Add(item, pos=(row, 0))
-		gbSizer.Add((guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-# 		item = self.commentText = ExpandoTextCtrl(self, style=wx.TE_MULTILINE)
-# 		item.Bind(EVT_ETC_LAYOUT_NEEDED, lambda evt: self._sendLayoutUpdatedEvent())
 		item = self.commentText = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_RICH)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 		gbSizer.AddGrowableRow(row)
@@ -692,9 +684,11 @@ class PropertiesPanel(ContextualSettingsPanel):
 		return objListCtrl
 
 	def initPropertiesList(self):
+		index=self.listCtrl.GetFirstSelected()
 		instanceListProperties.setPropertiesByRuleType(self.context)
 		self.propertiesList = instanceListProperties.getPropertiesByRuleType()
 		self.updateListCtrl(self.context["data"]["rule"])
+		self.loadPropsRulePanel().focusListCtrl(index)
 
 	def updateListCtrl(self, dataRule):
 		self.showItems(dataRule)
@@ -734,7 +728,6 @@ class PropertiesPanel(ContextualSettingsPanel):
 			self.noPropertiesLabel.Hide()
 
 	def onPanelActivated(self):
-		self.initPropertiesList()
 		self.updateData()
 		self.initPropertiesList()
 		super(PropertiesPanel, self).onPanelActivated()
