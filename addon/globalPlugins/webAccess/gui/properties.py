@@ -1,5 +1,5 @@
 
-__version__ = "2024.06.13"
+__version__ = "2024.06.17"
 __author__ = "Sendhil Randon <sendhil.randon-ext@francetravail.fr>"
 
 from collections import OrderedDict
@@ -446,7 +446,7 @@ class ListControl(object):
 
 	def onKeyPress(self, evt):
 		"""
-		Event handler function binded to space key
+		Event handler function bound to space key
 		"""
 		keycode = evt.GetKeyCode()
 		modifiers = evt.GetModifiers()
@@ -457,14 +457,9 @@ class ListControl(object):
 					self.updateToggleBtnPropertiest(rowItem[0])
 					return
 				elif isinstance(p, EditableProperty) and rowItem[0] == self.customDisplayLabel(p):
-					retDialog = self.editablDialog(rowItem[0])
+					retDialog = self.editableDialog(rowItem[0],p.get_value())
 					self.updateEditableProperties(rowItem[0], retDialog)
-					if retDialog is not None:
-						self.updateEditableProperties(rowItem[0], retDialog)
-						return
-					else:
-						log.debug("Ret value of dialog is empty!")
-						return
+					return
 				elif isinstance(p, SingleChoiceProperty) and rowItem[0] == p.get_displayName():
 					retChoiceList = self.setChoiceList(rowItem[0])
 					retChoice = self.updateChoiceByList(evt.EventType, retChoiceList, p.get_id())
@@ -514,18 +509,18 @@ class ListControl(object):
 		for p in self.propertiesList:
 			if self.customDisplayLabel(p) == rowItem:
 				p.set_value(val)
-				if val:
-					self.editable.SetValue(val)
-					return
+				self.editable.SetValue(val)
+				return
 
 
-	def editablDialog(self, label):
+	def editableDialog(self, label, currentValue):
 		"""
 		Function displays an input dialog after onkyepress event for ediable properteis
 		"""
 		dialog = wx.TextEntryDialog(self.propsPanel, label, label)
+		dialog.SetValue(currentValue) if currentValue is not None else ""
 		if dialog.ShowModal() == wx.ID_OK:
-			return dialog.GetValue()
+			return dialog.GetValue() if currentValue is not None else None
 		dialog.Destroy()
 
 
