@@ -23,21 +23,21 @@ EVT_KEY_DOWN = wx.EVT_KEY_DOWN.typeId
 EVT_CHAR_HOOK = wx.EVT_CHAR_HOOK.typeId
 
 FIELDS = {
-	# Translators: The label for a Rule Property
-	"autoAction": _("Automatic action at rule detection"),
-	# Translators: The label for a Rule Property
+	# Translator: Multiple results checkbox label for the rule dialog's properties panel.
+	"autoAction": _("Auto Actions"),
+	# Translator: Multiple results checkbox label for the rule dialog's properties panel.
 	"multiple": _("Multiple results"),
-	# Translators: The label for a Rule Property
+	# Translator: Activate form mode checkbox label for the rule dialog's properties panel.
 	"formMode": _("Activate form mode"),
-	# Translators: The label for a Rule Property
-	"skip": _("Skip with Page Up/Down"),
-	# Translators: The label for a Rule Property
+	# Translator: Skip page down checkbox label for the rule dialog's properties panel.
+	"skip": _("Skip with Page Down"),
+	# Translator: Speak rule name checkbox label for the rule dialog's properties panel.
 	"sayName": _("Speak rule name"),
-	# Translators: The label for a Rule Property
+	# Translator: Custom name input label for the rule dialog's properties panel.
 	"customName": _("Custom name"),
-	# Translators: The label for a Rule Property
+	# Label depends on rule type)
 	"customValue": _("Custom value"),
-	# Translators: The label for a Rule Property
+	# Translator: Transform select label for the rule dialog's properties panel.
 	"mutation": _("Transform")
 }
 
@@ -130,13 +130,13 @@ class ListControl(object):
 		"""
 		if key == "customValue":
 			if ruleType in (ruleTypes.PAGE_TITLE_1, ruleTypes.PAGE_TITLE_2):
-				# Translators: Field label on the RulePropertiesEditor dialog.
+				# Translator: Field label on the RulePropertiesEditor dialog.
 				return _("Custom page title")
 			elif ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
-				# Translators: Field label on the RulePropertiesEditor dialog.
+				# Translator: Field label on the RulePropertiesEditor dialog.
 				return _("Custom message")
 		elif key == "customName" and ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
-			# Translators: Field label on the RulePropertiesEditor dialog.
+			# Translator: Field label on the RulePropertiesEditor dialog.
 			return _("Custom name")
 		return default
 
@@ -227,11 +227,11 @@ class ListControl(object):
 		if isinstance(self.getPropsObj(id), SingleChoiceProperty):
 			return self.setValueSingleChoiceProps(val, id)
 		elif isinstance(self.getPropsObj(id), ToggleProperty):
-			# Translators: State properties boolean "Enabled"
-			# Translators: State properties boolean "Disabled"
+			# Translator: State properties boolean "Enabled"
+			# Translator: State properties boolean "Disabled"
 			return _("Enabled") if val else _("Disabled")
 		elif isinstance(self.getPropsObj(id), EditableProperty):
-			# Translators: State properties editable "Empty"
+			# Translator: State properties editable "Empty"
 			return val if val else _("Empty")
 
 
@@ -331,7 +331,7 @@ class ListControl(object):
 			#if idProps in typeRule:
 			for key, value in list(ruleProps.items()):
 				if  idProps in typeRule and idProps == key:
-					# Translators: State properties "Not assigned"
+					# Translator: State properties "Not assigned"
 					return self.updatedStrValues(value, idProps) if isinstance(self.getPropsObj(idProps), ToggleProperty) else _("Not assigned")
 
 
@@ -501,8 +501,8 @@ class ListControl(object):
 				val = not bool(self.toggleBtn.GetValue())
 				self.toggleBtn.SetValue(val)
 				p.set_value(val)
-				# Translators: State properties "unchecked"
-				# Translators: State properties"checked"
+				# Translator: State properties "unchecked"
+				# Translator: State properties"checked"
 				ui.message(_("checked") if val else _("unchecked"))
 				self.updatePropertiesList(rowItem)
 
@@ -594,8 +594,8 @@ class ListControl(object):
 		"""
 		Function updates the values in the properties list control globally
 		"""
-		# Translators: State properties boolean "Enable"
-		# Translators: State properties boolean "Disable"
+		# Translator: State properties boolean "Enable"
+		# Translator: State properties boolean "Disable"
 		ret = lambda x: _("Enable") if x == True else ( _("Disable") if x == False else x)
 		forVal = filter(lambda x: x.get_displayName() == rowProps, self.propertiesList)
 		res = list(forVal)
@@ -665,7 +665,7 @@ class ListControl(object):
 		self.autoActionOptions =[]
 		mgr = self.context["webModule"].ruleManager
 		actionsDict = mgr.getActions()
-		# Translators: State properties "unchecked"
+		# Translator: State properties "unchecked"
 		defaultval = ("Choose an option", "")
 		[self.autoActionOptions.append((actionsDict[i], i))for i in actionsDict]
 		self.autoActionOptions.insert(0, defaultval)
@@ -676,7 +676,7 @@ class ListControl(object):
 		On init function updates the run time mutation list
 		"""
 		self.mutationOptions = []
-		# Translators: State properties "unchecked"
+		# Translator: State properties "unchecked"
 		defaultval = ("Choose an option", "")
 		[self.mutationOptions.append((mutationLabels[i], i)) for i in mutationLabels]
 		self.mutationOptions.insert(0, defaultval)

@@ -903,7 +903,6 @@ class OverridesPanel(ContextualSettingsPanel):
 	def loadPropsOverridePanel(self):
 		from ..gui import properties as p
 		objListCtrl = p.ListControl(self)
-
 		return objListCtrl
 
 	def initPropertiesList(self):
@@ -916,8 +915,6 @@ class OverridesPanel(ContextualSettingsPanel):
 		if typeOverride:
 			dataOveride = dataTypeCrit["overrides"]
 			self.setPropertiesData(dataOveride, objListCtrlCrit)
-		objListCtrlCrit.focusListCtrl(index)
-
 
 	def setPropertiesData(self, dataOverride, objCtrl):
 		for props in self.propertiesList:
@@ -951,7 +948,6 @@ class OverridesPanel(ContextualSettingsPanel):
 			self.noPropertiesLabel.Show()
 
 	def onPanelActivated(self):
-		self.initPropertiesList()
 		super(OverridesPanel, self).onPanelActivated()
 
 	def onSave(self):
