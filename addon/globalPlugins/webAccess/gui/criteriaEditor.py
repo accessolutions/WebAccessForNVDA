@@ -859,6 +859,7 @@ class OverridesPanel(properties.ListControl):
 	def onAddProperties(self, evt):
 		super(OverridesPanel, self).onAddProperties(evt)
 
+
 	def getListToAppend(self):
 		val = super(OverridesPanel, self).getListToAppend()
 		if val is not None:
@@ -867,8 +868,10 @@ class OverridesPanel(properties.ListControl):
 		lstIndex = self.listCtrl.GetItemCount()
 		self.focusListCtrl(lstIndex - 1, True)
 
+
 	def onDeleteProperties(self, evt):
 		super(OverridesPanel, self).onDeleteProperties(evt)
+
 
 	def initPropertiesList(self, context):
 		super(OverridesPanel, self).initPropertiesList(context)
@@ -878,6 +881,7 @@ class OverridesPanel(properties.ListControl):
 			data = dataTypeCrit["overrides"]
 			self.updateListCtrl(data)
 		self.onInitUpdateListCtrl()
+
 
 	def onInitUpdateListCtrl(self):
 		self.listCtrl.DeleteAllItems()
@@ -951,7 +955,6 @@ class GestureOverride(ruleEditor.ActionsPanel):
 		super(GestureOverride, self).onPanelActivated()
 
 	def onAddGesture(self, evt):
-		self.updateGesturesList()
 		super(GestureOverride, self).onAddGesture(evt)
 
 	def updateGesturesList(self, newGestureIdentifier=None, focus=False):
