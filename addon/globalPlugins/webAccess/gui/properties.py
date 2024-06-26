@@ -358,11 +358,12 @@ class ListControl(ContextualSettingsPanel):
         Append to list the chossen properties in the list on criteria editor panel
         """
         obj = self.getListToAppend()
-        self.listCtrl.InsertStringItem(self.index, self.customDisplayLabel(obj))
-        self.listCtrl.SetStringItem(self.index, 1, self.updatedStrValues(obj.get_value(), obj.get_id()))
-        self.index += 1
-        lstIndex = self.listCtrl.GetItemCount()
-        self.focusListCtrl(lstIndex-1, True)
+        if obj:
+            self.listCtrl.InsertStringItem(self.index, self.customDisplayLabel(obj))
+            self.listCtrl.SetStringItem(self.index, 1, self.updatedStrValues(obj.get_value(), obj.get_id()))
+            self.index += 1
+            lstIndex = self.listCtrl.GetItemCount()
+            self.focusListCtrl(lstIndex-1, True)
 
 
     def getListToAppend(self):
