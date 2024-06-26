@@ -21,7 +21,7 @@
 
 
 
-__version__ = "2024.06.13"
+__version__ = "2024.06.26"
 __author__ = "Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
@@ -36,7 +36,6 @@ import gui
 import inputCore
 from logHandler import log
 
-from .. import ruleHandler
 from ..ruleHandler import ruleTypes
 from ..ruleHandler.controlMutation import (
 	MUTATIONS_BY_RULE_TYPE,
@@ -49,10 +48,9 @@ from . import (
 	ContextualSettingsPanel,
 	guiHelper,
 	stripAccel,
-	stripAccelAndColon
+	stripAccelAndColon,
+	properties
 )
-from ..gui import properties as props
-instanceListProperties = props.ListProperties()
 addonHandler.initTranslation()
 
 
@@ -92,8 +90,8 @@ def getSummary(data):
 	subParts = []
 	data = data.get("properties")
 	if data:
-		for key, label in list(props.FIELDS.items()):
-			if key not in props.RULE_TYPE_FIELDS.get(ruleType, []):
+		for key, label in list(properties.FIELDS.items()):
+			if key not in properties.RULE_TYPE_FIELDS.get(ruleType, []):
 				continue
 			if key == "sayName":
 				value = data.get(key, True)
@@ -101,7 +99,7 @@ def getSummary(data):
 				continue
 			else:
 				value = data[key]
-			label = props.ListControl.getAltFieldLabel(ruleType, key, label)
+			label = properties.ListControl.getAltFieldLabel(ruleType, key, label)
 			label = stripAccel(label)
 			if key == "mutation":
 				value = mutationLabels.get(value)
@@ -615,92 +613,49 @@ class ActionsPanel(ContextualSettingsPanel):
 				del data["autoAction"]
 
 
-class PropertiesPanel(ContextualSettingsPanel):
-
-
+class PropertiesPanel(properties.ListControl):
+	"""
+	List control properties of the rule editor.
+	"""
 	# Translators: The label for a category in the rule editor
 	title = _("Properties")
-	propertiesList = []
-	objListCtrl = None
 	context = None
-	hidable = []
+	tempList = []
+
 
 	def makeSettings(self, settingsSizer):
-
-		self. hidable = []
-
-		gbSizer = self.sizer = wx.GridBagSizer()
-		gbSizer.EmptyCellSize = (0, 0)
-		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
-
-		sizer = wx.GridBagSizer(hgap=5, vgap=5)
-		row = 0
-		# Translators: Displayed when the selected rule type doesn't support any action
-		self.noPropertiesLabel = wx.StaticText(self, label=_("No properties available for the selected rule type."))
-		sizer.Add(self.noPropertiesLabel, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
-
-		row +=1
-		# Translators: Keyboard shortcut input label for the rule dialog's action panel.
-		self.propertiesLabel = wx.StaticText(self, label=_("&Properties List"))
-		sizer.Add(self.propertiesLabel, pos=(row, 0), flag=wx.EXPAND)
-		self.hidable.append(self.propertiesLabel)
-
-		self.listCtrl = wx.ListCtrl(self, size=(650, 300), style=wx.LC_REPORT | wx.BORDER_SUNKEN)
-		self.listCtrl.InsertColumn(0, 'Properties', width=322)
-		self.listCtrl.InsertColumn(1, 'Value', width=322)
-		self.hidable.append(self.listCtrl)
-		row += 1
-
-		self.editable = wx.TextCtrl(self, size=(650 , 30))
-		self.hidable.append(self.editable)
-
-		self.toggleBtn = wx.ToggleButton(self, label="", size=(325,30))
-		self.hidable.append(self.toggleBtn)
-
-		self.choice = wx.Choice(self, choices=[], size=(325, 30))
-		self.hidable.append(self.choice)
-
-		sizer = wx.GridBagSizer(hgap=5, vgap=5)
-		sizer.Add(self.listCtrl, pos=(1, 0), flag=wx.EXPAND)
-
-		sizeEdit = wx.BoxSizer(wx.HORIZONTAL)
-		sizeEdit.Add(self.editable)
-		sizer.Add(sizeEdit, pos=(2, 0), span=(0, 1), flag=wx.EXPAND)
-
-		sizeBox = wx.BoxSizer(wx.HORIZONTAL)
-		sizeBox.Add(self.toggleBtn)
-		sizeBox.Add(self.choice, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL)
-		sizer.Add(sizeBox, pos=(3, 0), flag=wx.EXPAND)
-		self.SetSizer(sizer)
+		super(PropertiesPanel, self).makeSettings(settingsSizer)
 
 	def initData(self, context):
+		super(PropertiesPanel, self).initData(context)
 		self.context = context
+		self.initPropertiesList(context)
+		self.tempList = self.propertiesList
 		self.updateData()
-		self.initPropertiesList()
 
-	def loadPropsRulePanel(self):
-		from ..gui import properties as p
-		objListCtrl =p.ListControl(self)
-		return objListCtrl
 
-	def initPropertiesList(self):
-		index=self.listCtrl.GetFirstSelected()
-		instanceListProperties.setPropertiesByRuleType(self.context)
-		self.propertiesList = instanceListProperties.getPropertiesByRuleType()
-		self.updateListCtrl(self.context["data"]["rule"])
-		self.loadPropsRulePanel().focusListCtrl(index)
+	def onInitUpdateListCtrl(self):
+		super(PropertiesPanel, self).onInitUpdateListCtrl()
 
-	def updateListCtrl(self, dataRule):
-		self.showItems(dataRule)
+
+	def initPropertiesList(self, context):
+		super(PropertiesPanel, self).initPropertiesList(self.context)
+		index = self.listCtrl.GetFirstSelected()
+		vnew = self.context.get("new")
+		dataRule= self.context["data"]["rule"]
 		ruleProps = dataRule.get("properties")
 		if ruleProps:
 			data = dataRule["properties"]
-			for props in self.propertiesList:
-				for key, value in data.items():
-					if props.get_id() == key:
-						props.set_flag(True)
-						props.set_value(value)
-		self.loadPropsRulePanel().onInitUpdateListCtrl()
+			self.updateListCtrl(data)
+		if vnew:
+			[p.set_flag(True) for p in self.propertiesList]
+		self.onInitUpdateListCtrl()
+		self.focusListCtrl(index=index)
+
+
+	def updateListCtrl(self, data):
+		super(PropertiesPanel, self).updateListCtrl(data)
+
 
 	def updateData(self, data = None):
 		propertiesMapValue = {}
@@ -712,25 +667,15 @@ class PropertiesPanel(ContextualSettingsPanel):
 			if data.get("properties"):
 				del data["properties"]
 			data["properties"] = propertiesMapValue
-		self.propertiesList.clear()
+		#self.propertiesList.clear()
+		self.propertiesList = self.tempList
 
-
-	def showItems(self, data):
-		ruleType = data.get("type")
-		typeValues = props.RULE_TYPE_FIELDS.get(ruleType)
-		if typeValues is None:
-			for item in self.hidable:
-				item.Hide()
-			self.noPropertiesLabel.Show()
-		else:
-			for item in self.hidable:
-				item.Show()
-			self.noPropertiesLabel.Hide()
 
 	def onPanelActivated(self):
-		self.updateData()
-		self.initPropertiesList()
 		super(PropertiesPanel, self).onPanelActivated()
+		self.initPropertiesList(self.context)
+		self.updateData()
+
 
 	def onSave(self):
 		self.updateData()
