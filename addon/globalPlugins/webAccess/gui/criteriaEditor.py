@@ -911,7 +911,7 @@ class OverridesPanel(properties.ListControl):
 			for key, value in list(ruleProps.items()):
 				if idProps in typeRule and idProps == key:
 					# Translator: State properties "Not assigned"
-					return  self.updatedStrValues(value, idProps) if value or isinstance(self.getPropsObj(idProps), props.ToggleProperty)else _("Not assigned")
+					return  self.updatedStrValues(value, idProps) if value or isinstance(self.getPropsObj(idProps), properties.ToggleProperty)else _("Not assigned")
 
 
 	def updateData(self, data = None):
