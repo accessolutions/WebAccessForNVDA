@@ -28,15 +28,13 @@ __author__ = "Shirley Noël <shirley.noel@pole-emploi.fr>"
 from collections import OrderedDict
 import re
 import wx
-# from wx.lib.expando import EVT_ETC_LAYOUT_NEEDED, ExpandoTextCtrl
-
 import controlTypes
 import inputCore
 import gui
 from logHandler import log
 
 import addonHandler
-from ..ruleHandler import ruleTypes
+from ..ruleHandler import builtinRuleActions, ruleTypes
 from ..utils import guarded, updateOrDrop
 from . import (
 	ContextualMultiCategorySettingsDialog,
@@ -141,8 +139,14 @@ def translateStatesLblToId(expr, raiseOnError=True):
 def getSummary(data, indent="", condensed=False):
 	parts = []
 	subParts = []
-	for key, label in list(properties.FIELDS.items()):
-		if key not in CriteriaPanel.CONTEXT_FIELDS or key not in data:
+	for key, label in list(CriteriaPanel.FIELDS.items()):
+		if (
+			key not in CriteriaPanel.CONTEXT_FIELDS
+			or (
+				key not in data
+				and key not in data.get("overrides", {})
+			)
+		):
 			continue
 		value = data[key]
 		subParts.append("{} {}".format(stripAccel(label), value))
@@ -163,36 +167,47 @@ def getSummary(data, indent="", condensed=False):
 				value = translateRoleIdToLbl(value)
 			elif key == "states":
 				value = translateStatesIdToLbl(value)
-		subParts.append("{} {}".format(stripAccel(label), value))
+		subParts.append("{} {}".format(
+			stripAccel(label),
+			value
+		))
 	if subParts:
 		if condensed:
 			parts.append(", ".join(subParts))
 		else:
 			parts.extend(subParts)
+
 	subParts = []
 	data = data.get("overrides")
 	if data:
 		for key, label in list(properties.FIELDS.items()):
 			if key not in data:
 				continue
-			value = data[key]
+			if key == "autoAction":
+				value = builtinRuleActions.get(data[key], f"*{data[key]}")
+			elif key in data and isinstance(data[key], bool):
+				value = _("Enabled") if data[key] else _("Disabled")
+			else:
+				value = data[key]
+
+			indent_ = "" if condensed else "  "
 			if value:
-				subParts.append("{}:{}".format(stripAccel(label), value))
+				subParts.append("{}{}: {}".format(
+					indent_,
+					label,
+					builtinRuleActions.get(value, f"*{value}") if key == "autoAction" else value
+				))
 	if subParts:
+		parts.append(_("Overrides"))
 		if condensed:
-			parts.append("{}:{}".format(
-				_("Overrides"),
-				", ".join(subParts)
-			))
+			parts.append(", ".join(subParts))
 		else:
-			parts.append(_("Overrides:"))
-			for subPart in subParts:
-				parts.append("{}".format(subPart))
+			parts.extend(subParts)
+
 	if parts:
 		return "{}{}".format(indent, "\n{}".format(indent).join(parts))
-	else:
-		# Translators: Fail-back criteria summary in rule's criteria panel dialog.
-		return "{}{}".format(indent, _("No criteria"))
+	# Translators: Fail-back criteria summary in rule's criteria panel dialog.
+	return "{}{}".format(indent, _("No criteria"))
 
 
 @guarded

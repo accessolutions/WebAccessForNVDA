@@ -36,7 +36,7 @@ import gui
 import inputCore
 from logHandler import log
 
-from ..ruleHandler import ruleTypes
+from ..ruleHandler import builtinRuleActions, ruleTypes
 from ..ruleHandler.controlMutation import (
 	MUTATIONS_BY_RULE_TYPE,
 	mutationLabels
@@ -70,35 +70,25 @@ def getSummary(data):
 		stripAccel(_("Rule &type:")),
 		ruleTypes.ruleTypeLabels.get(ruleType, "")
 	))
-	criteriaSets = data.get("criteria", [])
-	if criteriaSets:
-		from .criteriaEditor import getSummary as getCriteriaSummary
-		if len(criteriaSets) == 1:
-			parts.append(_("Criteria:"))
-			parts.append(getCriteriaSummary(criteriaSets[0], indent="  "))
-		else:
-			parts.append(_("Multiple criteria sets:"))
-			for index, alternative in enumerate(criteriaSets):
-				name = alternative.get("name")
-				if name:
-					altHeader = _("Alternative #{index} \"{name}\":").format(index=index, name=name)
-				else:
-					altHeader = _("Alternative #{index}:").format(index=index)
-				parts.append("  {}".format(altHeader))
-				parts.append(getCriteriaSummary(alternative, condensed=True, indent="    "))
+
 	# Properties
 	subParts = []
-	data = data.get("properties")
-	if data:
+	ruleProperties = data.get("properties")
+	ruleTypeProperties = properties.RULE_TYPE_FIELDS.get(ruleType, [])
+	if ruleProperties:
 		for key, label in list(properties.FIELDS.items()):
-			if key not in properties.RULE_TYPE_FIELDS.get(ruleType, []):
+			if (
+				key not in ruleTypeProperties
+				or key not in ruleProperties
+				or ruleProperties[key] is None
+			):
 				continue
-			if key == "sayName":
+			elif key == "sayName":
 				value = data.get(key, True)
-			elif key not in data:
-				continue
+			elif key == "autoAction":
+				value = builtinRuleActions.get(ruleProperties[key], f"*{ruleProperties[key]}")
 			else:
-				value = data[key]
+				value = ruleProperties[key]
 			label = properties.ListControl.getAltFieldLabel(ruleType, key, label)
 			label = stripAccel(label)
 			if key == "mutation":
@@ -113,6 +103,25 @@ def getSummary(data):
 		parts.append(_("Properties"))
 		parts.extend(subParts)
 
+	# Criteria
+	criteriaSets = data.get("criteria", [])
+	if criteriaSets:
+		subParts = []
+		from .criteriaEditor import getSummary as getCriteriaSummary
+		if len(criteriaSets) == 1:
+			parts.append(_("Criteria:"))
+			parts.append(getCriteriaSummary(criteriaSets[0], indent="  "))
+		else:
+			parts.append(_("Multiple criteria sets:"))
+			for index, alternative in enumerate(criteriaSets):
+				name = alternative.get("name")
+				if name:
+					altHeader = _("Alternative #{index} \"{name}\":").format(index=index, name=name)
+				else:
+					altHeader = _("Alternative #{index}:").format(index=index)
+				subParts.append("  " + altHeader)
+				subParts.append(getCriteriaSummary(alternative, indent="    "))
+		parts.extend(subParts)
 	return "\n".join(parts)
 
 
