@@ -849,7 +849,7 @@ class OverridesPanel(properties.ListControl):
 		self.listCtrl.InsertColumn(2, 'Overrided rule props.', width=215)
 
 		# Getting the grid sizer from the parent
-		sizer = self.GetSizer()
+		sizer = self.sizer
 		self.btnAddProps = wx.Button(self, label=_("&Add"), size=(325, 30))
 		self.hidable.append(self.btnAddProps)
 		self.btnDelProps = wx.Button(self, label=_("&Delete"), size=(325, 30))
@@ -863,7 +863,7 @@ class OverridesPanel(properties.ListControl):
 		self.btnAddProps.Bind(wx.EVT_BUTTON, self.onAddProperties)
 		self.btnDelProps.Bind(wx.EVT_BUTTON, self.onDeleteProperties)
 
-	def initData(self, context):
+	def initData(self, context, **kwargs):
 		super(OverridesPanel, self).initData(context)
 		self.hidable.clear()
 		self.context = context
