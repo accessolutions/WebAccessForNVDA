@@ -273,7 +273,7 @@ class ListControl(ContextualSettingsPanel):
 	def getIndexOfCurrentChoice(fieldName, mgr, value):
 		choiceKeysList = []
 		if fieldName == "mutation":
-			return value if value else -1
+			return int(value) if value else -1
 		elif fieldName == "autoAction":
 			choiceKeysList = mgr.getActions().keys()
 		return list(choiceKeysList).index(value)
