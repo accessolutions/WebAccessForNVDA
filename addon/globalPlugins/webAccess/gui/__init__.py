@@ -422,7 +422,11 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 
 	def onCategoryChange(self, evt):
 		currentCat = self.currentCategory
-		newCatInfos = self.catListCtrl.getTreeNodeInfo(evt.GetItem())
+		try:
+			newCatInfos = self.catListCtrl.getTreeNodeInfo(evt.GetItem())
+		except RuntimeError as e:
+			evt.Skip() # handling the case when the tree is called after panel deletion
+			return
 		if not currentCat or newCatInfos != currentCat:
 			self._doCategoryChange(newCatInfos)
 		else:

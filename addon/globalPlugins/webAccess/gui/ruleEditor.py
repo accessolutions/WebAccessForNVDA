@@ -497,7 +497,7 @@ class AlternativesPanel(TreeContextualPanel): # TODO : overrides don't work
 			else:
 				self.refreshCriteria(index)
 				self.refreshParent(self.treeNode)
-				newItem = self.tree.getXChild(self.treeNode, index)
+				newItem = self.tree.getXChild(self.treeNode, index if index >= 0 else 0)
 			self.tree.SelectItem(newItem)
 			self.tree.SetFocusedItem(newItem)
 			self.tree.SetFocus()
@@ -1209,7 +1209,8 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 		propertiesPanel = []
 		ruleData = self.context['data']['rule']
 		type = ruleData[ChildGeneralPanel.TYPE_FIELD] if ruleData else list(ruleTypes.ruleTypeLabels.keys())[0]
-		fields = RULE_TYPE_FIELDS.get(type, '')
+		fields = RULE_TYPE_FIELDS.get(type, tuple())
+		fields = fields if isinstance(fields, tuple) else [fields]
 		for field in fields:
 			editorClass = FIELDS_WIDGET_MAP[field]
 			editorParams = {}
