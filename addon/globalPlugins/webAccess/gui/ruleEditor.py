@@ -820,10 +820,16 @@ class ChildOneInputPanel(TreeContextualPanel):
 	@staticmethod
 	def getChildTitle(propName, value):
 		if isinstance(value, bool):
-			value = 'Activée' if value else 'Désactivée'
+			# Translators: The state of a property in the Rule editor
+			value = _("enabled") if value else _("disabled")
 		elif not value:
-			value = 'Vide'
-		return f'{propName.capitalize()} : {value}'
+			# Translators: The state of a property in the Rule editor
+			value = _("undefined")
+		# Translators: Label template for a child node in the Rule Editor that represents a property
+		return _("{propertyName} ({value})").format(
+			propertyName=propName.capitalize(),
+			value=value
+		)
 
 	def initData(self, context, **kwargs):
 		super().initData(context, **kwargs)
