@@ -1328,7 +1328,7 @@ class Criteria(baseObject.ScriptableObject):
 						"Rule not found: \"{parent}\""
 					).format(rule=self.name, parent=name))
 					return
-				if not exclude and rule.properties.multiple:
+				if not exclude and getattr(rule.properties, "multiple", False):
 					if multipleContext is None:
 						multipleContext = True
 				else:
