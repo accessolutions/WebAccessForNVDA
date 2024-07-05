@@ -33,7 +33,8 @@ import config
 import gui
 
 
-from gui import guiHelper, SettingsDialog, SettingsPanel
+from gui import guiHelper
+from gui.settingsDialogs import SettingsDialog, SettingsPanel
 
 
 addonHandler.initTranslation()
