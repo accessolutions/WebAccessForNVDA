@@ -35,6 +35,7 @@ import controlTypes
 import config
 import globalVars
 import gui
+from addonHandler.packaging import addDirsToPythonPackagePath
 from logHandler import log
 import ui
 
@@ -478,7 +479,7 @@ def initialize():
 	webModules.__path__ = list()
 	import sys
 	sys.modules["webModulesMC"] = webModules
-	config.addConfigDirsToPythonPackagePath(webModules)
+	addDirsToPythonPackagePath(webModules)
 	_importers = list(pkgutil.iter_importers("webModulesMC.__init__"))
 
 	from ..store.webModule import WebModuleStore
