@@ -740,7 +740,7 @@ class ListControl(ContextualSettingsPanel):
 	@staticmethod
 	def buildMutationOptions():
 		defaultval = ("Choose an option", "")
-		return [defaultval] + [(mutationLabel, i) for i, mutationLabel in enumerate(mutationLabels)]
+		return [defaultval] + [(mutationLabel, i) for i, mutationLabel in enumerate(mutationLabels.values())]
 
 
 	def getMutationOptions(self):
