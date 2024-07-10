@@ -438,6 +438,9 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 			if not self.catListCtrl.ItemHasChildren(selectedItem):
 				self.currentCategory.delete()
 				return
+		elif evt.GetKeyCode() == wx.WXK_SPACE:
+			self.currentCategory.spaceIsPressedOnTreeNode()
+
 		evt.Skip()
 		evt.StopPropagation()
 

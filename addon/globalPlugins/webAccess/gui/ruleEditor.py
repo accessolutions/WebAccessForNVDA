@@ -272,6 +272,9 @@ class GeneralPanel(TreeContextualPanel):
 		data['type'] = self.getTypeFieldValue()
 		updateOrDrop(data, "comment", self.commentText.Value)
 
+	def spaceIsPressedOnTreeNode(self):
+		self.ruleType.SetFocus()
+
 	def onNameEdited(self, evt):
 		self.getRule()["name"] = self.ruleName.Value
 		self.refreshParent(self.treeNode, deleteChildren=False)
@@ -480,6 +483,10 @@ class AlternativesPanel(TreeContextualPanel): # TODO : overrides don't work
 		from . import criteriaEditor
 		return criteriaEditor.getSummary(criteria)
 
+
+	def spaceIsPressedOnTreeNode(self):
+		self.newButton.SetFocus()
+
 	def onNewCriteria(self, evt):
 		context = self.context
 		context["data"]["criteria"] = OrderedDict({
@@ -610,6 +617,7 @@ class ActionsPanel(TreeContextualPanel):
 		# Translators: The label for a button in the Rule Editor dialog
 		item = wx.Button(self, label=_("&Add"))
 		item.Bind(wx.EVT_BUTTON, self.onAddGesture)
+		self.addButton = item
 		innerGbSizer.Add(item, pos=(0, 2), flag=wx.EXPAND)
 		innerGbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_BUTTONS_VERTICAL), pos=(1, 2))
 		# Translators: The label for a button in the Rule Editor dialog
@@ -661,6 +669,9 @@ class ActionsPanel(TreeContextualPanel):
 
 	def updateData(self, data=None):
 		self.initData(self.context)
+
+	def spaceIsPressedOnTreeNode(self):
+		self.addButton.SetFocus()
 
 	def onAddGesture(self, evt):
 		from ..gui import shortcutDialog
@@ -751,8 +762,8 @@ class PropertiesPanel(TreeContextualPanel, properties.ListControl):
 	def onInitUpdateListCtrl(self):
 		super(PropertiesPanel, self).onInitUpdateListCtrl()
 
-	def onInitUpdateListCtrl(self):
-		super(PropertiesPanel, self).onInitUpdateListCtrl()
+	def spaceIsPressedOnTreeNode(self):
+		self.listCtrl.SetFocus()
 
 	def initPropertiesList(self, context):
 		super(PropertiesPanel, self).initPropertiesList(self.context)
@@ -843,6 +854,19 @@ class ChildOneInputPanel(TreeContextualPanel):
 		self.header.SetLabel(self.title)
 		self.setEditorValue()
 
+	def spaceIsPressedOnTreeNode(self):
+		if self.editorIsChoice():
+			selection = self.editor.GetSelection() + 1
+			if selection > self.editor.GetCount() - 1:
+				selection = 0
+			self.editor.SetSelection(selection)
+			self.updateData(self.context)
+		elif self.editorClass == wx.TextCtrl:
+			self.editor.SetFocus()
+		elif self.editorClass == wx.CheckBox:
+			self.editor.SetValue(not self.editor.GetValue())
+			self.updateData(self.context)
+
 	def setEditorValue(self):
 		value = self.getValue()
 		if not value:
@@ -873,17 +897,12 @@ class ChildOneInputPanel(TreeContextualPanel):
 		self.updateData(self.getRule())
 
 
-class CheckboxPanel(ChildOneInputPanel):
-	def __init__(self, context, choices, defaultValue, **kwargs):
-		self.choices = choices
-		super().__init__(context, editorClass=wx.ComboBox, editorParams={'choices': choices}, **kwargs)
-
-
 class ChildGeneralPanel(ChildOneInputPanel):
 	TYPE_FIELD = "type"
 
 	def initData(self, context, **kwargs):
 		super().initData(context, **kwargs)
+		self.calledOnce = False
 		if self.fieldName == self.TYPE_FIELD:
 			self.editor.Bind(wx.EVT_CHOICE, self.onTypeChange)
 			GeneralPanel.initRuleTypeChoice(self.getRule(), self.editor)
@@ -906,8 +925,12 @@ class ChildGeneralPanel(ChildOneInputPanel):
 
 	def updateData(self, data):
 		if self.fieldName == self.TYPE_FIELD:
-			updateOrDrop(data, self.fieldName, tuple(ruleTypes.ruleTypeLabels.keys())[self.editor.Selection])
-			self.tree.SetItemText(self.treeNode, self.getChildTitle(self.fieldName, self.editor.Selection))
+			if not self.calledOnce:
+				self.calledOnce = True
+				self.onTypeChange(None)
+				updateOrDrop(data, self.fieldName, tuple(ruleTypes.ruleTypeLabels.keys())[self.editor.Selection])
+				self.tree.SetItemText(self.treeNode, self.getChildTitle(self.fieldName, self.editor.Selection))
+			self.calledOnce = False
 		else:
 			updateOrDrop(data, self.fieldName, self.editor.Value)
 			self.tree.SetItemText(self.treeNode, self.getChildTitle(self.fieldName, self.editor.Value))
@@ -988,6 +1011,9 @@ class ChildAlternativePanel(AlternativesPanel):
 
 		gbSizer.AddGrowableCol(0)
 
+	def spaceIsPressedOnTreeNode(self):
+		self.editButton.SetFocus()
+
 	def initData(self, context, **kwargs):
 		super().initData(context, **kwargs)
 		self.isChildCriteria = kwargs.get('isChildCriteria', False)
@@ -1010,6 +1036,7 @@ class ChildActionPanel(TreeContextualPanel):
 		sizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
 		item = wx.Button(self, label='Modifier')
 		item.Bind(wx.EVT_BUTTON, self.onEditGesture)
+		self.editButton = item
 		gbSizer.Add(item, pos=(0, 0))
 		item = wx.Button(self, label='Supprimer')
 		gbSizer.Add(item, pos=(0, 1))
@@ -1021,6 +1048,9 @@ class ChildActionPanel(TreeContextualPanel):
 		gbSizer.Add((guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL, 0), pos=(1, 0))
 		self.textCtrl = wx.TextCtrl(self, value=self.title, size=(-1, 100))
 		gbSizer.Add(self.textCtrl, pos=(2, 0), span=(1, 3), flag=wx.EXPAND)
+
+	def spaceIsPressedOnTreeNode(self):
+		self.editButton.SetFocus()
 
 	def updateTreeAndSelectItemAtIndex(self, index):
 		self.refreshParent(self.treeParent)
@@ -1077,6 +1107,7 @@ class ChildActionPanel(TreeContextualPanel):
 
 
 class ChildPropertyPanel(ChildOneInputPanel):
+
 
 	def setEditorValue(self):
 		if self.editorIsChoice():
