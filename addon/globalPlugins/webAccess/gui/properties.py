@@ -254,7 +254,6 @@ class ListControl(ContextualSettingsPanel):
 			try:
 				return list(mutationLabels.values())[value]
 			except Exception as e:
-				log.info(e)
 				return 0
 		elif fieldName == "autoAction":
 			mgr = context["webModule"].ruleManager
@@ -341,7 +340,7 @@ class ListControl(ContextualSettingsPanel):
 			return _("Enabled") if val else _("Disabled")
 		elif isinstance(self.getPropsObj(id), EditableProperty):
 			# Translator: State properties editable "Empty"
-			return val if val else _("Empty")
+			return val if val else _("undefined")
 
 	def onInitUpdateListCtrl(self):
 		"""
@@ -755,7 +754,7 @@ class ListControl(ContextualSettingsPanel):
 		On init function updates the run time gestures list
 		"""
 		self.gestures = []
-		defaultval = ("Choose an option", "")
+		defaultval = (_("Choose an option"), "")
 		self.gestures.insert(0, defaultval)
 
 

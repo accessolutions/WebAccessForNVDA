@@ -273,7 +273,7 @@ class GeneralPanel(TreeContextualPanel):
 		data['type'] = self.getTypeFieldValue()
 		updateOrDrop(data, "comment", self.commentText.Value)
 
-	def spaceIsPressedOnTreeNode(self):
+	def spaceIsPressedOnTreeNode(self, withShift=False):
 		self.ruleType.SetFocus()
 
 	def onNameEdited(self, evt):
@@ -485,7 +485,7 @@ class AlternativesPanel(TreeContextualPanel): # TODO : overrides don't work
 		return criteriaEditor.getSummary(criteria)
 
 
-	def spaceIsPressedOnTreeNode(self):
+	def spaceIsPressedOnTreeNode(self, withShift=False):
 		self.newButton.SetFocus()
 
 	def onNewCriteria(self, evt):
@@ -671,7 +671,7 @@ class ActionsPanel(TreeContextualPanel):
 	def updateData(self, data=None):
 		self.initData(self.context)
 
-	def spaceIsPressedOnTreeNode(self):
+	def spaceIsPressedOnTreeNode(self, withShift=False):
 		self.addButton.SetFocus()
 
 	def onAddGesture(self, evt):
@@ -763,7 +763,7 @@ class PropertiesPanel(TreeContextualPanel, properties.ListControl):
 	def onInitUpdateListCtrl(self):
 		super(PropertiesPanel, self).onInitUpdateListCtrl()
 
-	def spaceIsPressedOnTreeNode(self):
+	def spaceIsPressedOnTreeNode(self, withShift=False):
 		self.listCtrl.SetFocus()
 
 	def initPropertiesList(self, context):
@@ -857,11 +857,13 @@ class ChildOneInputPanel(TreeContextualPanel):
 		self.header.SetLabel(self.title)
 		self.setEditorValue()
 
-	def spaceIsPressedOnTreeNode(self):
+	def spaceIsPressedOnTreeNode(self, withShift=False):
 		if self.editorIsChoice():
-			selection = self.editor.GetSelection() + 1
+			selection = self.editor.GetSelection() + (-1 if withShift else 1)
 			if selection > self.editor.GetCount() - 1:
 				selection = 0
+			elif selection < 0:
+				selection = self.editor.GetCount() - 1
 			self.editor.SetSelection(selection)
 			self.updateData(self.context)
 		elif self.editorClass == wx.TextCtrl:
@@ -1014,7 +1016,7 @@ class ChildAlternativePanel(AlternativesPanel):
 
 		gbSizer.AddGrowableCol(0)
 
-	def spaceIsPressedOnTreeNode(self):
+	def spaceIsPressedOnTreeNode(self, withShift=False):
 		self.editButton.SetFocus()
 
 	def initData(self, context, **kwargs):
@@ -1052,7 +1054,7 @@ class ChildActionPanel(TreeContextualPanel):
 		self.textCtrl = wx.TextCtrl(self, value=self.title, size=(-1, 100))
 		gbSizer.Add(self.textCtrl, pos=(2, 0), span=(1, 3), flag=wx.EXPAND)
 
-	def spaceIsPressedOnTreeNode(self):
+	def spaceIsPressedOnTreeNode(self, withShift=False):
 		self.editButton.SetFocus()
 
 	def updateTreeAndSelectItemAtIndex(self, index):

@@ -301,7 +301,7 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 		# This list consists of only one column.
 		# The provided column header is just a placeholder, as it is hidden due to the wx.LC_NO_HEADER style flag.
 		self.catListCtrl.Bind(wx.EVT_TREE_SEL_CHANGED, self.onCategoryChange)
-		self.catListCtrl.Bind(wx.EVT_KEY_DOWN, self.onDelPressed)
+		self.catListCtrl.Bind(wx.EVT_KEY_DOWN, self.onKeyDown)
 		self.catListCtrl.ExpandAll()
 
 		self.container = nvdaControls.TabbableScrolledPanel(
@@ -432,17 +432,21 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 		else:
 			evt.Skip()
 
-	def onDelPressed(self, evt):
-		if evt.GetKeyCode() == wx.WXK_DELETE:
+	def onKeyDown(self, evt):
+		keyCode = evt.GetKeyCode()
+		modifiers = evt.GetModifiers()
+		if keyCode == wx.WXK_DELETE and modifiers == wx.MOD_NONE:
 			selectedItem = self.catListCtrl.GetSelection()
 			if not self.catListCtrl.ItemHasChildren(selectedItem):
 				self.currentCategory.delete()
 				return
-		elif evt.GetKeyCode() == wx.WXK_SPACE:
-			self.currentCategory.spaceIsPressedOnTreeNode()
+		elif keyCode == wx.WXK_SPACE and modifiers in (wx.MOD_NONE, wx.MOD_SHIFT):
+			self.currentCategory.spaceIsPressedOnTreeNode(
+				withShift=modifiers == wx.MOD_SHIFT
+			)
+			return
 
 		evt.Skip()
-		evt.StopPropagation()
 
 	def refreshNodePanelData(self, node):
 		nodeInfo = self.catListCtrl.getTreeNodeInfo(node)
