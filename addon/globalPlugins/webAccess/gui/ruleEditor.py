@@ -24,6 +24,7 @@ __version__ = "2024.06.26"
 __author__ = "Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 from collections import OrderedDict, namedtuple
+from typing import Any
 import wx
 # TODO: Work-arround ExpandoTextCtrl mishandling maxHeight and vscroll
 # from wx.lib.expando import EVT_ETC_LAYOUT_NEEDED, ExpandoTextCtrl
@@ -744,9 +745,9 @@ class PropertiesPanel(TreeContextualPanel, properties.ListControl):
 	tempList = []
 
 	@staticmethod
-	def getPropertyTitle(propertyName, value, type):
-		propertyVerbose = properties.ListControl.getAltFieldLabel(type, propertyName, properties.FIELDS.get(propertyName, ''))
-		return ChildOneInputPanel.getChildTitle(propertyVerbose, value)
+	def getPropertyTitle(propertyName: str, value: Any, ruleType, excludeValue: bool=False):
+		label = properties.ListControl.getAltFieldLabel(ruleType, propertyName, properties.FIELDS.get(propertyName, ''))
+		return ChildOneInputPanel.getChildTitle(label, value, excludeValue)
 
 	def makeSettings(self, settingsSizer):
 		properties.ListControl.makeSettings(self, settingsSizer)
@@ -829,13 +830,15 @@ class ChildOneInputPanel(TreeContextualPanel):
 		self.gbSizer = gbSizer
 
 	@staticmethod
-	def getChildTitle(propName, value):
+	def getChildTitle(propName: str, value: Any, excludeValue: bool=False):
 		if isinstance(value, bool):
 			# Translators: The state of a property in the Rule editor
 			value = _("enabled") if value else _("disabled")
 		elif not value:
 			# Translators: The state of a property in the Rule editor
 			value = _("undefined")
+		if excludeValue:
+			return propName.capitalize()
 		# Translators: Label template for a child node in the Rule Editor that represents a property
 		return _("{propertyName} ({value})").format(
 			propertyName=propName.capitalize(),
@@ -1254,7 +1257,7 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 			value = ChildPropertyPanel.getPropertyValue(self.context, field, editorClass)
 			title = PropertiesPanel.getPropertyTitle(field, value, type)
 			node = TreeNodeInfo(ChildPropertyPanel, title=title)
-			label = title.split(':')[0]
+			label = PropertiesPanel.getPropertyTitle(field, value, type, excludeValue=True)
 			hideLabel = False
 			if editorClass == wx.CheckBox:
 				editorParams = {'label': label}
