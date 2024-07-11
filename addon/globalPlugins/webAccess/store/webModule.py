@@ -322,7 +322,7 @@ class WebModuleStore(DispatchStore):
 					if self._isUserConfig(alternative):
 						userRef = alternative
 						break
-		log.info(f"ref={ref!r} ({ref}), keyRef={keyRef!r} ({keyRef})")
+		log.debug(f"ref={ref!r} ({ref}), keyRef={keyRef!r} ({keyRef})")
 		ctor = getWebModuleFactory(keyRef)
 		item = ctor()
 		layers = []
