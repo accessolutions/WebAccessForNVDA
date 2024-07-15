@@ -2,7 +2,7 @@
 
 [Web application modules](http://webmodules.org/) support for modern or complex web sites.
 
-Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
+Copyright (C) 2015-2024 Accessolutions (http://accessolutions.fr)
 
 ## License
 
@@ -241,11 +241,11 @@ files.
 However, one might want to use a development version executed directly from
 the source tree.
 
-A possible solution is to use file-system junction. Run the following command
-from the current user config `addons` directory:
+A possible solution, using the Windows Command Prompt, is to use file-system
+junction. Run the following command from the current user config `addons` directory:
 
 ```
-mklink /J WebAccess <path to the addon folder in the source tree>
+mklink /J WebAccess-dev <path to the addon folder in the source tree>
 ```
 
 Note: Local administrator privileges are required.
@@ -255,5 +255,20 @@ In this configuration, run the following command from the same
 directory to remove the junction, uninstalling the development version:
 
 ```
-rd WebAccess
+rd WebAccess-dev
+```
+
+Note: Do not attempt a recursive deletion, or the target source tree will be
+deleted too.
+
+Alternatively, using Git Bash:
+
+```
+ln -s WebAccess-dev <path to the addon folder in the source tree>
+```
+
+and
+
+```
+rm WebAccess-dev
 ```
