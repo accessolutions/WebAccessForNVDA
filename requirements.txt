@@ -1,0 +1,5 @@
+# Build system
+SCons==4.5.2
+
+# Building user documentation
+Markdown==3.5.1
