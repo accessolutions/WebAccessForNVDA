@@ -49,7 +49,7 @@ If not, amend accordingly.
 #### GNU Gettext tools
 
 You can either use the version bundled with the NVDA source code (detailed later on) or download it from
-[here](http://gnuwin32.sourceforge.net/downlinks/gettext.php) and ensure the `bin` folder is in your
+[here](https://mlocati.github.io/articles/gettext-iconv-windows.html) and ensure the `bin` folder is in your
 `PATH` environment variable.
 
 
@@ -90,13 +90,13 @@ D:\dev\src\nvda\miscDeps\python
 ```
 
 
-#### (Optional) Use GNU Gettext bundled with NVDA source
+#### (Optional) Use GNU Gettext bundled with the NVDA source code
 
 The source of NVDA comes with the necessary binaries from GNU Gettext.
 
 If you did not download GNU Gettext and set its `bin` folder in your `PATH` environment variable,
 you can modify the activation script of the virtual environment to use the version bundled
-with NVDA source.
+with the NVDA source code.
 
 ##### If using the Windows Command Prompt
 
