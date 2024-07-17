@@ -241,8 +241,11 @@ def configuredSettingsDialogType(**config):
 
 class ContextualMultiCategorySettingsDialog(
 	FillableMultiCategorySettingsDialog,
-	configuredSettingsDialogType(hasApplyButton=False, multiInstanceAllowed=True)
 ):
+
+	def __new__(cls, *args, **kwargs):
+		kwargs.update({'multiInstanceAllowed': True, 'hasApplyButton':False})
+		return super().__new__(cls, *args, **kwargs)
 
 	def __init__(self, *args, **kwargs):
 		self.context = None
