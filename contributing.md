@@ -244,7 +244,7 @@ A possible solution, using the Windows Command Prompt, is to use file-system
 junction. Run the following command from NVDA's current user config `addons` folder:
 
 ```
-mklink /J WebAccess-dev <path to the addon folder in the source tree>
+mklink /J WebAccess <path to the addon folder in the source tree>
 ```
 
 Note: Local administrator privileges are required.
@@ -254,7 +254,7 @@ In this configuration, run the following command from the same
 directory to remove the junction, uninstalling the development version:
 
 ```
-rd WebAccess-dev
+rd WebAccess
 ```
 
 Note: Do not attempt a recursive deletion, or the target source tree will be
@@ -264,11 +264,14 @@ deleted too.
 Alternatively, using Git Bash:
 
 ```
-ln -s WebAccess-dev <path to the addon folder in the source tree>
+ln -s WebAccess <path to the "addon" folder in the source tree>
 ```
 
 and
 
 ```
-rm WebAccess-dev
+rm WebAccess
 ```
+
+Beware to give the junction/softlink the exact same name as the addon as found in its manifest, ie. "webAccess").
+Failing to do so exhibits strange behaviors in recent NVDA.
