@@ -21,7 +21,14 @@
 
 
 
-__author__ = "Shirley Noël <shirley.noel@pole-emploi.fr>"
+__version__ = "2024.07.19"
+__authors__ = (
+	"Shirley Noël <shirley.noel@pole-emploi.fr>",
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+	"Sendhil Randon <sendhil.randon-ext@francetravail.fr>",
+	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
+)
 
 
 from collections import OrderedDict
@@ -396,6 +403,8 @@ class CriteriaPanel(CriteriaEditorPanel):
 		# Translator: The label for a Rule Criteria field
 		("src", pgettext("webAccess.ruleCriteria", "Ima&ge source:")),
 		# Translator: The label for a Rule Criteria field
+		("url", pgettext("webAccess.ruleCriteria", "Document &URL:")),
+		# Translator: The label for a Rule Criteria field
 		("relativePath", pgettext("webAccess.ruleCriteria", "R&elative path:")),
 		# Translator: The label for a Rule Criteria field
 		("index", pgettext("webAccess.ruleCriteria", "Inde&x:")),
@@ -561,6 +570,16 @@ class CriteriaPanel(CriteriaEditorPanel):
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
 
 		row += 1
+		item = wx.StaticText(self, label=self.FIELDS["url"])
+		gbSizer.Add(item, pos=(row, 0))
+		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
+		item = self.urlCombo = SizeFrugalComboBox(self)
+		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
+
+		row += 1
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+
+		row += 1
 		item = wx.StaticText(self, label=self.FIELDS["relativePath"])
 		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
@@ -623,6 +642,7 @@ class CriteriaPanel(CriteriaEditorPanel):
 			classChoices = []
 			statesChoices = []
 			srcChoices = []
+			urlChoices = []
 			# todo: actually there are empty choices created
 			while node is not None:
 				roleChoices.append(controlTypes.roleLabels.get(node.role, "") or "")
@@ -631,6 +651,17 @@ class CriteriaPanel(CriteriaEditorPanel):
 				classChoices.append(node.className or "")
 				statesChoices.append(getStatesLblExprForSet(node.states) or "")
 				srcChoices.append(node.src or "")
+				url = ""
+				if node.role == controlTypes.ROLE_DOCUMENT:
+					obj = node.getNVDAObject()
+					while obj.role != node.role:
+						try:
+							obj = obj.parent
+						except Exception:
+							break
+					if obj.role == node.role:
+						url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
+				urlChoices.append(url)
 				node = node.parent
 			
 			self.textCombo.Set(textChoices)
@@ -640,6 +671,7 @@ class CriteriaPanel(CriteriaEditorPanel):
 			self.classNameCombo.Set(classChoices)
 			self.statesCombo.Set(statesChoices)
 			self.srcCombo.Set(srcChoices)
+			self.urlCombo.Set(urlChoices)
 
 		self.refreshContextMacroChoices(initial=True)
 		self.onContextMacroChoice(None)
@@ -662,6 +694,7 @@ class CriteriaPanel(CriteriaEditorPanel):
 		else:
 			self.statesCombo.Value = translateStatesIdToLbl(value)
 		self.srcCombo.Value = data.get("src", "")
+		self.urlCombo.Value = data.get("url", "")
 		self.relativePathCombo.Value = str(data.get("relativePath", ""))
 		value = data.get("index", "")
 		if isinstance(value, InvalidValue):
@@ -689,6 +722,7 @@ class CriteriaPanel(CriteriaEditorPanel):
 		except ValidationError:
 			data["states"] = InvalidValue(value)
 		updateOrDrop(data, "src", self.srcCombo.Value)
+		updateOrDrop(data, "url", self.urlCombo.Value)
 		updateOrDrop(data, "relativePath", self.relativePathCombo.Value)
 		value = self.indexText.Value
 		try:
