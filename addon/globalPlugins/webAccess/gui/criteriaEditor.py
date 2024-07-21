@@ -651,17 +651,7 @@ class CriteriaPanel(CriteriaEditorPanel):
 				classChoices.append(node.className or "")
 				statesChoices.append(getStatesLblExprForSet(node.states) or "")
 				srcChoices.append(node.src or "")
-				url = ""
-				if node.role == controlTypes.ROLE_DOCUMENT:
-					obj = node.getNVDAObject()
-					while obj.role != node.role:
-						try:
-							obj = obj.parent
-						except Exception:
-							break
-					if obj.role == node.role:
-						url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
-				urlChoices.append(url)
+				urlChoices.append(node.url or "")
 				node = node.parent
 			
 			self.textCombo.Set(textChoices)

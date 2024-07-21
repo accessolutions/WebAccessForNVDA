@@ -525,7 +525,25 @@ class NodeField(TrackedObject):
 	@property
 	def previousTextNode(self):
 		return self._previousTextNode and self._previousTextNode()
-
+	
+	@property
+	def url(self):
+		if hasattr(self, "_url"):
+			return self._url
+		if self.role != controlTypes.ROLE_DOCUMENT:
+			return None
+		url = None
+		obj = self.getNVDAObject()
+		while obj.role != self.role:
+			try:
+				obj = obj.parent
+			except Exception:
+				break
+		else:
+			url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
+		self._url = url
+		return url
+	
 	def isReady(self):
 		return self.nodeManager and self.nodeManager.isReady
 
