@@ -590,24 +590,6 @@ class NodeField(TrackedObject):
 			return result
 		return []
 
-	def search_eq(self, itemList, value):
-		if not isinstance(itemList, list):
-			itemList = [itemList]
-		for item in itemList:
-			if item == value:
-				return True
-		return False
-
-	def search_in(self, itemList, value):
-		if value is None or value == "":
-			return False
-		if not isinstance(itemList, list):
-			itemList = [itemList]
-		for item in itemList:
-			if item.replace("*", "") in value:
-				return True
-		return False
-
 	def searchNode(
 		self,
 		exclude=None,
@@ -632,9 +614,8 @@ class NodeField(TrackedObject):
 		Additional keyword arguments names are of the form:
 		  `test_property[#index]`
 
-		All of the criteria must be matched (logical `and`).
-		Values can be lists, in which case any value in the list can match
-		(logical `or`).
+		All of the keywords must be matched (logical `and`).
+		Values are collections, any element can match (logical `or`).
 		Supported tests are: `eq`, `notEq`, `in` and `notIn`.
 
 		Properties `text` and `prevText` are mutually exclusive, are only valid
@@ -650,7 +631,7 @@ class NodeField(TrackedObject):
 		_count += 1
 		found = True
 		# Copy kwargs dict to get ready for Python 3:
-		for key, allowedValues in list(kwargs.copy().items()):
+		for key, searchedValues in list(kwargs.copy().items()):
 			if "_" not in key:
 				log.warning("Unexpected argument: {arg}".format(arg=key))
 				continue
@@ -676,18 +657,22 @@ class NodeField(TrackedObject):
 				candidateValues = (candidateValue,)
 			for candidateValue in candidateValues:
 				if test == "eq":
-					if self.search_eq(allowedValues, candidateValue):
+					if candidateValue in searchedValues:
 						del kwargs[key]
 						break
 				elif test == "in":
-					if self.search_in(allowedValues, candidateValue):
+					if candidateValue and any(
+						True for searchedValue in searchedValues if searchedValue in candidateValue
+					):
 						del kwargs[key]
 						break
 				elif test == "notEq":
-					if self.search_eq(allowedValues, candidateValue):
+					if candidateValue in searchedValues:
 						return []
 				elif test == "notIn":
-					if self.search_in(allowedValues, candidateValue):
+					if candidateValue and any(
+						True for searchedValue in searchedValues if searchedValue in candidateValue
+					):
 						return []
 			else:  # no break
 				if test in ("eq", "in"):
