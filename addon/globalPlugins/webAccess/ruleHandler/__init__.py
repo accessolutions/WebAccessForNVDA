@@ -1460,6 +1460,11 @@ def getSimpleSearchKwargs(criteria, raiseOnUnsupported=False):
 			):
 				if not values:
 					continue
+				if prop in ("role", "states"):
+					try:
+						values = [int(value) for value in values]
+					except ValueError:
+						log.error(f"Invalid search criterion: {prop} {test} {values}")
 				key = "{test}_{prop}#{index}".format(
 					test=test,
 					prop=prop,

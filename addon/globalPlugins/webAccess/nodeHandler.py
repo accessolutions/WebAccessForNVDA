@@ -22,6 +22,7 @@
 __authors__ = (
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
 	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"Yannick Plassiard <yan@mistigri.org>",
 	"André-Abush Clause <a.clause@accessolutions.fr>",
 )
 
@@ -639,6 +640,9 @@ class NodeField(TrackedObject):
 		Properties `text` and `prevText` are mutually exclusive, are only valid
 		for the `in` test and do not support multiple values.
 
+		Properties `role` and `states`, being integers, are only valid for
+		the `eq` and `notEq` tests.
+
 		Returns a list of the matching nodes.
 		"""  # noqa
 		global _count
@@ -662,16 +666,14 @@ class NodeField(TrackedObject):
 			candidateValues = (candidateValue,)
 			if prop == "className":
 				if candidateValue is not None:
-					candidateValues = candidateValue.split(" ")
-			elif prop in ("role", "states"):
-				try:
-					allowedValues = [int(value) for value in allowedValues]
-				except ValueError:
-					log.error((
-						"Invalid search criterion: {key}={allowedValues!r}"
-					).format(**locals()))
-				if prop == "states":
-					candidateValues = candidateValue
+					candidateValue = candidateValue.strip()
+					if candidateValue:
+						candidateValues = candidateValue.split(" ")
+			elif prop == "states":
+				# states is a set
+				candidateValues = candidateValue
+			else:
+				candidateValues = (candidateValue,)
 			for candidateValue in candidateValues:
 				if test == "eq":
 					if self.search_eq(allowedValues, candidateValue):
