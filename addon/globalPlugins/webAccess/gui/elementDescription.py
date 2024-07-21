@@ -108,7 +108,6 @@ def getNodeDescription():
 	results = ruleManager.getResults() if ruleManager else []
 	node = focus.webAccess.nodeManager.getCaretNode()
 	node = node.parent
-	obj = node.getNVDAObject()
 	branch = []
 	while node is not None:
 		parts = []
@@ -131,10 +130,15 @@ def getNodeDescription():
 			)))))
 		if node.src:
 			parts.append("    src %s" % node.src)
+		if node.role == controlTypes.ROLE_DOCUMENT:
+			obj = node.getNVDAObject()
+			while obj.role != node.role:
+				obj = obj.parent
+			url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
+			parts.append("    url %s" % url)
 		parts.append("    text %s" % truncText(node))
 		branch.append("\n".join(parts))
 		node = node.parent
-		obj = obj.parent
 	return "\n\n".join(branch)
 		
 	
