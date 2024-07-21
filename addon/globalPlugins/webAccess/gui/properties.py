@@ -165,7 +165,7 @@ class Property:
 
 
 class Properties(PropertiesBase):
-
+	
 	def __init__(self, context: Mapping[str, Any], *maps: Mapping[str, PropertyValue], iterOnlyFirstMap=False):
 		"""iterOnlyFirstMap:
 			True: When iterating, include only the properties defined in the first map.
