@@ -155,6 +155,16 @@ class PropertySpec(Enum):
 		displayValueIfUndefined=pgettext("webAccess.ruleProperty.mutation", "None"),
 		isRestrictedChoice=True
 	)
+	subModule = PropertySpecValue(
+		ruleTypes=("zone",),
+		valueType=str,
+		default="",
+		# Translators: The display name for a rule property
+		displayName=pgettext("webAccess.ruleProperty", "Load sub-module"),
+		# Translators: The displayed text if there is no value for the "Load sub-module" property
+		displayValueIfUndefined=pgettext("webAccess.ruleProperty.subModule", "No"),
+		isRestrictedChoice=False
+	)
 	
 	def __getattr__(self, name: str):
 		"""Convenience method for easier reading of client code
