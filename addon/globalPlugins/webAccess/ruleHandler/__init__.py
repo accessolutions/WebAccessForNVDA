@@ -1443,13 +1443,14 @@ def getSimpleSearchKwargs(criteria, raiseOnUnsupported=False):
 				if not expr:
 					continue
 				if expr[0] == "!":
-					if "*" in expr:
-						notIn.append(expr[1:].strip())
+					expr = expr[1:].strip()
+					if "*" in (expr[0], expr[-1]):
+						notIn.append(expr.strip("*").strip())
 					else:
-						notEq.append(expr[1:].strip())
+						notEq.append(expr)
 				else:
-					if "*" in expr:
-						in_.append(expr)
+					if "*" in (expr[0], expr[-1]):
+						in_.append(expr.strip("*").strip())
 					else:
 						eq.append(expr)
 			for test, values in (
