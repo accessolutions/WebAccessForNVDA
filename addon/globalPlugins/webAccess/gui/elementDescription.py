@@ -130,12 +130,8 @@ def getNodeDescription():
 			)))))
 		if node.src:
 			parts.append("    src %s" % node.src)
-		if node.role == controlTypes.ROLE_DOCUMENT:
-			obj = node.getNVDAObject()
-			while obj.role != node.role:
-				obj = obj.parent
-			url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
-			parts.append("    url %s" % url)
+		if node.url:
+			parts.append("    url %s" % node.url)
 		parts.append("    text %s" % truncText(node))
 		branch.append("\n".join(parts))
 		node = node.parent

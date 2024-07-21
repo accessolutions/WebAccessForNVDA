@@ -1411,6 +1411,7 @@ def getSimpleSearchKwargs(criteria, raiseOnUnsupported=False):
 			"states",
 			"tag",
 			"text",
+			"url",
 		]:
 			if raiseOnUnsupported:
 				raise ValueError(
@@ -1431,8 +1432,10 @@ def getSimpleSearchKwargs(criteria, raiseOnUnsupported=False):
 			kwargs["in_text"] = expr[1:]
 			continue
 		if prop == "className":
+			# For "className", both space and ampersand are treated as "and" operator
 			expr = expr.replace(" ", "&")
-		for andIndex, expr in enumerate(expr.split("&")):
+		# For "url", only space is treated as "and" operator
+		for andIndex, expr in enumerate(expr.split("&" if prop != "url" else " ")):
 			expr = expr.strip()
 			eq = []
 			notEq = []
@@ -1444,15 +1447,27 @@ def getSimpleSearchKwargs(criteria, raiseOnUnsupported=False):
 					continue
 				if expr[0] == "!":
 					expr = expr[1:].strip()
-					if "*" in (expr[0], expr[-1]):
-						notIn.append(expr.strip("*").strip())
+					if prop == "url":
+						if expr[0] == "=":
+							notEq.append(expr[1:].strip())
+						else:
+							notIn.append(expr)
 					else:
-						notEq.append(expr)
+						if "*" in (expr[0], expr[-1]):
+							notIn.append(expr.strip("*").strip())
+						else:
+							notEq.append(expr)
 				else:
-					if "*" in (expr[0], expr[-1]):
-						in_.append(expr.strip("*").strip())
+					if prop == "url":
+						if expr[0] == "=":
+							eq.append(expr[1:].strip())
+						else:
+							in_.append(expr)
 					else:
-						eq.append(expr)
+						if "*" in (expr[0], expr[-1]):
+							in_.append(expr.strip("*").strip())
+						else:
+							eq.append(expr)
 			for test, values in (
 				("eq", eq),
 				("notEq", notEq),
