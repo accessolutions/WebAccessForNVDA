@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2024 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2021.03.13"
+__version__ = "2024.07.22"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
@@ -240,11 +240,6 @@ class WebModule(baseObject.ScriptableObject):
 
 	def terminate(self):
 		self.ruleManager.terminate()
-
-	def printLog(self, layerName):
-		for logLevel, logCodePath, logDateTime, logMsg in self.getLayer(layerName).data.get("log", []):
-			print(logLevel, logDateTime, logCodePath)
-			print(logMsg)
 
 	def _getLayeredProperty(self, name, startLayerIndex=-1, raiseIfMissing=False):
 		for index, layer in list(enumerate(self.layers))[startLayerIndex::-1]:
