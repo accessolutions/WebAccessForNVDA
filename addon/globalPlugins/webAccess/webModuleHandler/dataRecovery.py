@@ -73,7 +73,10 @@ def recover(data):
 		recoverFrom_0_5_to_0_6(data)
 		formatVersion = version.parse(data["formatVersion"])
 	if formatVersion < version.parse("0.7"):
-		recoverFrom_0_6_to_0_7(data)
+		recoverFrom_0_6_to_0_8(data)
+		formatVersion = version.parse(data["formatVersion"])
+	if formatVersion < version.parse("0.8-dev"):
+		recoverFrom_0_7_to_0_8(data)
 		formatVersion = version.parse(data["formatVersion"])
 	from .webModule import WebModule
 	if formatVersion > WebModule.FORMAT_VERSION:
@@ -394,7 +397,7 @@ def recoverFrom_0_6_to_0_7(data):
 					)
 			for key, altValue in list(alternative.items()):
 				if key in rule or key in (
-					"criteria", "priority", "comment", 
+					"criteria", "priority", "comment",
 					"autoAction", "customName", "customValue", "formMode", "multiple", "sayName", "skip", "mutation"
 				):
 					continue
@@ -440,3 +443,14 @@ def recoverFrom_0_6_to_0_7(data):
 	if logMsgs:
 		logRecovery(data, logLevel, "\n".join(logMsgs))
 	data["formatVersion"] = "0.7-dev"
+
+
+def recoverFrom_0_6_to_0_8(data):
+	# Overloaded properties and gestures
+	from .recoveryFrom_0_6to0_8 import convert
+	data = convert(data)
+
+
+def recoverFrom_0_7_to_0_8(data): # TODO
+	name = data.get("WebModule", {}).get("name")
+	raise NotImplementedError(f"Recovery from 0.7 to 0.8 not implemented yet (for {name} webmodule)")
