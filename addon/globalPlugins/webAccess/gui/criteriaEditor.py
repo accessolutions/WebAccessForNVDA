@@ -144,7 +144,7 @@ def getSummary(data, indent="", condensed=False):
 			key not in CriteriaPanel.CONTEXT_FIELDS
 			or (
 				key not in data
-				and key not in data.get("overrides", {})
+				and key not in data.get("properties", {})
 			)
 		):
 			continue
@@ -178,7 +178,7 @@ def getSummary(data, indent="", condensed=False):
 			parts.extend(subParts)
 
 	subParts = []
-	data = data.get("overrides")
+	data = data.get("properties")
 	if data:
 		for key, label in list(properties.FIELDS.items()):
 			if key not in data:
@@ -198,7 +198,7 @@ def getSummary(data, indent="", condensed=False):
 					builtinRuleActions.get(value, f"*{value}") if key == "autoAction" else value
 				))
 	if subParts:
-		parts.append(_("Overrides"))
+		parts.append(_("Properties"))
 		if condensed:
 			parts.append(", ".join(subParts))
 		else:
@@ -831,22 +831,22 @@ class CriteriaPanel(ContextualSettingsPanel):
 		self.updateData()
 
 
-class OverridesPanel(properties.ListControl):
+class PropertiesPanel(properties.ListControl):
 	"""
-	List control properties of the criteria editor for overriden properties
+	List control properties of the criteria editor for overridden properties
 	"""
 
 	# Translators: The label for a Criteria editor category.
-	title = _("Overrides")
+	title = _("Properties")
 	context = None
 	hidable = []
 
 
 	def makeSettings(self, settingsSizer):
-		super(OverridesPanel, self).makeSettings(settingsSizer)
+		super(PropertiesPanel, self).makeSettings(settingsSizer)
 
 		# Adding 3 column to the listControl
-		self.listCtrl.InsertColumn(2, 'Overrided rule props.', width=215)
+		self.listCtrl.InsertColumn(2, "Rule level", width=215)
 
 		# Getting the grid sizer from the parent
 		sizer = self.sizer
@@ -864,7 +864,7 @@ class OverridesPanel(properties.ListControl):
 		self.btnDelProps.Bind(wx.EVT_BUTTON, self.onDeleteProperties)
 
 	def initData(self, context, **kwargs):
-		super(OverridesPanel, self).initData(context)
+		super(PropertiesPanel, self).initData(context)
 		self.hidable.clear()
 		self.context = context
 		self.initPropertiesList(context)
@@ -872,11 +872,11 @@ class OverridesPanel(properties.ListControl):
 
 
 	def onAddProperties(self, evt):
-		super(OverridesPanel, self).onAddProperties(evt)
+		super(PropertiesPanel, self).onAddProperties(evt)
 
 
 	def getListToAppend(self):
-		val = super(OverridesPanel, self).getListToAppend()
+		val = super(PropertiesPanel, self).getListToAppend()
 		if val is not None:
 			self.updateOverridenData(self.index, val)
 		self.onInitUpdateListCtrl()
@@ -885,15 +885,15 @@ class OverridesPanel(properties.ListControl):
 
 
 	def onDeleteProperties(self, evt):
-		super(OverridesPanel, self).onDeleteProperties(evt)
+		super(PropertiesPanel, self).onDeleteProperties(evt)
 
 
 	def initPropertiesList(self, context):
-		super(OverridesPanel, self).initPropertiesList(context)
+		super(PropertiesPanel, self).initPropertiesList(context)
 		dataTypeCrit = self.context["data"]["criteria"]
-		typeOverride = dataTypeCrit.get("overrides")
-		if typeOverride:
-			data = dataTypeCrit["overrides"]
+		typeProperty = dataTypeCrit.get("properties")
+		if typeProperty:
+			data = dataTypeCrit["properties"]
 			self.updateListCtrl(data)
 		self.onInitUpdateListCtrl()
 
@@ -938,24 +938,24 @@ class OverridesPanel(properties.ListControl):
 			for props in self.propertiesList:
 				if props.get_value():
 					propertiesMapValue[props.get_id()] = props.get_value()
-			if data.get("overrides"):
-				del data["overrides"]
-			dataCrit["overrides"] = propertiesMapValue
+			if data.get("properties"):
+				del data["properties"]
+			dataCrit["properties"] = propertiesMapValue
 
 	def onPanelActivated(self):
-		super(OverridesPanel, self).onPanelActivated()
+		super(PropertiesPanel, self).onPanelActivated()
 
 
 	def onSave(self):
 		self.updateData()
 
-# gesture override
-class GestureOverride(ruleEditor.ActionsPanel):
 
-	title = _("Actions Overrides")
+class ActionsPanel(ruleEditor.ActionsPanel):
+
+	title = _("Actions")
 
 	def makeSettings(self, settingsSizer):
-		super(GestureOverride, self).makeSettings(settingsSizer)
+		super(ActionsPanel, self).makeSettings(settingsSizer)
 		self.autoActionList.Destroy()
 		self.labelAutoactions.Destroy()
 
@@ -963,27 +963,27 @@ class GestureOverride(ruleEditor.ActionsPanel):
 		self.context = context
 		data = self.context["data"]["criteria"]
 		self.gestureMapValue = {}
-		self.gestureMapValue = data.get("gesturesOverrides", {}).copy()
+		self.gestureMapValue = data.get("gestures", {}).copy()
 		self.updateGesturesList()
 
 	def onPanelActivated(self):
-		super(GestureOverride, self).onPanelActivated()
+		super(ActionsPanel, self).onPanelActivated()
 
 	def onAddGesture(self, evt):
-		super(GestureOverride, self).onAddGesture(evt)
+		super(ActionsPanel, self).onAddGesture(evt)
 
 	def updateGesturesList(self, newGestureIdentifier=None, focus=False):
-		super(GestureOverride, self).updateGesturesList(newGestureIdentifier=None, focus=False)
+		super(ActionsPanel, self).updateGesturesList(newGestureIdentifier=None, focus=False)
 
 	def onDeleteGesture(self, evt):
-		super(GestureOverride, self).onDeleteGesture(evt)
+		super(ActionsPanel, self).onDeleteGesture(evt)
 
 	def updateData(self, data = None):
 		rule = self.context["data"]["rule"]
 		data = self.context["data"]["criteria"]
 		ruleType = rule.get("type")
 		if ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
-			data["gesturesOverrides"] = self.gestureMapValue
+			data["gestures"] = self.gestureMapValue
 		else:
 			if data.get("gestures"):
 				del data["gestures"]
@@ -996,7 +996,7 @@ class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
 
 	# Translators: This is the label for the WebAccess criteria settings dialog.
 	title = _("WebAccess Criteria set editor")
-	categoryClasses = [GeneralPanel, CriteriaPanel, OverridesPanel, GestureOverride]
+	categoryClasses = [GeneralPanel, CriteriaPanel, PropertiesPanel, ActionsPanel]
 	INITIAL_SIZE = (800, 480)
 	def makeSettings(self, settingsSizer):
 		super(CriteriaEditorDialog, self).makeSettings(settingsSizer)

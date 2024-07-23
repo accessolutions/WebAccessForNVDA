@@ -71,10 +71,13 @@ OVERRIDABLE_PROPERTIES: Dict[str, Any] = {
 	"gestures": {}
 }
 
-logMsgs = []
+log_msgs = []
 
 
 def merge_popular_structures(list_of_dicts):
+	"""
+	Merges a list of dictionaries by finding the most common value for each key.
+	"""
 	merged = {}
 	keys = set(k for d in list_of_dicts for k in d.keys())
 	for key in keys:
@@ -140,13 +143,13 @@ def process_alternatives(
 				new_rule[rule_allowed_key] = alternative[rule_allowed_key]
 				del alternative[rule_allowed_key]
 
-	valid_overrides_keys = list(RULE_TYPE_FIELDS.get(new_rule["type"], []))
+	overridable_properties = list(RULE_TYPE_FIELDS.get(new_rule["type"], []))
 	popular_values = get_popular_values(alternatives)
 	new_rule.update(popular_values)
 
 	# Remove properties that are not allowed in the rule level
 	to_remove = []
-	rule_allowed_keys.extend(valid_overrides_keys)
+	rule_allowed_keys.extend(overridable_properties)
 	for prop in new_rule:
 		if prop not in rule_allowed_keys:
 			to_remove.append(prop)
@@ -165,7 +168,7 @@ def process_alternatives(
 
 	# Remove invalid properties from alternatives
 	old_keys = ["class", "createWidget", "name", "type", "user", "priority"]
-	old_keys.extend([prop for prop in OVERRIDABLE_PROPERTIES if prop not in valid_overrides_keys])
+	old_keys.extend([prop for prop in OVERRIDABLE_PROPERTIES if prop not in overridable_properties])
 	for key in old_keys:
 		for alternative in alternatives:
 			if key in alternative:
@@ -173,21 +176,21 @@ def process_alternatives(
 
 	# Move override properties to a separate dictionary
 	for alternative in alternatives:
-		overrides = {}
-		keys_to_move = [key for key in alternative if key in valid_overrides_keys]
+		properties = {}
+		keys_to_move = [key for key in alternative if key in overridable_properties]
 		for key in keys_to_move:
-			overrides[key] = alternative[key]
+			properties[key] = alternative[key]
 			del alternative[key]
-		if overrides:
-			alternative["overrides"] = overrides
+		if properties:
+			alternative["properties"] = properties
 
 	# Check if remaining invalid properties exist in alternatives
 	known_fields = [
-		"role", "tag", "className", "id", "text", "states", "relativePath", "index", "src", "overrides",
+		"role", "tag", "className", "id", "text", "states", "relativePath", "index", "src", "properties",
 		"contextPageType", "contextParent", "contextPageTitle"
 	]
 	known_fields.extend(rule_allowed_keys)
-	known_fields.extend(valid_overrides_keys)
+	known_fields.extend(overridable_properties)
 
 	for alternative in alternatives:
 		for key in list(alternative.keys()):
@@ -215,7 +218,7 @@ def process_rules(old_rules: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
 	rules_done = []
 	for old_rule in old_rules:
 		if not all(k in old_rule for k in ("name", "type")):
-			logMsgs.append(f"! Skipping rule without name or type: {old_rule}")
+			log_msgs.append(f"! Skipping rule without name or type: {old_rule}")
 			continue
 
 		if old_rule in rules_done:
@@ -226,7 +229,7 @@ def process_rules(old_rules: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
 		for rule in rules_done:
 			if rule["name"] == rule_name:
 				rule_id = f"{rule_name} (*{rule_type})"
-				logMsgs.append(f"! Duplicate rule name and type: {rule_name} {rule_type}, using ID: {rule_id}")
+				log_msgs.append(f"! Duplicate rule name and type: {rule_name} {rule_type}, using ID: {rule_id}")
 				break
 		alternatives = [alt for alt in old_rules if alt.get("name") == rule_name and alt.get("type") == rule_type]
 		new_rules[rule_id] = process_alternatives(alternatives)
@@ -266,14 +269,14 @@ def convert(data: dict) -> dict:
 		nb_rules += len(v["criteria"])
 	nb_missing_rules = expected_nb_rules - nb_rules
 	if nb_missing_rules:
-		logMsgs.append(f"! Missing {nb_missing_rules} rules (converted {nb_rules})")
-	if logMsgs:
+		log_msgs.append(f"! Missing {nb_missing_rules} rules (converted {nb_rules})")
+	if log_msgs:
 		comment = data.get("WebModule", {}).get("comment", "")
 		if comment:
 			comment += "\n\n"
-		data["WebModule"]["comment"] = comment + "Migration report from 0.6 to 0.8:\n" + "\n".join(logMsgs)
+		data["WebModule"]["comment"] = comment + "Migration report from 0.6 to 0.8:\n" + "\n".join(log_msgs)
 		if __name__ == "__main__":
-			print('\n'.join(logMsgs))
+			print('\n'.join(log_msgs))
 	return data
 
 

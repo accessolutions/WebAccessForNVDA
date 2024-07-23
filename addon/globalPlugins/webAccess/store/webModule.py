@@ -261,15 +261,15 @@ class WebModuleStore(DispatchStore):
 				uniqueKeyRefs.add(keyRef)
 				consolidated[storeRef] = meta
 				continue
-			for property in ["url", "windowTitle"]:
+			for property_ in ["url", "windowTitle"]:
 				if not (
-					property in meta.get("overrides", {})
-					and meta["overrides"][property] == base.get(property)
+					property_ in meta.get("properties", {})
+					and meta["properties"][property_] == base.get(property_)
 				):
-					if property in base:
-						meta[property] = base[property]
-					elif property in meta:
-						del meta[property]
+					if property_ in base:
+						meta[property_] = base[property_]
+					elif property_ in meta:
+						del meta[property_]
 			uniqueKeyRefs.add(keyRef)
 			consolidated[storeRef] = meta
 		return list(consolidated.items())

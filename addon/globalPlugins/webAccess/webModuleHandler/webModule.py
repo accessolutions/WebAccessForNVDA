@@ -253,9 +253,9 @@ class WebModule(baseObject.ScriptableObject):
 			data = layer.data["WebModule"]
 			if name not in data:
 				continue
-			if index > 0 and name in data.get("overrides", {}):
+			if index > 0 and name in data.get("properties", {}):
 				overridden = self._getLayeredProperty(name, startLayerIndex=index - 1)
-				if overridden != data["overrides"][name]:
+				if overridden != data["properties"][name]:
 					return overridden
 			return data[name]
 		if raiseIfMissing:
@@ -274,15 +274,15 @@ class WebModule(baseObject.ScriptableObject):
 		if data.get(name) != value:
 			layer.dirty = True
 			data[name] = value
-		if "overrides" in data:
-			data["overrides"].pop(name, None)
+		if "properties" in data:
+			data["properties"].pop(name, None)
 			try:
 				overridden = self._getLayeredProperty(name, startLayerIndex=-2)
 			except LookupError:
 				return
-			if data["overrides"].get(name) != overridden:
+			if data["properties"].get(name) != overridden:
 				layer.dirty = True
-				data["overrides"][name] = overridden
+				data["properties"][name] = overridden
 
 	def event_webApp_init(self, obj, nextHandler):
 		self.loadUserFile()

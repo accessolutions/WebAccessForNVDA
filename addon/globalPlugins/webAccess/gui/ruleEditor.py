@@ -371,7 +371,7 @@ class GeneralPanel(TreeContextualPanel):
 		self.updateData()
 
 
-class AlternativesPanel(TreeContextualPanel): # TODO : overrides don't work
+class AlternativesPanel(TreeContextualPanel):
 	# Translators: The label for a category in the rule editor
 	title = _("Criteria")
 

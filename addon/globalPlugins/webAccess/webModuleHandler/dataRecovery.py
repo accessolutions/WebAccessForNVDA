@@ -379,7 +379,7 @@ def recoverFrom_0_6_to_0_7(data):
 		rule.pop("priority", None)
 		ruleComments = []
 		for index, alternative in enumerate(alternatives):
-			overrides = OrderedDict()
+			properties = OrderedDict()
 			alternativeComments = []
 			for key, value in rule.get("properties", {}).items():
 				if key in ("criteria", "priority", "comment"):
@@ -389,7 +389,7 @@ def recoverFrom_0_6_to_0_7(data):
 					missing = key not in alternative
 					if altValue is not None and key in ("autoAction", "customName", "customValue", "formMode", "multiple", "sayName", "skip", "mutation"):
 						if missing:
-							overrides[key] = altValue
+							properties[key] = altValue
 						continue
 					alternativeComments.append(
 						"{!r} was {} instead of {!r}"
@@ -406,9 +406,9 @@ def recoverFrom_0_6_to_0_7(data):
 					.format(key, altValue)
 				)
 			criteria = alternative["criteria"][0]
-			if overrides:
-				criteria["overrides"] = {}
-				criteria["overrides"].update(overrides)
+			if properties:
+				criteria["properties"] = {}
+				criteria["properties"].update(properties)
 			if alternativeComments:
 				if criteria.get("comment"):
 					criteria["comment"] += "\n\n"

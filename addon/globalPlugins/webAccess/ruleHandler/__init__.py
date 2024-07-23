@@ -797,7 +797,7 @@ class RuleProperties:
 		return pformat(self.dump())
 
 
-class OverrideRuleProperties:
+class CriterionProperties:
 
 	def __init__(self, data, validFields):
 		self.validFields = validFields
@@ -968,7 +968,7 @@ class Result(baseObject.ScriptableObject):
 
 	def get_property(self, name):
 		return getattr(
-			self.criteria.overrides,
+			self.criteria.properties,
 			name,
 			getattr(self.rule.properties, name, None)
 		)
@@ -1159,8 +1159,8 @@ class Criteria(baseObject.ScriptableObject):
 		return self.rule.ruleManager
 
 	def _get_label(self):
-		if hasattr(self.overrides, "customName"):
-			return self.overrides.customName
+		if hasattr(self.properties, "customName"):
+			return self.properties.customName
 		return self.name or self.rule._get_label()
 
 	def load(self, data):
@@ -1184,9 +1184,9 @@ class Criteria(baseObject.ScriptableObject):
 		for gestureIdentifier in list(self.gestures.keys()):
 			gesturesMap[gestureIdentifier] = "notFound"
 		self.bindGestures(gesturesMap)
-		overrides = data.pop("overrides", {})
+		properties = data.pop("properties", {})
 		ruleTypeFields = ruleTypes.RULE_TYPE_FIELDS.get(self.rule.type, ())
-		self.overrides = OverrideRuleProperties(overrides, ruleTypeFields)
+		self.properties = CriterionProperties(properties, ruleTypeFields)
 		if data:
 			raise ValueError(
 				"Unexpected attribute"
@@ -1220,9 +1220,9 @@ class Criteria(baseObject.ScriptableObject):
 		setIfNotNoneOrEmptyString(data, "src", self.src)
 		setIfNotNoneOrEmptyString(data, "relativePath", self.relativePath)
 		setIfNotDefault(data, "index", self.index)
-		if "overrides" not in data:
-			data["overrides"] = {}
-		setIfNotDefault(data, "overrides", self.overrides.dump())
+		if "properties" not in data:
+			data["properties"] = {}
+		setIfNotDefault(data, "properties", self.properties.dump())
 
 		return data
 
