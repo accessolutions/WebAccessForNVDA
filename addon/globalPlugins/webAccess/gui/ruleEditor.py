@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2024 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -186,14 +186,6 @@ class GeneralPanel(TreeContextualPanel):
 		gbSizer.EmptyCellSize = (0, 0)
 		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
 
-		def scale(*args):
-			if len(args) == 1:
-				return self.scaleSize(args[0])
-			return tuple([
-				self.scaleSize(arg) if arg > 0 else arg
-				for arg in args
-			])
-
 		row = 0
 		# Translators: The Label for a field on the Rule editor
 		item = wx.StaticText(self, label=_("Rule &type:"))
@@ -305,10 +297,10 @@ class GeneralPanel(TreeContextualPanel):
 
 	def onPanelActivated(self):
 		self.refreshSummary()
-		super(GeneralPanel, self).onPanelActivated()
+		super().onPanelActivated()
 
 	def onPanelDeactivated(self):
-		super(GeneralPanel, self).onPanelDeactivated()
+		super().onPanelDeactivated()
 		self.updateData()
 
 	def isValid(self):
@@ -385,17 +377,11 @@ class AlternativesPanel(TreeContextualPanel):
 		gbSizer.EmptyCellSize = (0, 0)
 		#settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
 
-		def scale(*args):
-			return tuple([
-				self.scaleSize(arg) if arg > 0 else arg
-				for arg in args
-			])
-
 		# Translators: Label for a control in the Rule Editor
 		item = wx.StaticText(self, label=_("&Alternatives"))
 		gbSizer.Add(item, pos=(0, 0))
 		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(1, 0))
-		item = self.criteriaList = wx.ListBox(self, size=scale(-1, 150))
+		item = self.criteriaList = wx.ListBox(self, size=self.scale(-1, 150))
 		item.Bind(wx.EVT_LISTBOX, self.onCriteriaSelected)
 		gbSizer.Add(item, pos=(2, 0), span=(6, 1), flag=wx.EXPAND)
 
@@ -405,11 +391,6 @@ class AlternativesPanel(TreeContextualPanel):
 		item = wx.StaticText(self, label=_("Summary"))
 		gbSizer.Add(item, pos=(9, 0))
 		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(10, 0))
-		# 		item = self.summaryText = ExpandoTextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY)
-		# 		item.Bind(EVT_ETC_LAYOUT_NEEDED, lambda evt: self._sendLayoutUpdatedEvent())
-		# 		item.Bind(wx.EVT_TEXT_ENTER, lambda evt: self.Parent.Parent.ProcessEvent(wx.CommandEvent(
-		# 			wx.wxEVT_COMMAND_BUTTON_CLICKED, wx.ID_OK
-		# 		)))
 		item = self.summaryText = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH)
 		gbSizer.Add(item, pos=(11, 0), flag=wx.EXPAND)
 		gbSizer.AddGrowableRow(11)
@@ -594,12 +575,6 @@ class ActionsPanel(TreeContextualPanel):
 		gbSizer.EmptyCellSize = (0, 0)
 		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
 
-		def scale(*args):
-			return tuple([
-				self.scaleSize(arg) if arg > 0 else arg
-				for arg in args
-			])
-
 		row = 0
 		# Translators: Displayed when the selected rule type doesn't support any action
 		item = self.noActionsLabel = wx.StaticText(self, label=_("No action available for the selected rule type."))
@@ -610,17 +585,17 @@ class ActionsPanel(TreeContextualPanel):
 		# Translators: Keyboard shortcut input label for the rule dialog's action panel.
 		item = wx.StaticText(self, label=_("&Gestures"))
 		gbSizer.Add(item, pos=(row, 0), flag=wx.EXPAND)
-		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(row + 1, 0))
+		gbSizer.Add(self.scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(row + 1, 0))
 		innerGbSizer = wx.GridBagSizer()
-		item = self.gesturesList = wx.ListBox(self, size=scale(-1, 100))
+		item = self.gesturesList = wx.ListBox(self, size=self.scale(-1, 100))
 		innerGbSizer.Add(item, pos=(0, 0), span=(4, 1), flag=wx.EXPAND)
-		innerGbSizer.Add(scale(guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL, 0), pos=(0, 1))
+		innerGbSizer.Add(self.scale(guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL, 0), pos=(0, 1))
 		# Translators: The label for a button in the Rule Editor dialog
 		item = wx.Button(self, label=_("&Add"))
 		item.Bind(wx.EVT_BUTTON, self.onAddGesture)
 		self.addButton = item
 		innerGbSizer.Add(item, pos=(0, 2), flag=wx.EXPAND)
-		innerGbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_BUTTONS_VERTICAL), pos=(1, 2))
+		innerGbSizer.Add(self.scale(0, guiHelper.SPACE_BETWEEN_BUTTONS_VERTICAL), pos=(1, 2))
 		# Translators: The label for a button in the Rule Editor dialog
 		item = self.deleteButton = wx.Button(self, label=_("&Delete"))
 		item.Bind(wx.EVT_BUTTON, self.onDeleteGesture)
@@ -631,13 +606,13 @@ class ActionsPanel(TreeContextualPanel):
 		row += 2
 
 		row += 1
-		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+		gbSizer.Add(self.scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
 
 		row += 1
 		# Translators: Automatic action at rule detection input label for the rule dialog's action panel.
 		self.labelAutoactions = wx.StaticText(self, label=_("A&utomatic action at rule detection:"))
 		gbSizer.Add(self.labelAutoactions, pos=(row, 0))
-		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
+		gbSizer.Add(self.scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		self.autoActionList = wx.ComboBox(self, style=wx.CB_READONLY)
 		gbSizer.Add(self.autoActionList, pos=(row, 2), flag=wx.EXPAND)
 
@@ -719,7 +694,7 @@ class ActionsPanel(TreeContextualPanel):
 		self.sizer.ShowItems(show)
 		self.noActionsLabel.Show(not show)
 
-		super(ActionsPanel, self).onPanelActivated()
+		super().onPanelActivated()
 
 	def onSave(self):
 		data = self.getRule()
@@ -761,13 +736,13 @@ class PropertiesPanel(TreeContextualPanel, properties.ListControl):
 		self.updateData()
 
 	def onInitUpdateListCtrl(self):
-		super(PropertiesPanel, self).onInitUpdateListCtrl()
+		super().onInitUpdateListCtrl()
 
 	def spaceIsPressedOnTreeNode(self, withShift=False):
 		self.listCtrl.SetFocus()
 
 	def initPropertiesList(self, context):
-		super(PropertiesPanel, self).initPropertiesList(self.context)
+		super().initPropertiesList(self.context)
 		index = self.listCtrl.GetFirstSelected()
 		vnew = self.context.get("new")
 		dataRule = self.getRule()
@@ -781,7 +756,7 @@ class PropertiesPanel(TreeContextualPanel, properties.ListControl):
 		self.focusListCtrl(index=index)
 
 	def updateListCtrl(self, data):
-		super(PropertiesPanel, self).updateListCtrl(data)
+		super().updateListCtrl(data)
 
 	def updateData(self, data=None):
 		propertiesMapValue = {}
@@ -953,14 +928,6 @@ class ChildAlternativePanel(AlternativesPanel):
 	def makeSettings(self, settingsSizer):
 		self.settingsSizer = gbSizer = wx.GridBagSizer()
 		gbSizer.EmptyCellSize = (0, 0)
-
-		# settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
-
-		def scale(*args):
-			return tuple([
-				self.scaleSize(arg) if arg > 0 else arg
-				for arg in args
-			])
 
 		# Translators: The label for a field on the Rule editor
 		item = wx.StaticText(self, label=_("Summary"))
@@ -1183,7 +1150,7 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 	def __init__(self, *args, **kwargs):
 		# Uncomment the below to focus the first field upon dialog appearance
 		# kwargs["initialCategory"] = GeneralPanel
-		super(RuleEditorDialog, self).__init__(*args, **kwargs)
+		super().__init__(*args, **kwargs)
 		self.isCreation = False
 
 	# from . import criteriaEditor
@@ -1295,7 +1262,7 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 						dataProps["properties"]["formMode"] = False
 					break
 				node = node.parent
-		super(RuleEditorDialog, self).initData(context)
+		super().initData(context)
 
 	def _doCategoryChange__(self, newCatId):
 		if (
@@ -1309,10 +1276,10 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 				newCatId = self.categoryClasses.index(criteriaEditor.CriteriaPanel_)
 				context["data"]["criteria"] = lst[0]
 
-		super(RuleEditorDialog, self)._doCategoryChange(newCatId)
+		super()._doCategoryChange(newCatId)
 
 	def _doSave(self):
-		super(RuleEditorDialog, self)._doSave()
+		super()._doSave()
 		try:
 			context = self.context
 			mgr = context["webModule"].ruleManager

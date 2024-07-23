@@ -159,6 +159,12 @@ class ContextualSettingsPanel(FillableSettingsPanel):
 		self.context = None
 		super(ContextualSettingsPanel, self).__init__(*args, **kwargs)
 
+	def scale(self, *args):
+		return tuple([
+			self.scaleSize(arg) if arg > 0 else arg
+			for arg in args
+		])
+
 	def initData(self, context):
 		raise NotImplemented()
 

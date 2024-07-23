@@ -102,33 +102,30 @@ class ListControl(ContextualSettingsPanel):
 		gbSizer.Add(self.propertiesLabel, pos=(row, 0), flag=wx.EXPAND)
 		self.hidable.append(self.propertiesLabel)
 
-		self.listCtrl = wx.ListCtrl(self, size=(650, 300), style=wx.LC_REPORT | wx.BORDER_SUNKEN)
+		self.listCtrl = wx.ListCtrl(self, size=(-1, 250), style=wx.LC_REPORT | wx.BORDER_SUNKEN)
 		self.listCtrl.InsertColumn(0, 'Properties')
 		self.listCtrl.InsertColumn(1, 'Value')
 		self.hidable.append(self.listCtrl)
 		row += 1
 
-		self.editable = wx.TextCtrl(self, size=(650, 30))
+		self.editable = wx.TextCtrl(self, size=(-1, 30))
 		self.hidable.append(self.editable)
 
-		self.toggleBtn = wx.ToggleButton(self, label="", size=(325, 30))
+		self.toggleBtn = wx.ToggleButton(self, label="", size=(150, 30))
 		self.hidable.append(self.toggleBtn)
 
-		self.choice = wx.Choice(self, choices=[], size=(325, 30))
+		self.choice = wx.Choice(self, choices=[], size=(150, 30))
 		self.hidable.append(self.choice)
 
-		sizer = wx.GridBagSizer(hgap=5, vgap=5)
-		sizer.Add(self.listCtrl, pos=(1, 0), flag=wx.EXPAND)
-
-		sizeEdit = wx.BoxSizer(wx.HORIZONTAL)
-		sizeEdit.Add(self.editable)
-		sizer.Add(sizeEdit, pos=(2, 0), span=(0, 1), flag=wx.EXPAND)
+		gbSizer.Add(self.listCtrl, pos=(row, 0), span=(3,3), flag=wx.EXPAND)
+		row += 3
+		gbSizer.Add(self.editable, pos=(row, 0), span=(0, 1), flag=wx.EXPAND)
+		row += 1
 
 		sizeBox = wx.BoxSizer(wx.HORIZONTAL)
 		sizeBox.Add(self.toggleBtn)
-		sizeBox.Add(self.choice, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL)
-		sizer.Add(sizeBox, pos=(3, 0), flag=wx.EXPAND)
-		gbSizer.Add(sizer, pos=(row, 0), flag=wx.EXPAND)
+		sizeBox.Add(self.choice)
+		gbSizer.Add(sizeBox, pos=(row, 0), flag=wx.EXPAND)
 		self.sizer = gbSizer
 		# wx.List control event binding
 		self.listCtrl.Bind(wx.EVT_LIST_ITEM_SELECTED, self.onItemSelListCtrl)
@@ -150,6 +147,7 @@ class ListControl(ContextualSettingsPanel):
 		self.objIncMut = IncrDecrListPos()
 		self.objIncGest = IncrDecrListPos()
 
+		gbSizer.AddGrowableCol(0)
 
 	def initData(self, context, **kwargs):
 		"""
@@ -765,14 +763,14 @@ class AppendListCtrl(ListControl):
 	lst = []
 
 	def __init__(self, clientListBox):
-		super(AppendListCtrl, self).__init__(clientListBox)
+		super().__init__(clientListBox)
 		self.clientListBox = clientListBox
 
 	def appendToList(self):
 		if not AppendListCtrl.lst:
 			return
 		else:
-			super(AppendListCtrl, self).appendToList()
+			super().appendToList()
 			AppendListCtrl.lst.clear()
 
 
@@ -782,7 +780,7 @@ class PropsMenu(wx.Menu):
 	"""
 
 	def __init__(self, context, properties):
-		super(PropsMenu, self).__init__()
+		super().__init__()
 		self.context = context
 		self.properties = properties
 		for props in self.properties:
@@ -858,15 +856,15 @@ class ToggleProperty(Property):
 			value: bool,
 			flag: bool,
 	):
-		super(ToggleProperty, self).__init__(id, display_name, PropertyType.TOGGLE)
+		super().__init__(id, display_name, PropertyType.TOGGLE)
 		self.__flag = flag
 		self.__value = value
 
 	def get_id(self):
-		return super(ToggleProperty, self).get_id()
+		return super().get_id()
 
 	def get_displayName(self):
-		return super(ToggleProperty, self).get_displayName()
+		return super().get_displayName()
 
 	def get_value(self):
 		return self.__value
@@ -898,15 +896,15 @@ class SingleChoiceProperty(Property):
 			flag: bool,
 			value: Optional[str] = None,
 	):
-		super(SingleChoiceProperty, self).__init__(id, display_name, PropertyType.SINGLE_CHOICE)
+		super().__init__(id, display_name, PropertyType.SINGLE_CHOICE)
 		self.__value = value
 		self.__flag = flag
 
 	def get_id(self):
-		return super(SingleChoiceProperty, self).get_id()
+		return super().get_id()
 
 	def get_displayName(self):
-		return super(SingleChoiceProperty, self).get_displayName()
+		return super().get_displayName()
 
 	def get_flag(self):
 		return self.__flag
@@ -938,15 +936,15 @@ class EditableProperty(Property):
 			flag: bool,
 			value: Optional[str] = None,
 	):
-		super(EditableProperty, self).__init__(id, display_name, PropertyType.EDITABLE)
+		super().__init__(id, display_name, PropertyType.EDITABLE)
 		self.__value = value
 		self.__flag = flag
 
 	def get_id(self):
-		return super(EditableProperty, self).get_id()
+		return super().get_id()
 
 	def get_displayName(self):
-		return super(EditableProperty, self).get_displayName()
+		return super().get_displayName()
 
 	def get_value(self):
 		return self.__value
