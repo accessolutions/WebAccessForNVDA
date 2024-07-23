@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2024.06.26"
+__version__ = "2024.07.23"
 __author__ = "Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 from collections import OrderedDict, namedtuple
@@ -1145,7 +1145,6 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 		ActionsPanel,
 		PropertiesPanel,
 	]
-	INITIAL_SIZE = (750, 520)
 
 	def __init__(self, *args, **kwargs):
 		# Uncomment the below to focus the first field upon dialog appearance
