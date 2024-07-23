@@ -215,7 +215,7 @@ class ListControl(ContextualSettingsPanel):
 			return _("Custom name")
 		return default
 
-	def getKeyByRuleType(self, displayName):
+	def changeDisplayNameForCustomFields(self, displayName):
 		"""
 		Function converts the appropriate display name to the listctrl activate funtions
 		"""
@@ -456,7 +456,7 @@ class ListControl(ContextualSettingsPanel):
 		"""
 		self.currentSelItem = evt.GetItem()
 		listItem = self.getItemSelRow()
-		customItem = self.getKeyByRuleType(listItem[0])
+		customItem = self.changeDisplayNameForCustomFields(listItem[0])
 		for p in self.propertiesList:
 			if not customItem == p.get_displayName():
 				continue
