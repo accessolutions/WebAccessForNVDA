@@ -395,7 +395,9 @@ class RuleManager(baseObject.ScriptableObject):
 			self._ready = True
 			self.nodeManagerIdentifier = self.nodeManager.identifier
 			if self.zone is not None:
-				if not self.zone.update():
+				if not self.zone.update() or not self.zone.containsTextInfo(
+					self.nodeManager.treeInterceptor.makeTextInfo(textInfos.POSITION_CARET)
+				):
 					self.zone = None
 			#logTime("update marker", t)
 			if self.isReady:
@@ -584,14 +586,14 @@ class RuleManager(baseObject.ScriptableObject):
 					or (
 						(
 							not respectZone
-							or self.zone.containsNode(result.node)
+							or self.zone.containsResult(result)
 						)
 						and not (
 							# If respecting zone restriction or iterating
 							# backwards relative to the caret position,
 							# avoid returning the current zone itself.
 							self.zone.name == result.rule.name
-							and self.zone.startOffset == result.node.offset
+							and self.zone.containsResult(result)
 						)
 					)
 				)
@@ -1496,6 +1498,7 @@ class Zone(textInfos.offsets.Offsets, TrackedObject):
 		rule = result.rule
 		self._ruleManager = weakref.ref(rule.ruleManager)
 		self.name = rule.name
+		self.index = result.index
 		super().__init__(startOffset=None, endOffset=None)
 		self._update(result)
 
@@ -1582,8 +1585,9 @@ class Zone(textInfos.offsets.Offsets, TrackedObject):
 
 	def update(self):
 		try:
-			result = next(self.ruleManager.iterResultsByName(self.name))
-		except StopIteration:
+			# Result index is 1-based
+			result = self.ruleManager.iterResultsByName(self.name)[self.index - 1]
+		except IndexError:
 			self.startOffset = self.endOffset = None
 			return False
 		return self._update(result)
