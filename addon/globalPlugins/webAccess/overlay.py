@@ -243,12 +243,12 @@ class WebAccessBmdtiTextInfo(textInfos.offsets.OffsetsTextInfo):
 	def find(self, text, caseSensitive=False, reverse=False):
 		zone = self.obj.webAccess.zone
 		if not zone:
-			return super(WebAccessBmdtiTextInfo, self).find(
+			return super().find(
 				text, caseSensitive, reverse
 			)
 		savedStart = self._startOffset
 		savedEnd = self._endOffset
-		found = super(WebAccessBmdtiTextInfo, self).find(
+		found = super().find(
 			text, caseSensitive, reverse
 		)
 		if not zone.containsTextInfo(self):
@@ -260,7 +260,7 @@ class WebAccessBmdtiTextInfo(textInfos.offsets.OffsetsTextInfo):
 	def move(self, unit, direction, endPoint=None):
 		zone = self.obj.webAccess.zone
 		if not zone:
-			return super(WebAccessBmdtiTextInfo, self).move(
+			return super().move(
 				unit, direction, endPoint=endPoint
 			)
 		wasCollapsed = self.isCollapsed
@@ -268,7 +268,7 @@ class WebAccessBmdtiTextInfo(textInfos.offsets.OffsetsTextInfo):
 		while count != direction:
 			lastStart = self._startOffset
 			lastEnd = self._endOffset
-			moved = super(WebAccessBmdtiTextInfo, self).move(
+			moved = super().move(
 				unit, direction, endPoint=endPoint
 			)
 			if not moved:
@@ -294,13 +294,13 @@ class WebAccessBmdtiTextInfo(textInfos.offsets.OffsetsTextInfo):
 		zone = self.obj.webAccess.zone
 		if zone and not zone.containsTextInfo(self):
 			self.obj.webAccess.zone = None
-		super(WebAccessBmdtiTextInfo, self).updateCaret()
+		super().updateCaret()
 
 	def updateSelection(self):
 		zone = self.obj.webAccess.zone
 		if zone and not zone.containsTextInfo(self):
 			self.obj.webAccess.zone = None
-		super(WebAccessBmdtiTextInfo, self).updateSelection()
+		super().updateSelection()
 
 	def _getControlFieldAttribs(self, docHandle, controlId):
 		info = self.copy()
@@ -328,7 +328,7 @@ class WebAccessBmdtiTextInfo(textInfos.offsets.OffsetsTextInfo):
 		return attrs
 
 	def _getFieldsInRange(self, start, end):
-		fields = super(WebAccessBmdtiTextInfo, self)._getFieldsInRange(
+		fields = super()._getFieldsInRange(
 			start, end
 		)
 		mgr = self.obj.webAccess.ruleManager
@@ -353,7 +353,7 @@ class WebAccessMutatedQuickNavItem(browseMode.TextInfoQuickNavItem):
 	A `TextInfoQuickNavItem` supporting mutated controls.
 	"""
 	def __init__(self, itemType, document, textInfo, controlId):
-		super(WebAccessMutatedQuickNavItem, self).__init__(
+		super().__init__(
 			itemType, document, textInfo
 		)
 		self.controlId = controlId
@@ -380,7 +380,7 @@ class WebAccessMutatedQuickNavItem(browseMode.TextInfoQuickNavItem):
 					return True
 			except (AttributeError, KeyError, ValueError, TypeError):
 				return False
-		return super(WebAccessMutatedQuickNavItem, self).isChild(parent)
+		return super().isChild(parent)
 
 	@property
 	def label(self):
@@ -406,7 +406,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 	WebAccess `BrowseModeDocumentTreeInterceptor` overlay.
 	"""
 	def __init__(self, obj):
-		super(WebAccessBmdti, self).__init__(obj)
+		super().__init__(obj)
 		self.webAccess = WebAccessBmdtiHelper(self)
 		# As of NVDA commit 9a1a935491, `TreeInterceptor.TextInfo` can either
 		# be an auto-property or a field.
@@ -425,10 +425,10 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 
 	def terminate(self):
 		self.webAccess.terminate()
-		super(WebAccessBmdti, self).terminate()
+		super().terminate()
 
 	def _get_isAlive(self):
-		isAlive = super(WebAccessBmdti, self).isAlive
+		isAlive = super().isAlive
 		if isAlive:
 			return isAlive
 		# Due to unidentified race conditions, MSHTML sometimes caches a zero-valued IAccessibleRole
@@ -447,11 +447,11 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		except Exception:
 			log.exception()
 		else:
-			isAlive = super(WebAccessBmdti, self).isAlive
+			isAlive = super().isAlive
 		return isAlive
 
 	def _get_TextInfo(self):
-		superCls = super(WebAccessBmdti, self)._get_TextInfo()
+		superCls = super()._get_TextInfo()
 		if not issubclass(superCls, textInfos.offsets.OffsetsTextInfo):
 			return superCls
 		return getDynamicClass((WebAccessBmdtiTextInfo, superCls))
@@ -461,7 +461,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		if webModule and hasattr(webModule, "_set_selection"):
 			webModule._set_selection(self, info, reason=reason)
 			return
-		super(WebAccessBmdti, self)._set_selection(info, reason=reason)
+		super()._set_selection(info, reason=reason)
 
 	def _caretMovementScriptHelper(
 		self,
@@ -510,7 +510,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			elif posConstant == textInfos.POSITION_LAST:
 				pos = max(zone.endOffset - 1, zone.startOffset)
 				posConstant = textInfos.offsets.Offsets(pos, pos)
-		super(WebAccessBmdti, self)._caretMovementScriptHelper(
+		super()._caretMovementScriptHelper(
 			gesture,
 			unit,
 			direction=direction,
@@ -522,7 +522,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		)
 
 	def _iterNodesByType(self, itemType, direction="next", pos=None):
-		superIter = super(WebAccessBmdti, self)._iterNodesByType(
+		superIter = super()._iterNodesByType(
 			itemType, direction, pos
 		)
 		if itemType == "focusable":
@@ -827,7 +827,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			errorMessage += " "
 			# Translators: Hint on how to cancel zone restriction.
 			errorMessage += _("Press escape to cancel zone restriction.")
-		super(WebAccessBmdti, self)._quickNavScript(
+		super()._quickNavScript(
 			gesture, itemType, direction, errorMessage, readUnit
 		)
 
@@ -850,7 +850,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 					msg += _("Press escape to cancel zone restriction.")
 				ui.message(msg)
 				return True
-		return super(WebAccessBmdti, self)._tabOverride(direction)
+		return super()._tabOverride(direction)
 
 	def doFindText(self, text, reverse=False, caseSensitive=False, willSayAllResume=False):
 		if not text:
@@ -924,7 +924,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 				script = self.script_passThrough
 			if getattr(script, "ignoreSingleLetterNavSetting", False):
 				return script
-		return super(WebAccessBmdti, self).getAlternativeScript(gesture, script)
+		return super().getAlternativeScript(gesture, script)
 
 	def getScript(self, gesture):
 		webModule = self.webAccess.webModule
@@ -941,14 +941,14 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 				return ScriptWrapper(
 					func, ignoreTreeInterceptorPassThrough=True
 				)
-		return super(WebAccessBmdti, self).getScript(gesture)
+		return super().getScript(gesture)
 
 	def event_treeInterceptor_gainFocus(self):
 		webModule = self.webAccess.webModule
 		if webModule and hasattr(webModule, "event_treeInterceptor_gainFocus"):
 			if webModule.event_treeInterceptor_gainFocus():
 				return
-		super(WebAccessBmdti, self).event_treeInterceptor_gainFocus()
+		super().event_treeInterceptor_gainFocus()
 
 	def script_disablePassThrough(self, gesture):
 		if (
@@ -958,7 +958,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			self.webAccess.zone = None
 			ui.message(_("Zone restriction cancelled"))
 		else:
-			super(WebAccessBmdti, self).script_disablePassThrough(gesture)
+			super().script_disablePassThrough(gesture)
 
 	script_disablePassThrough.ignoreTreeInterceptorPassThrough = True
 
@@ -994,7 +994,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		gesture="kb:NVDA+shift+f7"
 	)
 	def script_elementsListInZone(self, gesture):
-		super(WebAccessBmdti, self).script_elementsList(gesture)
+		super().script_elementsList(gesture)
 
 	script_elementsListInZone.ignoreTreeInterceptorPassThrough = True
 	script_elementsListInZone.passThroughIfNoWebModule = True
@@ -1181,7 +1181,7 @@ class WebAccessObject(IAccessible):
 		if original:
 			self.webAccess._original = True
 		try:
-			name = super(WebAccessObject, self).name
+			name = super().name
 			if original or not getattr(self, "webAccess", False) or getattr(self.webAccess, "_original", False):
 				return name
 			return self.webAccess.getMutatedControlAttribute("name", name)
@@ -1192,7 +1192,7 @@ class WebAccessObject(IAccessible):
 	def _get_positionInfo(self):
 		# "level" is text in control field attributes,
 		# but int in position info...
-		info = super(WebAccessObject, self).positionInfo
+		info = super().positionInfo
 		level = self.webAccess.getMutatedControlAttribute("level")
 		if level:
 			try:
@@ -1208,7 +1208,7 @@ class WebAccessObject(IAccessible):
 		if original:
 			self.webAccess._original = True
 		try:
-			role = super(WebAccessObject, self).role
+			role = super().role
 			if original or not getattr(self, "webAccess", False) or getattr(self.webAccess, "_original", False):
 				return role
 			return self.webAccess.getMutatedControlAttribute("role", role)
@@ -1217,7 +1217,7 @@ class WebAccessObject(IAccessible):
 				self.webAccess._original = False
 
 	def _set_treeInterceptor(self, obj):
-		super(WebAccessObject, self)._set_treeInterceptor(obj)
+		super()._set_treeInterceptor(obj)
 		if isinstance(obj, WebAccessBmdti):
 			webModule = obj.webAccess.webModule
 			if not webModule:
@@ -1242,7 +1242,7 @@ class WebAccessDocument(WebAccessObject):
 
 	def _get_treeInterceptorClass(self):
 		# Might raise NotImplementedError on purpose.
-		superCls = super(WebAccessDocument, self).treeInterceptorClass
+		superCls = super().treeInterceptorClass
 		if not issubclass(
 			superCls,
 			browseMode.BrowseModeDocumentTreeInterceptor

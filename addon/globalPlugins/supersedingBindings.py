@@ -78,7 +78,7 @@ MONKEY_PATCH_ATTR_NAME = "_supersedingBindings__monkeyPatched"
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def __init__(self):
-		super(GlobalPlugin, self).__init__()
+		super().__init__()
 		# Monkey-patch the User Global Gesture Map
 		userGestureMap = inputCore.manager.userGestureMap
 		userGestureMap_add.super = userGestureMap.add

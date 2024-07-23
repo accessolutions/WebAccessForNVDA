@@ -79,12 +79,12 @@ class WebAccessSettingsDialog(SettingsDialog):
 			log.debugWarning("", exc_info=True)
 			return
 		self.panel.Destroy()
-		super(WebAccessSettingsDialog, self).onOk(evt)
+		super().onOk(evt)
 
 	def onCancel(self,evt):
 		self.panel.onDiscard()
 		self.panel.Destroy()
-		super(WebAccessSettingsDialog, self).onCancel(evt)
+		super().onCancel(evt)
 
 
 class WebAccessSettingsPanel(SettingsPanel):

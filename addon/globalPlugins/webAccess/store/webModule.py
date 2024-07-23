@@ -57,7 +57,7 @@ except ImportError:
 class WebModuleJsonFileDataStore(Store):
 
 	def __init__(self, name, basePath, dirName="webModulesMC"):
-		super(WebModuleJsonFileDataStore, self).__init__(name=name)
+		super().__init__(name=name)
 		self.basePath = basePath
 		self.path = os.path.join(basePath, dirName)
 
@@ -169,7 +169,7 @@ class WebModuleJsonFileDataStore(Store):
 			if self.basePath == globalVars.appArgs.configPath:
 				return not config.conf["webAccess"]["disableUserConfig"]
 			return config.conf["webAccess"]["devMode"]
-		return super(WebModuleJsonFileDataStore, self).supports(operation, **kwargs)
+		return super().supports(operation, **kwargs)
 
 	def update(self, item, ref=None, force=False):
 		if ref is None:
@@ -227,17 +227,17 @@ class WebModuleStore(DispatchStore):
 					name=addon.name, basePath=addon.path,
 			)
 		))
-		super(WebModuleStore, self).__init__(*args, **kwargs)
+		super().__init__(*args, **kwargs)
 
 	def alternatives(self, keyRef):
 		return (
-			storeRef for storeRef, meta in super(WebModuleStore, self).catalog()
+			storeRef for storeRef, meta in super().catalog()
 			if self._getKeyRef(storeRef) == keyRef
 		)
 
 	def catalog(self, errors=None):
 		full = OrderedDict()
-		for storeRef, meta in super(WebModuleStore, self).catalog(errors=errors):
+		for storeRef, meta in super().catalog(errors=errors):
 			full[storeRef] = meta
 		uniqueKeyRefs = set()
 		consolidated = OrderedDict()
@@ -280,7 +280,7 @@ class WebModuleStore(DispatchStore):
 			raise ValueError("Expecting a single new data layer, found {}.".format(len(layers)))
 		layer = layers[0]
 		layer = item.dump(layer.name)
-		layer.storeRef = super(WebModuleStore, self).create(layer, **kwargs)
+		layer.storeRef = super().create(layer, **kwargs)
 
 	def delete(self, item, layerName=None, ref=None, **kwargs):
 		if layerName is not None:
@@ -300,7 +300,7 @@ class WebModuleStore(DispatchStore):
 				raise Exception("UserConfig is disabled")
 		elif not config.conf["webAccess"]["devMode"]:
 			raise Exception("This action is allowed only in Developer Mode")
-		super(WebModuleStore, self).delete(layer, ref=ref, **kwargs)
+		super().delete(layer, ref=ref, **kwargs)
 
 	def get(self, ref):
 		keyRef = self._getKeyRef(ref)
@@ -340,7 +340,7 @@ class WebModuleStore(DispatchStore):
 		return item
 
 	def getData(self, ref):
-		return super(WebModuleStore, self).get(ref)
+		return super().get(ref)
 
 	def getSupportingStores(self, operation, **kwargs):
 		if operation == "create":
@@ -360,7 +360,7 @@ class WebModuleStore(DispatchStore):
 				if self.scratchpadStore and self.scratchpadStore.supports(operation):
 					return (self.scratchpadStore,)
 			return tuple()
-		return super(WebModuleStore, self).getSupportingStores(operation, **kwargs)
+		return super().getSupportingStores(operation, **kwargs)
 
 	def update(self, item, layerName=None, ref=None, **kwargs):
 		if layerName is not None or ref is not None:
@@ -385,7 +385,7 @@ class WebModuleStore(DispatchStore):
 		elif not config.conf["webAccess"]["devMode"]:
 			raise Exception("This action is allowed only in Developer Mode")
 		layer = item.dump(layer.name)
-		super(WebModuleStore, self).update(layer, ref=ref, **kwargs)
+		super().update(layer, ref=ref, **kwargs)
 
 	def _getKeyRef(self, storeRef):
 		# Consider only the tail of DispatcherStore refs

@@ -109,7 +109,7 @@ scheduler = None
 class DefaultBrowserScripts(baseObject.ScriptableObject):
 
 	def __init__(self, warningMessage):
-		super(DefaultBrowserScripts,self).__init__()
+		super().__init__()
 		self.warningMessage = warningMessage
 		for ascii in range(ord("a"), ord("z")+1):
 			character = chr(ascii)
@@ -144,7 +144,7 @@ def getVersion():
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def __init__(self):
-		super(globalPluginHandler.GlobalPlugin, self).__init__()
+		super().__init__()
 
 		from .config import initialize as config_initialize
 		config_initialize()

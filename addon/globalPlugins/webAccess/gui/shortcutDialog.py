@@ -50,7 +50,7 @@ resultActionData = ""
 class Dialog(wx.Dialog):
 
 	def __init__(self, parent):
-		super(Dialog, self).__init__(
+		super().__init__(
 			parent,
 			style=wx.DEFAULT_DIALOG_STYLE | wx.MAXIMIZE_BOX | wx.RESIZE_BORDER,
 		)
@@ -200,4 +200,4 @@ class Dialog(wx.Dialog):
 		self.Fit()
 		self.CenterOnScreen()
 		self.inputShortcut.SetFocus()
-		return super(Dialog, self).ShowModal()
+		return super().ShowModal()

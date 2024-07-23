@@ -85,7 +85,7 @@ class Dialog(wx.Dialog, DpiScalingHelperMixin):
 			return
 		Dialog._instance = self
 
-		super(Dialog, self).__init__(
+		super().__init__(
 			parent,
 			style=wx.DEFAULT_DIALOG_STYLE | wx.MAXIMIZE_BOX | wx.RESIZE_BORDER,
 		)
@@ -313,5 +313,5 @@ class Dialog(wx.Dialog, DpiScalingHelperMixin):
 		self.Fit()
 		self.CentreOnScreen()
 		self.webModuleName.SetFocus()
-		return super(Dialog, self).ShowModal()
+		return super().ShowModal()
 

@@ -108,7 +108,7 @@ def showManager(context):
 class DefaultScripts(baseObject.ScriptableObject):
 
 	def __init__(self, warningMessage):
-		super(DefaultScripts, self).__init__()
+		super().__init__()
 		self.warningMessage = warningMessage
 		for ascii in range(ord("a"), ord("z")+1):
 			character = chr(ascii)
@@ -124,7 +124,7 @@ class DefaultScripts(baseObject.ScriptableObject):
 class RuleManager(baseObject.ScriptableObject):
 
 	def __init__(self, webModule):
-		super(RuleManager, self).__init__()
+		super().__init__()
 		self._ready = False
 		self._webModule = weakref.ref(webModule)
 		self._nodeManager = None
@@ -281,7 +281,7 @@ class RuleManager(baseObject.ScriptableObject):
 		return actions
 
 	def getScript(self, gesture):
-		func = super(RuleManager, self).getScript(gesture)
+		func = super().getScript(gesture)
 		if func is not None:
 			return func
 		for layer in reversed(list(self._layers.keys())):
@@ -925,7 +925,7 @@ class CustomActionDispatcher(object):
 class Result(baseObject.ScriptableObject):
 
 	def __init__(self, criteria):
-		super(Result, self).__init__()
+		super().__init__()
 		self._criteria = weakref.ref(criteria)
 		rule = criteria.rule
 		self._rule = weakref.ref(rule)
@@ -1013,7 +1013,7 @@ class Result(baseObject.ScriptableObject):
 class SingleNodeResult(Result):
 
 	def __init__(self, criteria, node, context, index):
-		super(SingleNodeResult, self).__init__(criteria)
+		super().__init__(criteria)
 		self._node = weakref.ref(node)
 		self.context = context
 		self.index = index
@@ -1145,7 +1145,7 @@ class SingleNodeResult(Result):
 class Criteria(baseObject.ScriptableObject):
 
 	def __init__(self, rule, data):
-		super(Criteria, self).__init__()
+		super().__init__()
 		self._rule = weakref.ref(rule)
 		self.load(data)
 
@@ -1397,7 +1397,7 @@ class Criteria(baseObject.ScriptableObject):
 class Rule(baseObject.ScriptableObject):
 
 	def __init__(self, ruleManager, data):
-		super(Rule, self).__init__()
+		super().__init__()
 		self.layer = None
 		self._ruleManager = weakref.ref(ruleManager)
 		self._results = None
@@ -1571,7 +1571,7 @@ class Zone(textInfos.offsets.Offsets, TrackedObject):
 		rule = result.rule
 		self._ruleManager = weakref.ref(rule.ruleManager)
 		self.name = rule.name
-		super(Zone, self).__init__(startOffset=None, endOffset=None)
+		super().__init__(startOffset=None, endOffset=None)
 		self._update(result)
 
 	@property

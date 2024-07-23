@@ -100,7 +100,7 @@ class WebModule(baseObject.ScriptableObject):
 	FORMAT_VERSION = version.parse(FORMAT_VERSION_STR)
 
 	def __init__(self):
-		super(WebModule, self).__init__()
+		super().__init__()
 		self.layers = []  # List of `WebModuleDataLayer` instances
 		self.activePageTitle = None
 		self.activePageIdentifier = None

@@ -39,7 +39,7 @@ class AddonsStore(DispatchStore):
 		if not "name" in kwargs:
 			kwargs["name"] = "addons"
 		self.addonStoreFactory = kwargs["addonStoreFactory"]
-		super(AddonsStore, self).__init__(*args, **kwargs)
+		super().__init__(*args, **kwargs)
 
 	def __getStores(self):
 		for addon in addonHandler.getAvailableAddons():
@@ -53,7 +53,7 @@ class AddonsStore(DispatchStore):
 	def update(self, *args, **kwargs):
 		if not (config.conf["webAccess"]["devMode"] and config.conf["webAccess"]["writeInAddons"]):
 			return Store.update(self, *args, **kwargs)
-		return super(AddonsStore, self).update(*args, **kwargs)
+		return super().update(*args, **kwargs)
 	
 	def supports(self, operation, **kwargs):
 		if operation in ("create", "mask"):

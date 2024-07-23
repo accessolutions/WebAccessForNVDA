@@ -100,7 +100,7 @@ class Dialog(wx.Dialog):
 			return
 		Dialog._instance = self
 
-		super(Dialog, self).__init__(
+		super().__init__(
 			parent,
 			# Translators: The title of the Web Modules Manager dialog
 			title=_("Web Modules Manager"),
@@ -288,4 +288,4 @@ class Dialog(wx.Dialog):
 		self.Fit()
 		self.modulesList.SetFocus()
 		self.CentreOnScreen()
-		return super(Dialog, self).Show()
+		return super().Show()

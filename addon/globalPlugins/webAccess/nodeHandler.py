@@ -68,7 +68,7 @@ nodeManagerIndex = 0
 class NodeManager(baseObject.ScriptableObject):
 
 	def __init__(self, treeInterceptor, callbackNodeMoveto=None):
-		super(NodeManager, self).__init__()
+		super().__init__()
 		global nodeManagerIndex
 		nodeManagerIndex = nodeManagerIndex + 1
 		self.index = nodeManagerIndex
@@ -445,7 +445,7 @@ class NodeField(TrackedObject):
 		return None
 
 	def __init__(self, nodeType, attrs, parent, offset, nodeManager):
-		super(NodeField, self).__init__()
+		super().__init__()
 		self._nodeManager = weakref.ref(nodeManager)
 		self._parent = weakref.ref(parent) if parent is not None else None
 		self.offset = offset
@@ -503,7 +503,7 @@ class NodeField(TrackedObject):
 	def __del__(self):
 		global countNode
 		countNode = countNode - 1
-		super(NodeField, self)
+		super()
 
 	def __repr__(self):
 		if hasattr(self, "text"):

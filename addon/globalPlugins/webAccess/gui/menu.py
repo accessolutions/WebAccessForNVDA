@@ -44,7 +44,7 @@ def show(context):
 class Menu(wx.Menu):
 	
 	def __init__(self, context):
-		super(Menu, self).__init__()
+		super().__init__()
 		
 		self.context = context
 		

@@ -297,7 +297,7 @@ GROUP_BY = (
 class Dialog(wx.Dialog):
 
 	def __init__(self, parent):
-		super(Dialog, self).__init__(
+		super().__init__(
 			parent=gui.mainFrame,
 			id=wx.ID_ANY,
 			style=wx.DEFAULT_DIALOG_STYLE | wx.MAXIMIZE_BOX
@@ -661,4 +661,4 @@ class Dialog(wx.Dialog):
 		self.Fit()
 		self.CentreOnScreen()
 		self.tree.SetFocus()
-		return super(Dialog, self).ShowModal()
+		return super().ShowModal()

@@ -55,7 +55,7 @@ class WebAppScheduler(threading.Thread):
 	lastTreeInterceptor = None
 	
 	def __init__(self):
-		super(WebAppScheduler,self).__init__()
+		super().__init__()
 		self.daemon = True
 		self.queue = queue.Queue()
 		global scheduler

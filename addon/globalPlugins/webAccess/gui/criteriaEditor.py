@@ -340,11 +340,11 @@ class GeneralPanel(ContextualSettingsPanel):
 
 	def onPanelActivated(self):
 		self.refreshSummary()
-		super(GeneralPanel, self).onPanelActivated()
+		super().onPanelActivated()
 
 	def onPanelDeactivated(self):
 		self.updateData()
-		super(GeneralPanel, self).onPanelDeactivated()
+		super().onPanelDeactivated()
 
 	def onSave(self):
 		self.updateData()
@@ -742,11 +742,11 @@ class CriteriaPanel(ContextualSettingsPanel):
 	def onPanelActivated(self):
 		self.refreshContextMacroChoices()
 		#self.onContextMacroChoice(None)
-		super(CriteriaPanel, self).onPanelActivated()
+		super().onPanelActivated()
 
 	def onPanelDeactivated(self):
 		self.updateData()
-		super(CriteriaPanel, self).onPanelDeactivated()
+		super().onPanelDeactivated()
 
 	def isValid(self):
 		data = self.context["data"]["criteria"]
@@ -843,7 +843,7 @@ class PropertiesPanel(properties.ListControl):
 
 
 	def makeSettings(self, settingsSizer):
-		super(PropertiesPanel, self).makeSettings(settingsSizer)
+		super().makeSettings(settingsSizer)
 
 		# Adding 3 column to the listControl
 		self.listCtrl.InsertColumn(2, "Rule level", width=215)
@@ -864,7 +864,7 @@ class PropertiesPanel(properties.ListControl):
 		self.btnDelProps.Bind(wx.EVT_BUTTON, self.onDeleteProperties)
 
 	def initData(self, context, **kwargs):
-		super(PropertiesPanel, self).initData(context)
+		super().initData(context)
 		self.hidable.clear()
 		self.context = context
 		self.initPropertiesList(context)
@@ -872,11 +872,11 @@ class PropertiesPanel(properties.ListControl):
 
 
 	def onAddProperties(self, evt):
-		super(PropertiesPanel, self).onAddProperties(evt)
+		super().onAddProperties(evt)
 
 
 	def getListToAppend(self):
-		val = super(PropertiesPanel, self).getListToAppend()
+		val = super().getListToAppend()
 		if val is not None:
 			self.updateOverridenData(self.index, val)
 		self.onInitUpdateListCtrl()
@@ -885,11 +885,11 @@ class PropertiesPanel(properties.ListControl):
 
 
 	def onDeleteProperties(self, evt):
-		super(PropertiesPanel, self).onDeleteProperties(evt)
+		super().onDeleteProperties(evt)
 
 
 	def initPropertiesList(self, context):
-		super(PropertiesPanel, self).initPropertiesList(context)
+		super().initPropertiesList(context)
 		dataTypeCrit = self.context["data"]["criteria"]
 		typeProperty = dataTypeCrit.get("properties")
 		if typeProperty:
@@ -943,7 +943,7 @@ class PropertiesPanel(properties.ListControl):
 			dataCrit["properties"] = propertiesMapValue
 
 	def onPanelActivated(self):
-		super(PropertiesPanel, self).onPanelActivated()
+		super().onPanelActivated()
 
 
 	def onSave(self):
@@ -955,7 +955,7 @@ class ActionsPanel(ruleEditor.ActionsPanel):
 	title = _("Actions")
 
 	def makeSettings(self, settingsSizer):
-		super(ActionsPanel, self).makeSettings(settingsSizer)
+		super().makeSettings(settingsSizer)
 		self.autoActionList.Destroy()
 		self.labelAutoactions.Destroy()
 
@@ -967,16 +967,16 @@ class ActionsPanel(ruleEditor.ActionsPanel):
 		self.updateGesturesList()
 
 	def onPanelActivated(self):
-		super(ActionsPanel, self).onPanelActivated()
+		super().onPanelActivated()
 
 	def onAddGesture(self, evt):
-		super(ActionsPanel, self).onAddGesture(evt)
+		super().onAddGesture(evt)
 
 	def updateGesturesList(self, newGestureIdentifier=None, focus=False):
-		super(ActionsPanel, self).updateGesturesList(newGestureIdentifier=None, focus=False)
+		super().updateGesturesList(newGestureIdentifier=None, focus=False)
 
 	def onDeleteGesture(self, evt):
-		super(ActionsPanel, self).onDeleteGesture(evt)
+		super().onDeleteGesture(evt)
 
 	def updateData(self, data = None):
 		rule = self.context["data"]["rule"]
@@ -999,7 +999,7 @@ class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
 	categoryClasses = [GeneralPanel, CriteriaPanel, PropertiesPanel, ActionsPanel]
 	INITIAL_SIZE = (800, 480)
 	def makeSettings(self, settingsSizer):
-		super(CriteriaEditorDialog, self).makeSettings(settingsSizer)
+		super().makeSettings(settingsSizer)
 		idTestCriteria = wx.NewId()
 		self.Bind(wx.EVT_MENU, self.onTestCriteria, id=idTestCriteria)
 		self.SetAcceleratorTable(wx.AcceleratorTable([

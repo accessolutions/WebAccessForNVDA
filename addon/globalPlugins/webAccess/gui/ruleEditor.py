@@ -736,13 +736,13 @@ class PropertiesPanel(TreeContextualPanel, properties.ListControl):
 		self.updateData()
 
 	def onInitUpdateListCtrl(self):
-		super().onInitUpdateListCtrl()
+		super(properties.ListControl, self).onInitUpdateListCtrl()
 
 	def spaceIsPressedOnTreeNode(self, withShift=False):
 		self.listCtrl.SetFocus()
 
 	def initPropertiesList(self, context):
-		super().initPropertiesList(self.context)
+		super(properties.ListControl, self).initPropertiesList(self.context)
 		index = self.listCtrl.GetFirstSelected()
 		vnew = self.context.get("new")
 		dataRule = self.getRule()
@@ -756,7 +756,7 @@ class PropertiesPanel(TreeContextualPanel, properties.ListControl):
 		self.focusListCtrl(index=index)
 
 	def updateListCtrl(self, data):
-		super().updateListCtrl(data)
+		super(properties.ListControl, self).updateListCtrl(data)
 
 	def updateData(self, data=None):
 		propertiesMapValue = {}
@@ -771,7 +771,7 @@ class PropertiesPanel(TreeContextualPanel, properties.ListControl):
 		self.propertiesList = self.tempList
 
 	def onPanelActivated(self):
-		super(PropertiesPanel, self).onPanelActivated()
+		super(TreeContextualPanel, self).onPanelActivated()
 		self.initPropertiesList(self.context)
 		self.updateData()
 		self.showItems(self.getRule())
@@ -779,7 +779,7 @@ class PropertiesPanel(TreeContextualPanel, properties.ListControl):
 	def onPanelDeactivated(self):
 		self.updateData()
 		self.refreshParent(self.treeNode, deleteChildren=False)
-		super().onPanelDeactivated()
+		super(TreeContextualPanel, self).onPanelDeactivated()
 
 	def onSave(self):
 		self.updateData()

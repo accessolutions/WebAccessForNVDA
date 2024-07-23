@@ -157,7 +157,7 @@ class ContextualSettingsPanel(FillableSettingsPanel):
 
 	def __init__(self, *args, **kwargs):
 		self.context = None
-		super(ContextualSettingsPanel, self).__init__(*args, **kwargs)
+		super().__init__(*args, **kwargs)
 
 	def scale(self, *args):
 		return tuple([
@@ -174,7 +174,7 @@ class ContextualSettingsPanel(FillableSettingsPanel):
 	def onPanelActivated(self):
 		if getattr(self.initData, "onPanelActivated", False):
 			self.initData(self.context)
-		super(ContextualSettingsPanel, self).onPanelActivated()
+		super().onPanelActivated()
 
 
 class PanelAccessible(wx.Accessible):
@@ -233,14 +233,14 @@ class FillableMultiCategorySettingsDialog(MultiCategorySettingsDialog):
 			if isinstance(obj, wx.TextCtrl) and obj.IsMultiLine():
 				evt.Skip()
 				return
-		super(FillableMultiCategorySettingsDialog, self)._enterActivatesOk_ctrlSActivatesApply(evt)
+		super()._enterActivatesOk_ctrlSActivatesApply(evt)
 
 
 def configuredSettingsDialogType(**config):
 	class Type(SettingsDialog):
 		def __init__(self, *args, **kwargs):
 			kwargs.update(config)
-			return super(Type, self).__init__(*args, **kwargs)
+			return super().__init__(*args, **kwargs)
 
 	return Type
 
@@ -255,7 +255,7 @@ class ContextualMultiCategorySettingsDialog(
 
 	def __init__(self, *args, **kwargs):
 		self.context = None
-		super(ContextualMultiCategorySettingsDialog, self).__init__(*args, **kwargs)
+		super().__init__(*args, **kwargs)
 
 	def initData(self, context):
 		self.context = context
@@ -265,7 +265,7 @@ class ContextualMultiCategorySettingsDialog(
 				panel.initData(context)
 
 	def _getCategoryPanel(self, catId):
-		panel = super(ContextualMultiCategorySettingsDialog, self)._getCategoryPanel(catId)
+		panel = super()._getCategoryPanel(catId)
 		if (
 				hasattr(self, "context")
 				and isinstance(panel, ContextualSettingsPanel)
@@ -531,14 +531,14 @@ class DropDownWithHideableChoices(wx.ComboBox):
 		style = kwargs.get("style", 0)
 		style |= wx.CB_READONLY
 		kwargs["style"] = style
-		super(DropDownWithHideableChoices, self).__init__(*args, **kwargs)
+		super().__init__(*args, **kwargs)
 		self.__choicesWholeMap = OrderedDict()
 		self.__choicesFilteredList = []
 
 	def Clear(self):
 		self.__choicesWholeMap.clear()
 		self.__choicesFilteredList[:] = []
-		return super(DropDownWithHideableChoices, self).Clear()
+		return super().Clear()
 
 	def setChoices(self, keyLabelPairs):
 		self.__choicesWholeMap.clear()

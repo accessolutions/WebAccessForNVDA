@@ -157,7 +157,7 @@ class ElementDescriptionDialog(wx.Dialog):
 
 	def __init__(self, parent):
 		ElementDescriptionDialog._instance = self
-		super(ElementDescriptionDialog, self).__init__(
+		super().__init__(
 			parent, title=_("Element description")
 		)
 		mainSizer = wx.BoxSizer(wx.VERTICAL)
@@ -189,4 +189,4 @@ class ElementDescriptionDialog(wx.Dialog):
 	
 	def Show(self, description):
 		self.output.Value = description
-		super(ElementDescriptionDialog, self).Show()
+		super().Show()
