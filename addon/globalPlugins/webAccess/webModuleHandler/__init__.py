@@ -46,7 +46,7 @@ from ..store import DuplicateRefError
 from ..store import MalformedRefError
 
 
-PACKAGE_NAME = "webModulesMC"
+PACKAGE_NAME = "webModulesSM"
 
 store = None
 _catalog = None

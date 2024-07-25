@@ -61,7 +61,7 @@ except ImportError:
 
 class WebModuleJsonFileDataStore(Store):
 
-	def __init__(self, name, basePath, dirName="webModulesMC"):
+	def __init__(self, name, basePath, dirName="webModulesSM"):
 		super().__init__(name=name)
 		self.basePath = basePath
 		self.path = os.path.join(basePath, dirName)
