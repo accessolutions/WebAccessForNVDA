@@ -1,3 +1,5 @@
+.venv/
+.env/
 addon/doc/*.css
 addon/doc/en/
 *_docHandler.py
