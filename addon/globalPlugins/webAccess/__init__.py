@@ -152,6 +152,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# FIXME:
 		# After the above import, it appears that the `gui` name now points to the `.gui` module
 		# rather that NVDA's `gui`… No clue why…
+		import gui
 		settings_initialize()
 
 		global scheduler
@@ -251,6 +252,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# FIXME:
 		# After the above import, it appears that the `gui` name now points to the `.gui` module
 		# rather that NVDA's `gui`… No clue why…
+		import gui
 		gui.mainFrame._popupSettingsDialog(WebAccessSettingsDialog)
 
 	@script(
