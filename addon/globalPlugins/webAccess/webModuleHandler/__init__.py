@@ -206,7 +206,7 @@ def save(webModule, layerName=None, prompt=True, force=False, fromRuleEditor=Fal
 			).format(len(layers), webModule, webModule.layers))
 		layer = layers[0]
 	try:
-		log.info("saving layer {!r}".format(layer))
+		log.debug("saving layer {!r}".format(layer))
 		if layer.storeRef is None:
 			storeRef = store.create(webModule, force=force)
 			prompt and ui.message(
@@ -251,7 +251,7 @@ def save(webModule, layerName=None, prompt=True, force=False, fromRuleEditor=Fal
 		return False
 	if not fromRuleEditor:
 		# only if webModule creation or modification
-		log.info ("refresh %s" % prompt)
+		log.debug ("refresh %s" % prompt)
 		getWebModules(refresh=True)
 	resetRunningModules()
 	return True
@@ -446,9 +446,9 @@ def getWebModuleFactory(name):
 	if not mod:
 		return WebModule
 	apiVersion = getattr(mod, "API_VERSION", None)
-	log.info(f"apiVersion (str): {apiVersion!r}")
+	log.debug(f"apiVersion (str): {apiVersion!r}")
 	apiVersion = version.parse(apiVersion or "")
-	log.info(f"apiVersion (obj): {apiVersion!r} ({apiVersion})")
+	log.debug(f"apiVersion (obj): {apiVersion!r} ({apiVersion})")
 	if apiVersion != WebModule.API_VERSION:
 		raise InvalidApiVersion(apiVersion)
 	ctor = getattr(mod, "WebModule", None)
