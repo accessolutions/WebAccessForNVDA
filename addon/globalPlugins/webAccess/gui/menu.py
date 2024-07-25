@@ -35,7 +35,6 @@ import gui
 from ... import webAccess
 from .. import ruleHandler
 from .. import webModuleHandler  
-from . import webModulesManager
 
 
 def show(context):

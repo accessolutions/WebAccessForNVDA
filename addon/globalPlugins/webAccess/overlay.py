@@ -51,7 +51,6 @@ import virtualBuffers
 
 
 from six import iteritems
-from six.moves import xrange
 
 from garbageHandler import TrackedObject
 

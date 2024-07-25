@@ -215,7 +215,7 @@ def save(webModule, layerName=None, prompt=True, force=False, fromRuleEditor=Fal
 			)
 		else:
 			store.update(webModule, layerName=layer.name, force=force)
-	except DuplicateRefError as e:
+	except DuplicateRefError:
 		if not prompt or force:
 			return False
 		from ..gui import webModuleEditor
@@ -303,7 +303,7 @@ def showEditor(context, new=False):
 							force=force
 						)
 					keepShowing = keepTrying = False
-				except DuplicateRefError as e:
+				except DuplicateRefError:
 					if webModuleEditor.promptOverwrite():
 						force = True
 					else:

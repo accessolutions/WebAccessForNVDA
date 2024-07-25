@@ -28,10 +28,8 @@ __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 from collections import OrderedDict
 import errno
-import imp
 import os
 import os.path
-from pprint import pformat
 import re
 import sys
 
@@ -39,8 +37,7 @@ import config
 import globalVars
 from logHandler import log
 
-from ..lib.packaging import version
-from ..webModuleHandler import InvalidApiVersion, WebModule, WebModuleDataLayer, getWebModuleFactory
+from ..webModuleHandler import WebModule, WebModuleDataLayer, getWebModuleFactory
 from . import DispatchStore
 from . import DuplicateRefError
 from . import MalformedRefError

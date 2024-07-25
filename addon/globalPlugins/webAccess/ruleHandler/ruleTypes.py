@@ -24,7 +24,6 @@ __version__ = "2018.12.14"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
-from collections import OrderedDict
 
 import addonHandler
 

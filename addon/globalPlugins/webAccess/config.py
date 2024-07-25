@@ -25,7 +25,6 @@ __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
 import config
-from logHandler import log
 
 from . import webModuleHandler
 

@@ -141,7 +141,7 @@ class DispatchStore(Store):
 					if len(ref) == 1:
 						ref = ref[0]
 			else:
-				ValueError("Unexpected ref format: {ref}".format(ref))
+				ValueError("Unexpected ref format: {ref}".format())
 		else:
 			storeKey = ref
 		store = None

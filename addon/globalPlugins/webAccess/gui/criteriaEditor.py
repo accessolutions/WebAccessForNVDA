@@ -32,7 +32,6 @@ import wx
 
 import controlTypes
 import gui
-from logHandler import log
 
 from ..ruleHandler import ruleTypes
 from ..utils import guarded, updateOrDrop

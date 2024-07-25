@@ -27,8 +27,6 @@ __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 from collections import OrderedDict
 import datetime
 import inspect
-import os
-from pprint import pformat
 
 import addonHandler
 addonHandler.initTranslation()

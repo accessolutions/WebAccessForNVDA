@@ -104,7 +104,7 @@ class ContextualSettingsPanel(FillableSettingsPanel):
 		super(ContextualSettingsPanel, self).__init__(*args, **kwargs)
 
 	def initData(self, context):
-		raise NotImplemented()
+		raise NotImplementedError()
 
 	# Set to True if the view depends on data that can be edited on other panels of the same dialog
 	initData.onPanelActivated = False
