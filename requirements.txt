@@ -3,3 +3,9 @@ SCons==4.5.2
 
 # Building user documentation
 Markdown==3.5.1
+
+# Linter and code formatting tool
+ruff==0.5.5
+
+# Git hook scripts to automate tasks
+pre-commit==3.7.1
