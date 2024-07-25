@@ -72,7 +72,7 @@ def recover(data):
 	if formatVersion < version.parse("0.6"):
 		recoverFrom_0_5_to_0_6(data)
 		formatVersion = version.parse(data["formatVersion"])
-	if formatVersion < version.parse("0.7"):
+	if formatVersion < version.parse("0.7-dev"):
 		recoverFrom_0_6_to_0_8(data)
 		formatVersion = version.parse(data["formatVersion"])
 	if formatVersion < version.parse("0.8-dev"):
@@ -451,6 +451,27 @@ def recoverFrom_0_6_to_0_8(data):
 	data = convert(data)
 
 
-def recoverFrom_0_7_to_0_8(data): # TODO
-	name = data.get("WebModule", {}).get("name")
-	raise NotImplementedError(f"Recovery from 0.7 to 0.8 not implemented yet (for {name} webmodule)")
+def recoverFrom_0_7_to_0_8(data):
+	validProperties = ("autoAction", "multiple", "formMode", "skip", "sayName", "customName", "customValue", "mutation")
+	rules = data.get("Rules", [])
+	for ruleData in rules.values():
+		ruleType = ruleData.get("type")
+		ruleTypeProperties = ruleTypes.RULE_TYPE_FIELDS.get(ruleType, ())
+		newRuleProperties = {}
+		for key in validProperties:
+			if key in ruleData and key not in ruleTypeProperties:
+				ruleData.pop(key)
+			elif key in ruleData:
+				newRuleProperties[key] = ruleData.pop(key)
+		if newRuleProperties:
+			ruleData["properties"] = newRuleProperties
+		for criterion in ruleData.get("criteria", []):
+			newCriterionProperties = {}
+			for key in validProperties:
+				if key in criterion and key not in ruleTypeProperties:
+					criterion.pop(key)
+				elif key in criterion:
+					newCriterionProperties[key] = criterion.pop(key)
+			if newCriterionProperties:
+				criterion["properties"] = newCriterionProperties
+	data["formatVersion"] = "0.8-dev"
