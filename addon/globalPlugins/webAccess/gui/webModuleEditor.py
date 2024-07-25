@@ -32,10 +32,7 @@ import itertools
 import os
 import wx
 
-from NVDAObjects import NVDAObject, IAccessible
 import addonHandler
-import api
-import controlTypes
 import config
 import gui
 from logHandler import log

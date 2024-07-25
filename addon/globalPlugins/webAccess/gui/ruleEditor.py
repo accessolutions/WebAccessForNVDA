@@ -25,7 +25,7 @@ __version__ = "2021.03.26"
 __author__ = "Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
-from collections import OrderedDict, namedtuple
+from collections import OrderedDict
 import wx
 # TODO: Work-arround ExpandoTextCtrl mishandling maxHeight and vscroll
 # from wx.lib.expando import EVT_ETC_LAYOUT_NEEDED, ExpandoTextCtrl
@@ -36,7 +36,6 @@ import gui
 import inputCore
 from logHandler import log
 
-from .. import ruleHandler
 from ..ruleHandler import ruleTypes
 from ..ruleHandler.controlMutation import (
 	MUTATIONS_BY_RULE_TYPE,

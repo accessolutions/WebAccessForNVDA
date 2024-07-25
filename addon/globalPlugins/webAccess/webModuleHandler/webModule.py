@@ -29,18 +29,13 @@ __author__ = (
 
 
 from collections import OrderedDict
-import datetime
-import json
-import os
 
 import addonHandler
 addonHandler.initTranslation()
 import api
 import baseObject
-import braille
 import config
 import controlTypes
-import globalVars
 from logHandler import log
 import scriptHandler
 import speech

@@ -30,7 +30,6 @@ import threading
 import wx
 
 import api
-import textInfos
 
 from .overlay import WebAccessBmdti, WebAccessObject
 from .webAppLib import *

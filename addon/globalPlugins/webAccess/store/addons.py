@@ -36,7 +36,7 @@ from . import Store
 class AddonsStore(DispatchStore):
 	
 	def __init__(self, *args, **kwargs):
-		if not "name" in kwargs:
+		if "name" not in kwargs:
 			kwargs["name"] = "addons"
 		self.addonStoreFactory = kwargs["addonStoreFactory"]
 		super(AddonsStore, self).__init__(*args, **kwargs)

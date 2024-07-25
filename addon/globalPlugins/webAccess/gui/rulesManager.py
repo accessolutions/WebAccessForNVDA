@@ -635,7 +635,6 @@ class Dialog(wx.Dialog):
 		evt.Skip()
 
 	def onTreeSelChanged(self, evt):
-		from logHandler import log
 		if (
 			evt is not None
 			and (evt.EventObject is None or evt.EventObject.IsBeingDeleted())

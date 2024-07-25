@@ -88,7 +88,6 @@ def trace (msg="trace"):
 	speech.speakMessage (msg)
 
 def beep (freq=1000, dur=50):
-	import tones
 	tones.beep (freq, dur)
 	
 def reportFocus (obj):

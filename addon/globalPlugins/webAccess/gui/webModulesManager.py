@@ -30,10 +30,7 @@ import wx
 import addonHandler
 addonHandler.initTranslation()
 import config
-import core
-import globalVars
 import gui
-import languageHandler
 from logHandler import log
 
 from gui.nvdaControls import AutoWidthColumnListCtrl
