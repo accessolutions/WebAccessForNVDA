@@ -504,10 +504,10 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 					msg += _("Press escape to cancel zone restriction.")
 				ui.message(msg)
 			if posConstant == textInfos.POSITION_FIRST:
-				pos = zone.startOffset
+				pos = zone.result.startOffset
 				posConstant = textInfos.offsets.Offsets(pos, pos)
 			elif posConstant == textInfos.POSITION_LAST:
-				pos = max(zone.endOffset - 1, zone.startOffset)
+				pos = max(zone.result.endOffset - 1, zone.result.startOffset)
 				posConstant = textInfos.offsets.Offsets(pos, pos)
 		super()._caretMovementScriptHelper(
 			gesture,
@@ -556,12 +556,12 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			direction
 		):
 			if zone:
-				if item.textInfo._startOffset < zone.startOffset:
+				if item.textInfo._startOffset < zone.result.startOffset:
 					if direction == "next":
 						continue
 					else:
 						return
-				elif item.textInfo._startOffset >= zone.endOffset:
+				elif item.textInfo._startOffset >= zone.result.endOffset:
 					if direction == "previous":
 						continue
 					else:

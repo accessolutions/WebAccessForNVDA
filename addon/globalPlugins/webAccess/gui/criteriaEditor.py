@@ -21,7 +21,7 @@
 
 
 
-__version__ = "2024.07.19"
+__version__ = "2024.07.25"
 __authors__ = (
 	"Shirley Noël <shirley.noel@pole-emploi.fr>",
 	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
@@ -622,7 +622,7 @@ class CriteriaPanel(CriteriaEditorPanel):
 				rule = result.rule
 				if (
 					rule.type in (ruleTypes.PARENT, ruleTypes.ZONE)
-					and node in result.node
+					and result.containsNode(node)
 				):
 					parents.insert(0, rule.name)
 			self.contextParentCombo.Set(parents)

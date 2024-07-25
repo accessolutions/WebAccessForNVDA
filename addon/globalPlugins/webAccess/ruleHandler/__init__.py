@@ -377,13 +377,9 @@ class RuleManager(baseObject.ScriptableObject):
 			results.sort()
 
 			for result in results:
-				if not result.properties.mutation:
+				if not (hasattr(result, "node") and result.properties.mutation):
 					continue
-				try:
-					controlId = int(result.node.controlIdentifier)
-				except Exception:
-					log.exception("rule: {}, node: {}".format(result.name, result.node))
-					raise
+				controlId = int(result.node.controlIdentifier)
 				entry = self._mutatedControlsById.get(controlId)
 				if entry is None:
 					entry = MutatedControl(result)
@@ -548,7 +544,7 @@ class RuleManager(baseObject.ScriptableObject):
 				rule = result.rule
 				if not result.properties.skip or rule.type != ruleTypes.ZONE:
 					continue
-				zone = Zone(result)
+				zone = result.zone
 				if not zone.containsTextInfo(caret):
 					skippedZones.append(zone)
 		for result in (
@@ -571,14 +567,13 @@ class RuleManager(baseObject.ScriptableObject):
 				):
 					continue
 			if (
-				hasattr(result, "node")
-				and (
+				(
 					not relative
 					or (
 						not previous
-						and caret._startOffset < result.node.offset
+						and caret._startOffset < result.startOffset
 					)
-					or (previous and caret._startOffset > result.node.offset)
+					or (previous and caret._startOffset > result.startOffset)
 				)
 				and (
 					not (respectZone or (previous and relative))
@@ -588,13 +583,9 @@ class RuleManager(baseObject.ScriptableObject):
 							not respectZone
 							or self.zone.containsResult(result)
 						)
-						and not (
-							# If respecting zone restriction or iterating
-							# backwards relative to the caret position,
-							# avoid returning the current zone itself.
-							self.zone.name == result.rule.name
-							and self.zone.containsResult(result)
-						)
+						# If respecting zone restriction or iterating backwards relative to the
+						# caret position, avoid returning the current zone itself.
+						and not self.zone.equals(result.zone)
 					)
 				)
 			):
@@ -845,12 +836,15 @@ class CustomActionDispatcher(object):
 
 class Result(baseObject.ScriptableObject):
 
-	def __init__(self, criteria):
+	def __init__(self, criteria, context, index):
 		super().__init__()
 		self._criteria = weakref.ref(criteria)
+		self.context: textInfos.offsets.Offsets = context
+		self.index = index
 		self.properties = criteria.properties
 		rule = criteria.rule
 		self._rule = weakref.ref(rule)
+		self.zone = Zone(self) if rule.type == ruleTypes.ZONE else None
 		webModule = rule.ruleManager.webModule
 		prefix = "action_"
 		for key in dir(webModule):
@@ -890,6 +884,12 @@ class Result(baseObject.ScriptableObject):
 			return customValue
 		raise NotImplementedError
 
+	def _get_startOffset(self):
+		raise NotImplementedError
+
+	def _get_endOffset(self):
+		raise NotImplementedError
+
 	def script_moveto(self, gesture):
 		raise NotImplementedError
 
@@ -914,8 +914,15 @@ class Result(baseObject.ScriptableObject):
 	def script_mouseMove(self, gesture):
 		raise NotImplementedError
 
+	def __bool__(self):
+		raise NotImplementedError
+
 	def __lt__(self, other):
 		raise NotImplementedError
+
+	def containsNode(self, node):
+		offset = node.offset
+		return self.startOffset <= offset and self.endOffset >= offset + node.size
 
 	def getDisplayString(self):
 		return " ".join(
@@ -930,17 +937,22 @@ class Result(baseObject.ScriptableObject):
 class SingleNodeResult(Result):
 
 	def __init__(self, criteria, node, context, index):
-		super().__init__(criteria)
 		self._node = weakref.ref(node)
-		self.context = context
-		self.index = index
+		super().__init__(criteria, context, index)
 
 	def _get_node(self):
 		return self._node()
 
 	def _get_value(self):
 		return self.properties.customValue or self.node.getTreeInterceptorText()
-	
+
+	def _get_startOffset(self):
+		return self.node.offset
+
+	def _get_endOffset(self):
+		node = self.node
+		return node.offset + node.size
+
 	def script_moveto(self, gesture, fromQuickNav=False, fromSpeak=False):
 		if self.node is None or self.node.nodeManager is None:
 			return
@@ -955,7 +967,7 @@ class SingleNodeResult(Result):
 			)
 		elif self.properties.sayName:
 			speech.speakMessage(self.label)
-		treeInterceptor = self.node.nodeManager.treeInterceptor
+		treeInterceptor = self.rule.ruleManager.nodeManager.treeInterceptor
 		if not treeInterceptor or not treeInterceptor.isReady:
 			return
 		treeInterceptor.passThrough = self.properties.formMode
@@ -975,9 +987,8 @@ class SingleNodeResult(Result):
 					break
 			else:
 				rule.ruleManager.zone = None
-		info = treeInterceptor.makeTextInfo(
-			textInfos.offsets.Offsets(self.node.offset, self.node.offset)
-		)
+		offset = self.startOffset
+		info = treeInterceptor.makeTextInfo(textInfos.offsets.Offsets(offset, offset))
 		treeInterceptor.selection = info
 		# Refetch the position in case some dynamic content has shrunk as we left it.
 		info = treeInterceptor.selection.copy()
@@ -1053,10 +1064,17 @@ class SingleNodeResult(Result):
 	def getTextInfo(self):
 		return self.node.getTextInfo()
 
+	def __bool__(self):
+		return bool(self.node)
+
 	def __lt__(self, other):
-		if hasattr(other, "node") is None:
-			return other >= self
-		return self.node.offset < other.node.offset
+		try:
+			return self.startOffset < other.startOffset
+		except AttributeError as e:
+			raise TypeError(f"'<' not supported between instances of '{type(self)}' and '{type(other)}'") from e
+
+	def containsNode(self, node):
+		return node in self.node
 
 	def getTitle(self):
 		return self.label + " - " + self.node.innerText
@@ -1492,111 +1510,124 @@ def getSimpleSearchKwargs(criteria, raiseOnUnsupported=False):
 	return kwargs
 
 
-class Zone(textInfos.offsets.Offsets, TrackedObject):
+class Zone(baseObject.AutoPropertyObject):
 
 	def __init__(self, result):
+		super().__init__()
+		self.result = result
 		rule = result.rule
 		self._ruleManager = weakref.ref(rule.ruleManager)
+		self.layer = rule.layer
 		self.name = rule.name
 		self.index = result.index
-		super().__init__(startOffset=None, endOffset=None)
-		self._update(result)
 
-	@property
-	def ruleManager(self):
+	def _get_ruleManager(self):
 		return self._ruleManager()
 
-	def __bool__(self):  # Python 3
-		return self.startOffset is not None and self.endOffset is not None
+	def _get_result(self):
+		return self._result and self._result()
 
-	def __eq__(self, other):
-		return (
-			isinstance(other, Zone)
-			and other.ruleManager == self.ruleManager
-			and other.name == self.name
-			and other.startOffset == self.startOffset
-			and other.endOffset == self.endOffset
-		)
+	def _set_result(self, result):
+		self._result = weakref.ref(result)
 
-	def __hash__(self):
-		return hash((self.startOffset, self.endOffset))
+	def __bool__(self):
+		return bool(self.result)
 
 	def __repr__(self):
+		layer = self.layer
+		name = self.name
 		if not self:
-			return "<Zone {} (invalidated)>".format(repr(self.name))
-		return "<Zone {} at ({}, {})>".format(
-			repr(self.name), self.startOffset, self.endOffset
-		)
+			return f"<Zone {name} (invalidated)>"
+		result = self.result
+		startOffset = result.startOffset
+		endOffset = result.endOffset
+		return f"<Zone {layer}/{name} at ({startOffset}, {endOffset})>"
 
 	def containsNode(self, node):
-		if not self:
-			return False
-		return self.startOffset <= node.offset < self.endOffset
+		offset = node.offset
+		return self.containsOffsets(offset, offset + node.size)
+
+	def containsOffsets(self, startOffset, endOffset):
+		result = self.result
+		return (
+			result
+			and result.startOffset <= startOffset
+			and result.endOffset >= endOffset
+		)
 
 	def containsResult(self, result):
-		if not self:
-			return False
-		if hasattr(result, "node"):
-			return self.containsNode(result.node)
-		return False
+		return self.containsOffsets(result.startOffset, result.endOffset)
 
 	def containsTextInfo(self, info):
-		if not self:
-			return False
-		if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
-			raise ValueError("Not supported {}".format(type(info)))
+		try:
+			return self.containsOffsets(info._startOffset, info._endOffset)
+		except AttributeError:
+			if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
+				raise ValueError("Not supported {}".format(type(info)))
+			raise
+
+	def equals(self, other):
+		"""Check if `obj` represents an instance of the same `Zone`.
+		
+		This cannot be achieved by implementing the usual `__eq__` method
+		because `baseObjects.AutoPropertyObject.__new__` requires it to
+		operate on identity as it stores the instance as key in a `WeakKeyDictionnary`
+		in order to later invalidate property cache.
+		"""
 		return (
-			self.startOffset <= info._startOffset
-			and info._endOffset <= self.endOffset
+			isinstance(other, type(self))
+			and self.name == other.name
+			and self.index == other.index
 		)
 
 	def getRule(self):
-		return self.ruleManager.getRule(self.name)
+		return self.ruleManager.getRule(self.name, layer=self.layer)
+
+	def isOffsetAtStart(self, offset):
+		result = self.result
+		return result and result.startOffset == offset
+
+	def isOffsetAtEnd(self, offset):
+		result = self.result
+		return result and result.endOffset == offset
 
 	def isTextInfoAtStart(self, info):
-		if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
-			raise ValueError("Not supported {}".format(type(info)))
-		return self and info._startOffset == self.startOffset
+		try:
+			return self.isOffsetAtStart(info._startOffset)
+		except AttributeError:
+			if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
+				raise ValueError("Not supported {}".format(type(info)))
+			raise
 
 	def isTextInfoAtEnd(self, info):
-		if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
-			raise ValueError("Not supported {}".format(type(info)))
-		return self and info._endOffset == self.endOffset
+		try:
+			return self.isOffsetAtEnd(info._endOffset)
+		except AttributeError as e:
+			if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
+				raise ValueError("Not supported {}".format(type(info))) from e
 
 	def restrictTextInfo(self, info):
 		if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
 			raise ValueError("Not supported {}".format(type(info)))
-		if not self:
+		result = self.result
+		if not result:
 			return False
 		res = False
-		if info._startOffset < self.startOffset:
+		if info._startOffset < result.startOffset:
 			res = True
-			info._startOffset = self.startOffset
-		elif info._startOffset > self.endOffset:
+			info._startOffset = result.startOffset
+		elif info._startOffset > result.endOffset:
 			res = True
-			info._startOffset = self.endOffset
-		if info._endOffset < self.startOffset:
-			res = True
-			info._endOffset = self.startOffset
-		elif info._endOffset > self.endOffset:
-			res = True
-			info._endOffset = self.endOffset
+			info._startOffset = result.endOffset
 		return res
 
 	def update(self):
 		try:
 			# Result index is 1-based
-			result = self.ruleManager.iterResultsByName(self.name)[self.index - 1]
+			self.result = self.ruleManager.getResultsByName(
+				self.name, layer=self.layer
+			)[self.index - 1]
 		except IndexError:
-			self.startOffset = self.endOffset = None
+			self._result = None
 			return False
-		return self._update(result)
-
-	def _update(self, result):
-		node = result.node
-		if not node:
-			self.startOffset = self.endOffset = None
-			return False
-		self.startOffset = node.offset
-		self.endOffset = node.offset + node.size
 		return True
