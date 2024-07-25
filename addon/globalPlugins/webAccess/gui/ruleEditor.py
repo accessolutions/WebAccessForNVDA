@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2024.07.23"
+__version__ = "2024.07.25"
 __author__ = "Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 from collections import OrderedDict, namedtuple
@@ -735,14 +735,11 @@ class PropertiesPanel(TreeContextualPanel, properties.ListControl):
 		self.tempList = self.propertiesList
 		self.updateData()
 
-	def onInitUpdateListCtrl(self):
-		super(properties.ListControl, self).onInitUpdateListCtrl()
-
 	def spaceIsPressedOnTreeNode(self, withShift=False):
 		self.listCtrl.SetFocus()
 
 	def initPropertiesList(self, context):
-		super(properties.ListControl, self).initPropertiesList(self.context)
+		super().initPropertiesList(self.context)
 		index = self.listCtrl.GetFirstSelected()
 		vnew = self.context.get("new")
 		dataRule = self.getRule()
@@ -754,9 +751,6 @@ class PropertiesPanel(TreeContextualPanel, properties.ListControl):
 			[p.set_flag(True) for p in self.propertiesList]
 		self.onInitUpdateListCtrl()
 		self.focusListCtrl(index=index)
-
-	def updateListCtrl(self, data):
-		super(properties.ListControl, self).updateListCtrl(data)
 
 	def updateData(self, data=None):
 		propertiesMapValue = {}
@@ -771,7 +765,7 @@ class PropertiesPanel(TreeContextualPanel, properties.ListControl):
 		self.propertiesList = self.tempList
 
 	def onPanelActivated(self):
-		super(TreeContextualPanel, self).onPanelActivated()
+		super().onPanelActivated()
 		self.initPropertiesList(self.context)
 		self.updateData()
 		self.showItems(self.getRule())
@@ -779,7 +773,7 @@ class PropertiesPanel(TreeContextualPanel, properties.ListControl):
 	def onPanelDeactivated(self):
 		self.updateData()
 		self.refreshParent(self.treeNode, deleteChildren=False)
-		super(TreeContextualPanel, self).onPanelDeactivated()
+		super().onPanelDeactivated()
 
 	def onSave(self):
 		self.updateData()

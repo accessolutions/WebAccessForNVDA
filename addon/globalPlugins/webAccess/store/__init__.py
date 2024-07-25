@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2024 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 """Web Access data store."""
 
 
-__version__ = "2021.02.04"
+__version__ = "2024.07.25"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -198,16 +198,12 @@ class DispatchStore(Store):
 	
 
 class DuplicateRefError(Exception):
-	
-	def __init__(self, *args, **kwargs):
-		super().__init__(*args, **kwargs)
+	pass
 
 		
 class MalformedRefError(Exception):
-	
-	def __init__(self, *args, **kwargs):
-		super().__init__(*args, **kwargs)
-		
+	pass
+
 
 class UnknownRefError(Exception):
 	
