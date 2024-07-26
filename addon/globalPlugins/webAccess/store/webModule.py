@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2024 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 """Web Module data store."""
 
 
-__version__ = "2021.03.12"
+__version__ = "2024.07.26"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -40,7 +40,13 @@ import globalVars
 from logHandler import log
 
 from ..lib.packaging import version
-from ..webModuleHandler import InvalidApiVersion, WebModule, WebModuleDataLayer, getWebModuleFactory
+from ..webModuleHandler import (
+	PACKAGE_NAME,
+	InvalidApiVersion,
+	WebModule,
+	WebModuleDataLayer,
+	getWebModuleFactory
+)
 from . import DispatchStore
 from . import DuplicateRefError
 from . import MalformedRefError
