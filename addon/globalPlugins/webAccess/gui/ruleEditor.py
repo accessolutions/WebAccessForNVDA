@@ -182,6 +182,7 @@ class GeneralPanel(TreeContextualPanel):
 	title = _("General")
 
 	def makeSettings(self, settingsSizer):
+		scale = self.scale
 		gbSizer = wx.GridBagSizer()
 		gbSizer.EmptyCellSize = (0, 0)
 		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
@@ -190,7 +191,7 @@ class GeneralPanel(TreeContextualPanel):
 		# Translators: The Label for a field on the Rule editor
 		item = wx.StaticText(self, label=_("Rule &type:"))
 		gbSizer.Add(item, pos=(row, 0))
-		gbSizer.Add((guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
+		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item = self.ruleType = wx.Choice(
 			self,
 			choices=list(ruleTypes.ruleTypeLabels.values())
@@ -202,31 +203,31 @@ class GeneralPanel(TreeContextualPanel):
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 
 		row += 1
-		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
 
 		row += 1
 		# Translators: The Label for a field on the Rule editor
 		item = wx.StaticText(self, label=_("Rule &name"))
 		gbSizer.Add(item, pos=(row, 0))
-		gbSizer.Add((guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
+		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item = self.ruleName = wx.TextCtrl(self)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 		self.ruleName.Bind(wx.EVT_KILL_FOCUS, self.onNameEdited)
 
 		row += 1
-		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
 
 		row += 1
 		# Translators: The label for a field on the Rule editor
 		item = wx.StaticText(self, label=_("&Summary"))
 		gbSizer.Add(item, pos=(row, 0))
-		gbSizer.Add((guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
+		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item = self.summaryText = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 		gbSizer.AddGrowableRow(row)
 
 		row += 1
-		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
 
 		row += 1
 		# Translator: The label for a field on the Rule editor
@@ -373,6 +374,7 @@ class AlternativesPanel(TreeContextualPanel):
 		self.indexCriteria = None
 
 	def makeSettings(self, settingsSizer):
+		scale = self.scale
 		self.settingsSizer = gbSizer = wx.GridBagSizer()
 		gbSizer.EmptyCellSize = (0, 0)
 		#settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
@@ -380,48 +382,48 @@ class AlternativesPanel(TreeContextualPanel):
 		# Translators: Label for a control in the Rule Editor
 		item = wx.StaticText(self, label=_("&Alternatives"))
 		gbSizer.Add(item, pos=(0, 0))
-		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(1, 0))
-		item = self.criteriaList = wx.ListBox(self, size=self.scale(-1, 150))
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(1, 0))
+		item = self.criteriaList = wx.ListBox(self, size=scale(-1, 150))
 		item.Bind(wx.EVT_LISTBOX, self.onCriteriaSelected)
 		gbSizer.Add(item, pos=(2, 0), span=(6, 1), flag=wx.EXPAND)
 
-		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(8, 0))
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(8, 0))
 
 		# Translators: The label for a field on the Rule editor
 		item = wx.StaticText(self, label=_("Summary"))
 		gbSizer.Add(item, pos=(9, 0))
-		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(10, 0))
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(10, 0))
 		item = self.summaryText = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH)
 		gbSizer.Add(item, pos=(11, 0), flag=wx.EXPAND)
 		gbSizer.AddGrowableRow(11)
 
-		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(12, 0))
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(12, 0))
 
 		# Translators: The label for a field on the Rule editor
 		item = wx.StaticText(self, label=_("Technical notes"))
 		gbSizer.Add(item, pos=(13, 0))
-		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(14, 0))
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(14, 0))
 		# 		item = self.commentText = ExpandoTextCtrl(self, style=wx.TE_MULTILINE)
 		# 		item.Bind(EVT_ETC_LAYOUT_NEEDED, lambda evt: self._sendLayoutUpdatedEvent())
 		item = self.commentText = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_RICH)
 		gbSizer.Add(item, pos=(15, 0), flag=wx.EXPAND)
 		gbSizer.AddGrowableRow(15)
 
-		gbSizer.Add((guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL, 0), pos=(2, 1))
+		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL, 0), pos=(2, 1))
 
 		# Translators: New criteria button label
 		item = self.newButton = wx.Button(self, label=_("&New..."))
 		item.Bind(wx.EVT_BUTTON, self.onNewCriteria)
 		gbSizer.Add(item, pos=(2, 2))
 
-		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(3, 2))
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(3, 2))
 
 		# Translators: Edit criteria button label
 		item = self.editButton = wx.Button(self, label=_("&Edit..."))
 		item.Bind(wx.EVT_BUTTON, self.onEditCriteria)
 		gbSizer.Add(item, pos=(4, 2))
 
-		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(5, 2))
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(5, 2))
 
 		# Translators: Delete criteria button label
 		item = self.deleteButton = wx.Button(self, label=_("&Delete"))
@@ -571,6 +573,7 @@ class ActionsPanel(TreeContextualPanel):
 	title = _("Actions")
 
 	def makeSettings(self, settingsSizer):
+		scale = self.scale
 		gbSizer = self.sizer = wx.GridBagSizer()
 		gbSizer.EmptyCellSize = (0, 0)
 		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
@@ -585,17 +588,17 @@ class ActionsPanel(TreeContextualPanel):
 		# Translators: Keyboard shortcut input label for the rule dialog's action panel.
 		item = wx.StaticText(self, label=_("&Gestures"))
 		gbSizer.Add(item, pos=(row, 0), flag=wx.EXPAND)
-		gbSizer.Add(self.scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(row + 1, 0))
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(row + 1, 0))
 		innerGbSizer = wx.GridBagSizer()
-		item = self.gesturesList = wx.ListBox(self, size=self.scale(-1, 100))
+		item = self.gesturesList = wx.ListBox(self, size=scale(-1, 100))
 		innerGbSizer.Add(item, pos=(0, 0), span=(4, 1), flag=wx.EXPAND)
-		innerGbSizer.Add(self.scale(guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL, 0), pos=(0, 1))
+		innerGbSizer.Add(scale(guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL, 0), pos=(0, 1))
 		# Translators: The label for a button in the Rule Editor dialog
 		item = wx.Button(self, label=_("&Add"))
 		item.Bind(wx.EVT_BUTTON, self.onAddGesture)
 		self.addButton = item
 		innerGbSizer.Add(item, pos=(0, 2), flag=wx.EXPAND)
-		innerGbSizer.Add(self.scale(0, guiHelper.SPACE_BETWEEN_BUTTONS_VERTICAL), pos=(1, 2))
+		innerGbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_BUTTONS_VERTICAL), pos=(1, 2))
 		# Translators: The label for a button in the Rule Editor dialog
 		item = self.deleteButton = wx.Button(self, label=_("&Delete"))
 		item.Bind(wx.EVT_BUTTON, self.onDeleteGesture)
@@ -606,13 +609,13 @@ class ActionsPanel(TreeContextualPanel):
 		row += 2
 
 		row += 1
-		gbSizer.Add(self.scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
 
 		row += 1
 		# Translators: Automatic action at rule detection input label for the rule dialog's action panel.
 		self.labelAutoactions = wx.StaticText(self, label=_("A&utomatic action at rule detection:"))
 		gbSizer.Add(self.labelAutoactions, pos=(row, 0))
-		gbSizer.Add(self.scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
+		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		self.autoActionList = wx.ComboBox(self, style=wx.CB_READONLY)
 		gbSizer.Add(self.autoActionList, pos=(row, 2), flag=wx.EXPAND)
 
@@ -791,11 +794,12 @@ class ChildOneInputPanel(TreeContextualPanel):
 		super().__init__(*args, **kwargs)
 
 	def makeSettings(self, sizer):
+		scale = self.scale
 		gbSizer = wx.GridBagSizer()
 		sizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
 		self.header = wx.StaticText(self, label='')
 		gbSizer.Add(self.header, pos=(0, 0))
-		gbSizer.Add((guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(1, 0))
+		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(1, 0))
 		self.gbSizer = gbSizer
 
 	@staticmethod
@@ -919,7 +923,9 @@ class ChildGeneralPanel(ChildOneInputPanel):
 
 
 class ChildAlternativePanel(AlternativesPanel):
+
 	def makeSettings(self, settingsSizer):
+		scale = self.scale
 		self.settingsSizer = gbSizer = wx.GridBagSizer()
 		gbSizer.EmptyCellSize = (0, 0)
 
@@ -928,7 +934,7 @@ class ChildAlternativePanel(AlternativesPanel):
 		row = 0
 		gbSizer.Add(item, pos=(row, 0))
 		row += 1
-		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(row, 0))
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(row, 0))
 		# 		item = self.summaryText = ExpandoTextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY)
 		# 		item.Bind(EVT_ETC_LAYOUT_NEEDED, lambda evt: self._sendLayoutUpdatedEvent())
 		# 		item.Bind(wx.EVT_TEXT_ENTER, lambda evt: self.Parent.Parent.ProcessEvent(wx.CommandEvent(
@@ -940,13 +946,13 @@ class ChildAlternativePanel(AlternativesPanel):
 		gbSizer.AddGrowableRow(row)
 		row += 6
 
-		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
 		row += 1
 		# Translators: The label for a field on the Rule editor
 		item = wx.StaticText(self, label=_("Technical notes"))
 		gbSizer.Add(item, pos=(row, 0))
 		row += 1
-		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(row, 0))
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(row, 0))
 		# 		item = self.commentText = ExpandoTextCtrl(self, style=wx.TE_MULTILINE)
 		# 		item.Bind(EVT_ETC_LAYOUT_NEEDED, lambda evt: self._sendLayoutUpdatedEvent())
 		row += 1
@@ -954,21 +960,21 @@ class ChildAlternativePanel(AlternativesPanel):
 		gbSizer.Add(item, pos=(row, 0), flag=wx.EXPAND)
 		gbSizer.AddGrowableRow(row)
 
-		gbSizer.Add((guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL, 0), pos=(2, 1))
+		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL, 0), pos=(2, 1))
 
 		# Translators: New criteria button label
 		item = self.newButton = wx.Button(self, label=_("&New..."))
 		item.Bind(wx.EVT_BUTTON, self.onNewCriteria)
 		gbSizer.Add(item, pos=(2, 2))
 
-		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(3, 2))
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(3, 2))
 
 		# Translators: Edit criteria button label
 		item = self.editButton = wx.Button(self, label=_("&Edit..."))
 		item.Bind(wx.EVT_BUTTON, self.onEditCriteria)
 		gbSizer.Add(item, pos=(4, 2))
 
-		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(5, 2))
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(5, 2))
 
 		# Translators: Delete criteria button label
 		item = self.deleteButton = wx.Button(self, label=_("&Delete"))
@@ -998,6 +1004,7 @@ class ChildActionPanel(TreeContextualPanel):
 		self.textCtrl.Value = self.title
 
 	def makeSettings(self, sizer):
+		scale = self.scale
 		gbSizer = wx.GridBagSizer()
 		sizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
 		item = wx.Button(self, label='Modifier')
@@ -1011,7 +1018,7 @@ class ChildActionPanel(TreeContextualPanel):
 		gbSizer.Add(item, pos=(0, 2))
 		item.Bind(wx.EVT_BUTTON, self.onAddGesture)
 		gbSizer.Add((150, 0), pos=(0, 3), flag=wx.EXPAND)
-		gbSizer.Add((guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL, 0), pos=(1, 0))
+		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL, 0), pos=(1, 0))
 		self.textCtrl = wx.TextCtrl(self, value=self.title, size=(-1, 100))
 		gbSizer.Add(self.textCtrl, pos=(2, 0), span=(1, 3), flag=wx.EXPAND)
 

@@ -38,7 +38,7 @@ from gui.settingsDialogs import (
 	EVT_RW_LAYOUT_NEEDED
 )
 from six import iteritems, text_type
-from gui.dpiScalingHelper import DpiScalingHelperMixin
+from gui.dpiScalingHelper import DpiScalingHelperMixinWithoutInit
 
 LABEL_ACCEL = re.compile("&(?!&)")
 """
@@ -137,7 +137,21 @@ class InvalidValue(object):
 		return _("<Invalid>")
 
 
-class FillableSettingsPanel(SettingsPanel):
+class ScalingMixin(DpiScalingHelperMixinWithoutInit):
+	def scale(self, *args):
+		sizes = tuple((
+			self.scaleSize(arg) if arg > 0 else arg
+			for arg in args
+		))
+		if len(sizes) == 2:
+			return sizes
+		elif len(sizes) == 1:
+			return sizes[0]
+		else:
+			raise ValueError(args)
+
+
+class FillableSettingsPanel(SettingsPanel, ScalingMixin):
 	"""This `SettingsPanel` allows its controls to fill the whole available space.
 
 	See `FillableMultiCategorySettingsDialog`
@@ -158,12 +172,6 @@ class ContextualSettingsPanel(FillableSettingsPanel):
 	def __init__(self, *args, **kwargs):
 		self.context = None
 		super().__init__(*args, **kwargs)
-
-	def scale(self, *args):
-		return tuple([
-			self.scaleSize(arg) if arg > 0 else arg
-			for arg in args
-		])
 
 	def initData(self, context):
 		raise NotImplemented()
@@ -190,7 +198,7 @@ class PanelAccessible(wx.Accessible):
 		return (wx.ACC_OK, self.Window.panelDescription)
 
 
-class FillableMultiCategorySettingsDialog(MultiCategorySettingsDialog):
+class FillableMultiCategorySettingsDialog(MultiCategorySettingsDialog, ScalingMixin):
 	"""This `MultiCategorySettingsDialog` allows its panels to fill the whole available space.
 
 	See `FillableSettingsPanel`
@@ -200,6 +208,8 @@ class FillableMultiCategorySettingsDialog(MultiCategorySettingsDialog):
 		# Changes to the original implementation:
 		#  - Add `proportion=1`
 		#  - Remove `gui._isDebug()` test (introduced with NVDA 2018.2)
+		#  - Add scaling
+		scale = self.scale
 		panel = self.catIdToInstanceMap.get(catId, None)
 		if not panel:
 			try:
@@ -210,7 +220,7 @@ class FillableMultiCategorySettingsDialog(MultiCategorySettingsDialog):
 			panel.Hide()
 			self.containerSizer.Add(
 				panel, flag=wx.ALL | wx.EXPAND, proportion=1,
-				border=guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL
+				border=scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL)
 			)
 			self.catIdToInstanceMap[catId] = panel
 			panelWidth = panel.Size[0]
@@ -246,7 +256,7 @@ def configuredSettingsDialogType(**config):
 
 
 class ContextualMultiCategorySettingsDialog(
-	FillableMultiCategorySettingsDialog,
+	FillableMultiCategorySettingsDialog
 ):
 
 	def __new__(cls, *args, **kwargs):
@@ -283,6 +293,7 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 	categoryClasses = []
 
 	def makeSettings(self, settingsSizer):
+		scale = self.scale
 		sHelper = guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
 
 		# Translators: The label for the list of categories in a multi category settings dialog.
@@ -294,13 +305,12 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 		# These sizes are set manually so that the initial proportions within the dialog look correct. If these sizes are
 		# not given, then I believe the proportion arguments (as given to the gridBagSizer.AddGrowableColumn) are used
 		# to set their relative sizes. We want the proportion argument to be used for resizing, but not the initial size.
-		catListDim = (150, 10)
-		catListDim = self.scaleSize(catListDim)
+		catListDim = scale(150, 10)
 
-		initialScaledWidth = self.scaleSize(self.INITIAL_SIZE[0])
-		spaceForBorderWidth = self.scaleSize(20)
+		initialScaledWidth = scale(self.INITIAL_SIZE[0])
+		spaceForBorderWidth = scale(20)
 		catListWidth = catListDim[0]
-		containerDim = (initialScaledWidth - catListWidth - spaceForBorderWidth, self.scaleSize(10))
+		containerDim = (initialScaledWidth - catListWidth - spaceForBorderWidth, scale(10))
 
 		self.catListCtrl = CustomTreeCtrl(
 			self,
@@ -331,8 +341,8 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 		self.setPostInitFocus = self.container.SetFocus if self.initialCategory else self.catListCtrl.SetFocus
 
 		self.gridBagSizer = gridBagSizer = wx.GridBagSizer(
-			hgap=guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL,
-			vgap=guiHelper.SPACE_BETWEEN_BUTTONS_VERTICAL
+			hgap=scale(guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL),
+			vgap=scale(guiHelper.SPACE_BETWEEN_BUTTONS_VERTICAL)
 		)
 		# add the label, the categories list, and the settings panel to a 2 by 2 grid.
 		# The label should span two columns, so that the start of the categories list
@@ -381,6 +391,7 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 				child.SetFocus()
 
 	def _changeCategoryPanel(self, newCatInfos):
+		scale = self.scale
 		configuredSettingsDialogType()
 		panel = self.catIdToInstanceMap.get(newCatInfos.title, None)
 		if panel:
@@ -390,7 +401,7 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 		panel.Hide()
 		self.containerSizer.Add(
 			panel, flag=wx.ALL | wx.EXPAND,
-			border=guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL
+			border=scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL)
 		)
 		self.catIdToInstanceMap[newCatInfos.title] = panel
 		panelWidth = panel.Size[0]

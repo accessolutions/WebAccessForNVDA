@@ -112,6 +112,8 @@ class ListControl(ContextualSettingsPanel):
 		gbSizer.EmptyCellSize = (0, 0)
 		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
 
+		scale = self.scale
+
 		row = 0
 		# Translators: Displayed when the selected rule type doesn't support any action
 		self.noPropertiesLabel = wx.StaticText(self, label=_("No properties available for the selected rule type."))
@@ -123,19 +125,19 @@ class ListControl(ContextualSettingsPanel):
 		gbSizer.Add(self.propertiesLabel, pos=(row, 0), flag=wx.EXPAND)
 		self.hidable.append(self.propertiesLabel)
 
-		self.listCtrl = wx.ListCtrl(self, size=(-1, 250), style=wx.LC_REPORT | wx.BORDER_SUNKEN)
+		self.listCtrl = wx.ListCtrl(self, size=scale(-1, 250), style=wx.LC_REPORT | wx.BORDER_SUNKEN)
 		self.listCtrl.InsertColumn(0, 'Properties')
 		self.listCtrl.InsertColumn(1, 'Value')
 		self.hidable.append(self.listCtrl)
 		row += 1
 
-		self.editable = wx.TextCtrl(self, size=(-1, 30))
+		self.editable = wx.TextCtrl(self, size=scale(-1, 30))
 		self.hidable.append(self.editable)
 
-		self.toggleBtn = wx.ToggleButton(self, label="", size=(150, 30))
+		self.toggleBtn = wx.ToggleButton(self, label="", size=scale(150, 30))
 		self.hidable.append(self.toggleBtn)
 
-		self.choice = wx.Choice(self, choices=[], size=(150, 30))
+		self.choice = wx.Choice(self, choices=[], size=scale(150, 30))
 		self.hidable.append(self.choice)
 
 		gbSizer.Add(self.listCtrl, pos=(row, 0), span=(3,3), flag=wx.EXPAND)

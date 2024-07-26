@@ -243,12 +243,10 @@ class GeneralPanel(ContextualSettingsPanel):
 	title = _("General")
 
 	def makeSettings(self, settingsSizer):
+		scale = self.scale
 		gbSizer = wx.GridBagSizer()
 		gbSizer.EmptyCellSize = (0, 0)
 		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
-
-		def scale(*args):
-			return self.scaleSize(args)
 
 		row = 0
 		# Translator: The label for a field on the Criteria editor
@@ -291,13 +289,13 @@ class GeneralPanel(ContextualSettingsPanel):
 		gbSizer.AddGrowableRow(row)
 
 		row += 1
-		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
 
 		row += 1
 		# Translator: The label for a field on the Criteria editor
 		item = wx.StaticText(self, label=_("Technical &notes"))
 		gbSizer.Add(item, pos=(row, 0))
-		gbSizer.Add((guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
+		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item = self.commentText = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_RICH)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 		gbSizer.AddGrowableRow(row)
@@ -395,12 +393,10 @@ class CriteriaPanel(ContextualSettingsPanel):
 		return getSummary(data)
 
 	def makeSettings(self, settingsSizer):
+		scale = self.scale
 		gbSizer = wx.GridBagSizer()
 		gbSizer.EmptyCellSize = (0, 0)
 		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
-
-		def scale(*args):
-			return self.scaleSize(args)
 
 		hidable = self.hidable = {}
 
@@ -841,24 +837,25 @@ class PropertiesPanel(properties.ListControl):
 	context = None
 	hidable = []
 
-
 	def makeSettings(self, settingsSizer):
 		super().makeSettings(settingsSizer)
+		scale = self.scale
 
 		# Adding 3 column to the listControl
 		self.listCtrl.InsertColumn(2, "Rule level", width=215)
 
 		# Getting the grid sizer from the parent
 		sizer = self.sizer
-		self.btnAddProps = wx.Button(self, label=_("&Add"), size=(325, 30))
+		self.btnAddProps = wx.Button(self, label=_("&Add"))
 		self.hidable.append(self.btnAddProps)
-		self.btnDelProps = wx.Button(self, label=_("&Delete"), size=(325, 30))
+		self.btnDelProps = wx.Button(self, label=_("&Delete"))
 		self.hidable.append(self.btnDelProps)
 
 		btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
-		btn_sizer.Add(self.btnAddProps, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL)
-		btn_sizer.Add(self.btnDelProps, wx.ALIGN_CENTER_HORIZONTAL | wx.ALL)
-		sizer.Add(btn_sizer, pos=(4, 0), flag=wx.EXPAND)
+		btn_sizer.AddStretchSpacer()
+		btn_sizer.Add(self.btnAddProps, flag=wx.ALL)
+		btn_sizer.Add(self.btnDelProps, flag=wx.ALL)
+		sizer.Add(btn_sizer, pos=(7, 0), span=(1, 3), flag=wx.EXPAND)
 
 		self.btnAddProps.Bind(wx.EVT_BUTTON, self.onAddProperties)
 		self.btnDelProps.Bind(wx.EVT_BUTTON, self.onDeleteProperties)
@@ -997,7 +994,7 @@ class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
 	# Translators: This is the label for the WebAccess criteria settings dialog.
 	title = _("WebAccess Criteria set editor")
 	categoryClasses = [GeneralPanel, CriteriaPanel, PropertiesPanel, ActionsPanel]
-	INITIAL_SIZE = (800, 480)
+	INITIAL_SIZE = (1000, 480)
 	def makeSettings(self, settingsSizer):
 		super().makeSettings(settingsSizer)
 		idTestCriteria = wx.NewId()

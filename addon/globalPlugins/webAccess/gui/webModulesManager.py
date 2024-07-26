@@ -33,10 +33,12 @@ import config
 import core
 import globalVars
 import gui
+from gui.nvdaControls import AutoWidthColumnListCtrl
 import languageHandler
 from logHandler import log
 
-from gui.nvdaControls import AutoWidthColumnListCtrl
+from . import ScalingMixin
+
 
 def promptDelete(webModule):
 	msg = (
@@ -87,7 +89,7 @@ def show(context):
 	gui.mainFrame.postPopup()
 
 
-class Dialog(wx.Dialog):
+class Dialog(wx.Dialog, ScalingMixin):
 	# Singleton
 	_instance = None
 	def __new__(cls, *args, **kwargs):

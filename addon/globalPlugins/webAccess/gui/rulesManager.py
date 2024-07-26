@@ -43,6 +43,7 @@ from ..ruleHandler import (
 	showEditor,
 )
 from ..webModuleHandler import getEditableWebModule, save
+from . import ScalingMixin
 
 try:
 	from six import iteritems
@@ -294,9 +295,10 @@ GROUP_BY = (
 )
 
 
-class Dialog(wx.Dialog):
+class Dialog(wx.Dialog, ScalingMixin):
 
 	def __init__(self, parent):
+		scale = self.scale
 		super().__init__(
 			parent=gui.mainFrame,
 			id=wx.ID_ANY,
@@ -315,7 +317,7 @@ class Dialog(wx.Dialog):
 		)
 		item.Bind(wx.EVT_RADIOBOX, self.onGroupByRadio)
 		contentsSizer.Add(item, flag=wx.EXPAND)
-		contentsSizer.AddSpacer(guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS)
+		contentsSizer.AddSpacer(scale(guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS))
 
 		filtersSizer = wx.GridSizer(1, 2, 10, 10)
 
@@ -323,7 +325,7 @@ class Dialog(wx.Dialog):
 			self,
 			# Translator: A label on the RulesManager dialog.
 			_("&Filter: "),
-			wx.TextCtrl, size=(250, -1), style=wx.TE_PROCESS_ENTER
+			wx.TextCtrl, size=scale(250, -1), style=wx.TE_PROCESS_ENTER
 		)
 		item = self.filterEdit = labeledCtrlHelper.control
 		item.Bind(wx.EVT_TEXT, lambda evt: self.refreshRuleList())
@@ -339,13 +341,11 @@ class Dialog(wx.Dialog):
 		filtersSizer.Add(self.activeOnlyCheckBox)
 
 		contentsSizer.Add(filtersSizer, flag=wx.EXPAND)
-		contentsSizer.AddSpacer(
-			guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS
-		)
+		contentsSizer.AddSpacer(scale(guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS))
 
 		item = self.tree = wx.TreeCtrl(
 			self,
-			size=wx.Size(700, 300),
+			size=scale(700, 300),
 			style=wx.TR_HAS_BUTTONS | wx.TR_HIDE_ROOT | wx.TR_LINES_AT_ROOT
 		)
 		item.Bind(wx.EVT_TREE_ITEM_ACTIVATED, self.onTreeItemActivated)
@@ -353,9 +353,7 @@ class Dialog(wx.Dialog):
 		item.Bind(wx.EVT_TREE_SEL_CHANGED, self.onTreeSelChanged)
 		self.treeRoot = item.AddRoot("root")
 		contentsSizer.Add(item, flag=wx.EXPAND, proportion=2)
-		contentsSizer.AddSpacer(
-			guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS
-		)
+		contentsSizer.AddSpacer(scale(guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS))
 
 		descSizer = wx.GridBagSizer()
 		descSizer.EmptyCellSize = (0, 0)
@@ -365,18 +363,18 @@ class Dialog(wx.Dialog):
 		# Translator: The label for a field on the Rules manager
 		item = wx.StaticText(self, label=_("Summary"))
 		descSizer.Add(item, pos=(0, 0), flag=wx.EXPAND)
-		descSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(1, 0))
+		descSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(1, 0))
 		item = self.ruleSummary = wx.TextCtrl(
 			self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_DONTWRAP | wx.TE_RICH
 		)
 		descSizer.Add(item, pos=(2, 0), flag=wx.EXPAND)
 
-		descSizer.Add((guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL, 0), pos=(0, 1))
+		descSizer.Add(scale(guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL, 0), pos=(0, 1))
 
 		# Translator: The label for a field on the Rules manager
 		item = wx.StaticText(self, label=_("Technical notes"))
 		descSizer.Add(item, pos=(0, 2), flag=wx.EXPAND)
-		descSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(1, 2))
+		descSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(1, 2))
 		item = self.ruleComment = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY)
 		descSizer.Add(item, pos=(2, 2), flag=wx.EXPAND)
 
@@ -384,9 +382,7 @@ class Dialog(wx.Dialog):
 		descSizer.AddGrowableCol(2)
 		descSizer.AddGrowableRow(2)
 
-		contentsSizer.AddSpacer(
-			guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS
-		)
+		contentsSizer.AddSpacer(scale(guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS))
 
 		btnHelper = guiHelper.ButtonHelper(wx.HORIZONTAL)
 		item = self.resultMoveToButton = btnHelper.addButton(
