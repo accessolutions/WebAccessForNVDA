@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2024 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2021.04.06"
+__version__ = "2024.07.26"
 __author__ = "Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
@@ -30,6 +30,7 @@ import wx
 import addonHandler
 import config
 import gui
+from gui import guiHelper
 import inputCore
 import queueHandler
 
@@ -50,16 +51,6 @@ try:
 except ImportError:
 	# NVDA version < 2018.3
 	iteritems = dict.iteritems
-
-try:
-	TreeCtrl_GetItemData = wx.TreeCtrl.GetItemPyData
-	TreeCtrl_SetItemData = wx.TreeCtrl.SetItemPyData
-except AttributeError:
-	# NVDA version < 2018.3
-	TreeCtrl_GetItemData = wx.TreeCtrl.GetItemData
-	TreeCtrl_SetItemData = wx.TreeCtrl.SetItemData
-
-from gui import guiHelper
 
 
 addonHandler.initTranslation()
@@ -455,7 +446,7 @@ class Dialog(wx.Dialog, ScalingMixin):
 		selection = self.tree.Selection
 		if not selection.IsOk():
 			return None
-		return TreeCtrl_GetItemData(self.tree, self.tree.Selection).obj
+		return self.tree.GetItemPyData(self.tree.Selection).obj
 
 	def getSelectedRule(self):
 		obj = self.getSelectedObject()
@@ -492,7 +483,7 @@ class Dialog(wx.Dialog, ScalingMixin):
 		def addToTree(parent, tids):
 			for tid in tids:
 				tii = self.tree.AppendItem(parent, tid.label)
-				TreeCtrl_SetItemData(self.tree, tii, tid)
+				self.tree.SetItemPyData(tii, tid)
 				if shared.selectTreeItem is None:
 					if selectName:
 						if tid.label == selectName:
