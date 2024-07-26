@@ -344,6 +344,9 @@ class GeneralPanel(ContextualSettingsPanel):
 		self.updateData()
 		super().onPanelDeactivated()
 
+	def spaceIsPressedOnTreeNode(self):
+		self.criteriaName.SetFocus()
+
 	def onSave(self):
 		self.updateData()
 		data = self.context["data"]["criteria"]
@@ -431,7 +434,7 @@ class CriteriaPanel(ContextualSettingsPanel):
 		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item.Show(False)
 		items.append(item)
-		item = self.contextPageTitleCombo = wx.ComboBox(self)
+		item = self.contextPageTitleCombo = wx.ComboBox(self, size=(-1, 30))
 		item.Hide()
 		items.append(item)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
@@ -630,7 +633,6 @@ class CriteriaPanel(ContextualSettingsPanel):
 			self.statesCombo.Set(statesChoices)
 			self.srcCombo.Set(srcChoices)
 
-
 		self.refreshContextMacroChoices(initial=True)
 		self.onContextMacroChoice(None)
 		self.contextPageTitleCombo.Value = data.get("contextPageTitle", "")
@@ -737,12 +739,15 @@ class CriteriaPanel(ContextualSettingsPanel):
 
 	def onPanelActivated(self):
 		self.refreshContextMacroChoices()
-		#self.onContextMacroChoice(None)
+		# self.onContextMacroChoice(None)
 		super().onPanelActivated()
 
 	def onPanelDeactivated(self):
 		self.updateData()
 		super().onPanelDeactivated()
+
+	def spaceIsPressedOnTreeNode(self):
+		self.contextMacroDropDown.SetFocus()
 
 	def isValid(self):
 		data = self.context["data"]["criteria"]
@@ -842,13 +847,13 @@ class PropertiesPanel(properties.ListControl):
 		scale = self.scale
 
 		# Adding 3 column to the listControl
-		self.listCtrl.InsertColumn(2, "Rule level", width=215)
+		self.listCtrl.InsertColumn(2, 'Rule level')
 
 		# Getting the grid sizer from the parent
 		sizer = self.sizer
-		self.btnAddProps = wx.Button(self, label=_("&Add"))
+		self.btnAddProps = wx.Button(self, label=_("&Add"), size=(-1, 30))
 		self.hidable.append(self.btnAddProps)
-		self.btnDelProps = wx.Button(self, label=_("&Delete"))
+		self.btnDelProps = wx.Button(self, label=_("&Delete"), size=(-1, 30))
 		self.hidable.append(self.btnDelProps)
 
 		btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -880,10 +885,8 @@ class PropertiesPanel(properties.ListControl):
 		lstIndex = self.listCtrl.GetItemCount()
 		self.focusListCtrl(lstIndex - 1, True)
 
-
 	def onDeleteProperties(self, evt):
 		super().onDeleteProperties(evt)
-
 
 	def initPropertiesList(self, context):
 		super().initPropertiesList(context)
@@ -894,7 +897,6 @@ class PropertiesPanel(properties.ListControl):
 			self.updateListCtrl(data)
 		self.onInitUpdateListCtrl()
 
-
 	def onInitUpdateListCtrl(self):
 		self.listCtrl.DeleteAllItems()
 		for p in reversed(self.propertiesList):
@@ -902,13 +904,11 @@ class PropertiesPanel(properties.ListControl):
 				self.updateOverridenData(self.index, p)
 		self.setColumunWidthAutoSize()
 
-
 	def updateOverridenData(self, index, props):
 		val = self.updatedStrValues(props.get_value(), props.get_id())
 		self.listCtrl.InsertStringItem(index, self.customDisplayLabel(props))
 		self.listCtrl.SetStringItem(index, 1, val)
 		self.listCtrl.SetStringItem(index, 2, self.isOverrided(props.get_id()))
-
 
 	def isOverrided(self, idProps):
 		"""
@@ -926,7 +926,7 @@ class PropertiesPanel(properties.ListControl):
 					return  self.updatedStrValues(value, idProps) if value or isinstance(self.getPropsObj(idProps), properties.ToggleProperty)else _("Not assigned")
 
 
-	def updateData(self, data = None):
+	def updateData(self, data=None):
 		propertiesMapValue = {}
 		data = self.context["data"]["rule"]
 		ruleType = data.get("type")
@@ -942,6 +942,8 @@ class PropertiesPanel(properties.ListControl):
 	def onPanelActivated(self):
 		super().onPanelActivated()
 
+	def spaceIsPressedOnTreeNode(self):
+		self.listCtrl.SetFocus()
 
 	def onSave(self):
 		self.updateData()
@@ -956,7 +958,7 @@ class ActionsPanel(ruleEditor.ActionsPanel):
 		self.autoActionList.Destroy()
 		self.labelAutoactions.Destroy()
 
-	def initData(self, context):
+	def initData(self, context, **kwargs):
 		self.context = context
 		data = self.context["data"]["criteria"]
 		self.gestureMapValue = {}
@@ -975,7 +977,7 @@ class ActionsPanel(ruleEditor.ActionsPanel):
 	def onDeleteGesture(self, evt):
 		super().onDeleteGesture(evt)
 
-	def updateData(self, data = None):
+	def updateData(self, data=None):
 		rule = self.context["data"]["rule"]
 		data = self.context["data"]["criteria"]
 		ruleType = rule.get("type")
@@ -990,11 +992,10 @@ class ActionsPanel(ruleEditor.ActionsPanel):
 
 
 class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
-
 	# Translators: This is the label for the WebAccess criteria settings dialog.
 	title = _("WebAccess Criteria set editor")
 	categoryClasses = [GeneralPanel, CriteriaPanel, PropertiesPanel, ActionsPanel]
-	INITIAL_SIZE = (1000, 480)
+	INITIAL_SIZE = (900, 580)
 	def makeSettings(self, settingsSizer):
 		super().makeSettings(settingsSizer)
 		idTestCriteria = wx.NewId()
@@ -1008,7 +1009,6 @@ class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
 		testCriteria(self.context)
 
 	def updateData(self):
-
 		for panel in list(self.catIdToInstanceMap.values()):
 			panel.updateData()
 
