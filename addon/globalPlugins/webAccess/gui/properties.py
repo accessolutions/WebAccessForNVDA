@@ -748,7 +748,8 @@ class ListControl(ContextualSettingsPanel):
 	@staticmethod
 	def buildAutoActionOptions(mgr):
 		actionsDict = mgr.getActions()
-		defaultval = ("Choose an option", "")
+		# Translators: Displayed as a prompt in a drop-down list
+		defaultval = (_("Choose an option"), "")
 		return [defaultval] + [(actionsDict[i], i) for i in actionsDict]
 
 	def getAutoActions(self):
@@ -761,7 +762,8 @@ class ListControl(ContextualSettingsPanel):
 
 	@staticmethod
 	def buildMutationOptions():
-		defaultval = ("Choose an option", "")
+		# Translators: Displayed as a prompt in a drop-down list
+		defaultval = (_("Choose an option"), "")
 		return [defaultval] + [(mutationLabel, i) for i, mutationLabel in enumerate(mutationLabels.values())]
 
 
@@ -777,6 +779,7 @@ class ListControl(ContextualSettingsPanel):
 		On init function updates the run time gestures list
 		"""
 		self.gestures = []
+		# Translators: Displayed as a prompt in a drop-down list
 		defaultval = (_("Choose an option"), "")
 		self.gestures.insert(0, defaultval)
 
