@@ -880,7 +880,7 @@ class PropertiesPanel(properties.ListControl):
 	def getListToAppend(self):
 		val = super().getListToAppend()
 		if val is not None:
-			self.updateOverridenData(self.index, val)
+			self.updateOverriddenData(self.index, val)
 		self.onInitUpdateListCtrl()
 		lstIndex = self.listCtrl.GetItemCount()
 		self.focusListCtrl(lstIndex - 1, True)
@@ -901,16 +901,16 @@ class PropertiesPanel(properties.ListControl):
 		self.listCtrl.DeleteAllItems()
 		for p in reversed(self.propertiesList):
 			if p.get_flag():
-				self.updateOverridenData(self.index, p)
+				self.updateOverriddenData(self.index, p)
 		self.setColumunWidthAutoSize()
 
-	def updateOverridenData(self, index, props):
+	def updateOverriddenData(self, index, props):
 		val = self.updatedStrValues(props.get_value(), props.get_id())
 		self.listCtrl.InsertStringItem(index, self.customDisplayLabel(props))
 		self.listCtrl.SetStringItem(index, 1, val)
-		self.listCtrl.SetStringItem(index, 2, self.isOverrided(props.get_id()))
+		self.listCtrl.SetStringItem(index, 2, self.isOverridden(props.get_id()))
 
-	def isOverrided(self, idProps):
+	def isOverridden(self, idProps):
 		"""
 		Function updates the overrided values on the criteria editor panel 3rd Column
 		"""
