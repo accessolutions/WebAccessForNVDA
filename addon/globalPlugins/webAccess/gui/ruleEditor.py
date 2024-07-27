@@ -1259,7 +1259,7 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 				if node.role in formModeRoles:
 					dataProps = data.get("properties")
 					if dataProps:
-						dataProps["properties"]["formMode"] = False
+						dataProps["properties"]["formMode"] = True
 					break
 				node = node.parent
 		super().initData(context)
