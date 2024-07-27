@@ -120,7 +120,7 @@ class ListControl(ContextualSettingsPanel):
 		gbSizer.Add(self.noPropertiesLabel, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
 
 		row += 1
-		# Translators: Keyboard shortcut input label for the rule dialog's action panel.
+		# Translators: A label in the Rule Editor dialog
 		self.propertiesLabel = wx.StaticText(self, label=_("&Properties List"))
 		gbSizer.Add(self.propertiesLabel, pos=(row, 0), flag=wx.EXPAND)
 		self.hidable.append(self.propertiesLabel)
