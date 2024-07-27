@@ -126,8 +126,10 @@ class ListControl(ContextualSettingsPanel):
 		self.hidable.append(self.propertiesLabel)
 
 		self.listCtrl = wx.ListCtrl(self, size=scale(-1, 250), style=wx.LC_REPORT | wx.BORDER_SUNKEN)
-		self.listCtrl.InsertColumn(0, 'Properties')
-		self.listCtrl.InsertColumn(1, 'Value')
+		# Translators: A column label in the Rule Editor dialog
+		self.listCtrl.InsertColumn(0, pgettext("webAccess.ruleEditor", "Properties"))
+		# Translators: A column label in the Rule Editor dialog
+		self.listCtrl.InsertColumn(1, pgettext("webAccess.ruleEditor", "Value"))
 		self.hidable.append(self.listCtrl)
 		row += 1
 
