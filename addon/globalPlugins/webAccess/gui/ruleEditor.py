@@ -1025,7 +1025,7 @@ class ChildActionPanel(TreeContextualPanel):
 		item.Bind(wx.EVT_BUTTON, self.onAddGesture)
 		gbSizer.Add((150, 0), pos=(0, 3), flag=wx.EXPAND)
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL, 0), pos=(1, 0))
-		self.textCtrl = wx.TextCtrl(self, value=self.title, size=(-1, 100))
+		self.textCtrl = wx.TextCtrl(self, value=self.title, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH)
 		gbSizer.Add(self.textCtrl, pos=(2, 0), span=(1, 3), flag=wx.EXPAND)
 
 	def spaceIsPressedOnTreeNode(self, withShift=False):
