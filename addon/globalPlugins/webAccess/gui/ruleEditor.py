@@ -796,10 +796,15 @@ class ChildOneInputPanel(TreeContextualPanel):
 	def makeSettings(self, sizer):
 		scale = self.scale
 		gbSizer = wx.GridBagSizer()
+		gbSizer.EmptyCellSize = (0, 0)
+		items = self.hidable = []
 		sizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
-		self.header = wx.StaticText(self, label='')
-		gbSizer.Add(self.header, pos=(0, 0))
-		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(1, 0))
+		item = self.header = wx.StaticText(self, label='')
+		items.append(item)
+		item = gbSizer.Add(item, pos=(0, 0))
+		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL, 0), pos=(1, 0))
+		items.append(item)
+		gbSizer.AddGrowableCol(0)
 		self.gbSizer = gbSizer
 
 	@staticmethod
@@ -820,14 +825,15 @@ class ChildOneInputPanel(TreeContextualPanel):
 
 	def initData(self, context, **kwargs):
 		super().initData(context, **kwargs)
-		if kwargs.get('hideLabel', False):
-			self.header.Hide()
+		if self.title:
+			self.header.SetLabel(self.title)
+		else:
+			for item in self.hidable:
+				item.Show(False)
 		if not self.editor:
 			self.editor = self.editorClass(self, **self.editorParams)
-			self.gbSizer.Add(self.editor, pos=(2, 0))
+			self.gbSizer.Add(self.editor, pos=(2, 0), flag=wx.EXPAND)
 			self.editor.Bind(wx.EVT_KILL_FOCUS, self.onFieldChange)
-
-		self.header.SetLabel(self.title)
 		self.setEditorValue()
 
 	def spaceIsPressedOnTreeNode(self, withShift=False):
@@ -894,12 +900,12 @@ class ChildGeneralPanel(ChildOneInputPanel):
 			self.refreshParent(category)
 
 	@staticmethod
-	def getChildTitle(propName, value):
+	def getChildTitle(propName, value, excludeValue: bool=False):
 		if propName == ChildGeneralPanel.TYPE_FIELD:
 			typeValue = ruleTypes.ruleTypeLabels[value] if isinstance(value, str) else \
 				list(ruleTypes.ruleTypeLabels.values())[value]
-			return ChildOneInputPanel.getChildTitle(propName, typeValue)
-		return ChildOneInputPanel.getChildTitle(propName, value.capitalize())
+			return ChildOneInputPanel.getChildTitle(propName, typeValue, excludeValue)
+		return ChildOneInputPanel.getChildTitle(propName, value.capitalize(), excludeValue)
 
 	def updateData(self, data):
 		if self.fieldName == self.TYPE_FIELD:
@@ -1165,10 +1171,11 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 			if fieldName not in ruleData:
 				continue
 			title = ChildGeneralPanel.getChildTitle(fieldName, ruleData.get(fieldName, ""))
+			label = ChildGeneralPanel.getChildTitle(fieldName, ruleData.get(fieldName, ""), excludeValue=True)
 			node = TreeNodeInfo(ChildGeneralPanel, title=title)
 			if fieldName == 'name':
 				node.categoryParams = {
-					'title': title,
+					'title': label,
 					'fieldName': fieldName,
 					'editorClass': wx.TextCtrl,
 					'editorParams': {
@@ -1177,9 +1184,8 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 					},
 				}
 			elif fieldName == ChildGeneralPanel.TYPE_FIELD:
-				title = ChildGeneralPanel.getChildTitle(fieldName, ruleData.get(fieldName, ""))
 				node.categoryParams = {
-					'title': title,
+					'title': label,
 					'fieldName': fieldName,
 					'editorClass': wx.Choice,
 					'editorParams': {
@@ -1227,10 +1233,9 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 			title = PropertiesPanel.getPropertyTitle(field, value, type)
 			node = TreeNodeInfo(ChildPropertyPanel, title=title)
 			label = PropertiesPanel.getPropertyTitle(field, value, type, excludeValue=True)
-			hideLabel = False
 			if editorClass == wx.CheckBox:
 				editorParams = {'label': label}
-				hideLabel = True
+				label = ""
 			elif editorClass == wx.TextCtrl:
 				editorParams = {'size': (350, -1)}
 			elif editorClass == wx.ComboBox:
@@ -1239,9 +1244,9 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 				editorParams = {'style': wx.CB_READONLY, 'choices': choices}
 			node.categoryParams = {
 				'fieldName': field,
+				'title': label,
 				'editorClass': editorClass,
-				'editorParams': editorParams,
-				'hideLabel': hideLabel
+				'editorParams': editorParams
 			}
 			propertiesPanel.append(node)
 		return propertiesPanel
