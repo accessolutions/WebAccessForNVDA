@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2024.07.26"
+__version__ = "2024.07.28"
 __author__ = "Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
@@ -446,7 +446,7 @@ class Dialog(wx.Dialog, ScalingMixin):
 		selection = self.tree.Selection
 		if not selection.IsOk():
 			return None
-		return self.tree.GetItemPyData(self.tree.Selection).obj
+		return self.tree.GetItemData(self.tree.Selection).obj
 
 	def getSelectedRule(self):
 		obj = self.getSelectedObject()
@@ -483,7 +483,7 @@ class Dialog(wx.Dialog, ScalingMixin):
 		def addToTree(parent, tids):
 			for tid in tids:
 				tii = self.tree.AppendItem(parent, tid.label)
-				self.tree.SetItemPyData(tii, tid)
+				self.tree.SetItemData(tii, tid)
 				if shared.selectTreeItem is None:
 					if selectName:
 						if tid.label == selectName:
