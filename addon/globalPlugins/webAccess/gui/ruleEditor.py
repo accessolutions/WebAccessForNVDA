@@ -411,21 +411,21 @@ class AlternativesPanel(TreeContextualPanel):
 
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL, 0), pos=(2, 1))
 
-		# Translators: New criteria button label
+		# Translators: The label for a button on the Rule Editor dialog
 		item = self.newButton = wx.Button(self, label=_("&New..."))
 		item.Bind(wx.EVT_BUTTON, self.onNewCriteria)
 		gbSizer.Add(item, pos=(2, 2))
 
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(3, 2))
 
-		# Translators: Edit criteria button label
+		# Translators: The label for a button on the Rule Editor dialog
 		item = self.editButton = wx.Button(self, label=_("&Edit..."))
 		item.Bind(wx.EVT_BUTTON, self.onEditCriteria)
 		gbSizer.Add(item, pos=(4, 2))
 
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(5, 2))
 
-		# Translators: Delete criteria button label
+		# Translators: The label for a button on the Rule Editor dialog
 		item = self.deleteButton = wx.Button(self, label=_("&Delete"))
 		item.Bind(wx.EVT_BUTTON, self.onDeleteCriteria)
 		gbSizer.Add(item, pos=(6, 2))
@@ -594,7 +594,7 @@ class ActionsPanel(TreeContextualPanel):
 		innerGbSizer.Add(item, pos=(0, 0), span=(4, 1), flag=wx.EXPAND)
 		innerGbSizer.Add(scale(guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL, 0), pos=(0, 1))
 		# Translators: The label for a button in the Rule Editor dialog
-		item = wx.Button(self, label=_("&Add"))
+		item = wx.Button(self, label=_("&New..."))
 		item.Bind(wx.EVT_BUTTON, self.onAddGesture)
 		self.addButton = item
 		innerGbSizer.Add(item, pos=(0, 2), flag=wx.EXPAND)
