@@ -460,14 +460,14 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 			context["data"]["criteria"].pop("new", None)
 			index = context["data"]["criteria"].pop("criteriaIndex")
 			context["data"]["rule"]["criteria"].insert(index, context["data"]["criteria"])
-			newitem = self.onNewCriteria_refresh(index)
+			newItem = self.onNewCriteria_refresh(index)
 			prm.tree.SelectItem(newItem)
 			prm.tree.SetFocusedItem(newItem)
 			prm.tree.SetFocus()
 			return
 		del context["data"]["criteria"]
 
-	def onNewCriteria_refresh(self):
+	def onNewCriteria_refresh(self, index):
 		prm = self.categoryParams
 		self.refreshCriteria(index)
 		self.refreshParent(prm.treeNode)
@@ -492,7 +492,6 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 	def onEditCriteria_refresh(self, index):
 		self.refreshCriteria(index)
 		self.refreshParent(self.categoryParams.tree.GetSelection())
-		
 
 	def onDeleteCriteria(self, evt):
 		context = self.context
@@ -511,7 +510,7 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 			prm.tree.SetFocusedItem(newItem)
 			prm.tree.SetFocus()
 
-	def onDeleteCriteria_refresh(self):
+	def onDeleteCriteria_refresh(self, index):
 		prm = self.categoryParams
 		self.refreshCriteria()
 		self.refreshParent(prm.treeNode)
@@ -998,7 +997,7 @@ class ChildAlternativePanel(AlternativesPanel):
 	def getIndex(self):
 		return self.indexCriteria
 
-	def onNewCriteria_refresh(self):
+	def onNewCriteria_refresh(self, index):
 		prm = self.categoryParams
 		self.refreshParent(prm.treeParent)
 		return prm.tree.getXChild(prm.treeParent, index)
@@ -1010,7 +1009,7 @@ class ChildAlternativePanel(AlternativesPanel):
 		prm.tree.SelectItem(newNodeToSelect)
 		prm.tree.SetFocus()
 
-	def onDeleteCriteria_refresh(self):
+	def onDeleteCriteria_refresh(self, index):
 		prm = self.categoryParams
 		prm.tree.SelectItem(prm.treeParent)
 		self.refreshParent(prm.treeParent)
