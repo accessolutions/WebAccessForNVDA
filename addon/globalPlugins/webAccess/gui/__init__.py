@@ -20,16 +20,21 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2024.07.23"
-__author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
+__version__ = "2024.07.28"
+__authors__ = (
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
+)
 
 from collections import OrderedDict
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 import re
+from typing import Any
 import wx
 
-from logHandler import log
-
 from gui import guiHelper, nvdaControls, _isDebug
+from gui.dpiScalingHelper import DpiScalingHelperMixinWithoutInit
 from gui.settingsDialogs import (
 	MultiCategorySettingsDialog,
 	SettingsDialog,
@@ -37,8 +42,8 @@ from gui.settingsDialogs import (
 	SettingsPanelAccessible,
 	EVT_RW_LAYOUT_NEEDED
 )
-from six import iteritems, text_type
-from gui.dpiScalingHelper import DpiScalingHelperMixinWithoutInit
+from logHandler import log
+
 
 LABEL_ACCEL = re.compile("&(?!&)")
 """
@@ -173,8 +178,8 @@ class ContextualSettingsPanel(FillableSettingsPanel):
 		self.context = None
 		super().__init__(*args, **kwargs)
 
-	def initData(self, context):
-		raise NotImplemented()
+	def initData(self, context: Mapping[str, Any]) -> None:
+		self.context = context
 
 	# Set to True if the view depends on data that can be edited on other panels of the same dialog
 	initData.onPanelActivated = False
@@ -267,7 +272,7 @@ class ContextualMultiCategorySettingsDialog(
 		self.context = None
 		super().__init__(*args, **kwargs)
 
-	def initData(self, context):
+	def initData(self, context: Mapping[str, Any]) -> None:
 		self.context = context
 		panel = self.currentCategory
 		if isinstance(panel, ContextualSettingsPanel):
@@ -288,9 +293,59 @@ class ContextualMultiCategorySettingsDialog(
 		return panel
 
 
+class TreeContextualPanel(ContextualSettingsPanel):
+
+	CATEGORY_PARAMS_CONTEXT_KEY = "TreeContextualPanel.categoryParams"
+
+	@dataclass
+	class CategoryParams:
+		tree: CustomTreeCtrl = None
+		treeNode: wx.TreeItemId = None
+		treeParent: wx.TreeItemId = None
+
+	def __init__(self, parent):
+		super().__init__(parent)
+		self.categoryParams = None
+
+	def initData(self, context: Mapping[str, Any]) -> None:
+		self.categoryParams = context.pop(self.CATEGORY_PARAMS_CONTEXT_KEY, None)
+		super().initData(context)
+
+	def refreshParent(self, parentNodeId, deleteChildren=True):
+		"""Refresh tree children of a parent item
+		Deletes all the childs of a branch and recreates them. To use when items are add or deletes.
+		"""
+		self.Parent.Parent.refreshNodePanelData(parentNodeId)
+		if deleteChildren:
+			self.hardRefreshChildren(parentNodeId)
+		else:
+			self.softRefreshChildren(parentNodeId)
+
+	def hardRefreshChildren(self, parentNodeId):
+		prm = self.categoryParams
+		parentTreeNodeInfo = prm.tree.getTreeNodeInfo(parentNodeId)
+		prm.tree.DeleteChildren(parentNodeId)
+		if parentTreeNodeInfo.children:
+			prm.tree.addToListCtrl(parentTreeNodeInfo.children, parentNodeId)
+			prm.tree.Expand(parentNodeId)
+
+	def softRefreshChildren(self, parentNodeId):
+		prm = self.categoryParams
+		parentTreeNodeInfo = prm.tree.getTreeNodeInfo(parentNodeId)
+		parent = self.Parent.Parent
+		newChildren = parentTreeNodeInfo.children
+		for i, oldItem in enumerate(prm.tree.getChildren(parentNodeId)):
+			newChildInfo = newChildren[i]
+			newChildInfo.updateTreeParams(prm.tree, oldItem, parentNodeId)
+			prm.tree.SetItemText(oldItem, newChildInfo.title)
+			prm.tree.setTreeNodeInfo(oldItem, newChildInfo)
+			parent.refreshNodePanelData(oldItem)
+
+
 class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
-	categoryInitList = []
-	categoryClasses = []
+
+	categoryInitList: Sequence[tuple[type(TreeContextualPanel), str]] = None
+	categoryClasses: Sequence[type(TreeContextualPanel)] = None
 
 	def makeSettings(self, settingsSizer):
 		scale = self.scale
@@ -364,7 +419,7 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 		self.Bind(wx.EVT_CHAR_HOOK, self.onCharHook)
 		self.Bind(EVT_RW_LAYOUT_NEEDED, self._onPanelLayoutChanged)
 
-	def initData(self, context):
+	def initData(self, context: Mapping[str, Any]) -> None:
 		super().initData(context)
 		self.categoryClasses = self.initCatClasses()
 		self.catListCtrl.addToListCtrl(self.categoryClasses)
@@ -395,7 +450,8 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 		configuredSettingsDialogType()
 		panel = self.catIdToInstanceMap.get(newCatInfos.title, None)
 		if panel:
-			panel.initData(self.context, **newCatInfos.categoryParams)
+			self.context[panel.CATEGORY_PARAMS_CONTEXT_KEY] = newCatInfos.categoryParams
+			panel.initData(self.context)
 			return panel
 		panel = newCatInfos.categoryClass(parent=self.container)
 		panel.Hide()
@@ -413,7 +469,8 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 						"MultiCategorySettingsDialog.MIN_SIZE"
 				).format(newCatInfos.categoryClass, panel.Size[0])
 			)
-		panel.initData(self.context, **newCatInfos.categoryParams)
+		self.context[panel.CATEGORY_PARAMS_CONTEXT_KEY] = newCatInfos.categoryParams
+		panel.initData(self.context)
 		panel.SetLabel(panel.title.replace('&', ""))
 		panel.SetAccessible(SettingsPanelAccessible(panel))
 		return panel
@@ -473,19 +530,22 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 		panel = self.catIdToInstanceMap.get(nodeInfo.title, None)
 		if panel:
 			nodeInfo.updateTreeParams(self.catListCtrl, node)
-			panel.initData(self.context, **nodeInfo.categoryParams)
-
+			self.context[panel.CATEGORY_PARAMS_CONTEXT_KEY] = nodeInfo.categoryParams
+			panel.initData(self.context)
 
 
 class TreeNodeInfo:
+
 	def __init__(self, categoryClass, title=None, childrenGetter=None, categoryParams=None):
 		self.categoryClass = categoryClass
 		self.title = title
 		if not childrenGetter:
 			childrenGetter = lambda: []
 		self.childrenGetter = childrenGetter
-		self.categoryParams = categoryParams if categoryParams else {}
-		# self.categoryParams = categoryParams
+		if categoryParams is not None:
+			self.categoryParams = categoryParams
+		else:
+			self.categoryParams = TreeContextualPanel.CategoryParams()
 		self._children = []
 
 	@property
@@ -509,7 +569,10 @@ class TreeNodeInfo:
 	def updateTreeParams(self, tree, treeNode, treeParent=None):
 		if not treeParent:
 			treeParent = tree.GetItemParent(treeNode)
-		self.categoryParams.update(tree=tree, treeNode=treeNode, treeParent=treeParent)
+		prm = self.categoryParams
+		prm.tree = tree
+		prm.treeNode = treeNode
+		prm.treeParent = treeParent
 
 
 def showContextualDialog(cls, context, parent, *args, **kwargs):

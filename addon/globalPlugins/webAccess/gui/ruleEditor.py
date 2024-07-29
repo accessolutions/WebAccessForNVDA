@@ -20,10 +20,15 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2024.07.25"
-__author__ = "Shirley Noël <shirley.noel@pole-emploi.fr>"
+__version__ = "2024.07.28"
+__authors__ = (
+	"Shirley Noël <shirley.noel@pole-emploi.fr>",
+	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>"
+)
 
-from collections import OrderedDict, namedtuple
+from collections import OrderedDict
+from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import Any
 import wx
 # TODO: Work-arround ExpandoTextCtrl mishandling maxHeight and vscroll
@@ -31,31 +36,33 @@ import wx
 
 import addonHandler
 import controlTypes
-import gui, ui
+import gui
+from gui import guiHelper
 import inputCore
 from logHandler import log
+import ui
 
 from ..ruleHandler import builtinRuleActions, ruleTypes
-from .properties import RULE_TYPE_FIELDS, FIELDS_WIDGET_MAP
 from .. import ruleHandler
 from ..ruleHandler import ruleTypes
 from ..ruleHandler.controlMutation import (
 	MUTATIONS_BY_RULE_TYPE,
 	mutationLabels
 )
-from ..utils import updateOrDrop
 from .. import webModuleHandler
+from ..utils import updateOrDrop
 from . import (
+	TreeContextualPanel,
 	TreeMultiCategorySettingsDialog,
-	ContextualSettingsPanel,
-	guiHelper,
+	TreeNodeInfo,
 	stripAccel,
 	stripAccelAndColon,
-	TreeNodeInfo,
-	ContextualMultiCategorySettingsDialog,
 	stripAccelAndColon,
 	properties
 )
+from .properties import RULE_TYPE_FIELDS, FIELDS_WIDGET_MAP
+
+
 addonHandler.initTranslation()
 
 formModeRoles = [
@@ -130,39 +137,7 @@ def getSummary(data):
 	return "\n".join(parts)
 
 
-class TreeContextualPanel(ContextualSettingsPanel):
-	def initData(self, context, **kwargs):
-		for key, value in kwargs.items():
-			setattr(self, key, value)
-		self.context = context
-
-	def refreshParent(self, parentNodeId, deleteChildren=True):
-		"""Refresh tree children of a parent item
-		Deletes all the childs of a branch and recreates them. To use when items are add or deletes.
-		"""
-		self.Parent.Parent.refreshNodePanelData(parentNodeId)
-		if deleteChildren:
-			self.hardRefreshChildren(parentNodeId)
-		else:
-			self.softRefreshChildren(parentNodeId)
-
-	def hardRefreshChildren(self, parentNodeId):
-		parentTreeNodeInfo = self.tree.getTreeNodeInfo(parentNodeId)
-		self.tree.DeleteChildren(parentNodeId)
-		if parentTreeNodeInfo.children:
-			self.tree.addToListCtrl(parentTreeNodeInfo.children, parentNodeId)
-			self.tree.Expand(parentNodeId)
-
-	def softRefreshChildren(self, parentNodeId):
-		parentTreeNodeInfo = self.tree.getTreeNodeInfo(parentNodeId)
-		parent = self.Parent.Parent
-		newChildren = parentTreeNodeInfo.children
-		for i, oldItem in enumerate(self.tree.getChildren(parentNodeId)):
-			newChildInfo = newChildren[i]
-			newChildInfo.updateTreeParams(self.tree, oldItem, parentNodeId)
-			self.tree.SetItemText(oldItem, newChildInfo.title)
-			self.tree.setTreeNodeInfo(oldItem, newChildInfo)
-			parent.refreshNodePanelData(oldItem)
+class RuleEditorTreeContextualPanel(TreeContextualPanel):
 
 	def getRuleManager(self):
 		return self.context["webModule"].ruleManager
@@ -177,7 +152,7 @@ class TreeContextualPanel(ContextualSettingsPanel):
 		return rule.get('type')
 
 
-class GeneralPanel(TreeContextualPanel):
+class GeneralPanel(RuleEditorTreeContextualPanel):
 	# Translators: The label for the General settings panel.
 	title = _("General")
 
@@ -239,8 +214,8 @@ class GeneralPanel(TreeContextualPanel):
 
 		gbSizer.AddGrowableCol(2)
 
-	def initData(self, context, **kwargs):
-		super().initData(context, **kwargs)
+	def initData(self, context: Mapping[str, Any]) -> None:
+		super().initData(context)
 		data = self.getRule()
 		if 'type' in data:
 			self.ruleType.SetSelection(list(ruleTypes.ruleTypeLabels.keys()).index(data['type']))
@@ -271,15 +246,16 @@ class GeneralPanel(TreeContextualPanel):
 
 	def onNameEdited(self, evt):
 		self.getRule()["name"] = self.ruleName.Value
-		self.refreshParent(self.treeNode, deleteChildren=False)
+		self.refreshParent(self.categoryParams.treeNode, deleteChildren=False)
 
 	def onTypeChange(self, evt):
+		prm = self.categoryParams
 		data = self.getRule()
 		data["type"] = self.getTypeFieldValue()
 		self.refreshSummary()
-		self.refreshParent(self.treeNode, deleteChildren=False)
+		self.refreshParent(prm.treeNode, deleteChildren=False)
 		for i in [2, 3]:
-			category = self.tree.getXChild(self.tree.GetRootItem(), i)
+			category = prm.tree.getXChild(prm.tree.GetRootItem(), i)
 			self.refreshParent(category)
 
 	def getTypeFieldValue(self):
@@ -364,13 +340,12 @@ class GeneralPanel(TreeContextualPanel):
 		self.updateData()
 
 
-class AlternativesPanel(TreeContextualPanel):
+class AlternativesPanel(RuleEditorTreeContextualPanel):
 	# Translators: The label for a category in the rule editor
 	title = _("Criteria")
 
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
-		self.isChildCriteria = False
 		self.indexCriteria = None
 
 	def makeSettings(self, settingsSizer):
@@ -432,13 +407,12 @@ class AlternativesPanel(TreeContextualPanel):
 
 		gbSizer.AddGrowableCol(0)
 
-	def initData(self, context, **kwargs):
-		self.context = context
-		for key, value in kwargs.items():
-			setattr(self, key, value)
-		if self.isChildCriteria:
-			return
-		data = context["data"]["rule"].setdefault("criteria", [])
+	def initData(self, context: Mapping[str, Any]) -> None:
+		super().initData(context)
+		self.initData_alternatives()
+
+	def initData_alternatives(self) -> None:
+		data = self.context["data"]["rule"].setdefault("criteria", [])
 
 		self.criteriaList.Clear()
 		if not data:
@@ -471,8 +445,12 @@ class AlternativesPanel(TreeContextualPanel):
 	def spaceIsPressedOnTreeNode(self, withShift=False):
 		self.newButton.SetFocus()
 
+	def getIndex(self):
+		return self.criteriaList.Selection
+
 	def onNewCriteria(self, evt):
 		context = self.context
+		prm = self.categoryParams
 		context["data"]["criteria"] = OrderedDict({
 			"new": True,
 			"criteriaIndex": len(context["data"]["rule"]["criteria"])
@@ -482,22 +460,22 @@ class AlternativesPanel(TreeContextualPanel):
 			context["data"]["criteria"].pop("new", None)
 			index = context["data"]["criteria"].pop("criteriaIndex")
 			context["data"]["rule"]["criteria"].insert(index, context["data"]["criteria"])
-			if self.isChildCriteria:
-				self.refreshParent(self.treeParent)
-				newItem = self.tree.getXChild(self.treeParent, index)
-			else:
-				self.refreshCriteria(index)
-				self.refreshParent(self.treeNode)
-				newItem = self.tree.getXChild(self.treeNode, index if index >= 0 else 0)
-			self.tree.SelectItem(newItem)
-			self.tree.SetFocusedItem(newItem)
-			self.tree.SetFocus()
+			newitem = self.onNewCriteria_refresh(index)
+			prm.tree.SelectItem(newItem)
+			prm.tree.SetFocusedItem(newItem)
+			prm.tree.SetFocus()
 			return
 		del context["data"]["criteria"]
 
+	def onNewCriteria_refresh(self):
+		prm = self.categoryParams
+		self.refreshCriteria(index)
+		self.refreshParent(prm.treeNode)
+		return prm.tree.getXChild(prm.treeNode, index if index >= 0 else 0)		
+
 	def onEditCriteria(self, evt):
 		context = self.context
-		index = self.indexCriteria if self.isChildCriteria else self.criteriaList.Selection
+		index = self.getIndex()
 		context["data"]["criteria"] = context["data"]["rule"]["criteria"][index].copy()
 		context["data"]["criteria"]["criteriaIndex"] = index
 		from . import criteriaEditor
@@ -506,21 +484,20 @@ class AlternativesPanel(TreeContextualPanel):
 				del context["data"]["rule"]["criteria"][index]
 				index = context["data"]["criteria"].pop("criteriaIndex")
 				context["data"]["rule"]["criteria"].insert(index, context["data"]["criteria"])
-				if self.isChildCriteria:
-					self.refreshParent(self.treeParent)
-					newNodeToSelect = self.tree.getXChild(self.treeParent, index)
-					self.tree.SelectItem(newNodeToSelect)
-					self.tree.SetFocus()
-				else:
-					self.refreshCriteria(index)
-					self.refreshParent(self.tree.GetSelection())
+				self.onEditCriteria_refresh(index)
 				return
 		finally:
 			del context["data"]["criteria"]
 
+	def onEditCriteria_refresh(self, index):
+		self.refreshCriteria(index)
+		self.refreshParent(self.categoryParams.tree.GetSelection())
+		
+
 	def onDeleteCriteria(self, evt):
 		context = self.context
-		index = self.indexCriteria if self.isChildCriteria else self.criteriaList.Selection
+		prm = self.categoryParams
+		index = self.getIndex()
 		if gui.messageBox(
 				# Translator: A confirmation prompt on the Rule editor
 				_("Are you sure you want to delete this alternative?"),
@@ -529,17 +506,16 @@ class AlternativesPanel(TreeContextualPanel):
 				wx.YES | wx.NO | wx.CANCEL | wx.ICON_QUESTION, self
 		) == wx.YES:
 			del context["data"]["rule"]["criteria"][index]
-			if self.isChildCriteria:
-				self.tree.SelectItem(self.treeParent)
-				self.refreshParent(self.treeParent)
-				newItem = self.tree.getXChild(self.treeParent, index)
-			else:
-				self.refreshCriteria()
-				self.refreshParent(self.treeNode)
-				newItem = self.tree.getXChild(self.treeNode, index)
-			self.tree.SelectItem(newItem)
-			self.tree.SetFocusedItem(newItem)
-			self.tree.SetFocus()
+			newItem = self.onDeleteCriteria_refresh(index)
+			prm.tree.SelectItem(newItem)
+			prm.tree.SetFocusedItem(newItem)
+			prm.tree.SetFocus()
+
+	def onDeleteCriteria_refresh(self):
+		prm = self.categoryParams
+		self.refreshCriteria()
+		self.refreshParent(prm.treeNode)
+		return prm.tree.getXChild(prm.treeNode, index)
 
 	def onCriteriaSelected(self, evt):
 		if not self.editButton.Enabled:
@@ -568,7 +544,7 @@ class AlternativesPanel(TreeContextualPanel):
 		pass
 
 
-class ActionsPanel(TreeContextualPanel):
+class ActionsPanel(RuleEditorTreeContextualPanel):
 	# Translators: The label for a category in the rule editor
 	title = _("Actions")
 
@@ -621,8 +597,8 @@ class ActionsPanel(TreeContextualPanel):
 
 		gbSizer.AddGrowableCol(2)
 
-	def initData(self, context, **kwargs):
-		super().initData(context, **kwargs)
+	def initData(self, context: Mapping[str, Any]) -> None:
+		super().initData(context)
 		data = self.getRule()
 		mgr = self.getRuleManager()
 		actionsDict = mgr.getActions()
@@ -654,12 +630,13 @@ class ActionsPanel(TreeContextualPanel):
 
 	def onAddGesture(self, evt):
 		from ..gui import shortcutDialog
+		prm = self.categoryParams
 		mgr = self.getRuleManager()
 		shortcutDialog.ruleManager = mgr
 		if shortcutDialog.show():
 			self.gestureMapValue[shortcutDialog.resultShortcut] = shortcutDialog.resultActionData
 			self.onSave()
-			self.refreshParent(self.treeNode)
+			self.refreshParent(prm.treeNode)
 
 	def onDeleteGesture(self, evt):
 		gestureIdentifier = self.gesturesList.GetClientData(self.gesturesList.Selection)
@@ -713,7 +690,7 @@ class ActionsPanel(TreeContextualPanel):
 				del data["autoAction"]
 
 
-class PropertiesPanel(TreeContextualPanel, properties.ListControl):
+class PropertiesPanel(RuleEditorTreeContextualPanel, properties.ListControl):
 	# Translators: The label for a category in the rule editor
 	title = _("Properties")
 	PROPERTIES_KEY_NAME = "properties"
@@ -730,10 +707,8 @@ class PropertiesPanel(TreeContextualPanel, properties.ListControl):
 	def makeSettings(self, settingsSizer):
 		properties.ListControl.makeSettings(self, settingsSizer)
 
-	def initData(self, context, **kwargs):
-		TreeContextualPanel.initData(self, context, **kwargs)
-		properties.ListControl.initData(self, context, **kwargs)
-		self.context = context
+	def initData(self, context: Mapping[str, Any]) -> None:
+		super().initData(context)
 		self.initPropertiesList(context)
 		self.tempList = self.propertiesList
 		self.updateData()
@@ -774,24 +749,27 @@ class PropertiesPanel(TreeContextualPanel, properties.ListControl):
 		self.showItems(self.getRule())
 
 	def onPanelDeactivated(self):
+		prm = self.categoryParams
 		self.updateData()
-		self.refreshParent(self.treeNode, deleteChildren=False)
+		self.refreshParent(prm.treeNode, deleteChildren=False)
 		super().onPanelDeactivated()
 
 	def onSave(self):
 		self.updateData()
 
 
-class ChildOneInputPanel(TreeContextualPanel):
+class ChildOneInputPanel(RuleEditorTreeContextualPanel):
+
+	@dataclass
+	class CategoryParams(TreeContextualPanel.CategoryParams):
+		title: str = None
+		fieldName: str = None
+		editorClass: type = None
+		editorParams: Mapping[str: Any] = None
+
 	def __init__(self, *args, **kwargs):
-		self.editor = None
-		self.editorClass = None
-		self.editorParams = None
-		self.fieldName = None
-		self.treeNode = None
-		self.treeParent = None
-		self.tree = None
 		super().__init__(*args, **kwargs)
+		self.editor = None
 
 	def makeSettings(self, sizer):
 		scale = self.scale
@@ -823,20 +801,22 @@ class ChildOneInputPanel(TreeContextualPanel):
 			value=value
 		)
 
-	def initData(self, context, **kwargs):
-		super().initData(context, **kwargs)
-		if self.title:
-			self.header.SetLabel(self.title)
+	def initData(self, context: Mapping[str, Any]) -> None:
+		super().initData(context)
+		prm = self.categoryParams
+		if prm.title:
+			self.header.SetLabel(prm.title)
 		else:
 			for item in self.hidable:
 				item.Show(False)
 		if not self.editor:
-			self.editor = self.editorClass(self, **self.editorParams)
+			self.editor = prm.editorClass(self, **prm.editorParams)
 			self.gbSizer.Add(self.editor, pos=(2, 0), flag=wx.EXPAND)
 			self.editor.Bind(wx.EVT_KILL_FOCUS, self.onFieldChange)
 		self.setEditorValue()
 
 	def spaceIsPressedOnTreeNode(self, withShift=False):
+		prm = self.categoryParams
 		if self.editorIsChoice():
 			selection = self.editor.GetSelection() + (-1 if withShift else 1)
 			if selection > self.editor.GetCount() - 1:
@@ -845,9 +825,9 @@ class ChildOneInputPanel(TreeContextualPanel):
 				selection = self.editor.GetCount() - 1
 			self.editor.SetSelection(selection)
 			self.updateData(self.context)
-		elif self.editorClass == wx.TextCtrl:
+		elif prm.editorClass == wx.TextCtrl:
 			self.editor.SetFocus()
-		elif self.editorClass == wx.CheckBox:
+		elif prm.editorClass == wx.CheckBox:
 			self.editor.SetValue(not self.editor.GetValue())
 			self.updateData(self.context)
 
@@ -861,7 +841,7 @@ class ChildOneInputPanel(TreeContextualPanel):
 			self.editor.SetValue(value)
 
 	def getValue(self):
-		return self.getRule().get(self.fieldName)
+		return self.getRule().get(self.categoryParams.fieldName)
 
 	def onFieldChange(self, evt):
 		self.updateData(self.getRule())
@@ -870,8 +850,9 @@ class ChildOneInputPanel(TreeContextualPanel):
 		return isinstance(self.editor, wx.Choice) or isinstance(self.editor, wx.ComboBox)
 
 	def updateData(self, data):
-		updateOrDrop(data, self.fieldName, self.editor.Value)
-		self.refreshParent(self.treeNode)
+		prm = self.categoryParams
+		updateOrDrop(data, prm.fieldName, self.editor.Value)
+		self.refreshParent(prm.treeNode)
 
 	def onPanelDeactivated(self):
 		self.updateData(self.getRule())
@@ -882,21 +863,24 @@ class ChildOneInputPanel(TreeContextualPanel):
 
 
 class ChildGeneralPanel(ChildOneInputPanel):
+	
 	TYPE_FIELD = "type"
 
-	def initData(self, context, **kwargs):
-		super().initData(context, **kwargs)
+	def initData(self, context: Mapping[str, Any]) -> None:
+		super().initData(context)
+		prm = self.categoryParams
 		self.calledOnce = False
-		if self.fieldName == self.TYPE_FIELD:
+		if prm.fieldName == self.TYPE_FIELD:
 			self.editor.Bind(wx.EVT_CHOICE, self.onTypeChange)
 			GeneralPanel.initRuleTypeChoice(self.getRule(), self.editor)
 
 	def onTypeChange(self, evt):
+		prm = self.categoryParams
 		data = self.getRule()
 		data["type"] = tuple(ruleTypes.ruleTypeLabels.keys())[self.editor.Selection]
 		self.refreshSummary()
 		for i in [2, 3]:
-			category = self.tree.getXChild(self.tree.GetRootItem(), i)
+			category = prm.tree.getXChild(prm.tree.GetRootItem(), i)
 			self.refreshParent(category)
 
 	@staticmethod
@@ -908,16 +892,21 @@ class ChildGeneralPanel(ChildOneInputPanel):
 		return ChildOneInputPanel.getChildTitle(propName, value.capitalize(), excludeValue)
 
 	def updateData(self, data):
-		if self.fieldName == self.TYPE_FIELD:
+		prm = self.categoryParams
+		if prm.fieldName == self.TYPE_FIELD:
 			if not self.calledOnce:
 				self.calledOnce = True
 				self.onTypeChange(None)
-				updateOrDrop(data, self.fieldName, tuple(ruleTypes.ruleTypeLabels.keys())[self.editor.Selection])
-				self.tree.SetItemText(self.treeNode, self.getChildTitle(self.fieldName, self.editor.Selection))
+				updateOrDrop(
+					data,
+					prm.fieldName,
+					tuple(ruleTypes.ruleTypeLabels.keys())[self.editor.Selection]
+				)
+				prm.tree.SetItemText(prm.treeNode, self.getChildTitle(prm.fieldName, self.editor.Selection))
 			self.calledOnce = False
 		else:
-			updateOrDrop(data, self.fieldName, self.editor.Value)
-			self.tree.SetItemText(self.treeNode, self.getChildTitle(self.fieldName, self.editor.Value))
+			updateOrDrop(data, prm.fieldName, self.editor.Value)
+			prm.tree.SetItemText(prm.treeNode, self.getChildTitle(prm.fieldName, self.editor.Value))
 
 	def refreshSummary(self):
 		data = self.getRule().copy()
@@ -992,49 +981,86 @@ class ChildAlternativePanel(AlternativesPanel):
 	def spaceIsPressedOnTreeNode(self, withShift=False):
 		self.editButton.SetFocus()
 
-	def initData(self, context, **kwargs):
-		super().initData(context, **kwargs)
-		self.isChildCriteria = kwargs.get('isChildCriteria', False)
-		self.indexCriteria = self.tree.getSelectionIndex()
+	def initData(self, context: Mapping[str, Any]) -> None:
+		super().initData(context)
+		prm = self.categoryParams
+		self.indexCriteria = prm.tree.getSelectionIndex()
 		criteria = context['data']["rule"]['criteria'][self.indexCriteria]
 		self.summaryText.Value = self.getCriteriaSummary(criteria)
 		self.commentText.Value = criteria.get("comment", "")
 
+	def initData_alternatives(self) -> None:
+		pass
+
 	def delete(self):
 		self.onDeleteCriteria(None)
 
+	def getIndex(self):
+		return self.indexCriteria
 
-class ChildActionPanel(TreeContextualPanel):
-	def initData(self, context, **kwargs):
-		super().initData(context, **kwargs)
-		self.textCtrl.Value = self.title
+	def onNewCriteria_refresh(self):
+		prm = self.categoryParams
+		self.refreshParent(prm.treeParent)
+		return prm.tree.getXChild(prm.treeParent, index)
+
+	def onEditCriteria_refresh(self, index):
+		prm = self.categoryParams
+		self.refreshParent(prm.treeParent)
+		newNodeToSelect = prm.tree.getXChild(prm.treeParent, index)
+		prm.tree.SelectItem(newNodeToSelect)
+		prm.tree.SetFocus()
+
+	def onDeleteCriteria_refresh(self):
+		prm = self.categoryParams
+		prm.tree.SelectItem(prm.treeParent)
+		self.refreshParent(prm.treeParent)
+		return prm.tree.getXChild(prm.treeParent, index)
+
+
+class ChildActionPanel(RuleEditorTreeContextualPanel):
+
+	@dataclass
+	class CategoryParams(TreeContextualPanel.CategoryParams):
+		title: str = None
+		gestureIdentifier: str = None
+
+	def initData(self, context: Mapping[str, Any]) -> None:
+		super().initData(context)
+		self.textCtrl.Value = self.categoryParams.title
 
 	def makeSettings(self, sizer):
 		scale = self.scale
 		gbSizer = wx.GridBagSizer()
 		sizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
-		item = wx.Button(self, label='Modifier')
+		# Translators: The label for a button on the Rule Editor dialog
+		item = wx.Button(self, label="&Edit...")
 		item.Bind(wx.EVT_BUTTON, self.onEditGesture)
 		self.editButton = item
 		gbSizer.Add(item, pos=(0, 0))
-		item = wx.Button(self, label='Supprimer')
+		# Translators: The label for a button on the Rule Editor dialog
+		item = wx.Button(self, label=_("&Delete"))
 		gbSizer.Add(item, pos=(0, 1))
 		item.Bind(wx.EVT_BUTTON, self.onDeleteGesture)
-		item = wx.Button(self, label='Ajouter')
+		# Translators: The label for a button on the Rule Editor dialog
+		item = wx.Button(self, label=_("&New..."))
 		gbSizer.Add(item, pos=(0, 2))
 		item.Bind(wx.EVT_BUTTON, self.onAddGesture)
-		gbSizer.Add((150, 0), pos=(0, 3), flag=wx.EXPAND)
+		gbSizer.Add(scale(150, 0), pos=(0, 3), flag=wx.EXPAND)
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL, 0), pos=(1, 0))
-		self.textCtrl = wx.TextCtrl(self, value=self.title, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH)
+		self.textCtrl = wx.TextCtrl(
+			self,
+			style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH  # Read-only AND focusable
+		)
 		gbSizer.Add(self.textCtrl, pos=(2, 0), span=(1, 3), flag=wx.EXPAND)
 
 	def spaceIsPressedOnTreeNode(self, withShift=False):
 		self.editButton.SetFocus()
 
 	def updateTreeAndSelectItemAtIndex(self, index):
-		self.refreshParent(self.treeParent)
-		self.tree.SelectItem(self.tree.getXChild(self.treeParent, index))
-		self.tree.SetFocus()
+		prm = self.categoryParams
+		self.refreshParent(prm.treeParent)
+		prm.tree.SelectItem(prm.tree.getXChild(prm.treeParent, index))
+		prm.tree.SetFocus()
 
 	def onAddGesture(self, evt):
 		from ..gui import shortcutDialog
@@ -1047,6 +1073,7 @@ class ChildActionPanel(TreeContextualPanel):
 
 	def onEditGesture(self, evt):
 		from ..gui import shortcutDialog
+		prm = self.categoryParams
 		mgr = self.getRuleManager()
 		shortcutDialog.ruleManager = mgr
 		data = self.getRule()
@@ -1055,21 +1082,22 @@ class ChildActionPanel(TreeContextualPanel):
 		if not ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
 			return
 		if shortcutDialog.show():
-			del gestures[self.actionControl]
-			self.actionControl = shortcutDialog.resultShortcut
+			del gestures[prm.gestureIdentifier]
+			prm.gestureIdentifier = shortcutDialog.resultShortcut
 			gestures[shortcutDialog.resultShortcut] = shortcutDialog.resultActionData
 			title = self.getTitle(shortcutDialog.resultShortcut, shortcutDialog.resultActionData, mgr)
 			self.textCtrl.Value = title
-			self.tree.updateNodeText(self.treeNode, title)
+			prm.tree.updateNodeText(prm.treeNode, title)
 			index = list(gestures.keys()).index(shortcutDialog.resultShortcut)
 			self.updateTreeAndSelectItemAtIndex(index)
 
 	def onDeleteGesture(self, evt):
+		prm = self.categoryParams
 		data = self.getRule()
 		gestures = data.get('gestures', {})
-		del gestures[self.actionControl]
-		self.tree.deleteSelection()
-		self.tree.selectLast(self.treeParent)
+		del gestures[prm.gestureIdentifier]
+		prm.tree.deleteSelection()
+		prm.tree.selectLast(prm.treeParent)
 
 	def delete(self):
 		self.onDeleteGesture(None)
@@ -1087,14 +1115,15 @@ class ChildActionPanel(TreeContextualPanel):
 
 class ChildPropertyPanel(ChildOneInputPanel):
 
-
 	def setEditorValue(self):
+		prm = self.categoryParams
 		if self.editorIsChoice():
 			mgr = self.getRuleManager()
-			value = self.getPropertiesHolder(self.context).get(self.fieldName)
+			value = self.getPropertiesHolder(self.context).get(prm.fieldName)
 			try:
-				index = properties.ListControl.getIndexOfCurrentChoice(self.fieldName, mgr,
-																  value) + 1  # +1 to take into account the default value
+				index = properties.ListControl.getIndexOfCurrentChoice(
+					prm.fieldName, mgr, value
+				) + 1  # +1 to take into account the default value
 			except ValueError:
 				index = 0
 			self.editor.SetSelection(index)
@@ -1102,23 +1131,27 @@ class ChildPropertyPanel(ChildOneInputPanel):
 			super().setEditorValue()
 
 	def getValue(self):
-		return self.getPropertiesHolder(self.context).get(self.fieldName)
+		return self.getPropertiesHolder(self.context).get(self.categoryParams.fieldName)
 
 	def updateData(self, data):
+		prm = self.categoryParams
 		value = self.editor.Value
 		if self.editorIsChoice():
 			mgr = self.getRuleManager()
 			selection = self.editor.GetSelection()
-			value = properties.ListControl.getValueAtIndex(self.fieldName, mgr,
-													  selection - 1) if selection != 0 else ''  # -1 to remove the default value
-		updateOrDrop(self.getPropertiesHolder(self.context), self.fieldName, value)
-		displayableValue = properties.ListControl.getChoicesDisplayableValue(self.context, self.fieldName, value)
-		title = PropertiesPanel.getPropertyTitle(self.fieldName, displayableValue, data.get('type', ''))
-		self.tree.SetItemText(self.treeNode, title)
+			value = properties.ListControl.getValueAtIndex(
+				prm.fieldName, mgr, selection - 1  # -1 to remove the default value
+			) if selection != 0 else ''  
+		updateOrDrop(self.getPropertiesHolder(self.context), prm.fieldName, value)
+		displayableValue = properties.ListControl.getChoicesDisplayableValue(
+			self.context, prm.fieldName, value
+		)
+		title = PropertiesPanel.getPropertyTitle(prm.fieldName, displayableValue, data.get('type', ''))
+		prm.tree.SetItemText(prm.treeNode, title)
 		propertyPanel = self.Parent.Parent.catIdToInstanceMap.get(PropertiesPanel.title)
 		if propertyPanel:
 			for property in propertyPanel.propertiesList:
-				if self.fieldName == property.get_id():
+				if prm.fieldName == property.get_id():
 					property.set_value(value)
 
 	def delete(self):
@@ -1174,24 +1207,17 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 			label = ChildGeneralPanel.getChildTitle(fieldName, ruleData.get(fieldName, ""), excludeValue=True)
 			node = TreeNodeInfo(ChildGeneralPanel, title=title)
 			if fieldName == 'name':
-				node.categoryParams = {
-					'title': label,
-					'fieldName': fieldName,
-					'editorClass': wx.TextCtrl,
-					'editorParams': {
-						'value': ruleData[fieldName],
-						'size': (300, -1)
-					},
-				}
+				editorClass = wx.TextCtrl
+				editorParams = {"value": ruleData[fieldName], "size": (300, -1)}
 			elif fieldName == ChildGeneralPanel.TYPE_FIELD:
-				node.categoryParams = {
-					'title': label,
-					'fieldName': fieldName,
-					'editorClass': wx.Choice,
-					'editorParams': {
-						'choices': list(ruleTypes.ruleTypeLabels.values())
-					},
-				}
+				editorClass = wx.Choice
+				editorParams = {"choices": list(ruleTypes.ruleTypeLabels.values())}
+			node.categoryParams = ChildGeneralPanel.CategoryParams(
+				title=label,
+				fieldName=fieldName,
+				editorClass=editorClass,
+				editorParams=editorParams
+			)
 			nodes.append(node)
 		return nodes
 
@@ -1201,7 +1227,12 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 		for criterion in ruleData.get('criteria', []):
 			title = ChildAlternativePanel.getTitle(criterion)
 			criteriaPanels.append(
-				TreeNodeInfo(ChildAlternativePanel, title=title, categoryParams={'isChildCriteria': True}))
+				TreeNodeInfo(
+					ChildAlternativePanel,
+					title=title,
+					categoryParams=ChildAlternativePanel.CategoryParams()
+				)
+			)
 		return criteriaPanels
 
 	def getActionsChildren(self):
@@ -1213,11 +1244,8 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 		actionsPanel = []
 		for key, value in ruleData.get('gestures', {}).items():
 			title = ChildActionPanel.getTitle(key, value, mgr)
-			categoryParams = {
-				'title': title,
-				'actionControl': key
-			}
-			actionsPanel.append(TreeNodeInfo(ChildActionPanel, title=title, categoryParams=categoryParams))
+			prm = ChildActionPanel.CategoryParams(title=title, gestureIdentifier=key)
+			actionsPanel.append(TreeNodeInfo(ChildActionPanel, title=title, categoryParams=prm))
 		return actionsPanel
 
 	def getPropertiesChildren(self):
@@ -1242,16 +1270,16 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 				mgr = self.context["webModule"].ruleManager
 				choices = list(map(lambda x: x[0], properties.ListControl.getChoiceOptionForField(field, mgr)))
 				editorParams = {'style': wx.CB_READONLY, 'choices': choices}
-			node.categoryParams = {
-				'fieldName': field,
-				'title': label,
-				'editorClass': editorClass,
-				'editorParams': editorParams
-			}
+			node.categoryParams = ChildPropertyPanel.CategoryParams(
+				title=label,
+				fieldName=field,
+				editorClass=editorClass,
+				editorParams=editorParams
+			)
 			propertiesPanel.append(node)
 		return propertiesPanel
 
-	def initData(self, context):
+	def initData(self, context: Mapping[str, Any]) -> None:
 		rule = context.get("rule")
 		data = context.setdefault("data", {}).setdefault(
 			"rule",
