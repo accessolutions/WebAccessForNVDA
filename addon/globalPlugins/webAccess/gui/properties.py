@@ -19,28 +19,30 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2024.07.23"
+__version__ = "2024.07.28"
 __author__ = "Sendhil Randon <sendhil.randon-ext@francetravail.fr>"
 
 from collections import OrderedDict
-import addonHandler
+from collections.abc import Mapping
 from abc import ABC, abstractmethod, ABCMeta
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 import wx
+
+import addonHandler
 import gui
+from gui import guiHelper
 from logHandler import log
+import ui
+
 from ..ruleHandler import ruleTypes
 from ..ruleHandler.controlMutation import (
     MUTATIONS_BY_RULE_TYPE,
     mutationLabels
 )
-import ui
+from . import ContextualSettingsPanel
 
 addonHandler.initTranslation()
-from . import (
-	ContextualSettingsPanel
-)
 
 # event handler constants
 EVT_KEY_DOWN = wx.EVT_KEY_DOWN.typeId
@@ -107,58 +109,89 @@ def showPropsDialog(context, properties):
 class ListControl(ContextualSettingsPanel):
 
 	def makeSettings(self, settingsSizer):
-		self.hidable = []
+		scale = self.scale
+		hidable = self.hidable = {}
 		gbSizer = wx.GridBagSizer()
 		gbSizer.EmptyCellSize = (0, 0)
 		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
 
-		scale = self.scale
-
 		row = 0
+		items = hidable["ifProps"] = []
 		# Translators: Displayed when the selected rule type doesn't support any action
-		self.noPropertiesLabel = wx.StaticText(self, label=_("No properties available for the selected rule type."))
-		gbSizer.Add(self.noPropertiesLabel, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
+		item = self.noPropertiesLabel = wx.StaticText(self, label=_("No properties available for the selected rule type."))
+		items.append(item)
+		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
 
 		row += 1
+		items = hidable["ifNoProps"] = []
 		# Translators: A label in the Rule Editor dialog
-		self.propertiesLabel = wx.StaticText(self, label=_("&Properties List"))
-		gbSizer.Add(self.propertiesLabel, pos=(row, 0), flag=wx.EXPAND)
-		self.hidable.append(self.propertiesLabel)
+		item = self.propertiesLabel = wx.StaticText(self, label=_("&Properties List"))
+		item.Hide()
+		items.append(item)
+		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
 
-		self.listCtrl = wx.ListCtrl(self, size=scale(-1, 250), style=wx.LC_REPORT | wx.BORDER_SUNKEN)
-		# Translators: A column label in the Rule Editor dialog
-		self.listCtrl.InsertColumn(0, pgettext("webAccess.ruleEditor", "Properties"))
-		# Translators: A column label in the Rule Editor dialog
-		self.listCtrl.InsertColumn(1, pgettext("webAccess.ruleEditor", "Value"))
-		self.hidable.append(self.listCtrl)
 		row += 1
+		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(row, 0))
+		items.append(item)
 
-		self.editable = wx.TextCtrl(self, size=scale(-1, 30))
-		self.hidable.append(self.editable)
-
-		self.toggleBtn = wx.ToggleButton(self, label="", size=scale(150, 30))
-		self.hidable.append(self.toggleBtn)
-
-		self.choice = wx.Choice(self, choices=[], size=scale(150, 30))
-		self.hidable.append(self.choice)
-
-		gbSizer.Add(self.listCtrl, pos=(row, 0), span=(3,3), flag=wx.EXPAND)
-		row += 3
-		gbSizer.Add(self.editable, pos=(row, 0), span=(0, 1), flag=wx.EXPAND)
 		row += 1
+		#item = self.listCtrl = wx.ListCtrl(self, size=scale(-1, 250), style=wx.LC_REPORT | wx.BORDER_SUNKEN)
+		item = self.listCtrl = wx.ListCtrl(self, style=wx.LC_REPORT | wx.BORDER_SUNKEN)
+		# Translators: A column label in the Rule Editor dialog
+		item.InsertColumn(0, pgettext("webAccess.ruleEditor", "Properties"))
+		# Translators: A column label in the Rule Editor dialog
+		item.InsertColumn(1, pgettext("webAccess.ruleEditor", "Value"))
+		item.Bind(wx.EVT_LIST_ITEM_SELECTED, self.onItemSelListCtrl)
+		item.Bind(wx.EVT_KEY_DOWN, self.onKeyPress)
+		item.Bind(wx.EVT_CHAR_HOOK, self.keyShiftSpace)
+		items.append(item)
+		gbSizer.Add(item, pos=(row, 0), span=(4, 3), flag=wx.EXPAND)
 
-		sizeBox = wx.BoxSizer(wx.HORIZONTAL)
-		sizeBox.Add(self.toggleBtn)
-		sizeBox.Add(self.choice)
-		gbSizer.Add(sizeBox, pos=(row, 0), flag=wx.EXPAND)
-		self.sizer = gbSizer
-		# wx.List control event binding
-		self.listCtrl.Bind(wx.EVT_LIST_ITEM_SELECTED, self.onItemSelListCtrl)
-		self.listCtrl.Bind(wx.EVT_KEY_DOWN, self.onKeyPress)
-		self.listCtrl.Bind(wx.EVT_CHAR_HOOK, self.keyShiftSpace)
-		self.toggleBtn.Bind(wx.EVT_TOGGLEBUTTON, self.updateValueEvtToggle)
-		self.editable.Bind(wx.EVT_TEXT, self.updateValueEvtEdit)
-		self.choice.Bind(wx.EVT_CHOICE, self.updateValueEvtChoice)
+		row += 4
+		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(row, 0))
+		items.append(item)
+
+		row += 1
+		items = hidable["ifNotEditable"] = []
+		item = self.editableLabel = wx.StaticText(self, label="")
+		items.append(item)
+		gbSizer.Add(item, pos=(row, 0))
+		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
+		items.append(item)
+		item = self.editable = wx.TextCtrl(self)
+		item.Bind(wx.EVT_TEXT, self.updateValueEvtEdit)
+		items.append(item)
+		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
+
+		row += 1
+		items = hidable["ifNotToggle"] = []
+		item = self.toggleBtn = wx.ToggleButton(self, label="", size=scale(150, 30))
+		item.Bind(wx.EVT_TOGGLEBUTTON, self.updateValueEvtToggle)
+		items.append(item)
+		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
+
+		row += 1
+		items = hidable["ifNotChoice"] = []
+		item = self.choiceLabel = wx.StaticText(self, label="")
+		items.append(item)
+		gbSizer.Add(item, pos=(row, 0))
+		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
+		items.append(item)
+		item = self.choice = wx.Choice(self, choices=[])#, size=scale(150, 30))
+		item.Bind(wx.EVT_CHOICE, self.updateValueEvtChoice)
+		items.append(item)
+		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
+
+		hidable["ifEditable"] = hidable["ifNotToggle"] + hidable["ifNotChoice"]
+		hidable["ifToggle"] = hidable["ifNotEditable"] + hidable["ifNotChoice"]
+		hidable["ifChoice"] = hidable["ifNotEditable"] + hidable["ifNotToggle"]
+		for item in hidable["ifEditable"] + hidable["ifToggle"] + hidable["ifChoice"]:
+			item.Show(False)
+
+		gbSizer.AddGrowableRow(5)
+		#gbSizer.AddGrowableCol(0)
+		gbSizer.AddGrowableCol(2)
+		self.gbSizer = gbSizer
 
 		# Local variables
 		self.index = 0
@@ -172,16 +205,11 @@ class ListControl(ContextualSettingsPanel):
 		self.objIncMut = IncrDecrListPos()
 		self.objIncGest = IncrDecrListPos()
 
-		gbSizer.AddGrowableCol(0)
-
-	def initData(self, context, **kwargs):
+	def initData(self, context: Mapping[str, Any]) -> None:
 		"""
 		Init wx.listCtrl elements
 		"""
-		self.context = context
-		self.toggleBtn.Disable()
-		self.editable.Disable()
-		self.choice.Disable()
+		super().initData(context)
 		self.getAutoActions()
 		self.getMutationOptions()
 		self.getGestureOptions()
@@ -194,14 +222,13 @@ class ListControl(ContextualSettingsPanel):
 	def showItems(self, data):
 		ruleType = data.get("type")
 		typeValues = RULE_TYPE_FIELDS.get(ruleType)
-		if typeValues is None:
-			for item in self.hidable:
-				item.Hide()
-			self.noPropertiesLabel.Show()
-		else:
-			for item in self.hidable:
-				item.Show()
-			self.noPropertiesLabel.Hide()
+		self.Freeze()
+		for item in self.hidable["ifProps"]:
+			item.Show(typeValues is None)
+		for item in self.hidable["ifNoProps"]:
+			item.Show(typeValues is not None)
+		self.Thaw()
+		self._sendLayoutUpdatedEvent()
 
 	def initPropertiesList(self, context):
 		self.context = context
@@ -482,26 +509,24 @@ class ListControl(ContextualSettingsPanel):
 		self.currentSelItem = evt.GetItem()
 		listItem = self.getItemSelRow()
 		customItem = self.changeDisplayNameForCustomFields(listItem[0])
+		hidable = self.hidable
+		hideItems = []
+		showItems = []
 		for p in self.propertiesList:
 			if not customItem == p.get_displayName():
 				continue
 			if isinstance(p, ToggleProperty):
-				self.choice.Disable()
-				self.editable.Disable()
-				self.toggleBtn.Enable()
-				self.toggleBtn.SetLabel("")
+				hideItems = hidable["ifToggle"]
+				showItems = hidable["ifNotToggle"]
 				self.toggleBtn.SetLabel(p.get_displayName())
-				val = p.get_value()
-				if val:
-					self.toggleBtn.SetValue(True)
-				else:
-					self.toggleBtn.SetValue(False)
+				self.toggleBtn.SetValue(bool(p.get_value()))
+				break
 			elif isinstance(p, SingleChoiceProperty):
+				hideItems = hidable["ifChoice"]
+				showItems = hidable["ifNotChoice"]
+				# Translators: Separator between a field label and its value (eg. EN=":" / FR=" :")
+				self.choiceLabel.SetLabel(p.get_displayName() + _(":"))
 				self.updateChoices(self.choice, p.get_id())
-				self.toggleBtn.Disable()
-				self.toggleBtn.SetLabel("")
-				self.editable.Disable()
-				self.choice.Enable()
 				self.choice.id = p.get_value()
 				if p.get_value() is not None:
 					retVal, n = self.updateChoiceDropDown(p.get_value(), p.get_id())
@@ -512,15 +537,23 @@ class ListControl(ContextualSettingsPanel):
 					retObjIncr = self.getIncDecObjById(p.get_id())
 					retObjIncr.setPos(1) if retChoice else None
 					self.choice.SetSelection(0)
+				break
 			elif isinstance(p, EditableProperty):
-				self.editable.Enable()
-				self.choice.Disable()
-				self.toggleBtn.Disable()
-				self.toggleBtn.SetLabel("")
-				if p.get_value() is not None:
-					self.editable.SetValue(p.get_value())
-				else:
-					pass
+				hideItems = hidable["ifEditable"]
+				showItems = hidable["ifNotEditable"]
+				# Translators: Separator between a field label and its value (eg. EN=":" / FR=" :")
+				self.editableLabel.SetLabel(p.get_displayName() + _(":"))
+				self.editable.SetValue(p.get_value() or "")
+				break
+		else:
+			hideItems = hidable["ifEditable"] + hidable["ifToggle"] + hidable["ifChoice"]
+		self.Freeze()
+		for item in hideItems:
+			item.Show(False)
+		for item in showItems:
+			item.Show(True)
+		self.Thaw()
+		self._sendLayoutUpdatedEvent()
 
 	def updateChoiceDropDown(self, val, idProps):
 		"""

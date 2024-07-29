@@ -839,36 +839,33 @@ class PropertiesPanel(properties.ListControl):
 
 	# Translators: The label for a Criteria editor category.
 	title = _("Properties")
-	context = None
-	hidable = []
 
 	def makeSettings(self, settingsSizer):
 		super().makeSettings(settingsSizer)
 		scale = self.scale
+		gbSizer = self.gbSizer
 
-		# Adding 3 column to the listControl
 		self.listCtrl.InsertColumn(2, 'Rule level')
 
-		# Getting the grid sizer from the parent
-		sizer = self.sizer
-		self.btnAddProps = wx.Button(self, label=_("&Add"), size=(-1, 30))
-		self.hidable.append(self.btnAddProps)
-		self.btnDelProps = wx.Button(self, label=_("&Delete"), size=(-1, 30))
-		self.hidable.append(self.btnDelProps)
+		col = 4
+		row = 1
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL), pos=(row, col))
 
-		btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
-		btn_sizer.AddStretchSpacer()
-		btn_sizer.Add(self.btnAddProps, flag=wx.ALL)
-		btn_sizer.Add(self.btnDelProps, flag=wx.ALL)
-		sizer.Add(btn_sizer, pos=(7, 0), span=(1, 3), flag=wx.EXPAND)
+		col += 1
+		item = self.btnAddProps = wx.Button(self, label=_("&Add"), size=(-1, 30))
+		item.Bind(wx.EVT_BUTTON, self.onAddProperties)
+		gbSizer.Add(item, pos=(row, col))
 
-		self.btnAddProps.Bind(wx.EVT_BUTTON, self.onAddProperties)
-		self.btnDelProps.Bind(wx.EVT_BUTTON, self.onDeleteProperties)
+		row += 1
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, col))
+
+		row += 1
+		item = self.btnDelProps = wx.Button(self, label=_("&Delete"), size=(-1, 30))
+		item.Bind(wx.EVT_BUTTON, self.onDeleteProperties)
+		gbSizer.Add(item, pos=(row, col))
 
 	def initData(self, context, **kwargs):
 		super().initData(context)
-		self.hidable.clear()
-		self.context = context
 		self.initPropertiesList(context)
 		self.updateData()
 
