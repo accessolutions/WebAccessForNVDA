@@ -21,7 +21,7 @@
 
 
 
-__version__ = "2021.06.26"
+__version__ = "2021.06.28"
 __author__ = "Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
@@ -250,7 +250,7 @@ class GeneralPanel(ContextualSettingsPanel):
 
 		row = 0
 		# Translator: The label for a field on the Criteria editor
-		item = wx.StaticText(self, label=_("&Name"))
+		item = wx.StaticText(self, label=_("Criteria Set &name"))
 		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item = self.criteriaName = wx.TextCtrl(self)
@@ -993,7 +993,7 @@ class ActionsPanel(ruleEditor.ActionsPanel):
 
 class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
 	# Translators: This is the label for the WebAccess criteria settings dialog.
-	title = _("WebAccess Criteria set editor")
+	title = _("WebAccess Criteria Set editor")
 	categoryClasses = [GeneralPanel, CriteriaPanel, PropertiesPanel, ActionsPanel]
 	INITIAL_SIZE = (900, 580)
 	def makeSettings(self, settingsSizer):
