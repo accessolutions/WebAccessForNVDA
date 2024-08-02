@@ -46,6 +46,7 @@ from ..ruleHandler import (
 from ..utils import guarded
 from ..webModuleHandler import getEditableWebModule, save
 from . import ScalingMixin
+from .ruleEditor import getSummary
 
 try:
 	from six import iteritems
@@ -441,7 +442,7 @@ class Dialog(wx.Dialog, ScalingMixin):
 			if groupBy.id == lastGroupBy
 		))
 		self.onGroupByRadio(None, refresh=True)
-		self.refreshRuleList(selectObj=context.get("rule"))
+		self.refreshRuleList(selectObj=context.get("result"))
 
 	def getSelectedObject(self):
 		selection = self.tree.Selection
@@ -632,7 +633,6 @@ class Dialog(wx.Dialog, ScalingMixin):
 
 	@guarded
 	def onTreeSelChanged(self, evt):
-		from logHandler import log
 		if (
 			evt is not None
 			and (evt.EventObject is None or evt.EventObject.IsBeingDeleted())
@@ -649,8 +649,10 @@ class Dialog(wx.Dialog, ScalingMixin):
 			self.resultMoveToButton.Enabled = bool(rule_getResults_safe(rule))
 			self.ruleDeleteButton.Enabled = True
 			self.ruleEditButton.Enabled = True
-			from .ruleEditor import getSummary
-			self.ruleSummary.Value = getSummary(rule.dump())
+			# Mapping union was added only in Python 3.9
+			context = self.context.copy()
+			context["rule"] = rule
+			self.ruleSummary.Value = getSummary(context, rule.dump())
 			self.ruleComment.Value = rule.comment or ""
 
 	def ShowModal(self, context):
