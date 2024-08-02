@@ -20,9 +20,11 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2021.04.06"
+__version__ = "2024.08.02"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
+
+from functools import wraps
 
 import addonHandler
 
@@ -59,7 +61,13 @@ def notifyError(logMsg, exc_info=True):
 
 
 def guarded(func):
+	"""Decorator to prevent exceptions raised by the decorated function to bubble up to the caller.
+	
+	Caught exceptions are notified and logged using `notifyError`.
+	In most cases, this decorator should only be applied on wx event handlers to prevent further UI malfunction.
+	"""
 
+	@wraps(func)
 	def wrapper(*args, **kwargs):
 		try:
 			return func(*args, **kwargs)
