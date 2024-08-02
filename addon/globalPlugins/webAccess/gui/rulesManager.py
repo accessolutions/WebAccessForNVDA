@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2024.07.28"
+__version__ = "2024.08.01"
 __author__ = "Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
@@ -43,6 +43,7 @@ from ..ruleHandler import (
 	showCreator,
 	showEditor,
 )
+from ..utils import guarded
 from ..webModuleHandler import getEditableWebModule, save
 from . import ScalingMixin
 
@@ -515,6 +516,7 @@ class Dialog(wx.Dialog, ScalingMixin):
 
 		wx.CallAfter(unselect)
 
+	@guarded
 	def onActiveOnlyCheckBox(self, evt):
 		global lastActiveOnly
 		if not self.Enabled:
@@ -522,6 +524,7 @@ class Dialog(wx.Dialog, ScalingMixin):
 		lastActiveOnly = self.activeOnlyCheckBox.Value
 		self.refreshRuleList()
 
+	@guarded
 	def onGroupByRadio(self, evt, refresh=True):
 		global lastGroupBy, lastActiveOnly
 		groupBy = GROUP_BY[self.groupByRadio.GetSelection()]
@@ -536,6 +539,7 @@ class Dialog(wx.Dialog, ScalingMixin):
 		if refresh:
 			self.refreshRuleList()
 
+	@guarded
 	def onResultMoveTo(self, evt):
 		obj = self.getSelectedObject()
 		if not obj:
@@ -556,6 +560,7 @@ class Dialog(wx.Dialog, ScalingMixin):
 		)
 		self.Close()
 
+	@guarded
 	def onRuleDelete(self, evt):
 		rule = self.getSelectedRule()
 		if not rule:
@@ -584,6 +589,7 @@ class Dialog(wx.Dialog, ScalingMixin):
 			self.refreshRuleList()
 		wx.CallAfter(self.tree.SetFocus)
 
+	@guarded
 	def onRuleEdit(self, evt):
 		rule = self.getSelectedRule()
 		if not rule:
@@ -596,6 +602,7 @@ class Dialog(wx.Dialog, ScalingMixin):
 			self.refreshRuleList(context["data"]["rule"]["name"])
 		wx.CallAfter(self.tree.SetFocus)
 
+	@guarded
 	def onRuleNew(self, evt):
 		context = self.context.copy()  # Shallow copy
 		if showCreator(context, parent=self):
@@ -609,9 +616,11 @@ class Dialog(wx.Dialog, ScalingMixin):
 # 			self.refreshRuleList(context["data"]["rule"]["name"])
 		wx.CallAfter(self.tree.SetFocus)
 
+	@guarded
 	def onTreeItemActivated(self, evt):
 		self.onResultMoveTo(evt)
 
+	@guarded
 	def onTreeKeyDown(self, evt):
 		if evt.KeyCode == wx.WXK_F2:
 			self.onRuleEdit(evt)
@@ -621,6 +630,7 @@ class Dialog(wx.Dialog, ScalingMixin):
 			return
 		evt.Skip()
 
+	@guarded
 	def onTreeSelChanged(self, evt):
 		from logHandler import log
 		if (
