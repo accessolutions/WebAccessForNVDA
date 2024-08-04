@@ -44,6 +44,7 @@ from gui.settingsDialogs import (
 )
 from logHandler import log
 
+from ..utils import guarded
 
 LABEL_ACCEL = re.compile("&(?!&)")
 """
@@ -79,19 +80,22 @@ class CustomTreeCtrl(wx.TreeCtrl):
 		return self.SetItemData(nodeId, {self.NODE_INFO_KEY: treeNodeInfo})
 
 	def getChildren(self, parent):
+		return tuple(self.iterChildren(parent))
+
+	def iterChildren(self, parent):
 		child, cookie = self.GetFirstChild(parent)
 		while child.IsOk():
 			yield child
 			child, cookie = self.GetNextChild(child, cookie)
 
 	def getXChild(self, parent, i):
-		for indexChild, child in enumerate(self.getChildren(parent)):
+		for indexChild, child in enumerate(self.iterChildren(parent)):
 			if indexChild == i:
 				return child
 		raise IndexError(f'No child existing at this index {i} for parent {parent}')
 
 	def getIndexChild(self, parent, targetChild):
-		for indexChild, child in enumerate(self.getChildren(parent)):
+		for indexChild, child in enumerate(self.iterChildren(parent)):
 			if child == targetChild:
 				return indexChild
 		raise ValueError(f'This child {targetChild} does not exists in parent {parent}')
@@ -248,9 +252,39 @@ def configuredSettingsDialogType(**config):
 	return Type
 
 
-class ContextualMultiCategorySettingsDialog(
-	FillableMultiCategorySettingsDialog
-):
+class KbNavMultiCategorySettingsDialog(FillableMultiCategorySettingsDialog):
+
+	# Bound during MultiCategorySettingsDialog.makeSettings	
+	def onCharHook(self, evt):
+		keycode = evt.GetKeyCode()
+		mods = evt.GetModifiers()
+		if keycode == wx.WXK_F6 and mods == wx.MOD_NONE:
+			if self.catListCtrl.HasFocus():
+				self.container.SetFocus()
+			else:
+				self.catListCtrl.SetFocus()
+			return
+		elif keycode == wx.WXK_HOME and mods == wx.MOD_ALT:
+			try:
+				self.focusContainerControl(0)
+			except IndexError:
+				wx.Bell()
+		elif keycode == wx.WXK_END and mods == wx.MOD_ALT:
+			try:
+				self.focusContainerControl(-1)
+			except IndexError:
+				wx.Bell()
+			return
+		super().onCharHook(evt)  # Handles control(+shift)+tab
+	
+	def focusContainerControl(self, index: int):
+		[
+			child for child in self.currentCategory.GetChildren()
+			if isinstance(child, wx.Control) and child.CanAcceptFocusFromKeyboard()
+		][index].SetFocus()
+
+
+class ContextualMultiCategorySettingsDialog(KbNavMultiCategorySettingsDialog):
 
 	def __new__(cls, *args, **kwargs):
 		kwargs.update({'multiInstanceAllowed': True, 'hasApplyButton':False})
@@ -322,7 +356,7 @@ class TreeContextualPanel(ContextualSettingsPanel):
 		parentTreeNodeInfo = prm.tree.getTreeNodeInfo(parentNodeId)
 		parent = self.Parent.Parent
 		newChildren = parentTreeNodeInfo.children
-		for i, oldItem in enumerate(prm.tree.getChildren(parentNodeId)):
+		for i, oldItem in enumerate(prm.tree.iterChildren(parentNodeId)):
 			newChildInfo = newChildren[i]
 			newChildInfo.updateTreeParams(prm.tree, oldItem, parentNodeId)
 			prm.tree.SetItemText(oldItem, newChildInfo.title)
@@ -363,7 +397,7 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 		# This list consists of only one column.
 		# The provided column header is just a placeholder, as it is hidden due to the wx.LC_NO_HEADER style flag.
 		self.catListCtrl.Bind(wx.EVT_TREE_SEL_CHANGED, self.onCategoryChange)
-		self.catListCtrl.Bind(wx.EVT_KEY_DOWN, self.onKeyDown)
+		self.catListCtrl.Bind(wx.EVT_KEY_DOWN, self.onCatListCtrl_keyDown)
 		self.catListCtrl.ExpandAll()
 
 		self.container = nvdaControls.TabbableScrolledPanel(
@@ -425,14 +459,6 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 				TreeNodeInfo(categoryClass, childrenGetter=childrenGetter, title=categoryClass.title))
 		return categoryClasses
 
-	def focus_first_field(self, evt):
-		# if evt.GetKeyCode() == wx.WXK_CONTROL_A:
-		page = self.tree.GetPage(self.tree.GetSelection())
-		children = page.GetChildren()
-		for child in children:
-			if child.__class__.__name__ in ['ComboBox', 'TextCtrl', 'Button']:
-				child.SetFocus()
-
 	def _changeCategoryPanel(self, newCatInfos):
 		scale = self.scale
 		configuredSettingsDialogType()
@@ -485,6 +511,23 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 		self.container.SetupScrolling()
 		self.container.Thaw()
 
+	def cycleThroughCategories(self, previous=False):
+		tree = self.catListCtrl
+		selected = tree.GetSelection()
+		parent = tree.GetItemParent(selected)
+		children = tree.getChildren(parent)
+		index = children.index(selected)
+		index += -1 if previous else 1
+		index %= len(children)
+		child = children[index]
+		treeHadFocus = tree.HasFocus()
+		tree.SelectItem(child)
+		catInfos = tree.getTreeNodeInfo(child)
+		self._doCategoryChange(catInfos)
+		if not treeHadFocus:
+			self.currentCategory.SetFocus()
+
+	@guarded
 	def onCategoryChange(self, evt):
 		currentCat = self.currentCategory
 		try:
@@ -497,21 +540,34 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 		else:
 			evt.Skip()
 
-	def onKeyDown(self, evt):
-		keyCode = evt.GetKeyCode()
-		modifiers = evt.GetModifiers()
-		if keyCode == wx.WXK_DELETE and modifiers == wx.MOD_NONE:
+	@guarded
+	def onCatListCtrl_keyDown(self, evt):
+		keycode = evt.GetKeyCode()
+		mods = evt.GetModifiers()
+		if keycode == wx.WXK_DELETE and mods == wx.MOD_NONE:
 			selectedItem = self.catListCtrl.GetSelection()
 			if not self.catListCtrl.ItemHasChildren(selectedItem):
 				self.currentCategory.delete()
 				return
-		elif keyCode == wx.WXK_SPACE and modifiers in (wx.MOD_NONE, wx.MOD_SHIFT):
+			else:
+				wx.Bell()
+		elif keycode == wx.WXK_SPACE and mods in (wx.MOD_NONE, wx.MOD_SHIFT):
 			self.currentCategory.spaceIsPressedOnTreeNode(
-				withShift=modifiers == wx.MOD_SHIFT
+				withShift=mods == wx.MOD_SHIFT
 			)
 			return
 
 		evt.Skip()
+
+	# overrides MultiCategorySettingsDialog
+	@guarded
+	def onCharHook(self, evt):
+		keycode = evt.GetKeyCode()
+		mods = evt.GetModifiers()
+		if keycode == wx.WXK_TAB and mods & ~wx.MOD_SHIFT == wx.MOD_CONTROL:
+			self.cycleThroughCategories(previous=mods & wx.MOD_SHIFT)
+			return
+		super().onCharHook(evt)  # Handles F6
 
 	def refreshNodePanelData(self, node):
 		nodeInfo = self.catListCtrl.getTreeNodeInfo(node)
