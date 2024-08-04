@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2024.07.28"
+__version__ = "2024.08.02"
 __authors__ = (
 	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
 	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
@@ -190,19 +190,6 @@ class ContextualSettingsPanel(FillableSettingsPanel):
 		super().onPanelActivated()
 
 
-class PanelAccessible(wx.Accessible):
-	"""
-	WX Accessible implementation to set the role of a settings panel to property page,
-	as well as to set the accessible description based on the panel's description.
-	"""
-
-	def GetRole(self, childId):
-		return (wx.ACC_OK, wx.ROLE_SYSTEM_PROPERTYPAGE)
-
-	def GetDescription(self, childId):
-		return (wx.ACC_OK, self.Window.panelDescription)
-
-
 class FillableMultiCategorySettingsDialog(MultiCategorySettingsDialog, ScalingMixin):
 	"""This `MultiCategorySettingsDialog` allows its panels to fill the whole available space.
 
@@ -238,10 +225,11 @@ class FillableMultiCategorySettingsDialog(MultiCategorySettingsDialog, ScalingMi
 					).format(cls, panel.Size[0])
 				)
 			panel.SetLabel(panel.title)
-			panel.SetAccessible(PanelAccessible(panel))
+			panel.SetAccessible(SettingsPanelAccessible(panel))
 
 		return panel
 
+	@guarded
 	def _enterActivatesOk_ctrlSActivatesApply(self, evt):
 		if evt.KeyCode in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER):
 			obj = evt.EventObject
