@@ -275,6 +275,9 @@ class KbNavMultiCategorySettingsDialog(FillableMultiCategorySettingsDialog):
 			except IndexError:
 				wx.Bell()
 			return
+		elif keycode == wx.WXK_RETURN and mods == wx.MOD_CONTROL:
+			self.ProcessEvent(wx.CommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, wx.ID_OK))
+			return
 		super().onCharHook(evt)  # Handles control(+shift)+tab
 	
 	def focusContainerControl(self, index: int):
