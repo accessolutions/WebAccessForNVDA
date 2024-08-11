@@ -370,7 +370,6 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 	categoryClasses: Sequence[type(TreeContextualPanel)] = None
 
 	def makeSettings(self, settingsSizer):
-		scale = self.scale
 		sHelper = guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
 
 		# Translators: The label for the list of categories in a multi category settings dialog.
@@ -382,33 +381,29 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 		# These sizes are set manually so that the initial proportions within the dialog look correct. If these sizes are
 		# not given, then I believe the proportion arguments (as given to the gridBagSizer.AddGrowableColumn) are used
 		# to set their relative sizes. We want the proportion argument to be used for resizing, but not the initial size.
-		catListDim = scale(150, 10)
+		catListDim = (150, 10)
+		catListDim = self.scaleSize(catListDim)
 
-		initialScaledWidth = scale(self.INITIAL_SIZE[0])
-		spaceForBorderWidth = scale(20)
+		initialScaledWidth = self.scaleSize(self.INITIAL_SIZE[0])
+		spaceForBorderWidth = self.scaleSize(20)
 		catListWidth = catListDim[0]
-		containerDim = (initialScaledWidth - catListWidth - spaceForBorderWidth, scale(10))
+		containerDim = (initialScaledWidth - catListWidth - spaceForBorderWidth, self.scaleSize(10))
 
 		self.catListCtrl = CustomTreeCtrl(
 			self,
 			size=catListDim,
 			style=wx.TR_HAS_BUTTONS | wx.TR_HIDE_ROOT | wx.TR_LINES_AT_ROOT
 		)
-		# This list consists of only one column.
-		# The provided column header is just a placeholder, as it is hidden due to the wx.LC_NO_HEADER style flag.
-		self.catListCtrl.Bind(wx.EVT_TREE_SEL_CHANGED, self.onCategoryChange)
-		self.catListCtrl.Bind(wx.EVT_KEY_DOWN, self.onCatListCtrl_keyDown)
-		self.catListCtrl.ExpandAll()
 
 		self.container = nvdaControls.TabbableScrolledPanel(
-			parent=self,
-			style=wx.TAB_TRAVERSAL | wx.BORDER_THEME,
-			size=containerDim,
+			parent = self,
+			style = wx.TAB_TRAVERSAL | wx.BORDER_THEME,
+			size=containerDim
 		)
 
 		# Th min size is reset so that they can be reduced to below their "size" constraint.
-		self.container.SetMinSize((1, 1))
-		self.catListCtrl.SetMinSize((1, 1))
+		self.container.SetMinSize((1,1))
+		self.catListCtrl.SetMinSize((1,1))
 
 		self.containerSizer = wx.BoxSizer(wx.VERTICAL)
 		self.container.SetSizer(self.containerSizer)
@@ -418,15 +413,15 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 		self.setPostInitFocus = self.container.SetFocus if self.initialCategory else self.catListCtrl.SetFocus
 
 		self.gridBagSizer = gridBagSizer = wx.GridBagSizer(
-			hgap=scale(guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL),
-			vgap=scale(guiHelper.SPACE_BETWEEN_BUTTONS_VERTICAL)
+			hgap=self.scaleSize(guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL),
+			vgap=self.scaleSize(guiHelper.SPACE_BETWEEN_BUTTONS_VERTICAL)
 		)
 		# add the label, the categories list, and the settings panel to a 2 by 2 grid.
 		# The label should span two columns, so that the start of the categories list
 		# and the start of the settings panel are at the same vertical position.
-		gridBagSizer.Add(categoriesLabel, pos=(0, 0), span=(1, 2))
-		gridBagSizer.Add(self.catListCtrl, pos=(1, 0), flag=wx.EXPAND)
-		gridBagSizer.Add(self.container, pos=(1, 1), flag=wx.EXPAND)
+		gridBagSizer.Add(categoriesLabel, pos=(0,0), span=(1,2))
+		gridBagSizer.Add(self.catListCtrl, pos=(1,0), flag=wx.EXPAND)
+		gridBagSizer.Add(self.container, pos=(1,1), flag=wx.EXPAND)
 		# Make the row with the listCtrl and settings panel grow vertically.
 		gridBagSizer.AddGrowableRow(1)
 		# Make the columns with the listCtrl and settings panel grow horizontally if the dialog is resized.
@@ -437,7 +432,8 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 		sHelper.sizer.Add(gridBagSizer, flag=wx.EXPAND, proportion=1)
 
 		self.container.Layout()
-
+		self.catListCtrl.Bind(wx.EVT_TREE_SEL_CHANGED, self.onCategoryChange)
+		self.catListCtrl.Bind(wx.EVT_KEY_DOWN, self.onCatListCtrl_keyDown)
 		self.Bind(wx.EVT_CHAR_HOOK, self.onCharHook)
 		self.Bind(EVT_RW_LAYOUT_NEEDED, self._onPanelLayoutChanged)
 
@@ -460,7 +456,6 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 		return categoryClasses
 
 	def _changeCategoryPanel(self, newCatInfos):
-		scale = self.scale
 		configuredSettingsDialogType()
 		panel = self.catIdToInstanceMap.get(newCatInfos.title, None)
 		if panel:
@@ -471,7 +466,7 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 		panel.Hide()
 		self.containerSizer.Add(
 			panel, flag=wx.ALL | wx.EXPAND, proportion=1,
-			border=scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL)
+			border=self.scaleSize(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL)
 		)
 		self.catIdToInstanceMap[newCatInfos.title] = panel
 		panelWidth = panel.Size[0]
