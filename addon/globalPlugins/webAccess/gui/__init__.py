@@ -470,7 +470,7 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 		panel = newCatInfos.categoryClass(parent=self.container)
 		panel.Hide()
 		self.containerSizer.Add(
-			panel, flag=wx.ALL | wx.EXPAND,
+			panel, flag=wx.ALL | wx.EXPAND, proportion=1,
 			border=scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL)
 		)
 		self.catIdToInstanceMap[newCatInfos.title] = panel
