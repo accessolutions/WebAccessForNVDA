@@ -129,6 +129,16 @@ class CustomTreeCtrl(wx.TreeCtrl):
 				self.addToListCtrl(categoryClassInfo.children, newParent)
 
 
+class SizeFrugalComboBox(wx.ComboBox):
+	"""A ComboBox that does not request for more size to acomodate its content.
+	
+	Used to avoid uselessly increase the virtual size of scrollable panels.
+	"""
+	
+	def DoGetBestSize(self):
+		return wx.Size(0, 0)
+
+
 class ValidationError(Exception):
 	pass
 

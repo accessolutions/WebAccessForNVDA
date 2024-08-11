@@ -41,6 +41,7 @@ from . import (
 	ContextualSettingsPanel,
 	DropDownWithHideableChoices,
 	InvalidValue,
+	SizeFrugalComboBox,
 	ValidationError,
 	guiHelper,
 	stripAccel,
@@ -486,7 +487,7 @@ class CriteriaPanel(ContextualSettingsPanel):
 		item = wx.StaticText(self, label=self.FIELDS["text"])
 		gbSizer.Add(item, pos=(row, 0))
 		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-		item = self.textCombo = wx.ComboBox(self)
+		item = self.textCombo = SizeFrugalComboBox(self)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 
 		row += 1
@@ -516,7 +517,7 @@ class CriteriaPanel(ContextualSettingsPanel):
 		item = wx.StaticText(self, label=self.FIELDS["id"])
 		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-		item = self.idCombo = wx.ComboBox(self)
+		item = self.idCombo = SizeFrugalComboBox(self)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 
 		row += 1
@@ -526,7 +527,7 @@ class CriteriaPanel(ContextualSettingsPanel):
 		item = wx.StaticText(self, label=self.FIELDS["className"])
 		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-		item = self.classNameCombo = wx.ComboBox(self)
+		item = self.classNameCombo = SizeFrugalComboBox(self)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 
 		row += 1
@@ -536,7 +537,7 @@ class CriteriaPanel(ContextualSettingsPanel):
 		item = wx.StaticText(self, label=self.FIELDS["states"])
 		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-		item = self.statesCombo = wx.ComboBox(self)
+		item = self.statesCombo = SizeFrugalComboBox(self)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 
 		row += 1
@@ -546,7 +547,7 @@ class CriteriaPanel(ContextualSettingsPanel):
 		item = wx.StaticText(self, label=self.FIELDS["src"])
 		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-		item = self.srcCombo = wx.ComboBox(self)
+		item = self.srcCombo = SizeFrugalComboBox(self)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 
 		row += 1
