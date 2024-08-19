@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2024.08.06"
+__version__ = "2024.08.19"
 __author__ = "Shirley Noel <shirley.noel@pole-emploi.fr>"
 
 
@@ -192,7 +192,7 @@ class GestureBindingDialog(wx.Dialog, ScalingMixin):
 	def _captureFunc(self, gesture):
 		data = self.getData()
 		if gesture.isModifier:
-			return True
+			return False
 		it = iter(gesture.normalizedIdentifiers)
 		id = next(it)
 		# Search the shortest gesture identifier (without source)
