@@ -20,8 +20,14 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2024.08.02"
-__author__ = "Frédéric Brugnot <f.brugnot@accessolutions.fr>"
+__version__ = "2024.08.19"
+__authors__ = (
+	"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+	"Sendhil Randon <sendhil.randon-ext@francetravail.fr>",
+	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
+)
 
 
 from collections.abc import Mapping
@@ -851,9 +857,12 @@ class Result(baseObject.ScriptableObject):
 				dispatcher.webModules.add(webModule)
 				setattr(self.__class__, scriptAttrName, dispatcher)
 				setattr(self, scriptAttrName, dispatcher.__get__(self))
-		self.bindGestures(rule.gestures)
-		for criterion in rule.criteria:
-			self.bindGestures(criterion.gestures)
+		self.bindGestures({
+			gestureId: action
+			for gestureId, action in rule.gestures.items()
+			if gestureId not in criteria.gestures
+		})
+		self.bindGestures(criteria.gestures)
 
 	def _get_criteria(self):
 		return self._criteria()
@@ -1117,6 +1126,7 @@ class Criteria(baseObject.ScriptableObject):
 		setIfNotNoneOrEmptyString("src", self.src)
 		setIfNotNoneOrEmptyString("relativePath", self.relativePath)
 		setIfNotDefault("index", self.index)
+		setIfNotDefault("gestures", self.gestures, {})
 		setIfNotDefault("properties", self.properties.dump(), {})
 
 		return data
