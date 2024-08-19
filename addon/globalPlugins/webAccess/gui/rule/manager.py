@@ -1,4 +1,4 @@
-# globalPlugins/webAccess/gui/rulesManager.py
+# globalPlugins/webAccess/gui/rule/Manager.py
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2024.08.01"
+__version__ = "2024.08.02"
 __author__ = "Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
@@ -34,7 +34,7 @@ from gui import guiHelper
 import inputCore
 import queueHandler
 
-from ..ruleHandler import (
+from ...ruleHandler import (
 	Rule,
 	Result,
 	Zone,
@@ -43,10 +43,10 @@ from ..ruleHandler import (
 	showCreator,
 	showEditor,
 )
-from ..utils import guarded
-from ..webModuleHandler import getEditableWebModule, save
-from . import ScalingMixin
-from .ruleEditor import getSummary
+from ...utils import guarded
+from ...webModuleHandler import getEditableWebModule, save
+from .. import ScalingMixin
+from ..rule.editor import getSummary
 
 try:
 	from six import iteritems

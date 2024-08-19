@@ -26,12 +26,15 @@ __authors__ = (
 	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
 )
 
+from abc import abstractmethod
 from collections import OrderedDict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from enum import Enum, auto
 import re
-from typing import Any
+from typing import Any, Callable, Self
 import wx
+import wx.lib.mixins.listctrl as listmix
 
 from gui import guiHelper, nvdaControls, _isDebug
 from gui.dpiScalingHelper import DpiScalingHelperMixinWithoutInit
@@ -43,8 +46,11 @@ from gui.settingsDialogs import (
 	EVT_RW_LAYOUT_NEEDED
 )
 from logHandler import log
+import speech
+import ui
+import winUser
 
-from ..utils import guarded
+from ..utils import guarded, logException, notifyError, updateOrDrop
 
 LABEL_ACCEL = re.compile("&(?!&)")
 """
@@ -68,6 +74,16 @@ def stripAccelAndColon(label):
 	for use both as form field label and to compose validation messages.
 	"""
 	return stripAccel(label).rstrip(":").rstrip()
+
+
+def stripAngleBrackets(value):
+	"""Strip the eventual angle-brackets surrounding a display value
+	
+	This is used to convert some display values to spoken text.
+	"""
+	if value.startswith("<") and value.endswith(">"):
+		return value.lstrip("<").rstrip(">")
+	return value
 
 
 class CustomTreeCtrl(wx.TreeCtrl):
@@ -129,6 +145,38 @@ class CustomTreeCtrl(wx.TreeCtrl):
 				self.addToListCtrl(categoryClassInfo.children, newParent)
 
 
+class ListCtrlAccessible(wx.Accessible):
+	"""`wx.Accessible` implementation advertising when a `wx.ListCtrl` is empty.
+	
+	The associated control may customize the message through its `descriptionIfEmpty` attribute.
+	"""
+	
+	Window: wx.ListCtrl
+	
+	@logException
+	def GetDescription(self, childId):
+		if childId == winUser.CHILDID_SELF:
+			if self.Window.GetItemCount() == 0:
+				# Translators: Announced when a list is empty
+				desc = getattr(self.Window, "descriptionIfEmpty", _("Empty"))
+				return (wx.ACC_OK, desc)
+		return super().GetDescription(childId)
+
+
+class ListCtrlAutoWidth(wx.ListCtrl, listmix.ListCtrlAutoWidthMixin):
+	"""A `wx.ListCtrl` that expands by default its last column to the whole available width.
+	
+	Call `setResizeColumn` to auto resize another column instead.
+	"""
+	
+	LIST_AUTORESIZE = -3
+	
+	def __init__(self, *args, **kwargs):
+		wx.ListCtrl.__init__(self, *args, **kwargs)
+		listmix.ListCtrlAutoWidthMixin.__init__(self)
+		self.SetAccessible(ListCtrlAccessible(self))
+
+
 class SizeFrugalComboBox(wx.ComboBox):
 	"""A ComboBox that does not request for more size to acomodate its content.
 	
@@ -186,22 +234,51 @@ class FillableSettingsPanel(SettingsPanel, ScalingMixin):
 		self.SetSizer(self.mainSizer)
 
 
-class ContextualSettingsPanel(FillableSettingsPanel):
-
+class ContextualSettingsPanel(FillableSettingsPanel, metaclass=guiHelper.SIPABCMeta):
+	"""ABC for the different editor panels.
+	
+	Sub-classes must override:
+	 - `getData`, retrieving the data map targeted by this panel from the context,
+	 ie. a sub-map within `context["data"]`.
+	 - `initData`, initializing the panel with the data found in the context.
+	 - `updateData`, consolidating the panel content back into the data map.
+	"""
+	
 	def __init__(self, *args, **kwargs):
 		self.context = None
 		super().__init__(*args, **kwargs)
-
+	
+	@abstractmethod
+	def getData(self):
+		"""Retrieve the data map targetted by this panel.
+		"""
+		raise NotImplementedError
+	
+	@abstractmethod
 	def initData(self, context: Mapping[str, Any]) -> None:
+		"""Initialize this panel with the data found in the context.
+		"""
 		self.context = context
-
+	
 	# Set to True if the view depends on data that can be edited on other panels of the same dialog
 	initData.onPanelActivated = False
+	
+	@abstractmethod
+	def updateData(self):
+		"""Consolidate the data from this panel into the data map.
+		"""
 
 	def onPanelActivated(self):
 		if getattr(self.initData, "onPanelActivated", False):
 			self.initData(self.context)
 		super().onPanelActivated()
+	
+	def onPanelDeactivated(self):
+		self.updateData()
+		super().onPanelDeactivated()
+	
+	def onSave(self):
+		self.updateData()
 
 
 class FillableMultiCategorySettingsDialog(MultiCategorySettingsDialog, ScalingMixin):
@@ -257,14 +334,15 @@ def configuredSettingsDialogType(**config):
 	class Type(SettingsDialog):
 		def __init__(self, *args, **kwargs):
 			kwargs.update(config)
-			return super().__init__(*args, **kwargs)
+			super().__init__(*args, **kwargs)
 
 	return Type
 
 
 class KbNavMultiCategorySettingsDialog(FillableMultiCategorySettingsDialog):
-
+	
 	# Bound during MultiCategorySettingsDialog.makeSettings	
+	@guarded
 	def onCharHook(self, evt):
 		keycode = evt.GetKeyCode()
 		mods = evt.GetModifiers()
@@ -313,16 +391,18 @@ class ContextualMultiCategorySettingsDialog(KbNavMultiCategorySettingsDialog):
 		if isinstance(panel, ContextualSettingsPanel):
 			if not getattr(panel.initData, "onPanelActivated", False):
 				panel.initData(context)
-
+	
+	onCategoryChange = guarded(KbNavMultiCategorySettingsDialog.onCategoryChange)
+	
 	def _getCategoryPanel(self, catId):
 		panel = super()._getCategoryPanel(catId)
 		if (
-				hasattr(self, "context")
-				and isinstance(panel, ContextualSettingsPanel)
-				and (
+			hasattr(self, "context")
+			and isinstance(panel, ContextualSettingsPanel)
+			and (
 				getattr(panel, "context", None) is not self.context
 				or getattr(panel.initData, "onPanelActivated", False)
-		)
+			)
 		):
 			panel.initData(self.context)
 		return panel
@@ -642,7 +722,7 @@ def showContextualDialog(cls, context, parent, *args, **kwargs):
 		gui.mainFrame.postPopup()
 
 
-class HideableChoice():
+class HideableChoice:
 	__slots__ = ("key", "label", "enabled")
 
 	def __init__(self, key, label, enabled=True):
@@ -724,3 +804,265 @@ class DropDownWithHideableChoices(wx.ComboBox):
 				self.__setSelectedChoice(choice)
 			else:
 				self.setSelectedChoiceKey(default)
+
+
+@dataclass
+class EditorTypeValue:
+	editorClass: type(wx.Control) = None
+	eventType: int = None
+	eventHandlerAttrName: str = None
+	isLabeled: bool = None
+
+
+class Change(Enum):
+	CREATION = auto()
+	UPDATE = auto()
+	DELETION = auto()
+
+
+class EditorType(Enum):
+	CHECKBOX = EditorTypeValue(wx.CheckBox, wx.EVT_CHECKBOX, "onEditor_checkBox", True)
+	CHOICE = EditorTypeValue(wx.Choice, wx.EVT_CHOICE, "onEditor_choice", False)
+	TEXT = EditorTypeValue(wx.TextCtrl, wx.EVT_TEXT, "onEditor_text", False)
+
+
+class SingleFieldEditorMixin(metaclass=guiHelper.SIPABCMeta):
+	"""Abstract mixin for handling single field edition
+	
+	Sub-classes are expected to bind `wx.EVT_CHECKBOX`, `wx.EVT_CHOICE` and `wx.EVT_TEXT`
+	to `onEditor_checkBox`, `onEditor_choice` and `onEditor_text` respectively.
+	
+	Known sub-classes:
+	 - `SingleFieldEditorPanelBase`
+	 - `properties.PropertiesListBase`
+	"""
+	
+	@classmethod
+	def getFieldDisplayValue(cls, value: Any, choices: Mapping[Any, str] = None) -> str:
+		if choices is not None:
+			try:
+				index = tuple(choices.keys()).index(value)
+			except ValueError:
+				raise ValueError(f"Can't find index: {value!r} not in {choices!r}")
+			return tuple(choices.values())[index]
+		elif isinstance(value, bool):
+			if value:
+				# Translators: The display value of a yes/no field
+				return _("Yes")
+			else:
+				# Translators: The displayed value of a yes/no field
+				return _("No")
+		return str(value)
+	
+	@property
+	@abstractmethod
+	def editor(self) -> wx.Control:
+		raise NotImplementedError
+	
+	@property
+	@abstractmethod
+	def editorChoices(self) -> Mapping[Any, str]:
+		raise NotImplementedError
+	
+	@property
+	@abstractmethod
+	def editorLabel(self) -> wx.Control:
+		raise NotImplementedError
+	
+	@property
+	@abstractmethod
+	def editorType(self) -> EditorType:
+		raise NotImplementedError
+	
+	@property
+	@abstractmethod
+	def fieldDisplayName(self) -> str:
+		raise NotImplementedError
+	
+	@abstractmethod
+	def getFieldValue(self):
+		raise NotImplementedError
+	
+	@abstractmethod
+	def setFieldValue(self, value):
+		raise NotImplementedError
+	
+	def onEditor_change(self):
+		"""Called whenever the value changed.
+		"""
+	
+	@guarded
+	def onEditor_checkBox(self, evt):
+		self.setFieldValue(evt.IsChecked())
+		self.onEditor_change()
+	
+	@guarded
+	def onEditor_choice(self, evt):
+		index = evt.Selection
+		self.setFieldValue(tuple(self.editorChoices.keys())[index])
+		self.onEditor_change()
+	
+	@guarded
+	def onEditor_text(self, evt):
+		self.setFieldValue(evt.EventObject.Value)
+		self.onEditor_change()
+	
+	def toggleFieldValue(self, previous: bool = False) -> None:
+		value = self.getFieldValue()
+		editorType = self.editorType
+		if editorType is EditorType.CHECKBOX:
+			value = not value
+		elif editorType is EditorType.CHOICE:
+			choices = self.editorChoices
+			keys = tuple(choices.keys())
+			try:
+				index = (keys.index(value) + (-1 if previous else 1)) % len(choices)  # Wrap arround
+			except ValueError:
+				notifyError(f"value: {value!r}, choices: {choices!r}")
+				return
+			value = keys[index]
+		elif editorType is EditorType.TEXT:
+			self.editor.SetFocus()
+			return
+		else:
+			raise NotImplementedError(editorType)
+		self.setFieldValue(value)
+		self.updateEditor()
+		self.onEditor_change()
+		speech.cancelSpeech()  # Avoid announcing the whole eventual control refresh
+		ui.message(self.getFieldDisplayValue(value, choices=self.editorChoices))
+	
+	def updateEditor(self) -> None:
+		editor = self.editor
+		value = self.getFieldValue()
+		editorType = self.editorType
+		if editorType is EditorType.CHECKBOX:
+			# Does not emit wx.EVT_CHECKBOX
+			editor.Value = value
+		elif editorType is EditorType.CHOICE:
+			# Does not emit wx.EVT_CHOICE
+			editor.Selection = tuple(self.editorChoices.keys()).index(value)
+		elif editorType is EditorType.TEXT:
+			# Does not emit wx.EVT_TEXT
+			editor.ChangeValue(value if value is not None else "")
+	
+	def updateEditorChoices(self):
+		editor = self.editor
+		editor.Clear()
+		editor.AppendItems(tuple(self.editorChoices.values()))
+	
+	def updateEditorLabel(self):
+		# Translators: A field label. French typically adds a space before the colon.
+		self.editorLabel.Label = _("{field}:").format(field=self.fieldDisplayName)
+
+
+class SingleFieldEditorPanelBase(SingleFieldEditorMixin, TreeContextualPanel):
+	"""ABC for panels offering a single edit field.
+	
+	Sub-classes must implement `getData`, inherited from `ContextualSettingsPanel`.
+	
+	Known sub-classes:
+	 - `rule.editor.RuleEditorSingleFieldChildPanel`
+	"""
+	
+	# Overrides the abstract properties getter from SingleFieldEditorMixin,
+	# thus allowing to use these names for instance attribute.
+	editor: wx.Control = None
+	editorLabel: wx.Control = None
+	editorType: EditorType = None
+	
+	@dataclass
+	class CategoryParams(TreeContextualPanel.CategoryParams):
+		editorChoices: Mapping[Any, str] = None
+		fieldDisplayName: str = None
+		fieldName: str = None
+		onEditor_change: Callable[[Self], None] = None
+		"""Additional `onEditor_change` handler callback.
+		
+		It is called with a reference to the panel during `onEditor_change`, thus avoiding the need
+		to sub-class only for extending this method.
+		"""
+	
+	@classmethod
+	def getTreeNodeLabel(cls, displayName: str, value: Any, choices: Mapping[Any, str] = None) -> str:
+		displayName = stripAccel(displayName).strip().rstrip(":").rstrip()
+		displayValue = cls.getFieldDisplayValue(value, choices=choices)
+		# Translators: The label for a node in the category tree on a multi-category dialog
+		return _("{field}: {value}").format(field=displayName, value=displayValue)
+	
+	def __init__(self, *args, editorType: EditorType = None, **kwargs):
+		if editorType is not None:  # Allow mixing with classes where this is a readonly property
+			self.editorType = editorType
+		super().__init__(*args, **kwargs)
+	
+	@property
+	def editorChoices(self) -> str:
+		return self.categoryParams.editorChoices
+	
+	@property
+	def fieldDisplayName(self) -> str:
+		return self.categoryParams.fieldDisplayName
+	
+	@property
+	def fieldName(self) -> str:
+		return self.categoryParams.fieldName
+	
+	def makeSettings(self, settingsSizer):
+		scale = self.scale
+		typeParams = self.editorType.value
+		gbSizer = wx.GridBagSizer()
+		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
+		col = 0
+		if not typeParams.isLabeled:
+			item = self.editorLabel = wx.StaticText(self, label='')
+			gbSizer.Add(item, pos=(0, col))
+			col += 1
+			gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(0, col))
+			col += 1
+		item = self.editor = typeParams.editorClass(self)
+		gbSizer.Add(item, pos=(0, col), flag=wx.EXPAND)
+		item.Bind(typeParams.eventType, getattr(self, typeParams.eventHandlerAttrName))
+		gbSizer.AddGrowableCol(col)
+	
+	def initData(self, context):
+		super().initData(context)
+		editorType = self.editorType
+		if editorType.value.isLabeled:
+			self.editorLabel = self.editor
+		if editorType is EditorType.CHOICE:
+			self.updateEditorChoices()
+		self.updateEditor()
+		self.updateEditorLabel()
+	
+	def updateData(self):
+		updateOrDrop(self.getData(), self.fieldName, self.getFieldValue())
+	
+	def getFieldValue(self):
+		return self.getData().get(self.fieldName)
+	
+	def setFieldValue(self, value):
+		self.getData()[self.fieldName] = value
+	
+	# called by TreeMultiCategorySettingsDialog.onCatListCtrl_KeyDown
+	def delete(self):
+		wx.Bell()
+	
+	def onEditor_change(self):
+		super().onEditor_change()
+		prm = self.categoryParams
+		prm.tree.SetItemText(prm.treeNode, self.getTreeNodeLabel(
+			self.fieldDisplayName, self.getFieldValue(), self.editorChoices
+		))
+		if prm.onEditor_change:
+			prm.onEditor_change(self)
+	
+	def onPanelActivated(self):
+		self.updateEditor()
+		super().onPanelActivated()
+	
+	# called by TreeMultiCategorySettingsDialog.onKeyDown
+	def spaceIsPressedOnTreeNode(self, withShift=False):
+		if self.editorType is EditorType.TEXT:
+			self.editor.SetFocus()
+		else:
+			self.toggleFieldValue(previous=withShift)

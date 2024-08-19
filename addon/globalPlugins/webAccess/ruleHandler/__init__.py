@@ -24,6 +24,7 @@ __version__ = "2024.08.02"
 __author__ = "Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
+from collections.abc import Mapping
 from itertools import chain
 from pprint import pformat
 import threading
@@ -56,8 +57,9 @@ from ..webAppLib import (
 	playWebAppSound,
 )
 from .. import webAppScheduler
-from .controlMutation import MUTATIONS, MutatedControl, getMutationId
 from . import ruleTypes
+from .controlMutation import MUTATIONS, MutatedControl, getMutationId
+from .properties import RuleProperties, CriteriaProperties
 
 addonHandler.initTranslation()
 
@@ -84,8 +86,8 @@ def showCreator(context, parent=None):
 
 def showEditor(context, parent=None):
 	context.get("data", {}).pop("rule", None)
-	from ..gui import ruleEditor
-	return ruleEditor.show(context, parent=parent)
+	from ..gui.rule import editor
+	return editor.show(context, parent=parent)
 
 
 def showManager(context):
@@ -101,7 +103,7 @@ def showManager(context):
 		return
 	focus = context["focusObject"]
 	context["result"] = mgr.getResultAtCaret(focus=focus)
-	from ..gui import rulesManager as dlg
+	from ..gui.rule import manager as dlg
 	dlg.show(context)
 
 
@@ -268,7 +270,7 @@ class RuleManager(baseObject.ScriptableObject):
 			if result.rule is rule:
 				del self._results[index]
 
-	def getActions(self):
+	def getActions(self) -> Mapping[str, str]:
 		actions = builtinRuleActions.copy()
 		prefix = "action_"
 		for key in dir(self.webModule):
@@ -363,7 +365,7 @@ class RuleManager(baseObject.ScriptableObject):
 			results.sort()
 
 			for result in results:
-				if not result.get_property("mutation"):
+				if not result.properties.mutation:
 					continue
 				try:
 					controlId = int(result.node.controlIdentifier)
@@ -419,11 +421,11 @@ class RuleManager(baseObject.ScriptableObject):
 			funcMoveto = None
 			firstCancelSpeech = True
 			for result in self.getResults():
-				if result.get_property("autoAction"):
+				if result.properties.autoAction:
 					controlIdentifier = result.node.controlIdentifier
 					# check only 100 first characters
 					text = result.node.getTreeInterceptorText()[:100]
-					autoActionName = result.get_property("autoAction")
+					autoActionName = result.properties.autoAction
 					func = getattr(result, "script_%s" % autoActionName)
 					lastText = self.triggeredIdentifiers.get(controlIdentifier)
 					if (lastText is None or text != lastText):
@@ -530,7 +532,7 @@ class RuleManager(baseObject.ScriptableObject):
 			skippedZones = []
 			for result in self.getResults():
 				rule = result.rule
-				if not result.get_property("skip") or rule.type != ruleTypes.ZONE:
+				if not result.properties.skip or rule.type != ruleTypes.ZONE:
 					continue
 				zone = Zone(result)
 				if not zone.containsTextInfo(caret):
@@ -546,7 +548,7 @@ class RuleManager(baseObject.ScriptableObject):
 				if rule.name != name:
 					continue
 			elif honourSkip:
-				if result.get_property("skip"):
+				if result.properties.skip:
 					continue
 				if any(
 					zone
@@ -739,101 +741,6 @@ class RuleManager(baseObject.ScriptableObject):
 		)
 
 
-class RuleProperties:
-
-	def __init__(
-		self,
-		data: dict,
-		validFields: tuple
-	):
-		self.validFields = validFields
-		self.load(data)
-
-	def load(self, data):
-		data = data.copy()
-		validFields = self.validFields
-		if "multiple" in validFields:
-			self.multiple = data.pop("multiple", False)
-		if "formMode" in validFields:
-			self.formMode = data.pop("formMode", False)
-		if "skip" in validFields:
-			self.skip = data.pop("skip", False)
-		if "sayName" in validFields:
-			self.sayName = data.pop("sayName", False)
-		if "autoAction" in validFields:
-			self.autoAction = data.pop("autoAction", None)
-		if "customName" in validFields:
-			self.customName = data.pop("customName", None)
-		if "customValue" in validFields:
-			self.customValue = data.pop("customValue", None)
-		if "mutation" in validFields:
-			self.mutation = None
-			mutation = data.pop("mutation", None)
-			if mutation:
-				try:
-					self.mutation = MUTATIONS[mutation] if mutation in MUTATIONS else None
-				except LookupError:
-					log.exception((
-						"Unexpected mutation template id \"{mutation}\" "
-						"in rule \"{rule}\"."
-					).format(mutation=mutation, rule=self.name))
-		if data:
-			raise Exception(
-				"Unexpected attribute"
-				+ ("s" if len(data) > 1 else "")
-				+ ": " + ", ".join(data)
-			)
-
-	def dump(self):
-		data = {}
-		for validField in self.validFields:
-			if hasattr(self, validField) and validField != "mutation":
-				data[validField] = getattr(self, validField)
-		if "mutation" in self.validFields and hasattr(self, "mutation"):
-			data["mutation"] = getMutationId(self.mutation)
-		return data
-
-	def __repr__(self):
-		return pformat(self.dump())
-
-
-class CriterionProperties:
-
-	def __init__(self, data, validFields):
-		self.validFields = validFields
-		self.load(data)
-
-	def load(self, data):
-		data = data.copy()
-		for validField in self.validFields:
-			if validField in data and validField != "mutation":
-				setattr(self, validField, data.pop(validField))
-		if "mutation" in self.validFields and "mutation" in data:
-			mutation = data.pop("mutation", None)
-			if mutation:
-				try:
-					self.mutation = MUTATIONS[mutation]
-				except LookupError:
-					log.exception((
-						"Unexpected mutation template id \"{mutation}\" "
-						"in rule \"{rule}\"."
-					).format(
-						mutation=mutation,
-						rule=self.mutation
-					))
-
-	def dump(self):
-		data = {
-			validField: getattr(self, validField) for validField in self.validFields if hasattr(self, validField) and validField != "mutation"
-		}
-		if hasattr(self, "mutation") and "mutation" in self.validFields:
-			data["mutation"] = getMutationId(self.mutation)
-		return data
-
-	def __repr__(self):
-		return pformat(self.dump())
-
-
 class CustomActionDispatcher(object):
 	"""
 	Execute a custom action, eventually overriding a standard action.
@@ -927,6 +834,7 @@ class Result(baseObject.ScriptableObject):
 	def __init__(self, criteria):
 		super().__init__()
 		self._criteria = weakref.ref(criteria)
+		self.properties = criteria.properties
 		rule = criteria.rule
 		self._rule = weakref.ref(rule)
 		webModule = rule.ruleManager.webModule
@@ -951,8 +859,7 @@ class Result(baseObject.ScriptableObject):
 		return self._criteria()
 
 	def _get_label(self):
-		customName = self.get_property("customName")
-		return customName or self.rule.name
+		return self.properties.customName or self.rule.name
 
 	def _get_name(self):
 		return self.rule.name
@@ -961,17 +868,10 @@ class Result(baseObject.ScriptableObject):
 		return self._rule()
 
 	def _get_value(self):
-		customValue = self.get_property("customValue")
-		if customValue is None:
-			customValue = self.get_property("customValue")
-		return customValue or self.node.getTreeInterceptorText()
-
-	def get_property(self, name):
-		return getattr(
-			self.criteria.properties,
-			name,
-			getattr(self.rule.properties, name, None)
-		)
+		customValue = self.properties.customValue
+		if customValue:
+			return customValue
+		raise NotImplementedError
 
 	def script_moveto(self, gesture):
 		raise NotImplementedError
@@ -986,7 +886,7 @@ class Result(baseObject.ScriptableObject):
 		repeat = scriptHandler.getLastScriptRepeatCount() if gesture is not None else 0
 		if repeat == 0:
 			parts = []
-			if self.get_property("sayName"):
+			if self.properties.sayName:
 				parts.append(self.label)
 			parts.append(self.value)
 			msg = " - ".join(parts)
@@ -1021,6 +921,9 @@ class SingleNodeResult(Result):
 	def _get_node(self):
 		return self._node()
 
+	def _get_value(self):
+		return self.properties.customValue or self.node.getTreeInterceptorText()
+	
 	def script_moveto(self, gesture, fromQuickNav=False, fromSpeak=False):
 		if self.node is None or self.node.nodeManager is None:
 			return
@@ -1033,12 +936,12 @@ class SingleNodeResult(Result):
 			speech.speakMessage(_("Move to {ruleName}").format(
 				ruleName=self.label)
 			)
-		elif self.get_property("sayName"):
+		elif self.properties.sayName:
 			speech.speakMessage(self.label)
 		treeInterceptor = self.node.nodeManager.treeInterceptor
 		if not treeInterceptor or not treeInterceptor.isReady:
 			return
-		treeInterceptor.passThrough = self.get_property("formMode")
+		treeInterceptor.passThrough = self.properties.formMode
 		browseMode.reportPassThrough.last = treeInterceptor.passThrough
 		if rule.type == ruleTypes.ZONE:
 			rule.ruleManager.zone = Zone(self)
@@ -1079,7 +982,7 @@ class SingleNodeResult(Result):
 
 	def script_sayall(self, gesture, fromQuickNav=False):
 		speech.cancelSpeech()
-		if self.get_property("sayName"):
+		if self.properties.sayName:
 			speech.speakMessage(self.label)
 		treeInterceptor = html.getTreeInterceptor()
 		if not treeInterceptor:
@@ -1108,25 +1011,25 @@ class SingleNodeResult(Result):
 			log.info ("not ready")
 			return
 		treeInterceptor = self.node.nodeManager.treeInterceptor
-		if self.get_property("sayName"):
+		if self.properties.sayName:
 			speech.speakMessage(self.label)
 		self.node.activate()
 		time.sleep(0.1)
 		api.processPendingEvents ()
 		if not treeInterceptor:
 			return
-		treeInterceptor.passThrough = self.get_property("formMode")
+		treeInterceptor.passThrough = self.properties.formMode
 		browseMode.reportPassThrough.last = treeInterceptor.passThrough
 
 	def script_mouseMove(self, gesture):
 		rule = self.rule
 		criteria = self.criteria
-		if self.get_property("sayName"):
+		if self.properties.sayName:
 			speech.speakMessage(self.label)
 		treeInterceptor = html.getTreeInterceptor()
 		if not treeInterceptor:
 			return
-		treeInterceptor.passThrough = self.get_property("formMode")
+		treeInterceptor.passThrough = self.properties.formMode
 		browseMode.reportPassThrough.last = treeInterceptor.passThrough
 		self.node.mouseMove()
 
@@ -1147,6 +1050,7 @@ class Criteria(baseObject.ScriptableObject):
 	def __init__(self, rule, data):
 		super().__init__()
 		self._rule = weakref.ref(rule)
+		self.properties = CriteriaProperties(self)
 		self.load(data)
 
 	def _get_layer(self):
@@ -1157,11 +1061,6 @@ class Criteria(baseObject.ScriptableObject):
 
 	def _get_ruleManager(self):
 		return self.rule.ruleManager
-
-	def _get_label(self):
-		if hasattr(self.properties, "customName"):
-			return self.properties.customName
-		return self.name or self.rule._get_label()
 
 	def load(self, data):
 		data = data.copy()
@@ -1184,9 +1083,7 @@ class Criteria(baseObject.ScriptableObject):
 		for gestureIdentifier in list(self.gestures.keys()):
 			gesturesMap[gestureIdentifier] = "notFound"
 		self.bindGestures(gesturesMap)
-		properties = data.pop("properties", {})
-		ruleTypeFields = ruleTypes.RULE_TYPE_FIELDS.get(self.rule.type, ())
-		self.properties = CriterionProperties(properties, ruleTypeFields)
+		self.properties.load(data.pop("properties", {}))
 		if data:
 			raise ValueError(
 				"Unexpected attribute"
@@ -1198,31 +1095,29 @@ class Criteria(baseObject.ScriptableObject):
 	def dump(self):
 		data = {}
 
-		def setIfNotDefault(dic, key, value, default=None):
-			if value is not None:
-				dic[key] = value
+		def setIfNotDefault(key, value, default=None):
+			if value != default:
+				data[key] = value
 
-		def setIfNotNoneOrEmptyString(dic, key, value):
+		def setIfNotNoneOrEmptyString(key, value):
 			if value and value.strip():
-				dic[key] = value
+				data[key] = value
 
-		setIfNotNoneOrEmptyString(data, "name", self.name)
-		setIfNotNoneOrEmptyString(data, "comment", self.comment)
-		setIfNotNoneOrEmptyString(data, "contextPageTitle", self.contextPageTitle)
-		setIfNotNoneOrEmptyString(data, "contextPageType", self.contextPageType)
-		setIfNotNoneOrEmptyString(data, "contextParent", self.contextParent)
-		setIfNotNoneOrEmptyString(data, "text", self.text)
-		setIfNotDefault(data, "role", self.role)
-		setIfNotNoneOrEmptyString(data, "tag", self.tag)
-		setIfNotNoneOrEmptyString(data, "id", self.id)
-		setIfNotNoneOrEmptyString(data, "className", self.className)
-		setIfNotNoneOrEmptyString(data, "states", self.states)
-		setIfNotNoneOrEmptyString(data, "src", self.src)
-		setIfNotNoneOrEmptyString(data, "relativePath", self.relativePath)
-		setIfNotDefault(data, "index", self.index)
-		if "properties" not in data:
-			data["properties"] = {}
-		setIfNotDefault(data, "properties", self.properties.dump())
+		setIfNotNoneOrEmptyString("name", self.name)
+		setIfNotNoneOrEmptyString("comment", self.comment)
+		setIfNotNoneOrEmptyString("contextPageTitle", self.contextPageTitle)
+		setIfNotNoneOrEmptyString("contextPageType", self.contextPageType)
+		setIfNotNoneOrEmptyString("contextParent", self.contextParent)
+		setIfNotNoneOrEmptyString("text", self.text)
+		setIfNotDefault("role", self.role)
+		setIfNotNoneOrEmptyString("tag", self.tag)
+		setIfNotNoneOrEmptyString("id", self.id)
+		setIfNotNoneOrEmptyString("className", self.className)
+		setIfNotNoneOrEmptyString("states", self.states)
+		setIfNotNoneOrEmptyString("src", self.src)
+		setIfNotNoneOrEmptyString("relativePath", self.relativePath)
+		setIfNotDefault("index", self.index)
+		setIfNotDefault("properties", self.properties.dump(), {})
 
 		return data
 
@@ -1331,7 +1226,7 @@ class Criteria(baseObject.ScriptableObject):
 						"Rule not found: \"{parent}\""
 					).format(rule=self.name, parent=name))
 					return
-				if not exclude and getattr(rule.properties, "multiple", False):
+				if not exclude and rule.properties.multiple:
 					if multipleContext is None:
 						multipleContext = True
 				else:
@@ -1401,6 +1296,7 @@ class Rule(baseObject.ScriptableObject):
 		self.layer = None
 		self._ruleManager = weakref.ref(ruleManager)
 		self._results = None
+		self.properties = RuleProperties(self)
 		self.load(data)
 
 	def _get_label(self):
@@ -1411,19 +1307,25 @@ class Rule(baseObject.ScriptableObject):
 
 	def dump(self):
 
-		def setIfNotDefault(dic, key, value, default=None):
-			if value is not None:
-				dic[key] = value
+		def setIfNotDefault(key, value, default=None):
+			if value != default:
+				data[key] = value
+
+		def setIfNotNoneOrEmptyString(key, value):
+			if value and value.strip():
+				data[key] = value
 
 		data = {}
 		data["name"] = self.name
 		data["type"] = self.type
-		setIfNotDefault(data, "gestures", self.gestures, {})
+		setIfNotNoneOrEmptyString("comment", self.comment)
+		setIfNotDefault("gestures", self.gestures, {})
 		if self.criteria:
 			items = data["criteria"] = []
 			for criteria in self.criteria:
 				items.append(criteria.dump())
-		setIfNotDefault(data, "properties", self.properties.dump(), {})
+		setIfNotDefault("properties", self.properties.dump(), {})
+
 		return data
 
 	def load(self, data):
@@ -1437,23 +1339,7 @@ class Rule(baseObject.ScriptableObject):
 		for gestureIdentifier in list(self.gestures.keys()):
 			gesturesMap[gestureIdentifier] = "notFound"
 		self.bindGestures(gesturesMap)
-		properties = data.pop("properties", {})
-		if not properties: # compatiiblity with old format
-			keys = ("autoAction", "customName", "customValue", "mutation", "formMode", "multiple", "sayName", "skip")
-			properties = {key: data.pop(key, None) for key in keys if key in data}
-		ruleTypeFields = ruleTypes.RULE_TYPE_FIELDS.get(self.type, ())
-		try:
-			self.properties = RuleProperties(properties, ruleTypeFields)
-		except Exception as e:
-			log.exception((
-				"Error while loading properties for rule \"{ruleName}\". type={ruleType} properties={ruleProperties}\n{err}"
-			).format(
-				ruleName=self.name,
-				ruleType=self.type,
-				ruleProperties=repr(properties),
-				err=e
-			))
-			self.properties = RuleProperties({}, ())
+		self.properties.load(data.pop("properties", {}))
 		if data:
 			raise ValueError(
 				"Unexpected attribute"

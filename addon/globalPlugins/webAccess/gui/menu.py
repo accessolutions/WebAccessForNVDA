@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2024 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,24 +22,28 @@
 """Web Access GUI."""
 
 
-__version__ = "2021.03.12"
+__version__ = "2024.08.02"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
  
 import wx
 
 import addonHandler
-addonHandler.initTranslation()
 import gui
 
 from ... import webAccess
 from .. import ruleHandler
 from .. import webModuleHandler  
+from ..utils import guarded
 from . import webModulesManager
 
 
+addonHandler.initTranslation()
+
+
+@guarded
 def show(context):
-	Menu(context).Show()
+	Menu(context).show()
 
 class Menu(wx.Menu):
 	
@@ -55,15 +59,17 @@ class Menu(wx.Menu):
 				item = self.Append(
 					wx.ID_ANY,
 					# Translators: Web Access menu item label.
-					_("&New rule..."))
-				self.Bind(wx.EVT_MENU, self.OnRuleCreate, item)
+					_("&New rule...")
+				)
+				self.Bind(wx.EVT_MENU, self.onRuleCreate, item)
 			
 			if webModule is not None:
 				item = self.Append(
 					wx.ID_ANY,
 					# Translators: Web Access menu item label.
-					_("Manage &rules..."))
-				self.Bind(wx.EVT_MENU, self.OnRulesManager, item)
+					_("Manage &rules...")
+				)
+				self.Bind(wx.EVT_MENU, self.onRulesManager, item)
 				self.AppendSeparator()
 			
 			if webModule is None:
@@ -71,55 +77,57 @@ class Menu(wx.Menu):
 					wx.ID_ANY,
 					# Translators: Web Access menu item label.
 					_("&New web module..."))
-				self.Bind(wx.EVT_MENU, self.OnWebModuleCreate, item)
+				self.Bind(wx.EVT_MENU, self.onWebModuleCreate, item)
 			else:
 				item = self.Append(
 					wx.ID_ANY,
 					# Translators: Web Access menu item label.
-					_("Edit &web module %s...") % webModule.name)
-				self.Bind(wx.EVT_MENU, self.OnWebModuleEdit, item)
+					_("Edit &web module %s...") % webModule.name
+				)
+				self.Bind(wx.EVT_MENU, self.onWebModuleEdit, item)
 			
 			item = self.Append(
 				wx.ID_ANY,
 				# Translators: Web Access menu item label.
 				_("Manage web &modules...")
-				)
-			self.Bind(wx.EVT_MENU, self.OnWebModulesManager, item)
-	
+			)
+			self.Bind(wx.EVT_MENU, self.onWebModulesManager, item)
+			
 			self.AppendSeparator()
-
+		
 		item = self.AppendCheckItem(
 			wx.ID_ANY,
 			# Translators: Web Access menu item label.
 			_("Temporarily &disable all web modules"),
-			)
+		)
 		item.Check(not webAccess.webAccessEnabled)
-		self.Bind(wx.EVT_MENU, self.OnWebAccessToggle, item)
-		
-	def Show(self):
+		self.Bind(wx.EVT_MENU, self.onWebAccessToggle, item)
+	
+	def show(self):
 		gui.mainFrame.prePopup(contextMenuName="Web Access")
 		gui.mainFrame.PopupMenu(self)
 		gui.mainFrame.postPopup()
-		
-	def OnRuleCreate(self, evt):
+	
+	@guarded
+	def onRuleCreate(self, evt):
 		ruleHandler.showCreator(self.context)
-
-	def OnRuleEdit(self, evt):
-		pass
-
-	def OnRulesManager(self, evt):
+	
+	@guarded
+	def onRulesManager(self, evt):
 		ruleHandler.showManager(self.context)
-		
-	def OnWebModuleCreate(self, evt):
+	
+	@guarded
+	def onWebModuleCreate(self, evt):
 		webModuleHandler.showCreator(self.context)
 	
-	def OnWebModuleEdit(self, evt):
+	@guarded
+	def onWebModuleEdit(self, evt):
 		webModuleHandler.showEditor(self.context)
 	
-	def OnWebModulesManager(self, evt):
+	@guarded
+	def onWebModulesManager(self, evt):
 		webModuleHandler.showManager(self.context)
 	
-	def OnWebAccessToggle(self, evt):
+	@guarded
+	def onWebAccessToggle(self, evt):
 		self.context["webAccess"].script_toggleWebAccessSupport(None)
-	
-	
