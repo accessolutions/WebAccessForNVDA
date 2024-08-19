@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2024.08.06"
+__version__ = "2024.08.19"
 __authors__ = (
 	"Shirley Noel <shirley.noel@pole-emploi.fr>",
 	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
@@ -187,13 +187,11 @@ class ActionsPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
 	
 	@guarded
 	def onAddGesture(self, evt):
-		prm = self.categoryParams
 		context = self.context
 		context["data"]["gestures"] = self.gesturesMap
 		if gestureBinding.show(context=context, parent=self) == wx.ID_OK:
 			id = context["data"].pop("gestureBinding")["gestureIdentifier"]
 			self.onGestureChange(Change.CREATION, id)
-		del context["data"]["gestureBinding"]
 		del context["data"]["gestures"]
 
 	@guarded
@@ -274,8 +272,8 @@ class ActionsPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
 	
 	def onSave(self):
 		super().onSave()
+		data = self.getData()
 		if self.getRuleType() not in (ruleTypes.ZONE, ruleTypes.MARKER):
-			data = self.getData()
 			data.pop("gestures", None)
 			data.get("properties", {}).pop("autoAction", None)
 		elif not data.get("gestures"):
