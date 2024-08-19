@@ -1236,12 +1236,12 @@ class Criteria(baseObject.ScriptableObject):
 						"Rule not found: \"{parent}\""
 					).format(rule=self.name, parent=name))
 					return
-				if not exclude and rule.properties.multiple:
+				results = rule.getResults()
+				if not exclude and any(r.properties.multiple for r in results):
 					if multipleContext is None:
 						multipleContext = True
 				else:
 					multipleContext = False
-				results = rule.getResults()
 				if results:
 					nodes = [result.node for result in results]
 					if exclude:
@@ -1268,8 +1268,8 @@ class Criteria(baseObject.ScriptableObject):
 		if excludedNodes:
 			kwargs["exclude"] = excludedNodes
 		limit = None
-		if not getattr(self.rule.properties, "multiple", False):
-			limit = self.index or 1
+		if not self.properties.multiple:
+			limit = self.index or 1  # 1-based
 
 		index = 0
 		for root in rootNodes or (mgr.nodeManager.mainNode,):
@@ -1290,7 +1290,7 @@ class Criteria(baseObject.ScriptableObject):
 					endOffset=root.offset + root.size
 				) if root is not self.ruleManager.nodeManager.mainNode else None
 				yield self.createResult(node, context, index)
-				if not getattr(self.rule.properties, "multiple", False) and not multipleContext:
+				if not self.properties.multiple and not multipleContext:
 					return
 
 	def script_notFound(self, gesture):
