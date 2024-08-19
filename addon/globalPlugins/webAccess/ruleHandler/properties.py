@@ -79,7 +79,7 @@ class PropertySpec(Enum):
 		isRestrictedChoice=True
 	)
 	multiple = PropertySpecValue(
-		ruleTypes=("marker", "zone"),
+		ruleTypes=("marker",),
 		valueType=bool,
 		default=False,
 		# Translators: The display name for a rule property
