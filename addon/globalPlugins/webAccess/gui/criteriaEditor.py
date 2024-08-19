@@ -147,9 +147,8 @@ def translateStatesLblToId(expr, raiseOnError=True):
 	return translateExprValues(expr, translate)
 
 
-def getSummary(data, indent="", condensed=False):
+def getSummary_context(data) -> Sequence[str]:
 	parts = []
-	subParts = []
 	for key, label in list(CriteriaPanel.FIELDS.items()):
 		if (
 			key not in CriteriaPanel.CONTEXT_FIELDS
@@ -160,10 +159,16 @@ def getSummary(data, indent="", condensed=False):
 		):
 			continue
 		value = data[key]
-		subParts.append("{} {}".format(stripAccel(label), value))
-	if not subParts:
+		parts.append("{} {}".format(stripAccel(label), value))
+	if not parts:
 		# Translators: A mention on the Criteria summary report
-		subParts.append(_("Global - Applies to the whole web module"))
+		parts.append(_("Global - Applies to the whole web module"))
+	return parts
+
+
+def getSummary(context, data, indent="", condensed=False) -> str:
+	parts = []
+	subParts = getSummary_context(data)
 	if condensed:
 		parts.append(", ".join(subParts))
 	else:
@@ -187,29 +192,22 @@ def getSummary(data, indent="", condensed=False):
 			parts.append(", ".join(subParts))
 		else:
 			parts.extend(subParts)
-
+	
+	# Properties
 	subParts = []
-	data = data.get("properties")
-	if data:
-		for key, label in list(properties.FIELDS.items()):
-			if key not in data:
-				continue
-			if key == "autoAction":
-				value = builtinRuleActions.get(data[key], f"*{data[key]}")
-			elif key in data and isinstance(data[key], bool):
-				value = _("Enabled") if data[key] else _("Disabled")
-			else:
-				value = data[key]
-
-			indent_ = "" if condensed else "  "
-			if value:
-				subParts.append("{}{}: {}".format(
-					indent_,
-					label,
-					builtinRuleActions.get(value, f"*{value}") if key == "autoAction" else value
-				))
+	props = Properties(context, data.get("properties", {}), iterOnlyFirstMap=True)
+	for prop in props:
+		subParts.append(
+			# Translators: A mention on the Criteria Summary report
+			_("{indent}{field}: {value}").format(
+				indent="  " if not condensed else "",
+				field=prop.displayName,
+				value=prop.displayValue,
+			)
+		)
 	if subParts:
-		parts.append(_("Properties"))
+		# Translators: The label for a section on the Criteria Summary report
+		parts.append(_("{section}:").format(section=PropertiesPanel.title))
 		if condensed:
 			parts.append(", ".join(subParts))
 		else:
@@ -217,7 +215,7 @@ def getSummary(data, indent="", condensed=False):
 
 	if parts:
 		return "{}{}".format(indent, "\n{}".format(indent).join(parts))
-	# Translators: Fail-back criteria summary in rule's criteria panel dialog.
+	# Translators: A mention on the Criteria Summary report
 	return "{}{}".format(indent, _("No criteria"))
 
 
@@ -345,7 +343,7 @@ class GeneralPanel(CriteriaEditorPanel):
 		if not self.context:
 			return ""
 		self.Parent.Parent.currentCategory.updateData()
-		return getSummary(self.getData())
+		return getSummary(self.context, self.getData())
 
 	def refreshSummary(self):
 		self.summaryText.Value = self.getSummary()
@@ -398,12 +396,6 @@ class CriteriaPanel(CriteriaEditorPanel):
 	))
 
 	CONTEXT_FIELDS = ["contextPageTitle", "contextPageType", "contextParent"]
-
-	def getSummary(self):
-		if not self.context:
-			return ""
-		self.Parent.Parent.currentCategory.updateData()
-		return getSummary(self.getData())
 
 	def makeSettings(self, settingsSizer):
 		scale = self.scale

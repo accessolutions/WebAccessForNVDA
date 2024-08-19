@@ -22,8 +22,12 @@
 
 __version__ = "2024.08.19"
 __authors__ = (
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
 	"Shirley Noël <shirley.noel@pole-emploi.fr>",
-	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>"
+	"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+	"Sendhil Randon <sendhil.randon-ext@francetravail.fr>",
+	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
 )
 
 from abc import abstractmethod
@@ -107,11 +111,11 @@ def getSummary(context, data):
 	props = Properties(context, data.get("properties", {}), iterOnlyFirstMap=True)
 	for prop in props:
 		subParts.append(
-			# Translators: A mention on the Rule summary report
+			# Translators: A mention on the Rule Summary report
 			"  " + _("{field}: {value}").format(field=prop.displayName, value=prop.displayValue)
 		)
 	if subParts:
-		# Translators: The label for a section in the summary on the Rule Editor
+		# Translators: The label for a section on the Rule Summary report
 		parts.append(_("{section}:").format(section=PropertiesPanel.title))
 		parts.extend(subParts)
 
@@ -120,22 +124,22 @@ def getSummary(context, data):
 	if criteriaSets:
 		subParts = []
 		if len(criteriaSets) == 1:
-			# Translators: The label for a section in the summary on the Rule Editor
+			# Translators: The label for a section on the Rule Summary report
 			parts.append(_("Criteria:"))
-			parts.append(criteriaEditor.getSummary(criteriaSets[0], indent="  "))
+			parts.append(criteriaEditor.getSummary(context, criteriaSets[0], indent="  "))
 		else:
-			# Translators: The label for a section in the summary on the Rule Editor
+			# Translators: The label for a section on the Rule Summary report
 			parts.append(_("Multiple criteria sets:"))
 			for index, alternative in enumerate(criteriaSets):
 				name = alternative.get("name")
 				if name:
-					# Translators: The label for a section in the summary on the Rule Editor
+					# Translators: The label for a section on the Rule Summary report
 					altHeader = _('Alternative #{index} "{name}":').format(index=index, name=name)
 				else:
-					# Translators: The label for a section in the summary on the Rule Editor
+					# Translators: The label for a section on the Rule Summary report
 					altHeader = _("Alternative #{index}:").format(index=index)
 				subParts.append("  " + altHeader)
-				subParts.append(criteriaEditor.getSummary(alternative, indent="    "))
+				subParts.append(criteriaEditor.getSummary(context, alternative, indent="    "))
 		parts.extend(subParts)
 	return "\n".join(parts)
 
@@ -437,7 +441,7 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 		if criteria.get("name"):
 			return criteria["name"]
 		else:
-			return criteriaEditor.getSummary(criteria, condensed=True).split("\n")[0]
+			return criteriaEditor.getSummary_context(criteria)[0]
 
 	def spaceIsPressedOnTreeNode(self, withShift=False):
 		if self.getData():
@@ -497,11 +501,11 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 		self.editButton.Enable(True)
 		self.deleteButton.Enable(True)
 		data = self.getData()[self.criteriaList.Selection]
-		self.summaryText.Value = criteriaEditor.getSummary(data)
+		self.summaryText.Value = criteriaEditor.getSummary(self.context, data)
 		self.commentText.Value = data.get("comment", "")
 
 	@staticmethod
-	def getTitle(criteria):
+	def getTreeNodeLabel(criteria):
 		return AlternativesPanel.getCriteriaName(criteria)
 
 	def updateCriteriaList(self, index=None):
@@ -655,7 +659,7 @@ class ChildAlternativePanel(AlternativesPanel):
 		prm = self.categoryParams
 		self.indexCriteria = prm.tree.getSelectionIndex()
 		data = self.getData()[self.indexCriteria]
-		self.summaryText.Value = criteriaEditor.getSummary(data)
+		self.summaryText.Value = criteriaEditor.getSummary(self.context, data)
 		self.commentText.Value = data.get("comment", "")
 
 	def initData_alternatives(self) -> None:
@@ -876,7 +880,7 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 		ruleData = self.context['data']['rule']
 		criteriaPanels = []
 		for criterion in ruleData.get('criteria', []):
-			title = ChildAlternativePanel.getTitle(criterion)
+			title = ChildAlternativePanel.getTreeNodeLabel(criterion)
 			criteriaPanels.append(
 				TreeNodeInfo(
 					ChildAlternativePanel,
