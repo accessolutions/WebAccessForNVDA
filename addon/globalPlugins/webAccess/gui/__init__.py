@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2024.08.02"
+__version__ = "2024.08.19"
 __authors__ = (
 	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
 	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
@@ -267,7 +267,7 @@ class ContextualSettingsPanel(FillableSettingsPanel, metaclass=guiHelper.SIPABCM
 	def updateData(self):
 		"""Consolidate the data from this panel into the data map.
 		"""
-
+	
 	def onPanelActivated(self):
 		if getattr(self.initData, "onPanelActivated", False):
 			self.initData(self.context)
@@ -393,6 +393,10 @@ class ContextualMultiCategorySettingsDialog(KbNavMultiCategorySettingsDialog):
 				panel.initData(context)
 	
 	onCategoryChange = guarded(KbNavMultiCategorySettingsDialog.onCategoryChange)
+	
+	@guarded
+	def onOk(self, evt):
+		super().onOk(evt)
 	
 	def _getCategoryPanel(self, catId):
 		panel = super()._getCategoryPanel(catId)

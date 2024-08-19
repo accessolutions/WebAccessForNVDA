@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2024.07.28"
+__version__ = "2024.08.19"
 __authors__ = (
 	"Shirley Noël <shirley.noel@pole-emploi.fr>",
 	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>"
@@ -931,32 +931,27 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 
 	def _doSave(self):
 		super()._doSave()
-		try:
-			context = self.context
-			mgr = context["webModule"].ruleManager
-			data = context["data"]["rule"]
-			rule = context.get("rule")
-			layerName = rule.layer if rule is not None else None
-			webModule = webModuleHandler.getEditableWebModule(mgr.webModule, layerName=layerName)
-			if not webModule:
-				return
-			if rule is not None:
-				# modification mode, remove old rule
-				mgr.removeRule(rule)
-			if layerName == "addon":
-				if not webModule.getLayer("addon") and webModule.getLayer("scratchpad"):
-					layerName = "scratchpad"
-			elif layerName is None:
-				layerName = webModule._getWritableLayer().name
-
-			rule = webModule.createRule(data)
-			mgr.loadRule(layerName, rule.name, data)
-			webModule.getLayer(layerName, raiseIfMissing=True).dirty = True
-			if not webModuleHandler.save(webModule, layerName=layerName):
-				return
-		except Exception:
-			notifyError()
-			raise
+		context = self.context
+		mgr = context["webModule"].ruleManager
+		data = context["data"]["rule"]
+		rule = context.get("rule")
+		layerName = rule.layer if rule is not None else None
+		webModule = webModuleHandler.getEditableWebModule(mgr.webModule, layerName=layerName)
+		if not webModule:
+			return
+		if rule is not None:
+			# modification mode, remove old rule
+			mgr.removeRule(rule)
+		if layerName == "addon":
+			if not webModule.getLayer("addon") and webModule.getLayer("scratchpad"):
+				layerName = "scratchpad"
+		elif layerName is None:
+			layerName = webModule._getWritableLayer().name
+		
+		rule = webModule.createRule(data)
+		mgr.loadRule(layerName, rule.name, data)
+		webModule.getLayer(layerName, raiseIfMissing=True).dirty = True
+		webModuleHandler.save(webModule, layerName=layerName)
 
 
 def show(context, parent=None):
