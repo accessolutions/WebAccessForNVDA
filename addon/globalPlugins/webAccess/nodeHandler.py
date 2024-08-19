@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2024 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,14 +19,11 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-# Get ready for Python 3
-
-
-__version__ = "2021.03.12"
+__version__ = "2024.08.19"
 __authors__ = (
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
 	"André-Abush Clause <a.clause@accessolutions.fr>",
-	"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 )
 
 
@@ -913,8 +910,8 @@ class NodeField(TrackedObject):
 		except Exception:
 			ui.message("Impossible de déplacer la souris à cet emplacement")
 			return False
-		x = left + (width / 2)
-		y = top + (height / 2)
+		x = left + (width // 2)
+		y = top + (height // 2)
 		winUser.setCursorPos(x, y)
 		mouseHandler.executeMouseMoveEvent(x, y)
 
