@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2024.07.26"
+__version__ = "2024.08.20"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -228,9 +228,7 @@ class PropertiesBase(ABC):
 			name, value = data.popitem()
 			if name not in PROPERTY_NAMES:
 				raise ValueError(f"Unexpected property: {name}={value}")
-			# TODO: Remove check once format version is bumped
-			if value is not None:
-				setattr(self, name, value)
+			setattr(self, name, value)
 
 
 class RuleProperties(PropertiesBase):

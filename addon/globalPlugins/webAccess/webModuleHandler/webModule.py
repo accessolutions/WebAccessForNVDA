@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2024 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,11 +20,13 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2021.03.13"
+__version__ = "2024.08.20"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>, "
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
-	"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
 )
 
 
@@ -96,7 +98,7 @@ class WebModule(baseObject.ScriptableObject):
 
 	API_VERSION = version.parse("0.5")
 
-	FORMAT_VERSION_STR = "0.8-dev"
+	FORMAT_VERSION_STR = "0.9-dev"
 	FORMAT_VERSION = version.parse(FORMAT_VERSION_STR)
 
 	def __init__(self):

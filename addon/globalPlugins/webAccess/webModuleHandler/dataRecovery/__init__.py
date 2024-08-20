@@ -81,7 +81,11 @@ def recover(data):
 	if formatVersion < version.parse("0.8-dev"):
 		recoverFrom_0_7_to_0_8(data)
 		formatVersion = version.parse(data["formatVersion"])
-	from .webModule import WebModule
+	if formatVersion < version.parse("0.9-dev"):
+		recoverFrom_0_8_to_0_9(data)
+		formatVersion = version.parse(data["formatVersion"])
+	
+	from ..webModule import WebModule
 	if formatVersion > WebModule.FORMAT_VERSION:
 		raise NewerFormatVersion(
 			"WebModule format version not supported: {}".format(formatVersion)
@@ -478,3 +482,41 @@ def recoverFrom_0_7_to_0_8(data):
 			if newCriterionProperties:
 				criterion["properties"] = newCriterionProperties
 	data["formatVersion"] = "0.8-dev"
+
+
+def recoverFrom_0_8_to_0_9(data):
+	# Properties are only stored if they differ from the default value.
+	# Choice properties default to None. Text properties default to the empty string.
+	# These defaults may have been previously stored interchangeably.
+	# A None or empty value in a Criteria Property now overrides a defined value
+	# at Rule level.
+	from collections import ChainMap
+	DEFAULTS = {
+		"autoAction": None,
+		"multiple": False,
+		"formMode": False,
+		"skip": False,
+		"sayName": False,
+		"customName": "",
+		"customValue": "",
+		"mutation": None,
+	}
+	for rule in data.get("rules", {}):
+		ruleMap = ChainMap(rule.get("properties", {}), DEFAULTS)
+		rule["properties"] = {
+			k: v
+			for k, v in map.items()
+			if v not in (None, "") and v != map.parent[k]
+		}
+		if not rule["properties"]:
+			rule.pop("properties", None)
+		for crit in rule.get("criteria", []):
+			critMap = ruleMap.new_child(crit.get("properties", {}))
+			crit["properties"] = {
+				k: v
+				for k, v in map.items()
+				if v not in (None, "") and v != map.parent[k]
+			}
+			if not crit["properties"]:
+				crit.pop("properties", None)
+		data["formatVersion"] = "0.9-dev"
