@@ -1,8 +1,8 @@
-# globalPlugins/webAccess/webModuleHandler/dataRecovery.py
+# globalPlugins/webAccess/webModuleHandler/dataRecovery/__init__.py
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2024 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,8 +20,11 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2021.03.12"
-__author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
+__version__ = "2024.08.20"
+__authors__ = (
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+)
 
 
 from collections import OrderedDict
@@ -34,8 +37,8 @@ import addonHandler
 addonHandler.initTranslation()
 from logHandler import getCodePath, log
 
-from ..lib.packaging import version
-from ..ruleHandler import ruleTypes
+from ...lib.packaging import version
+from ...ruleHandler import ruleTypes
 
 
 try:
@@ -447,8 +450,8 @@ def recoverFrom_0_6_to_0_7(data):
 
 def recoverFrom_0_6_to_0_8(data):
 	# Overloaded properties and gestures
-	from .recoveryFrom_0_6to0_8 import convert
-	data = convert(data)
+	from .recoveryFrom_0_6_to_0_8 import convert
+	convert(data)
 
 
 def recoverFrom_0_7_to_0_8(data):

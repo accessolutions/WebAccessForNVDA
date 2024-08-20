@@ -1,4 +1,4 @@
-# globalPlugins/webAccess/webModuleHandler/recoveryFrom_0_6to0_8.py
+# globalPlugins/webAccess/webModuleHandler/dataRecovery/recoveryFrom_0_6_to_0_8.py
 
 # This file is part of Web Access for NVDA.
 # Copyright (C) 2024 Accessolutions (http://accessolutions.fr)
@@ -18,6 +18,15 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
+"""
+Script for upgrading a JSON-based WebModule from format version 0.6 to version 0.8.
+"""
+
+
+__version__ = "2024.07.23"
+__author__ = "André-Abush Clause <a.clause@accessolutions.fr>"
+
+
 from collections import Counter
 from glob import glob
 from copy import deepcopy
@@ -25,9 +34,6 @@ from typing import List, Dict, Any, Tuple
 import json
 import os
 
-"""
-Script for upgrading a JSON-based web module from version 0.6 to version 0.8.
-"""
 
 MARKER = "marker"
 ZONE = "zone"
@@ -75,8 +81,7 @@ log_msgs = []
 
 
 def merge_popular_structures(list_of_dicts):
-	"""
-	Merges a list of dictionaries by finding the most common value for each key.
+	"""Merge a list of dictionaries by finding the most common value for each key.
 	"""
 	merged = {}
 	keys = set(k for d in list_of_dicts for k in d.keys())
@@ -88,8 +93,8 @@ def merge_popular_structures(list_of_dicts):
 
 
 def get_popular_values(alternatives: List[Dict[str, Any]]) -> Dict[str, Any]:
-	"""
-	Computes the most frequent values for each property from a provided list of alternative configurations.
+	"""Compute the most frequent values for each property from a provided list of alternative configurations.
+	
 	When a property isn't present in an alternative, its value defaults to defined common defaults.
 
 	Args:
@@ -202,8 +207,7 @@ def process_alternatives(
 
 
 def process_rules(old_rules: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
-	"""
-	Converts a list of previous version rules into a structured format following the new version's specifications.
+	"""Convert a list of previous version rules into a structured format following the new version's specifications.
 
 	Args:
 		old_rules (list of dict): List of old rule configurations.
@@ -237,16 +241,13 @@ def process_rules(old_rules: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
 	return new_rules
 
 
-def convert(data: dict) -> dict:
-	"""
-	Converts the provided data from the 0.6 format to the 0.8 format.
-	Updates the format version and processes the rules.
+def convert(data: dict):
+	"""Convert in-place the provided data from the 0.6 format to the 0.8 format.
+	
+	Update the format version and process the rules.
 
 	Args:
 		data (dict): The original data dictionary to convert.
-
-	Returns:
-		dict: The converted data dictionary.
 	"""
 	for key, value in data.items():
 		if key == "formatVersion":
@@ -277,7 +278,6 @@ def convert(data: dict) -> dict:
 		data["WebModule"]["comment"] = comment + "Migration report from 0.6 to 0.8:\n" + "\n".join(log_msgs)
 		if __name__ == "__main__":
 			print('\n'.join(log_msgs))
-	return data
 
 
 def process_file(file: str) -> None:
@@ -285,15 +285,15 @@ def process_file(file: str) -> None:
 	with open(file, "r") as f:
 		data = json.load(f)
 
-	new_data = convert(data)
+	convert(data)
 
 	with open(file, "w", encoding="UTF-8") as f:
-		json.dump(new_data, f, indent=2)
+		json.dump(data, f, indent=2)
 
 
 def main():
-	"""
-	Load, convert, and save JSON data from a file.
+	"""Load, convert, and save JSON data from a file.
+	
 	The input file is read, converted, and the result is written to the same file.
 	"""
 	path = args.path
