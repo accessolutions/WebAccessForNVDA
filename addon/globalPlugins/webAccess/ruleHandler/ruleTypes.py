@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2018 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2024 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,8 +20,11 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2018.12.14"
-__author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
+__version__ = "2024.08.20"
+__authors__ = (
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+)
 
 import addonHandler
 
@@ -49,28 +52,4 @@ ruleTypeLabels = {
 	PAGE_TITLE_1: _("Page main title"),
 	# Translators: The label for a rule type.
 	PAGE_TITLE_2: _("Page secondary title")
-}
-
-RULE_TYPE_FIELDS = {
-	MARKER: (
-		"autoAction",
-		"multiple",
-		"formMode",
-		"skip",
-		"sayName",
-		"customName",
-		"customValue",
-		"mutation"
-	),
-	ZONE: (
-		"autoAction",
-		"formMode",
-		"skip",
-		"sayName",
-		"customName",
-		"customValue",
-		"mutation"
-	),
-	PAGE_TITLE_1: ("customValue"),
-	PAGE_TITLE_2: ("customValue")
 }

@@ -38,7 +38,6 @@ addonHandler.initTranslation()
 from logHandler import getCodePath, log
 
 from ...lib.packaging import version
-from ...ruleHandler import ruleTypes
 
 
 try:
@@ -147,11 +146,11 @@ def recoverFrom_0_3_to_0_4(data):
 	splitMarkers = []
 	rules = data.get("Rules", [])
 	for rule in rules:
-		rule.setdefault("type", ruleTypes.MARKER)
+		rule.setdefault("type", "marker")
 		if rule.get("definesContext") and rule.get("isPageTitle"):
 				split = rule.copy()
 				del rule["isPageTitle"]
-				split["type"] = ruleTypes.PAGE_TITLE_1
+				split["type"] = "pageTitle1"
 				split["name"] = "{} (title)".format(rule["name"])
 				for key in markerKeys:
 					try:
@@ -166,12 +165,12 @@ def recoverFrom_0_3_to_0_4(data):
 				)
 		elif rule.get("definesContext"):
 			if rule["definesContext"] in ("pageId", "pageType"):
-				rule["type"] = ruleTypes.PAGE_TYPE
+				rule["type"] = "pageType"
 			else:
-				rule["type"] = ruleTypes.PARENT
+				rule["type"] = "parent"
 			reason = "definesContext"
 		elif rule.get("isPageTitle"):
-			rule["type"] = ruleTypes.PAGE_TITLE_1
+			rule["type"] = "pageTitle1"
 			reason = "isPageTitle"
 		else:
 			reason = None
@@ -183,7 +182,7 @@ def recoverFrom_0_3_to_0_4(data):
 			):
 				split = rule.copy()
 				del split[reason]
-				split["type"] = ruleTypes.MARKER
+				split["type"] = "marker"
 				split["name"] = "{} (marker)".format(rule["name"])
 				splitMarkers.append(split)
 				logLevel = max(logLevel, log.WARNING)
@@ -459,11 +458,34 @@ def recoverFrom_0_6_to_0_8(data):
 
 
 def recoverFrom_0_7_to_0_8(data):
+	RULE_TYPE_FIELDS = {
+		"marker": (
+			"autoAction",
+			"multiple",
+			"formMode",
+			"skip",
+			"sayName",
+			"customName",
+			"customValue",
+			"mutation"
+		),
+		"zone": (
+			"autoAction",
+			"formMode",
+			"skip",
+			"sayName",
+			"customName",
+			"customValue",
+			"mutation"
+		),
+		"pageTitle1": ("customValue"),
+		"pageTitle2": ("customValue")
+	}
 	validProperties = ("autoAction", "multiple", "formMode", "skip", "sayName", "customName", "customValue", "mutation")
 	rules = data.get("Rules", [])
 	for ruleData in rules.values():
 		ruleType = ruleData.get("type")
-		ruleTypeProperties = ruleTypes.RULE_TYPE_FIELDS.get(ruleType, ())
+		ruleTypeProperties = RULE_TYPE_FIELDS.get(ruleType, ())
 		newRuleProperties = {}
 		for key in validProperties:
 			if key in ruleData and key not in ruleTypeProperties:
