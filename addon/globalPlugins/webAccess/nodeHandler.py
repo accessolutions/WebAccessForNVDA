@@ -273,7 +273,7 @@ class NodeManager(baseObject.ScriptableObject):
 		self.identifier = time.time()
 		# logTime ("Update node manager %d nodes" % len(fields), t)
 		self.updating = False
-		# playWebAppSound ("tick")
+		# playWebAccessSound("tick")
 		self._curNode = self.caretNode = self.getCaretNode()
 		try:
 			info = self.treeInterceptor.makeTextInfo(textInfos.POSITION_LAST)
@@ -549,7 +549,7 @@ class NodeField(TrackedObject):
 
 	def checkNodeManager(self):
 		if self.nodeManager is None or not self.nodeManager.isReady:
-			playWebAppSound("keyError")
+			playWebAccessSound("keyError")
 			return False
 		else:
 			return True

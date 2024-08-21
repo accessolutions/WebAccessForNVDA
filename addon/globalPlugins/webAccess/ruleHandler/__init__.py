@@ -59,7 +59,7 @@ from .. import nodeHandler
 from ..webAppLib import (
 	html,
 	logTimeStart,
-	playWebAppSound,
+	playWebAccessSound,
 )
 from .. import webAppScheduler
 from . import ruleTypes
@@ -107,7 +107,7 @@ def showManager(context):
 	webModule = context["webModule"]
 	mgr = webModule.ruleManager
 	if not mgr.isReady:
-		playWebAppSound("keyError")
+		playWebAccessSound("keyError")
 		time.sleep(0.2)
 		speech.cancelSpeech()
 		ui.message(_("Not ready"))
@@ -129,7 +129,7 @@ class DefaultScripts(baseObject.ScriptableObject):
 			self.__class__.__gestures["kb:control+shift+%s" % character] = "notAssigned"
 
 	def script_notAssigned(self, gesture):
-		playWebAppSound("keyError")
+		playWebAccessSound("keyError")
 		callLater(200, ui.message, self.warningMessage)
 
 	__gestures = {}
@@ -397,7 +397,7 @@ class RuleManager(baseObject.ScriptableObject):
 					self.zone = None
 			#logTime("update marker", t)
 			if self.isReady:
-				webAppScheduler.scheduler.send(eventName="markerManagerUpdated", markerManager=self)
+				webAppScheduler.scheduler.send(eventName="ruleManagerUpdated", ruleManager=self)
 				self.timerCheckAutoAction = threading.Timer(
 					1,  # Accepts floating point number for sub-second precision
 					self.checkAutoAction
@@ -416,7 +416,12 @@ class RuleManager(baseObject.ScriptableObject):
 		webModule = self.webModule
 		if title != webModule.activePageTitle:
 			webModule.activePageTitle = title
-			webAppScheduler.scheduler.send(eventName="webApp", name="webApp_pageChanged", obj=title, webApp=webModule)
+			webAppScheduler.scheduler.send(
+				eventName="webModule",
+				name="webModule_pageChanged",
+				obj=title,
+				webModule=webModule
+			)
 			return True
 		return False
 
@@ -441,7 +446,7 @@ class RuleManager(baseObject.ScriptableObject):
 					if (lastText is None or text != lastText):
 						self.triggeredIdentifiers[controlIdentifier] = text
 						if autoActionName == "speak":
-							playWebAppSound("errorMessage")
+							playWebAccessSound("errorMessage")
 						elif autoActionName == "moveto":
 							if lastText is None:
 								# only if it's a new identifier
@@ -648,7 +653,7 @@ class RuleManager(baseObject.ScriptableObject):
 		quiet=False,
 	):
 		if not self.isReady:
-			playWebAppSound("keyError")
+			playWebAccessSound("keyError")
 			ui.message(_("Not ready"))
 			return None
 
@@ -657,7 +662,7 @@ class RuleManager(baseObject.ScriptableObject):
 			position = html.getCaretInfo()
 
 		if position is None:
-			playWebAppSound("keyError")
+			playWebAccessSound("keyError")
 			ui.message(_("Not ready"))
 			return None
 
@@ -675,11 +680,11 @@ class RuleManager(baseObject.ScriptableObject):
 			)
 			if result:
 				if not relative:
-					playWebAppSound("loop")
+					playWebAccessSound("loop")
 					time.sleep(0.2)
 				break
 		else:
-			playWebAppSound("keyError")
+			playWebAccessSound("keyError")
 			time.sleep(0.2)
 			if quiet:
 				return False

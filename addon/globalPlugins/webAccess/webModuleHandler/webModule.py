@@ -48,7 +48,7 @@ import speech
 import ui
 from ..lib.markdown2 import markdown
 from ..lib.packaging import version
-from ..webAppLib import playWebAppSound
+from ..webAppLib import playWebAccessSound
 from .. import ruleHandler
 
 class InvalidApiVersion(version.InvalidVersion):
@@ -280,15 +280,17 @@ class WebModule(baseObject.ScriptableObject):
 				layer.dirty = True
 				data["overrides"][name] = overridden
 
-	def event_webApp_pageChanged(self, pageTitle, nextHandler):
+	def event_webModule_pageChanged(self, pageTitle, nextHandler):
 		speech.cancelSpeech()
-		playWebAppSound("pageChanged")
+		playWebAccessSound("pageChanged")
 		speech.speakMessage(pageTitle)
 
-	def event_webApp_gainFocus(self, obj, nextHandler):
+	# Currently dead code, but will likely be revived for issue #17
+	def event_webModule_gainFocus(self, obj, nextHandler):
 		if obj.role not in [controlTypes.ROLE_DOCUMENT, controlTypes.ROLE_FRAME, controlTypes.ROLE_INTERNALFRAME]:
 			nextHandler()
 
+	# Currently dead code, but will likely be revived for issue #17
 	def event_focusEntered(self, obj, nextHandler):
 		if obj.role != controlTypes.ROLE_DOCUMENT:
 			nextHandler()
@@ -296,8 +298,8 @@ class WebModule(baseObject.ScriptableObject):
 	def event_gainFocus(self, obj, nextHandler):
 		nextHandler()
 
-	def event_webApp_loseFocus(self, obj, nextHandler):
-		playWebAppSound("webAppLoseFocus")
+	def event_webModule_loseFocus(self, obj, nextHandler):
+		playWebAccessSound("webAppLoseFocus")
 		nextHandler()
 
 	def script_contextualHelp(self, gesture):

@@ -23,7 +23,11 @@
 WebAccess overlay classes
 """
 
-__author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
+__authors__ = (
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
+)
 
 
 import weakref
@@ -192,7 +196,7 @@ class WebAccessBmdtiHelper(TrackedObject):
 
 	@property
 	def webModule(self):
-		from . import supportWebApp, webAccessEnabled
+		from . import canHaveWebAccessSupport, webAccessEnabled
 		if not webAccessEnabled:
 			return None
 		ti = self.treeInterceptor
@@ -202,7 +206,7 @@ class WebAccessBmdtiHelper(TrackedObject):
 		webModule = self._webModule
 		if not webModule:
 			obj = ti.rootNVDAObject
-			if not supportWebApp(obj):
+			if not canHaveWebAccessSupport(obj):
 				return None
 			from . import webModuleHandler
 			try:
