@@ -56,57 +56,48 @@ __authors__ = (
 
 import os
 import re
-import core
 import wx
 
 from NVDAObjects.IAccessible import IAccessible
 from NVDAObjects.IAccessible.MSHTML import MSHTML
 from NVDAObjects.IAccessible.ia2Web import Ia2Web
 from NVDAObjects.IAccessible.mozilla import Mozilla
-from scriptHandler import script
 import addonHandler
 import api
 import baseObject
 from buildVersion import version_detailed as NVDA_VERSION
 import controlTypes
+import core
 import eventHandler
 import globalPluginHandler
 import gui
 from logHandler import log
-import scriptHandler
-import speech
+from scriptHandler import script
 import ui
 import virtualBuffers
 
-from . import nodeHandler
 from . import overlay
-from . import webAppLib
-from .webAppLib import *
-from .webAppScheduler import WebAppScheduler
 from . import webModuleHandler
+from .webAppLib import playWebAccessSound, sleep
+from .webAppScheduler import WebAppScheduler
 
 
 addonHandler.initTranslation()
 
 
+SCRIPT_CATEGORY = "WebAccess"
+SOUND_DIRECTORY = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "..", "sounds")
+SUPPORTED_HOSTS = ['brave', 'firefox', 'chrome', 'java', 'iexplore', 'microsoftedgecp', 'msedge']
 TRACE = lambda *args, **kwargs: None  # @UnusedVariable
 #TRACE = log.info
 
-SCRIPT_CATEGORY = "WebAccess"
 
-#
-# defines sound directory
-#
+# Currently dead code, but will likely be revived for issue #17.
+activeWebModule = None
 
-SOUND_DIRECTORY = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "..", "sounds")
-
-
-
-supportedWebAppHosts = ['brave', 'firefox', 'chrome', 'java', 'iexplore', 'microsoftedgecp', 'msedge']
-
-activeWebApp = None
 webAccessEnabled = True
 scheduler = None
+
 
 class DefaultBrowserScripts(baseObject.ScriptableObject):
 
@@ -118,7 +109,7 @@ class DefaultBrowserScripts(baseObject.ScriptableObject):
 			self.__class__.__gestures["kb:control+shift+%s" % character] = "notAssigned"
 
 	def script_notAssigned(self, gesture):  # @UnusedVariable
-		playWebAppSound("keyError")
+		playWebAccessSound("keyError")
 		sleep(0.2)
 		ui.message(self.warningMessage)
 
@@ -224,7 +215,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			# Translators: Error message when attempting to show the Web Access GUI.
 			ui.message(_("The current object does not support Web Access."))
 			return
-		if not supportWebApp(obj):
+		if not canHaveWebAccessSupport(obj):
 			# Translators: Error message when attempting to show the Web Access GUI.
 			ui.message(_("You must be in a web browser to use Web Access."))
 			return
@@ -305,23 +296,23 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			ui.message(_("Web Access support enabled."))  # FR: u"Support Web Access activé."
 
 
-def getActiveWebApp():
-	global activeWebApp
-	return activeWebApp
+def getActiveWebModule():
+	global activeWebModule
+	return activeWebModule
 
 
-def webAppLoseFocus(obj):
-	global activeWebApp
-	if activeWebApp is not None:
-		sendWebAppEvent('webApp_loseFocus', obj, activeWebApp)
-		activeWebApp = None
-		#log.info("Losing webApp focus for object:\n%s\n" % ("\n".join(obj.devInfo)))
+def webModuleLoseFocus(obj):
+	global activeWebModule
+	if activeWebModule is not None:
+		sendWebModuleEvent('webModule_loseFocus', obj, activeWebModule)
+		activeWebModule = None
+		#log.info("Losing webModule focus for object:\n%s\n" % ("\n".join(obj.devInfo)))
 
 
-def supportWebApp(obj):
+def canHaveWebAccessSupport(obj):
 	if obj is None or obj.appModule is None:
-		return None
-	return  obj.appModule.appName in supportedWebAppHosts
+		return False
+	return obj.appModule.appName in SUPPORTED_HOSTS
 
 
 def VirtualBuffer_changeNotify(cls, rootDocHandle, rootID):
@@ -336,10 +327,10 @@ def virtualBuffer_loadBufferDone(self, success=True):
 	virtualBuffer_loadBufferDone.super.__get__(self)(success=success)
 
 
-def sendWebAppEvent(eventName, obj, webApp=None):
-	if webApp is None:
+def sendWebModuleEvent(eventName, obj, webModule=None):
+	if webModule is None:
 		return
-	scheduler.send(eventName="webApp", name=eventName, obj=obj, webApp=webApp)
+	scheduler.send(eventName="webModule", name=eventName, obj=obj, webModule=webModule)
 
 
 def eventExecuter_gen(self, eventName, obj):
@@ -354,18 +345,18 @@ def eventExecuter_gen(self, eventName, obj):
 			yield func, (obj, self.next)
 
 	# webApp level
-	if  not supportWebApp(obj) and eventName in ["gainFocus"] and activeWebApp is not None:
+	if  not canHaveWebAccessSupport(obj) and eventName in ["gainFocus"] and activeWebModule is not None:
 		# log.info("Received event %s on a non-hosted object" % eventName)
 		webAppLoseFocus(obj)
 	else:
-		webApp = obj.webAccess.webModule if isinstance(obj, overlay.WebAccessObject) else None
-		if webApp is None:
-			if activeWebApp is not None and obj.hasFocus:
+		webModule = obj.webAccess.webModule if isinstance(obj, overlay.WebAccessObject) else None
+		if webModule is None:
+			if activeWebModule is not None and obj.hasFocus:
 				#log.info("Disabling active webApp event %s" % eventName)
 				webAppLoseFocus(obj)
 		else:
 			# log.info("Getting method %s -> %s" %(webApp.name, funcName))
-			func = getattr(webApp, funcName, None)
+			func = getattr(webModule, funcName, None)
 			if func:
 				yield func,(obj, self.next)
 

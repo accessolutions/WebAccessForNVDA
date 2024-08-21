@@ -85,7 +85,7 @@ class WebAppScheduler(threading.Thread):
 
 				else:
 					log.info("event %s is not found" % eventName)
-		log.info  ("webAppScheduler stopped !")
+		log.info("webAppScheduler stopped!")
 
 	def send(self, **kwargs):
 		self.queue.put(kwargs)
@@ -108,10 +108,10 @@ class WebAppScheduler(threading.Thread):
 	def fakeNext(self = None):
 		return True
 
-	def event_webApp(self, name=None, obj=None, webApp=None):
+	def event_webModule(self, name=None, obj=None, webModule=None):
 		funcName = 'event_%s' % name
-		#log.info("webApp %s will handle the event %s" % (webApp.name, name))
-		func = getattr(webApp, funcName, None)
+		#log.info("webModule %s will handle the event %s" % (webModule.name, name))
+		func = getattr(webModule, funcName, None)
 		if func:
 			func(obj, self.fakeNext)
 	
@@ -153,10 +153,9 @@ class WebAppScheduler(threading.Thread):
 			return
 		nodeManager.treeInterceptor.webAccess.ruleManager.update(nodeManager)
 
-	def event_markerManagerUpdated(self, markerManager):
+	def event_ruleManagerUpdated(self, ruleManager):
 		# Doesn't work outside of the main thread for Google Chrome 83
-		wx.CallAfter(markerManager.checkPageTitle)
-		# markerManager.checkAutoAction()
+		wx.CallAfter(ruleManager.checkPageTitle)
 
 	def event_gainFocus(self, obj):
 		pass
@@ -169,7 +168,7 @@ class WebAppScheduler(threading.Thread):
 	
 		if webModule is not None:
 			scheduler.send(
-				eventName="webApp",
+				eventName="webModule",
 				name='node_gainFocus',
-				obj=node, webApp=webModule
-				)
+				obj=node, webModule=webModule
+			)

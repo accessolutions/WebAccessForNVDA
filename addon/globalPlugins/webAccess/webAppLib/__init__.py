@@ -22,7 +22,11 @@
 # Get ready for Python 3
 
 
-__author__ = "Frédéric Brugnot <f.brugnot@accessolutions.fr>"
+__authors__ = (
+	"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+)
 
 
 import os
@@ -62,12 +66,12 @@ def speechOn(delay=0):
 	api.processPendingEvents ()
 	speech.setSpeechMode(speech.SpeechMode.talk)
 
-def playWebAppSound (name):
+def playWebAccessSound(name):
 	from ... import webAccess
 	try:
 		playSound(os.path.join(webAccess.SOUND_DIRECTORY, "%s.wav" % name))
-	except:
-		pass
+	except Exception:
+		log.exception()
 
 def playSound(sound):
 	sound = os.path.abspath(os.path.join(os.path.dirname(__file__), sound))

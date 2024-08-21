@@ -20,7 +20,11 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
+__authors__ = (
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
+)
 
 
 import os
@@ -228,9 +232,11 @@ class Dialog(wx.Dialog, ScalingMixin):
 		self.moduleEditButton.Enable(item is not None)
 		self.rulesManagerButton.Enable(
 			item is not None
-			and hasattr(item, "markerManager")
-			and item.markerManager.isReady
-			)
+			# FIXME: This test never succeeds as a live WebModule is not
+			# taken from the context.
+			# TODO: Remove this restriction for issue #42
+			and item.ruleManager.isReady
+		)
 		self.moduleDeleteButton.Enable(item is not None)
 
 	def onRulesManager(self, evt=None):
