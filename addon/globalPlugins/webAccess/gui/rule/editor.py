@@ -928,7 +928,7 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 			node = mgr.nodeManager.getCaretNode()
 			while node is not None:
 				if node.role in formModeRoles:
-					context["data"]["rule"].setdefault("properties", {})["formMode"] = True
+					data.setdefault("properties", {})["formMode"] = True
 					break
 				node = node.parent
 		super().initData(context)
