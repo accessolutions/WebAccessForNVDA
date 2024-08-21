@@ -423,7 +423,7 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 		gbSizer.AddGrowableCol(listEndCol)
 
 	def getData(self):
-		return super().getData().setdefault("criteria", {})
+		return super().getData().setdefault("criteria", [])
 
 	def initData(self, context: Mapping[str, Any]) -> None:
 		super().initData(context)
