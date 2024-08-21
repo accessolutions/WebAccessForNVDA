@@ -921,14 +921,14 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 		rule = context.get("rule")
 		data = context.setdefault("data", {}).setdefault(
 			"rule",
-			rule.dump() if rule else OrderedDict()
+			rule.dump() if rule else {}
 		)
 		mgr = context["webModule"].ruleManager if "webModule" in context else None
 		if not rule and mgr and mgr.nodeManager:
 			node = mgr.nodeManager.getCaretNode()
 			while node is not None:
 				if node.role in formModeRoles:
-					data["rule"].setdefault("properties", {})["formMode"] = True
+					context["data"]["rule"].setdefault("properties", {})["formMode"] = True
 					break
 				node = node.parent
 		super().initData(context)
