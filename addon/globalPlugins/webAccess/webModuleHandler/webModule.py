@@ -21,9 +21,9 @@
 
 
 __version__ = "2024.08.20"
-__author__ = (
-	"Yannick Plassiard <yan@mistigri.org>, "
-	"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
+__authors__ = (
+	"Yannick Plassiard <yan@mistigri.org>",
+	"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
 	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
 	"André-Abush Clause <a.clause@accessolutions.fr>",
 	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
