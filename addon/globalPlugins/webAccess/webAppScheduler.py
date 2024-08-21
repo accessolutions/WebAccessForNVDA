@@ -22,7 +22,12 @@
 # Get ready for Python 3
 
 
-__author__ = "Frédéric Brugnot <f.brugnot@accessolutions.fr>"
+__authors__ = (
+	"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
+)
 
 
 import threading
@@ -130,29 +135,6 @@ class WebAppScheduler(threading.Thread):
 				#browseMode.reportPassThrough(treeInterceptor)
 		self.send(eventName="updateNodeManager", treeInterceptor=treeInterceptor)
 
-	def event_checkWebAppManager(self):
-		# TODO: Should not be triggered anymore 
-		log.error("event_checkWebAppManager")
-		focus = api.getFocusObject()
-		webApp = focus.webAccess.webModule if isinstance(focus, WebAccessObject) else None
-		TRACE("event_checkWebAppManager: webApp={webApp}".format(
-			webApp=id(webApp) if webApp is not None else None
-			))
-		if webApp:
-			treeInterceptor = focus.treeInterceptor
-			if treeInterceptor:
-				#webApp.treeInterceptor = treeInterceptor
-				nodeManager = getattr(treeInterceptor, "nodeManager", None)
-				TRACE(
-					"event_checkWebAppManager: "
-					"nodeManager={nodeManager}".format(
-						nodeManager=id(nodeManager)
-							if nodeManager is not None else None
-						)
-					)
-				if nodeManager:
-					webApp.markerManager.update(nodeManager)
-		
 	def event_updateNodeManager(self, treeInterceptor):
 		if not (
 			isinstance(treeInterceptor, WebAccessBmdti)

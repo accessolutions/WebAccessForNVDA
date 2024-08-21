@@ -280,10 +280,6 @@ class WebModule(baseObject.ScriptableObject):
 				layer.dirty = True
 				data["overrides"][name] = overridden
 
-	def event_webApp_init(self, obj, nextHandler):
-		self.loadUserFile()
-		nextHandler()
-
 	def event_webApp_pageChanged(self, pageTitle, nextHandler):
 		speech.cancelSpeech()
 		playWebAppSound("pageChanged")
