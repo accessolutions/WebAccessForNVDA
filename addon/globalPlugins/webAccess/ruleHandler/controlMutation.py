@@ -70,7 +70,7 @@ class MutatedControl(object):
 
 	def apply(self, result):
 		rule = result.rule
-		mutation = result.get_property("mutation")
+		mutation = MUTATIONS[result.properties.mutation]
 		if mutation is None:
 			raise ValueError("No mutation defined for this rule: {}".format(
 				rule.name
