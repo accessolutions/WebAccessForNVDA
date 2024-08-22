@@ -34,7 +34,7 @@ Because `CursorManager` is a base class of `BrowseModeDocumentTreeInterceptor`,
 if the user removes the superseding bindings using the Input Gestures dialog,
 both default bindings are effectively canceled.
 
-The corresponding entries in the user's `gestures.ini` file look like:
+The corresponding entries in the user's `gestures.ini` file looks like:
 ```
 [globalPlugins.webAccess.overlay.WebAccessBmdti]
 None = kb:pageup

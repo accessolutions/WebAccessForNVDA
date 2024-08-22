@@ -243,11 +243,6 @@ class WebModule(baseObject.ScriptableObject):
 	def terminate(self):
 		self.ruleManager.terminate()
 
-	def printLog(self, layerName):
-		for logLevel, logCodePath, logDateTime, logMsg in self.getLayer(layerName).data.get("log", []):
-			print(logLevel, logDateTime, logCodePath)
-			print(logMsg)
-
 	def _getLayeredProperty(self, name, startLayerIndex=-1, raiseIfMissing=False):
 		for index, layer in list(enumerate(self.layers))[startLayerIndex::-1]:
 			if layer.rulesOnly:
