@@ -22,7 +22,7 @@
 """Web Module data store."""
 
 
-__version__ = "2024.07.26"
+__version__ = "2024.08.23"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -269,8 +269,8 @@ class WebModuleStore(DispatchStore):
 				continue
 			for property_ in ["url", "windowTitle"]:
 				if not (
-					property_ in meta.get("properties", {})
-					and meta["properties"][property_] == base.get(property_)
+					property_ in meta.get("overrides", {})
+					and meta["overrides"][property_] == base.get(property_)
 				):
 					if property_ in base:
 						meta[property_] = base[property_]

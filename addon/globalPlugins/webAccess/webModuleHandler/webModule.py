@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2024.08.20"
+__version__ = "2024.08.23"
 __authors__ = (
 	"Yannick Plassiard <yan@mistigri.org>",
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
@@ -250,9 +250,9 @@ class WebModule(baseObject.ScriptableObject):
 			data = layer.data["WebModule"]
 			if name not in data:
 				continue
-			if index > 0 and name in data.get("properties", {}):
+			if index > 0 and name in data.get("overrides", {}):
 				overridden = self._getLayeredProperty(name, startLayerIndex=index - 1)
-				if overridden != data["properties"][name]:
+				if overridden != data["overrides"][name]:
 					return overridden
 			return data[name]
 		if raiseIfMissing:
@@ -271,15 +271,15 @@ class WebModule(baseObject.ScriptableObject):
 		if data.get(name) != value:
 			layer.dirty = True
 			data[name] = value
-		if "properties" in data:
-			data["properties"].pop(name, None)
+		if "overrides" in data:
+			data["overrides"].pop(name, None)
 			try:
 				overridden = self._getLayeredProperty(name, startLayerIndex=-2)
 			except LookupError:
 				return
-			if data["properties"].get(name) != overridden:
+			if data["overrides"].get(name) != overridden:
 				layer.dirty = True
-				data["properties"][name] = overridden
+				data["overrides"][name] = overridden
 
 	def event_webApp_init(self, obj, nextHandler):
 		self.loadUserFile()
