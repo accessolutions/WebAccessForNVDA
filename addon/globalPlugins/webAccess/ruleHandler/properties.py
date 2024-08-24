@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2024.08.20"
+__version__ = "2024.08.24"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -200,7 +200,7 @@ class PropertiesBase(ABC):
 		valueType = PropertySpec[name].valueType
 		default = PropertySpec[name].default
 		if not (isinstance(value, valueType) or value == default == None):
-			raise ValueError(f"Property {name} only supports values of type {valueType}")
+			raise ValueError(f"Property {name} only supports values of type {valueType}: {value!r}")
 		self._map[name] = value
 	
 	@property
@@ -227,7 +227,7 @@ class PropertiesBase(ABC):
 		while data:
 			name, value = data.popitem()
 			if name not in PROPERTY_NAMES:
-				raise ValueError(f"Unexpected property: {name}={value}")
+				raise ValueError(f"Unexpected property: {name}={value!r}")
 			setattr(self, name, value)
 
 
