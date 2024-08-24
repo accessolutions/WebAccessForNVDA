@@ -75,7 +75,7 @@ def recover(data):
 		recoverFrom_0_5_to_0_6(data)
 		formatVersion = version.parse(data["formatVersion"])
 	if formatVersion < version.parse("0.7-dev"):
-		recoverFrom_0_6_to_0_8(data)
+		recoverFrom_0_6_to_0_9(data)
 		formatVersion = version.parse(data["formatVersion"])
 	if formatVersion < version.parse("0.8-dev"):
 		recoverFrom_0_7_to_0_8(data)
@@ -451,9 +451,9 @@ def recoverFrom_0_6_to_0_7(data):
 	data["formatVersion"] = "0.7-dev"
 
 
-def recoverFrom_0_6_to_0_8(data):
-	# Overloaded properties and gestures
-	from .recoveryFrom_0_6_to_0_8 import convert
+def recoverFrom_0_6_to_0_9(data):
+	# Overridden properties and gestures
+	from .recoverFrom_0_6_to_0_9 import convert
 	convert(data)
 
 

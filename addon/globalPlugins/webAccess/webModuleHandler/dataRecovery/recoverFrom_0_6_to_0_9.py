@@ -281,6 +281,45 @@ def convert(data: dict):
 		data["WebModule"]["comment"] = comment + "Migration report from 0.6 to 0.8:\n" + "\n".join(log_msgs)
 		if __name__ == "__main__":
 			print('\n'.join(log_msgs))
+	
+	recoverFrom_0_8_to_0_9(data)
+
+
+# Copied rather than imported to support running this module as a script
+def recoverFrom_0_8_to_0_9(data):
+	# Properties are only stored if they differ from the default value.
+	# Choice properties default to None. Text properties default to the empty string.
+	# These defaults may have been previously stored interchangeably.
+	# A None or empty value in a Criteria Property now overrides a defined value
+	# at Rule level.
+	from collections import ChainMap
+	DEFAULTS = {
+		"autoAction": None,
+		"multiple": False,
+		"formMode": False,
+		"skip": False,
+		"sayName": False,
+		"customName": "",
+		"customValue": "",
+		"mutation": None,
+	}
+	
+	def process(container, chainMap):
+		container["properties"] = {
+			k: v
+			for k, v in chainMap.items()
+			if v not in (None, "") and v != chainMap.parents[k]
+		}
+		if not container["properties"]:
+			del container["properties"]
+	
+	for rule in data.get("Rules", {}).values():
+		ruleMap = ChainMap(rule.get("properties", {}), DEFAULTS)
+		process(rule, ruleMap)
+		for crit in rule.get("criteria", []):
+			process(crit, ruleMap.new_child(crit.get("properties", {})))
+	
+	data["formatVersion"] = "0.9-dev"
 
 
 def process_file(file: str) -> None:
