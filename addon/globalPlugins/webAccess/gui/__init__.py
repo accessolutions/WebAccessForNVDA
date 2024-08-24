@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2024.08.19"
+__version__ = "2024.08.24"
 __authors__ = (
 	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
 	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
@@ -392,11 +392,21 @@ class ContextualMultiCategorySettingsDialog(KbNavMultiCategorySettingsDialog):
 			if not getattr(panel.initData, "onPanelActivated", False):
 				panel.initData(context)
 	
-	onCategoryChange = guarded(KbNavMultiCategorySettingsDialog.onCategoryChange)
-	
+	# Changed from NVDA's MultiCategorySettingsDialog: Use ValidationError instead of ValueError,
+	# in order to not misinterpret a real unintentional ValueError.
 	@guarded
 	def onOk(self, evt):
-		super().onOk(evt)
+		try:
+			self._doSave()
+		except ValidationError:
+			# ContextualSettingsPanel.isValid is expected to have properly notified the user about
+			# the reason why the panel data is not valid.
+			evt.StopPropagation()
+		except Exception:
+			notifyError()
+		else:
+			self.DestroyLater()
+			self.SetReturnCode(wx.ID_OK)
 	
 	def _getCategoryPanel(self, catId):
 		panel = super()._getCategoryPanel(catId)
@@ -410,6 +420,19 @@ class ContextualMultiCategorySettingsDialog(KbNavMultiCategorySettingsDialog):
 		):
 			panel.initData(self.context)
 		return panel
+	
+	# Changed from NVDA's MultiCategorySettingsDialog: Use ValidationError instead of ValueError,
+	# in order to not misinterpret a real unintentional ValueError.
+	# Hence, ContextualSettingsPanel.isValid can either return False or willingly raise a ValidationError
+	# with the same outcome of cancelling the save operation and the destruction of the dialog.
+	def _validateAllPanels(self):
+		"""Check if all panels are valid, and can be saved
+		@note: raises ValidationError if a panel is not valid. See c{SettingsPanel.isValid}
+		"""
+		for panel in self.catIdToInstanceMap.values():
+			if panel.isValid() is False:
+				raise ValidationError("Validation for %s blocked saving settings" % panel.__class__.__name__)
+
 
 
 class TreeContextualPanel(ContextualSettingsPanel):
