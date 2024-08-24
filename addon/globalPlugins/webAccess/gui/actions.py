@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2024.08.19"
+__version__ = "2024.08.24"
 __authors__ = (
 	"Shirley Noel <shirley.noel@pole-emploi.fr>",
 	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
@@ -241,7 +241,7 @@ class ActionsPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
 		selectIndex = 0
 		for index, (gestureIdentifier, action) in enumerate(map.items()):
 			source, main = inputCore.getDisplayTextForGestureIdentifier(gestureIdentifier)
-			actionDName = mgr.getActions().get(action, f"*action")
+			actionDName = mgr.getActions().get(action, f"*{action}")
 			listBox.Append(
 				# Translators: A gesture binding on the editor dialogs
 				"{gesture}: {action}".format(gesture=main, action=actionDName),

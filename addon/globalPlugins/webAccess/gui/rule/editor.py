@@ -1,4 +1,4 @@
-# globalPlugins/webAccess/gui/ruleEditor.py
+# globalPlugins/webAccess/gui/rule/editor.py
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2024.08.19"
+__version__ = "2024.08.24"
 __authors__ = (
 	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
 	"Shirley Noël <shirley.noel@pole-emploi.fr>",
@@ -698,7 +698,9 @@ class ChildActionPanel(RuleEditorTreeContextualPanel):
 	def getTreeNodeLabel(mgr: RuleManager, gestureIdentifier, action):
 		gestureSource, gestureMain = inputCore.getDisplayTextForGestureIdentifier(gestureIdentifier)
 		# Translators: A gesture binding on the editor dialogs
-		return "{gesture}: {action}".format(gesture=gestureMain, action=mgr.getActions()[action])
+		return "{gesture}: {action}".format(
+			gesture=gestureMain, action=mgr.getActions().get(action, f"*{action}")
+		)
 	
 	def makeSettings(self, sizer):
 		scale = self.scale
