@@ -23,8 +23,11 @@ Script for upgrading a JSON-based WebModule from format version 0.6 to version 0
 """
 
 
-__version__ = "2024.07.23"
-__author__ = "André-Abush Clause <a.clause@accessolutions.fr>"
+__version__ = "2024.08.24"
+__authors__ = (
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+)
 
 
 from collections import Counter
@@ -179,15 +182,15 @@ def process_alternatives(
 			if key in alternative:
 				del alternative[key]
 
-	# Move override properties to a separate dictionary
-	for alternative in alternatives:
+	# Move properties to a separate dictionary
+	for container in [new_rule] + alternatives:
 		properties = {}
-		keys_to_move = [key for key in alternative if key in overridable_properties]
+		keys_to_move = [key for key in container if key in overridable_properties]
 		for key in keys_to_move:
-			properties[key] = alternative[key]
-			del alternative[key]
+			properties[key] = container[key]
+			del container[key]
 		if properties:
-			alternative["properties"] = properties
+			container["properties"] = properties
 
 	# Check if remaining invalid properties exist in alternatives
 	known_fields = [

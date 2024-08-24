@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2024.08.20"
+__version__ = "2024.08.24"
 __authors__ = (
 	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
 	"André-Abush Clause <a.clause@accessolutions.fr>",
@@ -523,22 +523,20 @@ def recoverFrom_0_8_to_0_9(data):
 		"customValue": "",
 		"mutation": None,
 	}
-	for rule in data.get("rules", {}):
-		ruleMap = ChainMap(rule.get("properties", {}), DEFAULTS)
-		rule["properties"] = {
+	
+	def process(container, chainMap):
+		container["properties"] = {
 			k: v
-			for k, v in map.items()
-			if v not in (None, "") and v != map.parent[k]
+			for k, v in chainMap.items()
+			if v not in (None, "") and v != chainMap.parents[k]
 		}
-		if not rule["properties"]:
-			rule.pop("properties", None)
+		if not container["properties"]:
+			del container["properties"]
+	
+	for rule in data.get("Rules", {}).values():
+		ruleMap = ChainMap(rule.get("properties", {}), DEFAULTS)
+		process(rule, ruleMap)
 		for crit in rule.get("criteria", []):
-			critMap = ruleMap.new_child(crit.get("properties", {}))
-			crit["properties"] = {
-				k: v
-				for k, v in map.items()
-				if v not in (None, "") and v != map.parent[k]
-			}
-			if not crit["properties"]:
-				crit.pop("properties", None)
-		data["formatVersion"] = "0.9-dev"
+			process(crit, ruleMap.new_child(crit.get("properties", {})))
+	
+	data["formatVersion"] = "0.9-dev"
