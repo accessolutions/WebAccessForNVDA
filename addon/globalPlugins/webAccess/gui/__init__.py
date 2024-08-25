@@ -408,6 +408,11 @@ class ContextualMultiCategorySettingsDialog(KbNavMultiCategorySettingsDialog):
 			self.DestroyLater()
 			self.SetReturnCode(wx.ID_OK)
 	
+	def selectPanel(self, panel: ContextualSettingsPanel):
+		index = self.categoryClasses.index(type(panel))
+		self.catListCtrl.Select(index)
+		self.catListCtrl.Focus(index)
+	
 	def _getCategoryPanel(self, catId):
 		panel = super()._getCategoryPanel(catId)
 		if (
@@ -425,12 +430,14 @@ class ContextualMultiCategorySettingsDialog(KbNavMultiCategorySettingsDialog):
 	# in order to not misinterpret a real unintentional ValueError.
 	# Hence, ContextualSettingsPanel.isValid can either return False or willingly raise a ValidationError
 	# with the same outcome of cancelling the save operation and the destruction of the dialog.
+	# Additionnaly, this implementation selects the category for the invalid panel.
 	def _validateAllPanels(self):
 		"""Check if all panels are valid, and can be saved
 		@note: raises ValidationError if a panel is not valid. See c{SettingsPanel.isValid}
 		"""
 		for panel in self.catIdToInstanceMap.values():
 			if panel.isValid() is False:
+				self.selectPanel(panel)
 				raise ValidationError("Validation for %s blocked saving settings" % panel.__class__.__name__)
 
 
@@ -691,6 +698,25 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 			nodeInfo.updateTreeParams(self.catListCtrl, node)
 			self.context[panel.CATEGORY_PARAMS_CONTEXT_KEY] = nodeInfo.categoryParams
 			panel.initData(self.context)
+
+	def selectPanel(self, panel: TreeContextualPanel):
+		if panel is self.currentCategory:
+			return
+		categoryClass = type(panel)
+		categoryParams = getattr(panel, "categoryParams")
+		tree: CustomTreeCtrl = self.catListCtrl
+		for child in tree.iterChildren(self.root):
+			childInfo = tree.getTreeNodeInfo(child)
+			if (
+				childInfo.categoryClass is not categoryClass
+				or childInfo.categoryParams != categoryParams
+			):
+				continue
+			tree.SelectItem(child)
+			self._doCategoryChange(childInfo)
+			self.currentCategory.SetFocus()
+			return
+		raise LookupError(f"{categoryClass}, {categoryParams}")
 
 
 class TreeNodeInfo:
