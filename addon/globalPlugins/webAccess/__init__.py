@@ -76,8 +76,7 @@ from scriptHandler import script
 import ui
 import virtualBuffers
 
-from . import overlay
-from . import webModuleHandler
+from . import overlay, webModuleHandler
 from .webAppLib import playWebAccessSound, sleep
 from .webAppScheduler import WebAppScheduler
 
