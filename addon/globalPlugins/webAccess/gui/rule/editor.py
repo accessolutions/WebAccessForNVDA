@@ -557,6 +557,7 @@ class ActionsPanel(ActionsPanelBase, RuleEditorTreeContextualPanel):
 		).index(PropertiesPanel)
 		prm = self.categoryParams
 		propsCat = prm.tree.getXChild(prm.tree.GetRootItem(), index)
+		data = super().getData()
 		props = Properties(self.context, data)
 		index = tuple(p.name for p in props).index("autoAction")
 		prm.tree.SetItemText(
