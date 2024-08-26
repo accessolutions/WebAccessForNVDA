@@ -32,6 +32,8 @@ import sys
 from typing import Any, TypeAlias
 import weakref
 
+from . import ruleTypes
+
 import addonHandler
 
 
@@ -74,7 +76,7 @@ class PropertySpecValue:
 class PropertySpec(Enum):
 	
 	autoAction = PropertySpecValue(
-		ruleTypes=("marker", "zone"),
+		ruleTypes=(ruleTypes.MARKER, ruleTypes.ZONE),
 		valueType=str,
 		default=None,
 		# Translators: The display name for a rule property
@@ -84,7 +86,7 @@ class PropertySpec(Enum):
 		isRestrictedChoice=True
 	)
 	multiple = PropertySpecValue(
-		ruleTypes=("marker", "zone"),
+		ruleTypes=(ruleTypes.MARKER, ruleTypes.PARENT, ruleTypes.ZONE),
 		valueType=bool,
 		default=False,
 		# Translators: The display name for a rule property
@@ -93,7 +95,7 @@ class PropertySpec(Enum):
 		isRestrictedChoice=False
 	)
 	formMode = PropertySpecValue(
-		ruleTypes=("marker", "zone"),
+		ruleTypes=(ruleTypes.MARKER, ruleTypes.ZONE),
 		valueType=bool,
 		default=False,
 		# Translators: The display name for a rule property
@@ -102,7 +104,7 @@ class PropertySpec(Enum):
 		isRestrictedChoice=False
 	)
 	skip = PropertySpecValue(
-		ruleTypes=("marker", "zone"),
+		ruleTypes=(ruleTypes.MARKER, ruleTypes.ZONE),
 		valueType=bool,
 		default=False,
 		# Translators: The display name for a rule property
@@ -111,7 +113,7 @@ class PropertySpec(Enum):
 		isRestrictedChoice=False
 	)
 	sayName = PropertySpecValue(
-		ruleTypes=("marker", "zone"),
+		ruleTypes=(ruleTypes.MARKER, ruleTypes.ZONE),
 		valueType=bool,
 		default=False,
 		# Translators: The display name for a rule property
@@ -120,7 +122,7 @@ class PropertySpec(Enum):
 		isRestrictedChoice=False
 	)
 	customName = PropertySpecValue(
-		ruleTypes=("marker", "zone"),
+		ruleTypes=(ruleTypes.MARKER, ruleTypes.ZONE),
 		valueType=str,
 		default="",
 		# Translators: The display name for a rule property
@@ -130,11 +132,16 @@ class PropertySpec(Enum):
 		isRestrictedChoice=False
 	)
 	customValue = PropertySpecValue(
-		ruleTypes=("marker", "pageTitle1", "pageTitle2", "zone"),
+		ruleTypes=(
+			ruleTypes.MARKER,
+			ruleTypes.PAGE_TITLE_1,
+			ruleTypes.PAGE_TITLE_2,
+			ruleTypes.ZONE
+		),
 		valueType=str,
 		default="",
 		displayName={
-			("marker", "zone"):
+			(ruleTypes.MARKER, ruleTypes.ZONE):
 				# Translators: The display name for a rule property
 				pgettext("webAccess.ruleProperty", "Custom message"),
 			("pageTitle1", "pageTitle2"):
@@ -146,7 +153,7 @@ class PropertySpec(Enum):
 		isRestrictedChoice=False
 	)
 	mutation = PropertySpecValue(
-		ruleTypes=("marker", "zone"),
+		ruleTypes=(ruleTypes.MARKER, ruleTypes.ZONE),
 		valueType=str,
 		default=None,
 		# Translators: The display name for a rule property
@@ -156,7 +163,7 @@ class PropertySpec(Enum):
 		isRestrictedChoice=True
 	)
 	subModule = PropertySpecValue(
-		ruleTypes=("zone",),
+		ruleTypes=(ruleTypes.ZONE,),
 		valueType=str,
 		default="",
 		# Translators: The display name for a rule property
