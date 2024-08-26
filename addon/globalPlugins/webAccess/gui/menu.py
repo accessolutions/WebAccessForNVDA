@@ -32,6 +32,7 @@ __authors__ = (
 import wx
 
 import addonHandler
+import config
 import gui
 
 from ... import webAccess
@@ -79,7 +80,20 @@ class Menu(wx.Menu):
 					_("&New web module..."))
 				self.Bind(wx.EVT_MENU, self.onWebModuleCreate, item)
 			
-			if webModule:
+			stack = context.get("webModuleStackAtCaret", []).copy()
+			if stack:
+				subMenu = wx.Menu()
+				while stack:
+					mod = stack.pop(0)
+					handler = lambda evt, webModule=mod: self.onWebModuleEdit(evt, webModule=webModule)
+					item = subMenu.Append(wx.ID_ANY, mod.name)
+					subMenu.Bind(wx.EVT_MENU, handler, item)
+				self.AppendSubMenu(
+					subMenu,
+					# Translators: Web Access menu item label.
+					_("Edit &web module")
+				)
+			elif webModule:
 				item = self.Append(
 					wx.ID_ANY,
 					# Translators: Web Access menu item label.
@@ -93,6 +107,16 @@ class Menu(wx.Menu):
 				_("Manage web &modules...")
 			)
 			self.Bind(wx.EVT_MENU, self.onWebModulesManager, item)
+			
+			self.AppendSeparator()
+		
+		if config.conf["webAccess"]["devMode"]:
+			item = self.Append(
+				wx.ID_ANY,
+				# Translators: Web Access menu item label.
+				_("&Element description...")
+			)
+			self.Bind(wx.EVT_MENU, self.onElementDescription, item)
 			
 			self.AppendSeparator()
 		
@@ -110,6 +134,11 @@ class Menu(wx.Menu):
 		gui.mainFrame.postPopup()
 	
 	@guarded
+	def onElementDescription(self, evt):
+		from .elementDescription import showElementDescriptionDialog
+		showElementDescriptionDialog()
+	
+	@guarded
 	def onRuleCreate(self, evt):
 		self.context["new"] = True
 		from .rule.editor import show
@@ -121,13 +150,15 @@ class Menu(wx.Menu):
 		show(self.context, gui.mainFrame)
 	
 	@guarded
-	def onWebModuleCreate(self, evt):
-		self.context["new"] = True
+	def onWebModuleEdit(self, evt, webModule=None):
+		if webModule is not None:
+			self.context["webModule"] = webModule
 		from .webModuleEditor import show
-		show(self.context, gui.mainFrame)
+		show(self.context)
 	
 	@guarded
-	def onWebModuleEdit(self, evt):
+	def onWebModuleCreate(self, evt, webModule=None):
+		self.context["new"] = True
 		from .webModuleEditor import show
 		show(self.context)
 	

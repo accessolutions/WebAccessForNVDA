@@ -50,7 +50,7 @@ import ui
 from ..lib.markdown2 import markdown
 from ..lib.packaging import version
 from ..webAppLib import playWebAccessSound
-from .. import ruleHandler
+
 
 if sys.version_info[1] < 9:
     from typing import Sequence
@@ -109,7 +109,8 @@ class WebModule(baseObject.ScriptableObject):
 		self.layers: Sequence[WebModuleDataLayer] = []
 		self.activePageTitle = None
 		self.activePageIdentifier = None
-		self.ruleManager = ruleHandler.RuleManager(self)
+		from ..ruleHandler import RuleManager
+		self.ruleManager = RuleManager(self)
 
 	def __repr__(self):
 		return "WebModule {name}".format(
@@ -177,8 +178,12 @@ class WebModule(baseObject.ScriptableObject):
 		"""
 		return False
 
+	def getScript(self,gesture):
+		return super().getScript(gesture) or self.ruleManager.getScript(gesture)
+
 	def createRule(self, data):
-		return ruleHandler.Rule(self.ruleManager, data)
+		from ..ruleHandler import Rule
+		return Rule(self.ruleManager, data)
 
 	def dump(self, layerName):
 		layer = self.getLayer(layerName, raiseIfMissing=True)

@@ -265,7 +265,7 @@ class ActionsPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
 	@guarded
 	def onPanelActivated(self):
 		super().onPanelActivated()
-		supported = self.getRuleType() in (ruleTypes.ZONE, ruleTypes.MARKER)
+		supported = self.getRuleType() in ruleTypes.ACTION_TYPES
 		self.panelDescription = "" if supported else self.descriptionIfNoneSupported
 		self.Freeze()
 		for item in self.hideable["IfSupported"]:
@@ -278,7 +278,7 @@ class ActionsPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
 	def onSave(self):
 		super().onSave()
 		data = self.getData()
-		if self.getRuleType() not in (ruleTypes.ZONE, ruleTypes.MARKER):
+		if self.getRuleType() not in ruleTypes.ACTION_TYPES:
 			data.pop("gestures", None)
 			data.get("properties", {}).pop("autoAction", None)
 		elif not data.get("gestures"):
