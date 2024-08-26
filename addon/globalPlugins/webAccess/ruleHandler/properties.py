@@ -76,7 +76,7 @@ class PropertySpecValue:
 class PropertySpec(Enum):
 	
 	autoAction = PropertySpecValue(
-		ruleTypes=(ruleTypes.MARKER, ruleTypes.ZONE),
+		ruleTypes=(ruleTypes.GLOBAL_MARKER, ruleTypes.MARKER, ruleTypes.ZONE),
 		valueType=str,
 		default=None,
 		# Translators: The display name for a rule property
@@ -86,7 +86,7 @@ class PropertySpec(Enum):
 		isRestrictedChoice=True
 	)
 	multiple = PropertySpecValue(
-		ruleTypes=(ruleTypes.MARKER, ruleTypes.PARENT, ruleTypes.ZONE),
+		ruleTypes=(ruleTypes.GLOBAL_MARKER, ruleTypes.MARKER, ruleTypes.PARENT, ruleTypes.ZONE),
 		valueType=bool,
 		default=False,
 		# Translators: The display name for a rule property
@@ -95,7 +95,7 @@ class PropertySpec(Enum):
 		isRestrictedChoice=False
 	)
 	formMode = PropertySpecValue(
-		ruleTypes=(ruleTypes.MARKER, ruleTypes.ZONE),
+		ruleTypes=(ruleTypes.GLOBAL_MARKER, ruleTypes.MARKER, ruleTypes.ZONE),
 		valueType=bool,
 		default=False,
 		# Translators: The display name for a rule property
@@ -104,7 +104,7 @@ class PropertySpec(Enum):
 		isRestrictedChoice=False
 	)
 	skip = PropertySpecValue(
-		ruleTypes=(ruleTypes.MARKER, ruleTypes.ZONE),
+		ruleTypes=(ruleTypes.GLOBAL_MARKER, ruleTypes.MARKER, ruleTypes.ZONE),
 		valueType=bool,
 		default=False,
 		# Translators: The display name for a rule property
@@ -113,7 +113,7 @@ class PropertySpec(Enum):
 		isRestrictedChoice=False
 	)
 	sayName = PropertySpecValue(
-		ruleTypes=(ruleTypes.MARKER, ruleTypes.ZONE),
+		ruleTypes=(ruleTypes.GLOBAL_MARKER, ruleTypes.MARKER, ruleTypes.ZONE),
 		valueType=bool,
 		default=False,
 		# Translators: The display name for a rule property
@@ -122,7 +122,7 @@ class PropertySpec(Enum):
 		isRestrictedChoice=False
 	)
 	customName = PropertySpecValue(
-		ruleTypes=(ruleTypes.MARKER, ruleTypes.ZONE),
+		ruleTypes=(ruleTypes.GLOBAL_MARKER, ruleTypes.MARKER, ruleTypes.ZONE),
 		valueType=str,
 		default="",
 		# Translators: The display name for a rule property
@@ -133,6 +133,7 @@ class PropertySpec(Enum):
 	)
 	customValue = PropertySpecValue(
 		ruleTypes=(
+			ruleTypes.GLOBAL_MARKER,
 			ruleTypes.MARKER,
 			ruleTypes.PAGE_TITLE_1,
 			ruleTypes.PAGE_TITLE_2,
@@ -141,7 +142,7 @@ class PropertySpec(Enum):
 		valueType=str,
 		default="",
 		displayName={
-			(ruleTypes.MARKER, ruleTypes.ZONE):
+			(ruleTypes.GLOBAL_MARKER, ruleTypes.MARKER, ruleTypes.ZONE):
 				# Translators: The display name for a rule property
 				pgettext("webAccess.ruleProperty", "Custom message"),
 			("pageTitle1", "pageTitle2"):
@@ -153,7 +154,7 @@ class PropertySpec(Enum):
 		isRestrictedChoice=False
 	)
 	mutation = PropertySpecValue(
-		ruleTypes=(ruleTypes.MARKER, ruleTypes.ZONE),
+		ruleTypes=(ruleTypes.GLOBAL_MARKER, ruleTypes.MARKER, ruleTypes.ZONE),
 		valueType=str,
 		default=None,
 		# Translators: The display name for a rule property

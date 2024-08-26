@@ -214,7 +214,15 @@ class WebAccessBmdtiHelper(TrackedObject):
 			except Exception:
 				log.exception()
 		return webModule
-
+	
+	@property
+	def webModuleAtCaret(self):
+		rootModule = self.webModule
+		if not rootModule:
+			return None
+		info = self.treeInterceptor.makeTextInfo(textInfos.POSITION_CARET)
+		return self.ruleManager.subModules.atPosition(info._startOffset) or rootModule
+	
 	@property
 	def zone(self):
 		ruleManager = self.ruleManager
@@ -930,19 +938,12 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		return super().getAlternativeScript(gesture, script)
 
 	def getScript(self, gesture):
-		webModule = self.webAccess.webModule
+		webModule = self.webAccess.webModuleAtCaret
 		if webModule:
-			func = webModule.getScript(gesture)
-			if func:
+			script = webModule.getScript(gesture)
+			if script:
 				return ScriptWrapper(
-					func, ignoreTreeInterceptorPassThrough=True
-				)
-		mgr = self.webAccess.ruleManager
-		if mgr:
-			func = mgr.getScript(gesture)
-			if func:
-				return ScriptWrapper(
-					func, ignoreTreeInterceptorPassThrough=True
+					script, ignoreTreeInterceptorPassThrough=True
 				)
 		return super().getScript(gesture)
 

@@ -78,6 +78,13 @@ def getCatalog(refresh=False, errors=None):
 	return _catalog
 
 
+def getWebModule(name: str) -> WebModule:
+	for ref, meta in getCatalog():
+		candidate = meta.get("name")
+		if candidate == name:
+			return store.get(ref)
+
+
 def getWebModuleForTreeInterceptor(treeInterceptor):
 	obj = treeInterceptor.rootNVDAObject
 	windowTitle = getWindowTitle(obj)

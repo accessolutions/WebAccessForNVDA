@@ -29,6 +29,7 @@ __authors__ = (
 )
 
 
+from functools import partial
 from itertools import chain
 from pprint import pformat
 import threading
@@ -41,7 +42,7 @@ import wx
 
 import addonHandler
 import api
-import baseObject
+from baseObject import AutoPropertyObject, ScriptableObject
 import browseMode
 import controlTypes
 import inputCore
@@ -56,6 +57,7 @@ from core import callLater
 from garbageHandler import TrackedObject
 
 from .. import nodeHandler
+from ..utils import logException
 from ..webAppLib import (
 	html,
 	logTimeStart,
@@ -68,9 +70,9 @@ from .properties import RuleProperties, CriteriaProperties
 
 
 if sys.version_info[1] < 9:
-    from typing import Mapping
+    from typing import Mapping, Sequence
 else:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
 
 
 addonHandler.initTranslation()
@@ -90,7 +92,7 @@ builtinRuleActions["activate"] = pgettext("webAccess.action", "Activate")
 builtinRuleActions["mouseMove"] = pgettext("webAccess.action", "Mouse move")
 
 
-class DefaultScripts(baseObject.ScriptableObject):
+class DefaultScripts(ScriptableObject):
 
 	def __init__(self, warningMessage):
 		super().__init__()
@@ -106,7 +108,7 @@ class DefaultScripts(baseObject.ScriptableObject):
 	__gestures = {}
 
 
-class RuleManager(baseObject.ScriptableObject):
+class RuleManager(ScriptableObject):
 
 	def __init__(self, webModule):
 		super().__init__()
@@ -126,7 +128,11 @@ class RuleManager(baseObject.ScriptableObject):
 		self.lastAutoMovetoTime = 0
 		self.defaultScripts = DefaultScripts("Aucun marqueur associé à cette touche")
 		self.timerCheckAutoAction = None
-		self.zone = None
+		self.zone: "Zone" = None
+		self.parentModule: "WebModule" = None
+		self.parentNode: "NodeField" = None
+		self.subModules: SubModules = SubModules(self)
+		self._subModuleResults: Sequence["SingleNodeResult"] = []
 
 	def _get_webModule(self):
 		return self._webModule()
@@ -184,7 +190,7 @@ class RuleManager(baseObject.ScriptableObject):
 		return tuple([
 			rule
 			for ruleLayers in list(self._rules.values())
-			for rule in list(ruleLayers.values())
+			for rule in reversed(list(ruleLayers.values()))
 		])
 
 	def getRule(self, name, layer=None):
@@ -196,7 +202,7 @@ class RuleManager(baseObject.ScriptableObject):
 		if layer not in (None, False):
 			return ruleLayers[layer]
 		try:
-			return next(iter(list(ruleLayers.values())))
+			return next(iter(reversed(ruleLayers.values())))
 		except StopIteration:
 			raise LookupError({"name": name, "layer": layer})
 
@@ -221,7 +227,7 @@ class RuleManager(baseObject.ScriptableObject):
 				continue
 			elif (
 				layer not in (None, False)
-				or self._layersIndex[layer] >= self._layersIndex[rule.layer]
+				or tuple(self._layers.keys()).index(layer) >= tuple(self._layers.keys()).index(rule.layer)
 			):
 				yield result
 
@@ -266,26 +272,52 @@ class RuleManager(baseObject.ScriptableObject):
 				actions.setdefault(actionId, actionLabel)
 		return actions
 
+	def getGlobalScript(self, gesture, caret=None, fromParent=False):
+		if caret is None:
+			webModuleAtCaret = self.nodeManager.treeInterceptor.webAccess.webModuleAtCaret
+			return webModuleAtCaret.ruleManager.getGlobalScript(gesture, caret=webModuleAtCaret)
+		
+		def gen():
+			nonlocal caret
+			for subMod in self.subModules.all():
+				if subMod is not caret:
+					yield partial(subMod.ruleManager.getGlobalScript, caret=caret, fromParent=True)
+			for result in self.getResults():
+				if result.rule.type == ruleTypes.GLOBAL_MARKER:
+					yield result.getScript
+			if not fromParent and self.parentZone:
+				parent = self.parentRuleManager
+				if parent.webModule is not caret:
+					yield partial(parent.getGlobalScript, caret=caret)
+		
+		for func in gen():
+			script = func(gesture)
+			if script:
+				return script		
+
 	def getScript(self, gesture):
-		func = super().getScript(gesture)
-		if func is not None:
-			return func
+		script = super().getScript(gesture)
+		if script:
+			return script
+		script = self.getGlobalScript(gesture)
+		if script:
+			return script
 		for layer in reversed(list(self._layers.keys())):
 			for result in self.getResults():
-				if result.rule.layer != layer:
+				if result.rule.type is ruleTypes.GLOBAL_MARKER or result.rule.layer != layer:
 					continue
-				func = result.getScript(gesture)
-				if func is not None:
-					return func
-		for rules in reversed(list(self._layers.values())):
-			for rule in list(rules.values()):
-				for criterion in rule.criteria:
-					func = rule.getScript(gesture)
-					if func is not None:
-						return func
-				func = rule.getScript(gesture)
-				if func is not None:
-					return func
+				script = result.getScript(gesture)
+				if script:
+					return script
+# 		for rules in reversed(list(self._layers.values())):
+# 			for rule in list(rules.values()):
+# 				for criterion in rule.criteria:
+# 					func = rule.getScript(gesture)
+# 					if func is not None:
+# 						return func
+# 				func = rule.getScript(gesture)
+# 				if func is not None:
+# 					return func
 		return self.defaultScripts.getScript(gesture)
 
 	def _get_isReady(self):
@@ -294,21 +326,24 @@ class RuleManager(baseObject.ScriptableObject):
 		return True
 
 	def terminate(self):
-		self._webModule = None
 		self._ready = False
+		self._webModule = None
+		self.subModules.terminate()
 		try:
 			self.timerCheckAutoAction.cancel()
 		except Exception:
 			pass
 		self.timerCheckAutoAction = None
 		self._nodeManager = None
-		del self._results[:]
+		self._results.clear()
+		self._subModuleResults.clear()
 		self._mutatedControlsById.clear()
-		self._mutatedControlsByOffset[:] = []
+		self._mutatedControlsByOffset.clear()
 		for ruleLayers in list(self._rules.values()):
 			for rule in list(ruleLayers.values()):
 				rule.resetResults()
 
+	@logException
 	def update(self, nodeManager=None, force=False):
 		if self.webModule is None:
 			# This instance has been terminated
@@ -329,26 +364,29 @@ class RuleManager(baseObject.ScriptableObject):
 				self._ready = True
 				return False
 			t = logTimeStart()
-			self._results[:] = []
+			self._results.clear()
+			self._subModuleResults.clear()
 			self._mutatedControlsById.clear()
 			self._mutatedControlsByOffset.clear()
-			for ruleLayers in list(self._rules.values()):
-				for rule in list(ruleLayers.values()):
-					rule.resetResults()
-
-			results = self._results
+			for rule in self.getRules():
+				rule.resetResults()
+			
+			for rule in (rule for rule in self.getRules() if rule.properties.subModule):
+				results = rule.getResults()
+				self._results.extend(results)
+				self._subModuleResults.extend(results)
 			for rule in sorted(
-				[rule for ruleLayers in list(self._rules.values()) for rule in list(ruleLayers.values())],
+				(rule for rule in self.getRules() if not rule.properties.subModule),
 				key=lambda rule: (
 					0 if rule.type in (
 						ruleTypes.PAGE_TITLE_1, ruleTypes.PAGE_TITLE_2
-					) else 1
+					) else 2
 				)
 			):
-				results.extend(rule.getResults())
-			results.sort()
-
-			for result in results:
+				self._results.extend(rule.getResults())
+			self._results.sort()
+			
+			for result in self._results:
 				if not (hasattr(result, "node") and result.properties.mutation):
 					continue
 				controlId = int(result.node.controlIdentifier)
@@ -359,9 +397,9 @@ class RuleManager(baseObject.ScriptableObject):
 					self._mutatedControlsByOffset.append(entry)
 				else:
 					entry.apply(result)
-
 			self._ready = True
 			self.nodeManagerIdentifier = self.nodeManager.identifier
+			self.subModules.update()
 			if self.zone is not None:
 				if not self.zone.update() or not self.zone.containsTextInfo(
 					self.nodeManager.treeInterceptor.makeTextInfo(textInfos.POSITION_CARET)
@@ -626,6 +664,7 @@ class RuleManager(baseObject.ScriptableObject):
 	):
 		if not self.isReady:
 			playWebAccessSound("keyError")
+			# Translators: Reported when attempting an action while WebAccess is not ready
 			ui.message(_("Not ready"))
 			return None
 
@@ -635,6 +674,7 @@ class RuleManager(baseObject.ScriptableObject):
 
 		if position is None:
 			playWebAccessSound("keyError")
+			# Translators: Reported when attempting an action while WebAccess is not ready
 			ui.message(_("Not ready"))
 			return None
 
@@ -700,14 +740,14 @@ class RuleManager(baseObject.ScriptableObject):
 		self.quickNav(previous=True, types=(ruleTypes.ZONE,), honourSkip=False)
 
 	def quickNavToNextLevel2(self):
-		self.quickNav(types=(ruleTypes.ZONE, ruleTypes.MARKER))
+		self.quickNav(types=ruleTypes.ACTION_TYPES)
 
 	def quickNavToPreviousLevel2(self):
-		self.quickNav(previous=True, types=(ruleTypes.ZONE, ruleTypes.MARKER))
+		self.quickNav(previous=True, types=ruleTypes.ACTION_TYPES)
 
 	def quickNavToNextLevel3(self):
 		self.quickNav(
-			types=(ruleTypes.ZONE, ruleTypes.MARKER),
+			types=ruleTypes.ACTION_TYPES,
 			respectZone=True,
 			honourSkip=False,
 			cycle=False
@@ -716,11 +756,56 @@ class RuleManager(baseObject.ScriptableObject):
 	def quickNavToPreviousLevel3(self):
 		self.quickNav(
 			previous=True,
-			types=(ruleTypes.ZONE, ruleTypes.MARKER),
+			types=ruleTypes.ACTION_TYPES,
 			respectZone=True,
 			honourSkip=False,
 			cycle=False
 		)
+
+
+class SubModules(AutoPropertyObject):
+	
+	def __init__(self, parent: RuleManager):
+		self._parent = weakref.ref(parent)
+		self.modulesByNameAndIndex: Mapping[tuple(str, int), "WebModule"] = {}
+		self.modulesByPosition: Mapping[tuple(int, int), "WebModule"] = {}
+	
+	def _get_parent(self):
+		return self._parent and self._parent()
+	
+	def all(self) -> Sequence["WebModule"]:
+		return tuple(self.modulesByNameAndIndex.values())
+	
+	@logException
+	def atPosition(self, offset) -> "WebModule":
+		for (start, end), module in self.modulesByPosition.items():
+			if start <= offset <= end:
+				return module.ruleManager.subModules.atPosition(offset) or module
+		
+	@logException
+	def update(self):
+		from ..webModuleHandler import getWebModule
+		previous = self.modulesByNameAndIndex.copy()
+		self.modulesByNameAndIndex.clear()
+		for result in self.parent.getResults():
+			if result.properties.subModule:
+				key = (result.rule.name, result.index)
+				webModule = previous.get(key)
+				if not webModule:
+					webModule = getWebModule(result.properties.subModule)
+				if not webModule:
+					log.error(f"WebModule not found: {result.properties.subModule!r}")
+					continue
+				self.modulesByNameAndIndex[key] = webModule
+				self.modulesByPosition[(result.startOffset, result.endOffset)] = webModule
+				webModule.ruleManager.parentModule = self.parent.webModule
+				webModule.ruleManager.parentNode = result.node
+				webModule.ruleManager.update(self.parent.nodeManager)
+	
+	def terminate(self):
+		self.modulesByNameAndIndex.clear()
+		self.modulesByPosition.clear()
+		self._parent = None
 
 
 class CustomActionDispatcher(object):
@@ -811,7 +896,7 @@ class CustomActionDispatcher(object):
 		)
 
 
-class Result(baseObject.ScriptableObject):
+class Result(ScriptableObject):
 
 	def __init__(self, criteria, context, index):
 		super().__init__()
@@ -1057,7 +1142,7 @@ class SingleNodeResult(Result):
 		return self.label + " - " + self.node.innerText
 
 
-class Criteria(baseObject.ScriptableObject):
+class Criteria(ScriptableObject):
 
 	def __init__(self, rule, data):
 		super().__init__()
@@ -1095,7 +1180,7 @@ class Criteria(baseObject.ScriptableObject):
 		gesturesMap = {}
 		for gestureIdentifier in list(self.gestures.keys()):
 			gesturesMap[gestureIdentifier] = "notFound"
-		self.bindGestures(gesturesMap)
+		# self.bindGestures(gesturesMap)
 		self.properties.load(data.pop("properties", {}))
 		if data:
 			raise ValueError(
@@ -1215,7 +1300,8 @@ class Criteria(baseObject.ScriptableObject):
 			return
 		if not self.checkContextPageType():
 			return
-
+		# Restrict to current SubModule
+		parentNode = mgr.parentNode or mgr.nodeManager.mainNode
 		# Handle contextParent
 		rootNodes = set()  # Set of possible parent nodes
 		excludedNodes = set()  # Set of excluded parent nodes
@@ -1248,7 +1334,7 @@ class Criteria(baseObject.ScriptableObject):
 				else:
 					multipleContext = False
 				if results:
-					nodes = [result.node for result in results]
+					nodes = [result.node for result in results if result.node in parentNode]
 					if exclude:
 						excludedNodes.update(nodes)
 					else:
@@ -1270,6 +1356,9 @@ class Criteria(baseObject.ScriptableObject):
 				return
 			rootNodes = newRootNodes
 		kwargs = getSimpleSearchKwargs(self)
+		excludedNodes.update({
+			result.node for result in self.rule.ruleManager._subModuleResults
+		})
 		if excludedNodes:
 			kwargs["exclude"] = excludedNodes
 		limit = None
@@ -1304,7 +1393,7 @@ class Criteria(baseObject.ScriptableObject):
 		)
 
 
-class Rule(baseObject.ScriptableObject):
+class Rule(ScriptableObject):
 
 	def __init__(self, ruleManager, data):
 		super().__init__()
@@ -1487,7 +1576,7 @@ def getSimpleSearchKwargs(criteria, raiseOnUnsupported=False):
 	return kwargs
 
 
-class Zone(baseObject.AutoPropertyObject):
+class Zone(AutoPropertyObject):
 
 	def __init__(self, result):
 		super().__init__()

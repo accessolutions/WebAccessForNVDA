@@ -223,12 +223,18 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			"webAccess": self,
 			"focusObject": obj,
 		}
-		webModule = obj.webAccess.webModule
-		if webModule is not None:
+		if obj.webAccess.webModule:
+			webModule = obj.treeInterceptor.webAccess.webModuleAtCaret
 			context["webModule"] = webModule
 			context["pageTitle"] = webModule.pageTitle
 			mgr = webModule.ruleManager
 			context["result"] = mgr.getResultAtCaret(focus=obj)
+			stack = []
+			while webModule:
+				stack.append(webModule)
+				webModule = webModule.ruleManager.parentModule
+			if len(stack) > 1:
+				context["webModuleStackAtCaret"] = stack
 		menu.show(context)
 
 	@script(

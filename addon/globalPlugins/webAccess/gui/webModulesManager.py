@@ -254,13 +254,16 @@ class Dialog(ContextualDialog):
 		ctrl = self.modulesList
 		ctrl.DeleteAllItems()
 		contextModule = self.context.get("webModule")
+		contextModules = {
+			(module.name, module.layers[0].storeRef): module
+			for module in list(reversed(contextModule.ruleManager.subModules.all())) + [contextModule]
+		} if contextModule else {}
 		modules = self.modules = []
 		from .. import webModuleHandler
 		for index, module in enumerate(webModuleHandler.getWebModules()):
 			if selectIndex is None and module.equals(selectItem):
 				selectIndex = index
-			if module.equals(contextModule):
-				module = contextModule
+			module = contextModules.get((module.name, module.layers[0].storeRef), module)
 			trigger = (" %s " % _("and")).join(
 				([
 					"url=%s" % url

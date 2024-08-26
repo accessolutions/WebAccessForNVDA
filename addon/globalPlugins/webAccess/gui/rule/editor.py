@@ -158,7 +158,7 @@ class RuleEditorTreeContextualPanel(RuleAwarePanelBase, TreeContextualPanel):
 	def onRuleType_change(self):
 		prm = self.categoryParams
 		categoryClasses = tuple(nodeInfo.categoryClass for nodeInfo in self.Parent.Parent.categoryClasses)
-		for index in (categoryClasses.index(cls) for cls in (ActionsPanel, PropertiesPanel)):
+		for index in (categoryClasses.index(cls) for cls in (GeneralPanel, ActionsPanel, PropertiesPanel)):
 			category = prm.tree.getXChild(prm.tree.GetRootItem(), index)
 			self.refreshParent(category)
 
@@ -231,22 +231,11 @@ class GeneralPanel(RuleEditorTreeContextualPanel):
 	def initData(self, context: Mapping[str, Any]) -> None:
 		super().initData(context)
 		data = self.getData()
-		if 'type' in data:
-			self.ruleType.SetSelection(list(ruleTypes.ruleTypeLabels.keys()).index(data['type']))
-		else:
-			self.ruleType.SetSelection(0)
-
+		self.ruleType.SetSelection(tuple(ruleTypes.ruleTypeLabels.keys()).index(data["type"]))
 		# Does not emit EVT_TEXT
 		self.ruleName.ChangeValue(data.get("name", ""))
 		self.commentText.ChangeValue(data.get("comment", ""))
 		self.refreshSummary()
-
-	@staticmethod
-	def initRuleTypeChoice(data, ruleTypeChoice):
-		for index, key in enumerate(ruleTypes.ruleTypeLabels.keys()):
-			if key == data["type"]:
-				ruleTypeChoice.Selection = index
-				break
 
 	def updateData(self):
 		data = self.getData()
@@ -908,7 +897,7 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 
 	def getActionsChildren(self):
 		data = self.getData()
-		if data["type"] not in [ruleTypes.ZONE, ruleTypes.MARKER]:
+		if data["type"] not in [ruleTypes.ACTION_TYPES]:
 			return []
 		mgr = self.context["webModule"].ruleManager
 		actionsPanel = []
