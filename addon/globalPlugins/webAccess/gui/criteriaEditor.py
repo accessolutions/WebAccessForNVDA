@@ -236,14 +236,14 @@ def getSummary(context, data, indent="", condensed=False) -> str:
 def testCriteria(context):
 	ruleData = deepcopy(context["data"]["rule"])
 	ruleData["name"] = "__tmp__"
-	ruleData.pop("new", None)
+	# Other rule types might not support the "multiple" property we are forcing for the test
 	ruleData["type"] = ruleTypes.MARKER
 	critData = context["data"]["criteria"].copy()
 	critData.pop("new", None)
 	critData.pop("criteriaIndex", None)
 	ruleData["criteria"] = [critData]
 	ruleData.setdefault("properties", {})['multiple'] = True
-	critData.setdefault("properties", {}).pop("multiple", True)
+	critData.setdefault("properties", {}).pop("multiple", None)
 	mgr = context["webModule"].ruleManager
 	from ..ruleHandler import Rule
 	rule = Rule(mgr, ruleData)
@@ -331,17 +331,18 @@ class GeneralPanel(CriteriaEditorPanel):
 	
 	def initData(self, context):
 		super().initData(context)
-		data = self.getData()
-		new = data.get("new", False)
 		self.sequenceOrderChoice.Clear()
-		nbCriteria = len(context["data"]["rule"]["criteria"]) + (1 if new else 0)
-		if nbCriteria == 1:
+		nbAlternatives = len(context["data"]["rule"]["criteria"])
+		if context.get("new"):
+			nbAlternatives += 1
+		data = self.getData()
+		if nbAlternatives == 1:
 			for item in self.hideable:
 				item.Show(False)
 		else:
-			for index in range(nbCriteria):
+			for index in range(nbAlternatives):
 				self.sequenceOrderChoice.Append(str(index + 1))
-			index = data.get("criteriaIndex", nbCriteria + 1)
+			index = data.get("criteriaIndex", nbAlternatives + 1)
 			self.sequenceOrderChoice.SetSelection(index)
 		self.criteriaName.Value = data.get("name", "")
 		self.commentText.Value = data.get("comment", "")

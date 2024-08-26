@@ -31,7 +31,7 @@ from .. import ContextualSettingsPanel
 class RuleAwarePanelBase(ContextualSettingsPanel, metaclass=guiHelper.SIPABCMeta):
 	
 	def getRuleData(self):
-		return self.context["data"].setdefault("rule", {})
+		return self.context.setdefault("data", {}).setdefault("rule", {})
 	
 	def getRuleManager(self):
 		return self.context["webModule"].ruleManager

@@ -34,6 +34,7 @@ from pprint import pformat
 import threading
 import time
 import sys
+from typing import Any
 import weakref
 
 import wx
@@ -43,7 +44,6 @@ import api
 import baseObject
 import browseMode
 import controlTypes
-import gui
 import inputCore
 from logHandler import log
 import queueHandler
@@ -88,35 +88,6 @@ builtinRuleActions["speak"] = pgettext("webAccess.action", "Speak")
 builtinRuleActions["activate"] = pgettext("webAccess.action", "Activate")
 # Translators: Action name
 builtinRuleActions["mouseMove"] = pgettext("webAccess.action", "Mouse move")
-
-
-def showCreator(context, parent=None):
-	context.pop("rule", None)
-	context["new"] = True
-	return showEditor(context, parent=parent)
-
-
-def showEditor(context, parent=None):
-	context.get("data", {}).pop("rule", None)
-	from ..gui.rule import editor
-	return editor.show(context, parent=parent)
-
-
-def showManager(context):
-	api.processPendingEvents()
-	webModule = context["webModule"]
-	mgr = webModule.ruleManager
-	if not mgr.isReady:
-		playWebAccessSound("keyError")
-		time.sleep(0.2)
-		speech.cancelSpeech()
-		ui.message(_("Not ready"))
-		time.sleep(0.5)
-		return
-	focus = context["focusObject"]
-	context["result"] = mgr.getResultAtCaret(focus=focus)
-	from ..gui.rule import manager as dlg
-	dlg.show(context)
 
 
 class DefaultScripts(baseObject.ScriptableObject):
@@ -182,16 +153,17 @@ class RuleManager(baseObject.ScriptableObject):
 			((layerName, layerIndex) for layerIndex, layerName in enumerate(self._layers.keys()))
 		)
 
-	def loadRule(self, layer, name, data):
+	def loadRule(self, layer: str, name: str, data: Mapping[str, Any]) -> "Rule":
 		if layer not in self._layers:
 			self._initLayer(layer, None)
-		self._loadRule(layer, name, data)
+		return self._loadRule(layer, name, data)
 
-	def _loadRule(self, layer, name, data):
+	def _loadRule(self, layer: str, name: str, data: Mapping[str, Any]) -> "Rule":
 		rule = self.webModule.createRule(data)
 		rule.layer = layer
 		self._layers[layer][name] = rule
 		self._rules.setdefault(name, {})[layer] = rule
+		return rule
 
 	def unload(self, layer):
 		for index in range(len(self._results)):

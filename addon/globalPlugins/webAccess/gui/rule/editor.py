@@ -61,6 +61,7 @@ from .. import (
 	TreeContextualPanel,
 	TreeMultiCategorySettingsDialog,
 	TreeNodeInfo,
+	ValidationError,
 	criteriaEditor,
 	gestureBinding,
 	showContextualDialog,
@@ -328,36 +329,34 @@ class GeneralPanel(RuleEditorTreeContextualPanel):
 			)
 			self.ruleName.SetFocus()
 			return False
-
-		mgr = self.getRuleManager()
-		layerName = self.context["rule"].layer if "rule" in self.context else None
-		webModule = webModuleHandler.getEditableWebModule(mgr.webModule, layerName=layerName)
-		if not webModule:
-			return False
-		if layerName == "addon":
-			if not webModule.getLayer("addon") and webModule.getLayer("scratchpad"):
-				layerName = "scratchpad"
-		elif layerName is None:
-			layerName = webModule._getWritableLayer().name
-		if layerName is None:
-			layerName = False
-		try:
-			rule = mgr.getRule(self.ruleName.Value, layer=layerName)
-		except LookupError:
-			rule = None
-		if rule is not None:
-			moduleRules = self.getRuleManager().getRules()
-			isExists = [True if i.name is rule.name else False for i in moduleRules]
-			if "new" in self.context and self.context["new"]:
-				if isExists:
-					gui.messageBox(
-						# Translators: Error message when another rule with the same name already exists
-						message=_("There already is another rule with the same name."),
-						caption=_("Error"),
-						style=wx.ICON_ERROR | wx.OK,
-						parent=self
-					)
-					return False
+		newName = data["name"]
+		context = self.context
+		if context.get("new"):
+			prevName = None
+			webModule = webModuleHandler.getEditableWebModule(context["webModule"])
+			if not webModule:
+				# Raising rather than returning False does not focus the panel
+				raise ValidationError("The WebModule is not editable")
+			layer = webModule.getWritableLayer()
+		else:
+			rule = context["rule"]
+			prevName = rule.name
+			layer = rule.layer
+		if newName != prevName:
+			mgr = self.getRuleManager()
+			try:
+				mgr.getRule(newName, layer)
+			except LookupError:
+				pass
+			else:
+				gui.messageBox(
+					# Translators: Error message when another rule with the same name already exists
+					message=_("There already is another rule with the same name."),
+					caption=_("Error"),
+					style=wx.ICON_ERROR | wx.OK,
+					parent=self
+				)
+				return False
 		return True
 
 
@@ -480,28 +479,30 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 
 	@guarded
 	def onNewCriteria(self, evt):
-		context = self.context
 		prm = self.categoryParams
-		context["data"]["criteria"] = OrderedDict({
-			"new": True,
-			"criteriaIndex": len(context["data"]["rule"]["criteria"])
+		listData = self.getData()
+		context = self.context.copy()
+		context["new"] = True
+		itemData = context["data"]["criteria"] = OrderedDict({
+			"criteriaIndex": len(self.getData())
 		})
-		if criteriaEditor.show(context, parent=self) == wx.ID_OK:
-			context["data"]["criteria"].pop("new", None)
-			index = context["data"]["criteria"].pop("criteriaIndex")
-			context["data"]["rule"]["criteria"].insert(index, context["data"].pop("criteria"))
+		if criteriaEditor.show(context, parent=self):
+			index = itemData.pop("criteriaIndex")
+			listData.insert(index, itemData)
 			self.onCriteriaChange(Change.CREATION, index)
 
 	@guarded
 	def onEditCriteria(self, evt):
-		context = self.context
+		context = self.context.copy()
+		context["new"] = False
+		listData = self.getData()
 		index = self.getIndex()
-		context["data"]["criteria"] = context["data"]["rule"]["criteria"][index].copy()
-		context["data"]["criteria"]["criteriaIndex"] = index
-		if criteriaEditor.show(context, self) == wx.ID_OK:
-			del context["data"]["rule"]["criteria"][index]
-			index = context["data"]["criteria"].pop("criteriaIndex")
-			context["data"]["rule"]["criteria"].insert(index, context["data"].pop("criteria"))
+		itemData = context["data"]["criteria"] = listData[index].copy()
+		itemData["criteriaIndex"] = index
+		if criteriaEditor.show(context, self):
+			del listData[index]
+			index = itemData.pop("criteriaIndex")
+			listData.insert(index, itemData)
 			self.onCriteriaChange(Change.UPDATE, index)
 
 	@guarded
@@ -780,13 +781,11 @@ class ChildActionPanel(RuleEditorTreeContextualPanel):
 	
 	@guarded
 	def onAddGesture(self, evt):
-		context = self.context
+		context = self.context.copy()
 		context["data"]["gestures"] = self.getData()
-		if gestureBinding.show(context=context, parent=self) == wx.ID_OK:
+		if gestureBinding.show(context, parent):
 			index = context["data"]["gestureBinding"]["index"]
 			self.updateTreeAndSelectItemAtIndex(index)
-		del context["data"]["gestureBinding"]
-		del context["data"]["gestures"]
 	
 	@guarded
 	def onDeleteGesture(self, evt):
@@ -804,17 +803,15 @@ class ChildActionPanel(RuleEditorTreeContextualPanel):
 	@guarded
 	def onEditGesture(self, evt):
 		prm = self.categoryParams
-		context = self.context
+		context = self.context.copy()
 		gestures = context["data"]["gestures"] = self.getData()
 		context["data"]["gestureBinding"] = {
 			"gestureIdentifier": prm.gestureIdentifier,
 			"action":  gestures[prm.gestureIdentifier],
 		}
-		if gestureBinding.show(context=context, parent=self) == wx.ID_OK:
+		if gestureBinding.show(context, self):
 			index = context["data"]["gestureBinding"]["index"]
 			self.updateTreeAndSelectItemAtIndex(index)
-		del context["data"]["gestureBinding"]
-		del context["data"]["gestures"]
 	
 	def updateTreeAndSelectItemAtIndex(self, index):
 		prm = self.categoryParams
@@ -876,8 +873,7 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 
 	def getGeneralChildren(self):
 		cls = RuleEditorSingleFieldChildPanel
-		data = self.context["data"]["rule"]
-		data.setdefault("type", ruleTypes.MARKER)
+		data = self.getData()
 		return tuple(
 			TreeNodeInfo(
 				partial(cls, editorType=editorType),
@@ -901,27 +897,22 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 		)
 
 	def getAlternativeChildren(self):
-		ruleData = self.context['data']['rule']
-		criteriaPanels = []
-		for criterion in ruleData.get('criteria', []):
-			title = ChildAlternativePanel.getTreeNodeLabel(criterion)
-			criteriaPanels.append(
-				TreeNodeInfo(
-					ChildAlternativePanel,
-					title=title,
-					categoryParams=ChildAlternativePanel.CategoryParams()
-				)
+		return tuple(
+			TreeNodeInfo(
+				ChildAlternativePanel,
+				title=ChildAlternativePanel.getTreeNodeLabel(data),
+				categoryParams=ChildAlternativePanel.CategoryParams()
 			)
-		return criteriaPanels
+			for data in self.getData().get("criteria", [])
+		)
 
 	def getActionsChildren(self):
-		ruleData = self.context['data']['rule']
-		type = ruleData.get('type', '')
-		if type not in [ruleTypes.ZONE, ruleTypes.MARKER]:
+		data = self.getData()
+		if data["type"] not in [ruleTypes.ZONE, ruleTypes.MARKER]:
 			return []
 		mgr = self.context["webModule"].ruleManager
 		actionsPanel = []
-		for key, value in ruleData.get('gestures', {}).items():
+		for key, value in data.get('gestures', {}).items():
 			title = ChildActionPanel.getTreeNodeLabel(mgr, key, value)
 			prm = ChildActionPanel.CategoryParams(title=title, gestureIdentifier=key)
 			actionsPanel.append(TreeNodeInfo(ChildActionPanel, title=title, categoryParams=prm))
@@ -929,7 +920,7 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 
 	def getPropertiesChildren(self) -> Sequence[TreeNodeInfo]:
 		context = self.context
-		data = context.setdefault("data", {}).setdefault("rule", {}).setdefault("properties", {})
+		data = self.getData().setdefault("properties", {})
 		props = Properties(context, data)
 		cls = ChildPropertyPanel
 		return tuple(
@@ -940,16 +931,19 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 			)
 			for prop in props
 		)
-
+	
+	def getData(self):
+		return self.context["data"]["rule"]
+	
 	def initData(self, context: Mapping[str, Any]) -> None:
-		rule = context.get("rule")
-		data = context.setdefault("data", {}).setdefault(
-			"rule",
-			rule.dump() if rule else {}
-		)
-		mgr = context["webModule"].ruleManager if "webModule" in context else None
-		if not rule and mgr and mgr.nodeManager:
-			node = mgr.nodeManager.getCaretNode()
+		context.setdefault("data", {})
+		if context.get("new"):
+			data = context["data"]["rule"] = {"type": ruleTypes.MARKER}
+		else:
+			data = context["data"]["rule"] = context["rule"].dump()
+		mgr = context["webModule"].ruleManager.nodeManager
+		if mgr:
+			node = mgr.getCaretNode()
 			while node is not None:
 				if node.role in formModeRoles:
 					data.setdefault("properties", {})["formMode"] = True
@@ -960,27 +954,24 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 	def _doSave(self):
 		super()._doSave()
 		context = self.context
+		data = self.getData()
 		mgr = context["webModule"].ruleManager
-		data = context["data"]["rule"]
-		rule = context.get("rule")
-		layerName = rule.layer if rule is not None else None
+		if context.get("new"):
+			layerName = None
+		else:
+			rule = context["rule"]
+			layerName = rule.layer
 		webModule = webModuleHandler.getEditableWebModule(mgr.webModule, layerName=layerName)
 		if not webModule:
 			return
-		if rule is not None:
-			# modification mode, remove old rule
+		if context.get("new"):
+			layerName = webModule.getWritableLayer().name
+		else:
 			mgr.removeRule(rule)
-		if layerName == "addon":
-			if not webModule.getLayer("addon") and webModule.getLayer("scratchpad"):
-				layerName = "scratchpad"
-		elif layerName is None:
-			layerName = webModule._getWritableLayer().name
-		
-		rule = webModule.createRule(data)
-		mgr.loadRule(layerName, rule.name, data)
+		context["rule"] = mgr.loadRule(layerName, data["name"], data)
 		webModule.getLayer(layerName, raiseIfMissing=True).dirty = True
 		webModuleHandler.save(webModule, layerName=layerName)
 
 
 def show(context, parent=None):
-	return showContextualDialog(RuleEditorDialog, context, parent)
+	return showContextualDialog(RuleEditorDialog, context, parent) == wx.ID_OK

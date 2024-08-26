@@ -44,6 +44,7 @@ from ..lib.packaging import version
 from ..overlay import WebAccessBmdti
 from ..store import DuplicateRefError
 from ..store import MalformedRefError
+from ..utils import notifyError
 
 
 PACKAGE_NAME = "webModulesSM"
@@ -232,23 +233,18 @@ def save(webModule, layerName=None, prompt=True, force=False, fromRuleEditor=Fal
 				+ os.linesep
 				+ "\t" + "\\ / : * ? \" | "
 			),
-			caption=webModuleEditor.Dialog._instance.Title,
+			caption=prompt,
 			style=wx.OK | wx.ICON_EXCLAMATION
 		)
 		return False
 	except Exception:
-		log.exception("save(webModule={!r}, layerName=={!r}, prompt=={!r}, force=={!r}".format(
+		msg = "save(webModule={!r}, layerName=={!r}, prompt=={!r}, force=={!r}".format(
 			webModule, layerName, prompt, force
-		))
+		)
 		if prompt:
-			gui.messageBox(
-				# Translators: The text of a generic error message dialog
-				message=_("An error occured.\n\nPlease consult NVDA's log."),
-				# Translators: The title of an error message dialog
-				caption=_("Web Access for NVDA"),
-				style=wx.OK | wx.ICON_EXCLAMATION
-			)
-		getWebModules(refresh=True)
+			notifyError(msg)
+		else:
+			log.exception(msg)
 		return False
 	if not fromRuleEditor:
 		# only if webModule creation or modification
@@ -258,97 +254,29 @@ def save(webModule, layerName=None, prompt=True, force=False, fromRuleEditor=Fal
 	return True
 
 
-def showCreator(context):
-	showEditor(context, new=True)
-
-
-def showEditor(context, new=False):
-	from ..gui import webModuleEditor
-	from .webModule import WebModule
-
-	if "data" in context:
-		del context["data"]
-	if new:
-		if "webModule" in context:
-			del context["webModule"]
-	webModuleEditor.show(context)
-	return
-	keepShowing = True
-	force = False
-	while keepShowing:
-		if webModuleEditor.show(context):
-			keepTrying = True
-			while keepTrying:
-				try:
-					if new:
-						webModule = context["webModule"] = WebModule()
-						webModule.load(None, data=context["data"])
-						create(
-							webModule=webModule,
-							focus=context.get("focusObject"),
-							force=force
-						)
-						# Translators: Confirmation message after web module creation.
-						ui.message(
-							_(
-								"Your new web module {name} has been created."
-								).format(name=webModule.name)
-							)
-					else:
-						webModule = context["webModule"]
-						for name, value in list(context["data"]["WebModule"].items()):
-							setattr(webModule, name, value)
-						update(
-							webModule=webModule,
-							focus=context.get("focusObject"),
-							force=force
-						)
-					keepShowing = keepTrying = False
-				except DuplicateRefError as e:
-					if webModuleEditor.promptOverwrite():
-						force = True
-					else:
-						keepTrying = force = False
-				except MalformedRefError:
-					keepTrying = force = False
-					gui.messageBox(
-						message=(
-							_("The web module name should be a valid file name.")
-							+ " " + os.linesep
-							+ _("It should not contain any of the following:")
-							+ os.linesep
-							+ "\t" + "\\ / : * ? \" | "
-						),
-						caption=webModuleEditor.Dialog._instance.Title,
-						style=wx.OK | wx.ICON_EXCLAMATION
-					)
-				finally:
-					if not new:
-						getWebModules(refresh=True)
-		else:
-			keepShowing = False
-			if new:
-				# Translator: Canceling web module creation.
-				ui.message(_("Cancel"))
-
-
-def showManager(context):
-	from ..gui import webModulesManager
-	webModulesManager.show(context)
-
-
 def getEditableWebModule(webModule, layerName=None, prompt=True):
+	"""Ensure a WebModule is suitable for edition, eventually initializing a writable layer
+	
+	`layerName`
+		The name of the layer from which a Rule is to be edited. Should be `None` for
+		updating WebModule properties such as triggers and help content.
+	
+	See `WebModuleHandler.webModule.WebModuleDataLayer._get_readonly` for details regarding
+	what configuration allows editing WebModules from which layer.
+	
+	Returns `None` if the current configuration does not allow editing the specified WebModule.
+	"""
 	try:
 		if layerName is not None:
 			if not webModule.getLayer(layerName).readOnly:
 				return webModule
-			webModule = getEditableScratchpadWebModule(webModule, layerName=layerName, prompt=prompt)
+			webModule = _getEditableScratchpadWebModule(webModule, layerName=layerName, prompt=prompt)
 		else:
 			if not webModule.isReadOnly():
 				return webModule
 			webModule = (
-				getEditableUserConfigWebModule(webModule)
-				or getEditableScratchpadWebModule(webModule, prompt=prompt)
+				_getEditableUserConfigWebModule(webModule)
+				or _getEditableScratchpadWebModule(webModule, prompt=prompt)
 			)
 	except Exception:
 		log.exception("webModule={!r}, layerName={!r}".format(webModule, layerName))
@@ -392,7 +320,7 @@ def getEditableWebModule(webModule, layerName=None, prompt=True):
 		)
 
 
-def getEditableScratchpadWebModule(webModule, layerName=None, prompt=True):
+def _getEditableScratchpadWebModule(webModule, layerName=None, prompt=True):
 	if not (
 		config.conf["development"]["enableScratchpadDir"]
 		and config.conf["webAccess"]["devMode"]
@@ -422,7 +350,7 @@ def getEditableScratchpadWebModule(webModule, layerName=None, prompt=True):
 	return mask
 
 
-def getEditableUserConfigWebModule(webModule):
+def _getEditableUserConfigWebModule(webModule):
 	if config.conf["webAccess"]["disableUserConfig"]:
 		return None
 	layer = webModule.getLayer("user")
