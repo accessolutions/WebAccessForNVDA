@@ -22,7 +22,11 @@
 """Web Access GUI."""
 
 
-__author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
+__authors__ = (
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
+)
 
  
 import wx
@@ -32,7 +36,6 @@ import gui
 
 from ... import webAccess
 from .. import ruleHandler
-from .. import webModuleHandler  
 from ..utils import guarded
 from . import webModulesManager
 
@@ -52,17 +55,15 @@ class Menu(wx.Menu):
 		self.context = context
 		
 		if webAccess.webAccessEnabled:
-			webModule = context["webModule"] if "webModule" in context else None
+			webModule = context.get("webModule")
 			
-			if webModule is not None:
+			if webModule:
 				item = self.Append(
 					wx.ID_ANY,
 					# Translators: Web Access menu item label.
 					_("&New rule...")
 				)
 				self.Bind(wx.EVT_MENU, self.onRuleCreate, item)
-			
-			if webModule is not None:
 				item = self.Append(
 					wx.ID_ANY,
 					# Translators: Web Access menu item label.
@@ -71,13 +72,14 @@ class Menu(wx.Menu):
 				self.Bind(wx.EVT_MENU, self.onRulesManager, item)
 				self.AppendSeparator()
 			
-			if webModule is None:
+			if not webModule:
 				item = self.Append(
 					wx.ID_ANY,
 					# Translators: Web Access menu item label.
 					_("&New web module..."))
 				self.Bind(wx.EVT_MENU, self.onWebModuleCreate, item)
-			else:
+			
+			if webModule:
 				item = self.Append(
 					wx.ID_ANY,
 					# Translators: Web Access menu item label.
@@ -109,23 +111,30 @@ class Menu(wx.Menu):
 	
 	@guarded
 	def onRuleCreate(self, evt):
-		ruleHandler.showCreator(self.context)
+		self.context["new"] = True
+		from .rule.editor import show
+		show(self.context, gui.mainFrame)
 	
 	@guarded
 	def onRulesManager(self, evt):
-		ruleHandler.showManager(self.context)
+		from .rule.manager import show
+		show(self.context, gui.mainFrame)
 	
 	@guarded
 	def onWebModuleCreate(self, evt):
-		webModuleHandler.showCreator(self.context)
+		self.context["new"] = True
+		from .webModuleEditor import show
+		show(self.context, gui.mainFrame)
 	
 	@guarded
 	def onWebModuleEdit(self, evt):
-		webModuleHandler.showEditor(self.context)
+		from .webModuleEditor import show
+		show(self.context)
 	
 	@guarded
 	def onWebModulesManager(self, evt):
-		webModuleHandler.showManager(self.context)
+		from .webModulesManager import show
+		show(self.context)
 	
 	@guarded
 	def onWebAccessToggle(self, evt):

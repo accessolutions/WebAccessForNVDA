@@ -23,6 +23,9 @@
 __authors__ = (
 	"Shirley Noel <shirley.noel@pole-emploi.fr>",
 	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+	"Sendhil Randon <sendhil.randon-ext@francetravail.fr>",
+	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
 )
 
 
@@ -192,13 +195,12 @@ class ActionsPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
 	
 	@guarded
 	def onAddGesture(self, evt):
-		context = self.context
+		context = self.context.copy()
 		context["data"]["gestures"] = self.gesturesMap
-		if gestureBinding.show(context=context, parent=self) == wx.ID_OK:
-			id = context["data"].pop("gestureBinding")["gestureIdentifier"]
+		if gestureBinding.show(context, self):
+			id = context["data"]["gestureBinding"]["gestureIdentifier"]
 			self.onGestureChange(Change.CREATION, id)
-		del context["data"]["gestures"]
-
+	
 	@guarded
 	def onDeleteGesture(self, evt):
 		index = self.gesturesListBox.Selection
@@ -208,15 +210,13 @@ class ActionsPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
 
 	@guarded
 	def onEditGesture(self, evt):
-		context = self.context
+		context = self.context.copy()
 		gestures = context["data"]["gestures"] = self.gesturesMap
 		id = self.getSelectedGesture()
 		context["data"]["gestureBinding"] = {"gestureIdentifier": id, "action":  gestures[id]}
-		if gestureBinding.show(context=context, parent=self) == wx.ID_OK:
+		if gestureBinding.show(context=context, parent=self):
 			id = context["data"]["gestureBinding"]["gestureIdentifier"]
 			self.onGestureChange(Change.UPDATE, id)
-		del context["data"]["gestureBinding"]
-		del context["data"]["gestures"]
 	
 	def onGestureChange(self, change: Change, id: str):
 		if change is Change.DELETION:

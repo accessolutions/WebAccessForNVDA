@@ -38,7 +38,8 @@ from typing import Any, Callable
 import wx
 import wx.lib.mixins.listctrl as listmix
 
-from gui import guiHelper, nvdaControls, _isDebug
+import gui
+from gui import guiHelper, nvdaControls
 from gui.dpiScalingHelper import DpiScalingHelperMixinWithoutInit
 from gui.settingsDialogs import (
 	MultiCategorySettingsDialog,
@@ -217,6 +218,7 @@ class InvalidValue(object):
 
 
 class ScalingMixin(DpiScalingHelperMixinWithoutInit):
+	
 	def scale(self, *args):
 		sizes = tuple((
 			self.scaleSize(arg) if arg > 0 else arg
@@ -244,6 +246,13 @@ class FillableSettingsPanel(SettingsPanel, ScalingMixin):
 		self.mainSizer.Add(self.settingsSizer, flag=wx.ALL | wx.EXPAND, proportion=1)
 		self.mainSizer.Fit(self)
 		self.SetSizer(self.mainSizer)
+
+
+# TODO: Consider migrating to NVDA's SettingsDialog once we hit 2023.2 as minimum version 
+class ContextualDialog(ScalingMixin, wx.Dialog):
+	
+	def initData(self, context):
+		self.context = context
 
 
 class ContextualSettingsPanel(FillableSettingsPanel, metaclass=guiHelper.SIPABCMeta):
@@ -298,7 +307,9 @@ class FillableMultiCategorySettingsDialog(MultiCategorySettingsDialog, ScalingMi
 
 	See `FillableSettingsPanel`
 	"""
-
+	
+	onCategoryChange = guarded(MultiCategorySettingsDialog.onCategoryChange)
+	
 	def _getCategoryPanel(self, catId):
 		# Changes to the original implementation:
 		#  - Add `proportion=1`
@@ -331,7 +342,7 @@ class FillableMultiCategorySettingsDialog(MultiCategorySettingsDialog, ScalingMi
 			panel.SetAccessible(SettingsPanelAccessible(panel))
 
 		return panel
-
+	
 	@guarded
 	def _enterActivatesOk_ctrlSActivatesApply(self, evt):
 		if evt.KeyCode in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER):
@@ -403,6 +414,7 @@ class KbNavMultiCategorySettingsDialog(FillableMultiCategorySettingsDialog):
 class ContextualMultiCategorySettingsDialog(
 	KbNavMultiCategorySettingsDialog,
 	configuredSettingsDialogType(hasApplyButton=False),
+	ContextualDialog,
 ):
 
 	def __new__(cls, *args, **kwargs):
@@ -456,18 +468,15 @@ class ContextualMultiCategorySettingsDialog(
 	
 	# Changed from NVDA's MultiCategorySettingsDialog: Use ValidationError instead of ValueError,
 	# in order to not misinterpret a real unintentional ValueError.
-	# Hence, ContextualSettingsPanel.isValid can either return False or willingly raise a ValidationError
-	# with the same outcome of cancelling the save operation and the destruction of the dialog.
 	# Additionnaly, this implementation selects the category for the invalid panel.
 	def _validateAllPanels(self):
 		"""Check if all panels are valid, and can be saved
 		@note: raises ValidationError if a panel is not valid. See c{SettingsPanel.isValid}
 		"""
 		for panel in self.catIdToInstanceMap.values():
-			if panel.isValid() is False:
+			if not panel.isValid():
 				self.selectPanel(panel)
 				raise ValidationError("Validation for %s blocked saving settings" % panel.__class__.__name__)
-
 
 
 class TreeContextualPanel(ContextualSettingsPanel):
@@ -783,12 +792,23 @@ class TreeNodeInfo:
 		prm.treeParent = treeParent
 
 
-def showContextualDialog(cls, context, parent, *args, **kwargs):
+def showContextualDialog(
+	cls: type(ContextualDialog),
+	context: Mapping[str, Any],
+	parent: wx.Window,
+	*args,
+	**kwargs
+):
+	"""
+	Show a `ContextualDialog`
+	
+	If a `parent` is specified, the dialog is shown modal and this function
+	returns its return code.
+	"""
 	if parent is not None:
 		with cls(parent, *args, **kwargs) as dlg:
 			dlg.initData(context)
 			return dlg.ShowModal()
-	import gui
 	gui.mainFrame.prePopup()
 	try:
 		dlg = cls(gui.mainFrame, *args, **kwargs)

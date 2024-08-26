@@ -210,10 +210,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def showWebAccessGui(self):
 		obj = api.getFocusObject()
-		if obj is None or obj.appModule is None:
-			# Translators: Error message when attempting to show the Web Access GUI.
-			ui.message(_("The current object does not support Web Access."))
-			return
 		if not canHaveWebAccessSupport(obj):
 			# Translators: Error message when attempting to show the Web Access GUI.
 			ui.message(_("You must be in a web browser to use Web Access."))
@@ -222,15 +218,17 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			# Translators: Error message when attempting to show the Web Access GUI.
 			ui.message(_("You must be on the web page to use Web Access."))
 			return
-
 		from .gui import menu
-		context = {}
-		context["webAccess"] = self
-		context["focusObject"] = obj
+		context = {
+			"webAccess": self,
+			"focusObject": obj,
+		}
 		webModule = obj.webAccess.webModule
 		if webModule is not None:
 			context["webModule"] = webModule
 			context["pageTitle"] = webModule.pageTitle
+			mgr = webModule.ruleManager
+			context["result"] = mgr.getResultAtCaret(focus=obj)
 		menu.show(context)
 
 	@script(

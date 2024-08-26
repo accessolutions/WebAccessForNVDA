@@ -36,11 +36,12 @@ import config
 import core
 import globalVars
 import gui
-from gui.nvdaControls import AutoWidthColumnListCtrl
+from gui import guiHelper
 import languageHandler
 from logHandler import log
 
-from . import ScalingMixin
+from ..utils import guarded
+from . import ContextualDialog, ListCtrlAutoWidth, showContextualDialog
 
 
 def promptDelete(webModule):
@@ -86,77 +87,86 @@ Do you want to make a copy in your scratchpad?
 	) == wx.YES
 
 
-def show(context):
-	gui.mainFrame.prePopup()
-	Dialog(gui.mainFrame).Show(context)
-	gui.mainFrame.postPopup()
-
-
-class Dialog(wx.Dialog, ScalingMixin):
-	# Singleton
-	_instance = None
-	def __new__(cls, *args, **kwargs):
-		if Dialog._instance is None:
-			return super().__new__(cls, *args, **kwargs)
-		return Dialog._instance
-
+class Dialog(ContextualDialog):
+	
 	def __init__(self, parent):
-		if Dialog._instance is not None:
-			return
-		Dialog._instance = self
-
 		super().__init__(
 			parent,
 			# Translators: The title of the Web Modules Manager dialog
 			title=_("Web Modules Manager"),
 			style=wx.DEFAULT_DIALOG_STYLE|wx.MAXIMIZE_BOX|wx.RESIZE_BORDER,
-			#size=(600,400)
-			)
-
-		modulesListLabel = wx.StaticText(
+		)		
+		scale = self.scale
+		mainSizer = wx.BoxSizer(wx.VERTICAL)
+		gbSizer = wx.GridBagSizer()
+		mainSizer.Add(
+			gbSizer,
+			border=scale(guiHelper.BORDER_FOR_DIALOGS),
+			flag=wx.ALL | wx.EXPAND,
+			proportion=1
+		)
+		row = 0
+		col = 0
+		item = modulesListLabel = wx.StaticText(
 			self,
 			# Translators: The label for the modules list in the
 			# Web Modules dialog.
 			label=_("Available Web Modules:"),
-			)
-
-		item = self.modulesList = AutoWidthColumnListCtrl(
-			self,
-			style=wx.LC_REPORT|wx.LC_SINGLE_SEL,
-			#size=(550,350),
-			)
+		)
+		gbSizer.Add(item, (row, col), flag=wx.EXPAND)
+		
+		row += 1
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), (row, col))
+		
+		row += 1
+		item = self.modulesList = ListCtrlAutoWidth(self, style=wx.LC_REPORT)
 		# Translators: The label for a column of the web modules list
 		item.InsertColumn(0, _("Name"), width=150)
 		# Translators: The label for a column of the web modules list
 		item.InsertColumn(1, _("Trigger"))
-		## Translators: The label for a column of the web modules list
-		##item.InsertColumn(1, _("URL"), width=50)
-		#item.InsertColumn(1, _("URL"))
-		## Translators: The label for a column of the web modules list
-		##item.InsertColumn(2, _("Title"), width=50)
-		#item.InsertColumn(2, _("Title"))
-		item.resizeLastColumn(50)
 		item.Bind(
 			wx.EVT_LIST_ITEM_FOCUSED,
 			self.onModulesListItemSelected)
-
+		gbSizer.Add(item, (row, col), span=(8, 1), flag=wx.EXPAND)
+		gbSizer.AddGrowableRow(row+7)
+		gbSizer.AddGrowableCol(col)
+		
+		col += 1
+		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), (row, col))
+		
+		col += 1
 		item = self.moduleCreateButton = wx.Button(
 			self,
 			# Translators: The label for a button in the Web Modules Manager
 			label=_("&New web module..."),
-			)
+		)
 		item.Bind(wx.EVT_BUTTON, self.onModuleCreate)
-
+		gbSizer.Add(item, (row, col), flag=wx.EXPAND)
+		
+		row += 1
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), (row, col))
+		
+		row += 1
 		# Translators: The label for a button in the Web Modules Manager dialog
 		item = self.moduleEditButton = wx.Button(self, label=_("&Edit..."))
 		item.Disable()
 		item.Bind(wx.EVT_BUTTON, self.onModuleEdit)
+		gbSizer.Add(item, (row, col), flag=wx.EXPAND)
 
+		row += 1
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), (row, col))
+		
+		row += 1
 		# Translators: The label for a button in the Web Modules Manager dialog
 		item = self.rulesManagerButton = wx.Button(self, label=_("Manage &rules..."))
 		item.Disable()
 		item.Bind(wx.EVT_BUTTON, self.onRulesManager)
+		gbSizer.Add(item, (row, col), flag=wx.EXPAND)
 
+		row += 1
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), (row, col))
+		
+		row += 1
 		item = self.moduleDeleteButton = wx.Button(
 			self,
 			# Translators: The label for a button in the
@@ -164,135 +174,117 @@ class Dialog(wx.Dialog, ScalingMixin):
 			label=_("&Delete"))
 		item.Disable()
 		item.Bind(wx.EVT_BUTTON, self.onModuleDelete)
+		gbSizer.Add(item, (row, col), flag=wx.EXPAND)
 
-		vSizer = wx.BoxSizer(wx.VERTICAL)
-		vSizer.Add(self.moduleCreateButton, flag=wx.EXPAND|wx.LEFT|wx.RIGHT, border=4)
-		vSizer.Add(self.moduleEditButton, flag=wx.EXPAND|wx.LEFT|wx.RIGHT, border=4)
-		vSizer.Add(self.rulesManagerButton, flag=wx.EXPAND|wx.LEFT|wx.RIGHT, border=4)
-		vSizer.Add(self.moduleDeleteButton, flag=wx.EXPAND|wx.LEFT|wx.RIGHT, border=4)
-
-		hSizer = wx.BoxSizer(wx.HORIZONTAL)
-		hSizer.Add(self.modulesList, proportion=1, flag=wx.EXPAND|wx.LEFT|wx.RIGHT, border=4)
-		hSizer.Add(vSizer)
-
-		vSizer = wx.BoxSizer(wx.VERTICAL)
-		vSizer.Add(modulesListLabel, flag=wx.EXPAND|wx.LEFT|wx.RIGHT, border=4)
-		vSizer.Add(hSizer, proportion=1, flag=wx.EXPAND|wx.DOWN, border=4)
-		vSizer.Add(
+		mainSizer.Add(
 			self.CreateSeparatedButtonSizer(wx.CLOSE),
-			flag=wx.EXPAND|wx.ALIGN_LEFT|wx.TOP|wx.DOWN,
-			border=4
-			)
-
-		hSizer = wx.BoxSizer(wx.HORIZONTAL)
-		hSizer.Add(vSizer, proportion=1, flag=wx.EXPAND|wx.ALL, border=4)
-
-		self.Sizer = hSizer
-
-
+			flag=wx.EXPAND | wx.BOTTOM | wx.LEFT | wx.RIGHT,
+			border=scale(guiHelper.BORDER_FOR_DIALOGS),
+		)
+		self.SetSize(scale(790, 400))
+		self.SetSizer(mainSizer)
+		self.CentreOnScreen()
+		self.modulesList.SetFocus()
+	
 	def __del__(self):
 		Dialog._instance = None
-
+	
 	def initData(self, context):
-		self.context = context
+		super().initData(context)
 		module = context["webModule"] if "webModule" in context else None
 		self.refreshModulesList(selectItem=module)
-
+	
+	@guarded
 	def onModuleCreate(self, evt=None):
-		from .. import webModuleHandler
-		context = dict(self.context)  # Shallow copy
-		webModuleHandler.showCreator(context)
-		if "webModule" in context:
-			module = context["webModule"]
-			self.refreshModulesList(selectItem=module)
-
+		context = self.context.copy()
+		context["new"] = True
+		from .webModuleEditor import show
+		if show(context, self):
+			self.refreshModulesList(selectItem=context["webModule"])
+	
+	@guarded
 	def onModuleDelete(self, evt=None):
 		index = self.modulesList.GetFirstSelected()
 		if index < 0:
 			return
-		pass
 		webModule = self.modules[index]
 		from .. import webModuleHandler
 		if webModuleHandler.delete(webModule=webModule):
 			self.refreshModulesList()
-
+	
+	@guarded
 	def onModuleEdit(self, evt=None):
 		index = self.modulesList.GetFirstSelected()
 		if index < 0:
+			wx.Bell()
 			return
-		context = dict(self.context)  # Shallow copy
+		context = self.context
+		context.pop("new", None)
 		context["webModule"] = self.modules[index]
-		from .. import webModuleHandler
-		webModuleHandler.showEditor(context)
-		self.refreshModulesList(selectIndex=index)
-
+		from .webModuleEditor import show
+		if show(context, self):
+			self.refreshModulesList(selectIndex=index)
+	
+	@guarded
 	def onModulesListItemSelected(self, evt):
-		index = evt.GetIndex()
-		item = self.modules[index] if index >= 0 else None
-		self.moduleEditButton.Enable(item is not None)
-		self.rulesManagerButton.Enable(
-			item is not None
-			# FIXME: This test never succeeds as a live WebModule is not
-			# taken from the context.
-			# TODO: Remove this restriction for issue #42
-			and item.ruleManager.isReady
-		)
-		self.moduleDeleteButton.Enable(item is not None)
-
+		self.refreshButtons()
+	
+	@guarded
 	def onRulesManager(self, evt=None):
 		index = self.modulesList.GetFirstSelected()
 		if index < 0:
+			wx.Bell()
 			return
 		webModule = self.modules[index]
-		context = self.context.copy()  # Shallow copy
-		context["webModule"] = self.modules[index]
-		from .. import ruleHandler
-		ruleHandler.showManager(context)
-
-	def refreshModulesList(self, selectIndex=0, selectItem=None):
-		self.modulesList.DeleteAllItems()
+		context = self.context
+		if not webModule.equals(context.get("webModule")):
+			context["webModule"] = webModule
+			context.pop("result", None)
+		from .rule.manager import show
+		show(context, self)
+	
+	def refreshButtons(self):
+		index = self.modulesList.GetFirstSelected()
+		hasSelection = index >= 0
+		self.moduleEditButton.Enable(hasSelection)
+		self.rulesManagerButton.Enable(hasSelection)
+		self.moduleDeleteButton.Enable(hasSelection)
+	
+	def refreshModulesList(self, selectIndex: int = None, selectItem: "WebModule" = None):
+		ctrl = self.modulesList
+		ctrl.DeleteAllItems()
+		contextModule = self.context.get("webModule")
 		modules = self.modules = []
-		modulesList = self.modulesList
-
 		from .. import webModuleHandler
 		for index, module in enumerate(webModuleHandler.getWebModules()):
-			if module is selectItem:
+			if selectIndex is None and module.equals(selectItem):
 				selectIndex = index
+			if module.equals(contextModule):
+				module = contextModule
 			trigger = (" %s " % _("and")).join(
 				([
 					"url=%s" % url
 					for url in (module.url if module.url else [])
-					])
-				+ (
+				]) + (
 					["title=%s" % module.windowTitle]
 					if module.windowTitle else []
-					)
 				)
-			modulesList.Append((
+			)
+			ctrl.Append((
 				module.name,
 				trigger,
-				#module.url,
-				#module.windowTitle,
-				))
+			))
 			modules.append(module)
 
-		# Select the item at given index, or the first item if unspecified
-		len_ = len(modules)
-		if len_ > 0:
-			if selectIndex == -1:
-				selectIndex = len_ - 1
-			elif selectIndex<0 or selectIndex>=len_:
-				selectIndex = 0
-			modulesList.Select(selectIndex, on=1)
-			modulesList.Focus(selectIndex)
+		if selectIndex is None:
+			selectIndex = min(0, len(modules) - 1)
 		else:
-			self.moduleEditButton.Disable()
-			self.rulesManagerButton.Disable()
-			self.moduleDeleteButton.Disable()
+			selectIndex %= len(modules)
+		if selectIndex >= 0:
+			ctrl.Select(selectIndex, on=1)
+			ctrl.Focus(selectIndex)
+		self.refreshButtons()
 
-	def Show(self, context):
-		self.initData(context)
-		self.Fit()
-		self.modulesList.SetFocus()
-		self.CentreOnScreen()
-		return super().Show()
+
+def show(context):
+	showContextualDialog(Dialog, context, gui.mainFrame)
