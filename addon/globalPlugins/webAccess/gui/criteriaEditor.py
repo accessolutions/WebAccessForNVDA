@@ -230,7 +230,7 @@ def testCriteria(context):
 	critData.pop("criteriaIndex", None)
 	ruleData["criteria"] = [critData]
 	ruleData.setdefault("properties", {})["multiple"] = True
-	critData.setdefault("properties", {}).pop("multiple")
+	critData.setdefault("properties", {}).pop("multiple", None)
 	mgr = context["webModule"].ruleManager
 	from ..ruleHandler import Rule
 	rule = Rule(mgr, ruleData)
