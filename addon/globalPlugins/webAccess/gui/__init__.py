@@ -23,12 +23,14 @@
 __version__ = "2024.08.24"
 __authors__ = (
 	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
 	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
 )
 
 from abc import abstractmethod
+from buildVersion import version_detailed as NVDA_VERSION
 from collections import OrderedDict
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping, Sequence, Set
 from dataclasses import dataclass
 from enum import Enum, auto
 import re
@@ -330,12 +332,25 @@ class FillableMultiCategorySettingsDialog(MultiCategorySettingsDialog, ScalingMi
 		super()._enterActivatesOk_ctrlSActivatesApply(evt)
 
 
-def configuredSettingsDialogType(**config):
+def configuredSettingsDialogType(hasApplyButton: bool) -> type(SettingsDialog):
+	"""Allow to disable the apply button on subclasses of NVDA's `MultiCategorySettingsDialog`
+	
+	`MultiCategorySettingsDialog` forcibly initializes its base `SettingsDialog` with an apply button.
+	Adding the type returned by this function to the bases of a subclass of `MultiCategorySettingsDialog`
+	allows to change this behavior.
+	"""
+	
 	class Type(SettingsDialog):
+		
 		def __init__(self, *args, **kwargs):
-			kwargs.update(config)
+			if NVDA_VERSION < "2023.2":
+				kwargs["hasApplyButton"] = hasApplyButton
+			else:
+				buttons: Set[int] = kwargs.get("buttons", {wx.OK, wx.CANCEL})
+				if not hasApplyButton:
+					buttons -= {wx.APPLY}
 			super().__init__(*args, **kwargs)
-
+	
 	return Type
 
 
@@ -375,10 +390,13 @@ class KbNavMultiCategorySettingsDialog(FillableMultiCategorySettingsDialog):
 		][index].SetFocus()
 
 
-class ContextualMultiCategorySettingsDialog(KbNavMultiCategorySettingsDialog):
+class ContextualMultiCategorySettingsDialog(
+	KbNavMultiCategorySettingsDialog,
+	configuredSettingsDialogType(hasApplyButton=False),
+):
 
 	def __new__(cls, *args, **kwargs):
-		kwargs.update({'multiInstanceAllowed': True, 'hasApplyButton':False})
+		kwargs["multiInstanceAllowed"] = True
 		return super().__new__(cls, *args, **kwargs)
 
 	def __init__(self, *args, **kwargs):
@@ -583,7 +601,6 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 		return categoryClasses
 
 	def _changeCategoryPanel(self, newCatInfos):
-		configuredSettingsDialogType()
 		panel = self.catIdToInstanceMap.get(newCatInfos.title, None)
 		if panel:
 			self.context[panel.CATEGORY_PARAMS_CONTEXT_KEY] = newCatInfos.categoryParams
