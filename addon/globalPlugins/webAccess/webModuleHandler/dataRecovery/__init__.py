@@ -453,7 +453,7 @@ def recoverFrom_0_6_to_0_7(data):
 
 def recoverFrom_0_6_to_0_9(data):
 	# Overridden properties and gestures
-	from .recoverFrom_0_6_to_0_9 import convert
+	from .from_0_6_to_0_9 import convert
 	convert(data)
 
 
