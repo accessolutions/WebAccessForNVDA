@@ -58,9 +58,9 @@ from ..utils import guarded, logException, notifyError, updateOrDrop
 
 
 if sys.version_info[1] < 9:
-    from typing import Mapping, Sequence, Set
+    from typing import Iterable, Mapping, Sequence, Set
 else:
-    from collections.abc import Mapping, Sequence, Set
+    from collections.abc import Iterable, Mapping, Sequence, Set
 
 
 addonHandler.initTranslation()
@@ -902,6 +902,12 @@ class DropDownWithHideableChoices(wx.ComboBox):
 				self.setSelectedChoiceKey(default)
 
 
+class Change(Enum):
+	CREATION = auto()
+	UPDATE = auto()
+	DELETION = auto()
+
+
 @dataclass
 class EditorTypeValue:
 	editorClass: type(wx.Control) = None
@@ -910,15 +916,10 @@ class EditorTypeValue:
 	isLabeled: bool = None
 
 
-class Change(Enum):
-	CREATION = auto()
-	UPDATE = auto()
-	DELETION = auto()
-
-
 class EditorType(Enum):
 	CHECKBOX = EditorTypeValue(wx.CheckBox, wx.EVT_CHECKBOX, "onEditor_checkBox", True)
 	CHOICE = EditorTypeValue(wx.Choice, wx.EVT_CHOICE, "onEditor_choice", False)
+	COMBO = EditorTypeValue(wx.ComboBox, wx.EVT_TEXT, "onEditor_combo", False)
 	TEXT = EditorTypeValue(wx.TextCtrl, wx.EVT_TEXT, "onEditor_text", False)
 
 
@@ -967,6 +968,11 @@ class SingleFieldEditorMixin(metaclass=guiHelper.SIPABCMeta):
 	
 	@property
 	@abstractmethod
+	def editorSuggestions(self) -> Iterable[str]:
+		raise NotImplementedError
+	
+	@property
+	@abstractmethod
 	def editorType(self) -> EditorType:
 		raise NotImplementedError
 	
@@ -999,6 +1005,11 @@ class SingleFieldEditorMixin(metaclass=guiHelper.SIPABCMeta):
 		self.onEditor_change()
 	
 	@guarded
+	def onEditor_combo(self, evt):
+		self.setFieldValue(evt.EventObject.Value)
+		self.onEditor_change()
+	
+	@guarded
 	def onEditor_text(self, evt):
 		self.setFieldValue(evt.EventObject.Value)
 		self.onEditor_change()
@@ -1017,7 +1028,7 @@ class SingleFieldEditorMixin(metaclass=guiHelper.SIPABCMeta):
 				notifyError(f"value: {value!r}, choices: {choices!r}")
 				return
 			value = keys[index]
-		elif editorType is EditorType.TEXT:
+		elif editorType in (EditorType.COMBO, EditorType.TEXT):
 			self.editor.SetFocus()
 			return
 		else:
@@ -1043,7 +1054,7 @@ class SingleFieldEditorMixin(metaclass=guiHelper.SIPABCMeta):
 		elif editorType is EditorType.CHOICE:
 			# Does not emit wx.EVT_CHOICE
 			editor.Selection = tuple(self.editorChoices.keys()).index(value)
-		elif editorType is EditorType.TEXT:
+		elif editorType in (EditorType.COMBO, EditorType.TEXT):
 			# Does not emit wx.EVT_TEXT
 			editor.ChangeValue(value if value is not None else "")
 	
@@ -1051,6 +1062,14 @@ class SingleFieldEditorMixin(metaclass=guiHelper.SIPABCMeta):
 		editor = self.editor
 		editor.Clear()
 		editor.AppendItems(tuple(self.editorChoices.values()))
+	
+	def updateEditorSuggestions(self):
+		editor = self.editor
+		value = editor.Value
+		editor.SetEvtHandlerEnabled(False)
+		editor.Set(tuple(self.editorSuggestions))
+		editor.SetEvtHandlerEnabled(True)
+		editor.ChangeValue(value)
 	
 	def updateEditorLabel(self):
 		# Translators: A field label. French typically adds a space before the colon.
@@ -1075,6 +1094,7 @@ class SingleFieldEditorPanelBase(SingleFieldEditorMixin, TreeContextualPanel):
 	@dataclass
 	class CategoryParams(TreeContextualPanel.CategoryParams):
 		editorChoices: Mapping[Any, str] = None
+		editorSuggestions: Sequence[str] = None
 		fieldDisplayName: str = None
 		fieldName: str = None
 		# Type hint "Self" was added only in Python 3.11 (NVDA >= 2024.1)
@@ -1100,6 +1120,10 @@ class SingleFieldEditorPanelBase(SingleFieldEditorMixin, TreeContextualPanel):
 	@property
 	def editorChoices(self) -> str:
 		return self.categoryParams.editorChoices
+	
+	@property
+	def editorSuggestions(self) -> str:
+		return self.categoryParams.editorSuggestions
 	
 	@property
 	def fieldDisplayName(self) -> str:
@@ -1133,6 +1157,8 @@ class SingleFieldEditorPanelBase(SingleFieldEditorMixin, TreeContextualPanel):
 			self.editorLabel = self.editor
 		if editorType is EditorType.CHOICE:
 			self.updateEditorChoices()
+		elif editorType is EditorType.COMBO:
+			self.updateEditorSuggestions()
 		self.updateEditor()
 		self.updateEditorLabel()
 	

@@ -56,7 +56,13 @@ class PropertySpecValue:
 	"""
 	
 	__slots__ = (
-		"ruleTypes", "valueType", "default", "displayName", "displayValueIfUndefined", "isRestrictedChoice"
+		"ruleTypes",
+		"valueType",
+		"default",
+		"displayName",
+		"displayValueIfUndefined",
+		"isRestrictedChoice",
+		"hasSuggestions",
 	)
 	
 	ruleTypes: Sequence[str]  # Rule types for which the property is supported
@@ -64,7 +70,8 @@ class PropertySpecValue:
 	default: PropertyValue
 	displayName: str | Mapping[Sequence[str], str]  # Can be different by rule type
 	displayValueIfUndefined: str
-	isRestrictedChoice: bool  # Currently applies only in the editor
+	isRestrictedChoice: bool  # Applies only in the editor
+	hasSuggestions: bool      # Applies only in the editor
 	
 	def getDisplayName(self, ruleType) -> str:
 		displayName = self.displayName
@@ -83,7 +90,8 @@ class PropertySpec(Enum):
 		displayName=pgettext("webAccess.ruleProperty", "Auto Actions"),
 		# Translators: Displayed if no value is set for the "Auto Actions" property
 		displayValueIfUndefined=pgettext("webAccess.action", "No action"),
-		isRestrictedChoice=True
+		isRestrictedChoice=True,
+		hasSuggestions=False,
 	)
 	multiple = PropertySpecValue(
 		ruleTypes=(ruleTypes.GLOBAL_MARKER, ruleTypes.MARKER, ruleTypes.PARENT, ruleTypes.ZONE),
@@ -92,7 +100,8 @@ class PropertySpec(Enum):
 		# Translators: The display name for a rule property
 		displayName=pgettext("webAccess.ruleProperty", "Multiple results"),
 		displayValueIfUndefined=None,  # Does not apply as there is a sensible default
-		isRestrictedChoice=False
+		isRestrictedChoice=False,
+		hasSuggestions=False,
 	)
 	formMode = PropertySpecValue(
 		ruleTypes=(ruleTypes.GLOBAL_MARKER, ruleTypes.MARKER, ruleTypes.ZONE),
@@ -101,7 +110,8 @@ class PropertySpec(Enum):
 		# Translators: The display name for a rule property
 		displayName=pgettext("webAccess.ruleProperty", "Activate form mode"),
 		displayValueIfUndefined=None,  # Does not apply as there is a sensible default
-		isRestrictedChoice=False
+		isRestrictedChoice=False,
+		hasSuggestions=False,
 	)
 	skip = PropertySpecValue(
 		ruleTypes=(ruleTypes.GLOBAL_MARKER, ruleTypes.MARKER, ruleTypes.ZONE),
@@ -110,7 +120,8 @@ class PropertySpec(Enum):
 		# Translators: The display name for a rule property
 		displayName=pgettext("webAccess.ruleProperty", "Skip with Page Down"),
 		displayValueIfUndefined=None,  # Does not apply as there is a sensible default
-		isRestrictedChoice=False
+		isRestrictedChoice=False,
+		hasSuggestions=False,
 	)
 	sayName = PropertySpecValue(
 		ruleTypes=(ruleTypes.GLOBAL_MARKER, ruleTypes.MARKER, ruleTypes.ZONE),
@@ -119,7 +130,8 @@ class PropertySpec(Enum):
 		# Translators: The display name for a rule property
 		displayName=pgettext("webAccess.ruleProperty", "Speak rule name"),
 		displayValueIfUndefined=None,  # Does not apply as there is a sensible default
-		isRestrictedChoice=False
+		isRestrictedChoice=False,
+		hasSuggestions=False,
 	)
 	customName = PropertySpecValue(
 		ruleTypes=(ruleTypes.GLOBAL_MARKER, ruleTypes.MARKER, ruleTypes.ZONE),
@@ -129,7 +141,8 @@ class PropertySpec(Enum):
 		displayName=pgettext("webAccess.ruleProperty", "Custom name"),
 		# Translators: Displayed if no value is set for a given rule property
 		displayValueIfUndefined=pgettext("webAccess.ruleProperty", "<undefined>"),
-		isRestrictedChoice=False
+		isRestrictedChoice=False,
+		hasSuggestions=False,
 	)
 	customValue = PropertySpecValue(
 		ruleTypes=(
@@ -151,7 +164,8 @@ class PropertySpec(Enum):
 		},
 		# Translators: Displayed if no value is set for a given rule property
 		displayValueIfUndefined=pgettext("webAccess.ruleProperty", "<undefined>"),
-		isRestrictedChoice=False
+		isRestrictedChoice=False,
+		hasSuggestions=False,
 	)
 	mutation = PropertySpecValue(
 		ruleTypes=(ruleTypes.GLOBAL_MARKER, ruleTypes.MARKER, ruleTypes.ZONE),
@@ -161,7 +175,8 @@ class PropertySpec(Enum):
 		displayName=pgettext("webAccess.ruleProperty", "Transform"),
 		# Translators: Displayed if no value is set for the "Transform" rule property
 		displayValueIfUndefined=pgettext("webAccess.ruleProperty.mutation", "None"),
-		isRestrictedChoice=True
+		isRestrictedChoice=True,
+		hasSuggestions=False,
 	)
 	subModule = PropertySpecValue(
 		ruleTypes=(ruleTypes.ZONE,),
@@ -171,7 +186,8 @@ class PropertySpec(Enum):
 		displayName=pgettext("webAccess.ruleProperty", "Load sub-module"),
 		# Translators: The displayed text if there is no value for the "Load sub-module" property
 		displayValueIfUndefined=pgettext("webAccess.ruleProperty.subModule", "No"),
-		isRestrictedChoice=False
+		isRestrictedChoice=False,
+		hasSuggestions=True,
 	)
 	
 	def __getattr__(self, name: str):
