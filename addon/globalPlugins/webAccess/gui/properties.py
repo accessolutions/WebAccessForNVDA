@@ -19,7 +19,9 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
+
 __author__ = "Sendhil Randon <sendhil.randon-ext@francetravail.fr>"
+
 
 from collections import ChainMap
 from abc import abstractmethod
@@ -128,12 +130,33 @@ class Property:
 	def editorType(self) -> EditorType:
 		if self.isRestrictedChoice:
 			return EditorType.CHOICE
+		elif self.hasSuggestions:
+			return EditorType.COMBO
 		elif issubclass(self.valueType, bool):
 			return EditorType.CHECKBOX
 		elif issubclass(self.valueType, str):
 			return EditorType.TEXT
 		else:
 			raise Exception(f"Unable to determine EditorType for property {self.name!r}")
+	
+	@property
+	@logException
+	def suggestions(self):
+		if self.editorType is not EditorType.COMBO:
+			return None
+		container = self._container
+		context = container._context
+		cache = context.setdefault("propertySuggestionsCache", {})
+		name = self.name
+		if name in cache:
+			return cache[name]
+		if name == "subModule":
+			from ..webModuleHandler import getCatalog
+			suggestions = tuple(sorted({meta["name"] for ref, meta in getCatalog()}))
+		else:
+			raise ValueError(f"prop.name: {name!r}")
+		cache[name] = suggestions
+		return suggestions
 	
 	@property
 	@logException
@@ -229,6 +252,10 @@ class SinglePropertyEditorPanelBase(SingleFieldEditorMixin, ContextualSettingsPa
 		return self.prop.choices
 	
 	@property
+	def editorSuggestions(self):
+		return self.prop.suggestions
+	
+	@property
 	def editorType(self):
 		return self.prop.editorType
 	
@@ -307,6 +334,7 @@ class PropertiesPanelBase(SinglePropertyEditorPanelBase, metaclass=guiHelper.SIP
 		return {
 			EditorType.CHECKBOX: self.editor_checkBox,
 			EditorType.CHOICE: self.editor_choice_ctrl,
+			EditorType.COMBO: self.editor_combo_ctrl,
 			EditorType.TEXT: self.editor_text_ctrl,
 		}[self.prop.editorType]
 	
@@ -316,6 +344,7 @@ class PropertiesPanelBase(SinglePropertyEditorPanelBase, metaclass=guiHelper.SIP
 		return {
 			EditorType.CHECKBOX: self.editor_checkBox,
 			EditorType.CHOICE: self.editor_choice_label,
+			EditorType.COMBO: self.editor_combo_label,
 			EditorType.TEXT: self.editor_text_label,
 		}[self.prop.editorType]
 	
@@ -331,6 +360,8 @@ class PropertiesPanelBase(SinglePropertyEditorPanelBase, metaclass=guiHelper.SIP
 		editor = self.editor
 		if prop.editorType is EditorType.CHOICE:
 			self.updateEditorChoices()
+		elif prop.editorType is EditorType.COMBO:
+			self.updateEditorSuggestions()
 		self.updateEditor()
 		self.updateEditorLabel()
 		self.Freeze()
@@ -350,13 +381,13 @@ class PropertiesPanelBase(SinglePropertyEditorPanelBase, metaclass=guiHelper.SIP
 		gbSizer = wx.GridBagSizer()
 		gbSizer.EmptyCellSize = (0, 0)
 		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
-
+		
 		row = 0
 		items = hideable["hideIfSupported"] = []
 		item = wx.StaticText(self, label=self.descriptionIfNoneSupported)
 		items.append(item)
 		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
-
+		
 		row += 1
 		items = hideable["hideIfNoneSupported"] = []
 		# Translators: The label for a list on the Rule Editor dialog
@@ -364,11 +395,11 @@ class PropertiesPanelBase(SinglePropertyEditorPanelBase, metaclass=guiHelper.SIP
 		item.Hide()
 		items.append(item)
 		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
-
+		
 		row += 1
 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(row, 0))
 		items.append(item)
-
+		
 		row += 1
 		item = self.listCtrl = ListCtrlAutoWidth(self, style=wx.LC_REPORT | wx.BORDER_SUNKEN)
 		# Translators: A column header on the Rule Editor dialog
@@ -380,11 +411,11 @@ class PropertiesPanelBase(SinglePropertyEditorPanelBase, metaclass=guiHelper.SIP
 		items.append(item)
 		gbSizer.Add(item, pos=(row, 0), span=(4, 3), flag=wx.EXPAND)
 		gbSizer.AddGrowableRow(row + 3)
-
+		
 		row += 4
 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
 		items.append(item)
-
+		
 		row += 1
 		items = hideable["hideIfNotCHECKBOX"] = []
 		item = self.editor_checkBox = wx.CheckBox(self, label="")
@@ -392,7 +423,7 @@ class PropertiesPanelBase(SinglePropertyEditorPanelBase, metaclass=guiHelper.SIP
 		item.Bind(wx.EVT_CHAR_HOOK, self.onEditor_charHook)
 		items.append(item)
 		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
-
+		
 		row += 1
 		items = hideable["hideIfNotCHOICE"] = []
 		item = self.editor_choice_label = wx.StaticText(self, label="")
@@ -405,7 +436,20 @@ class PropertiesPanelBase(SinglePropertyEditorPanelBase, metaclass=guiHelper.SIP
 		item.Bind(wx.EVT_CHAR_HOOK, self.onEditor_charHook)
 		items.append(item)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-
+		
+		row += 1
+		items = hideable["hideIfNotCOMBO"] = []
+		item = self.editor_combo_label = wx.StaticText(self, label="")
+		items.append(item)
+		gbSizer.Add(item, pos=(row, 0))
+		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
+		items.append(item)
+		item = self.editor_combo_ctrl = wx.ComboBox(self)
+		item.Bind(wx.EVT_TEXT, self.onEditor_combo)
+		item.Bind(wx.EVT_CHAR_HOOK, self.onEditor_charHook)
+		items.append(item)
+		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
+		
 		row += 1
 		items = hideable["hideIfNotTEXT"] = []
 		item = self.editor_text_label = wx.StaticText(self, label="")
@@ -418,7 +462,7 @@ class PropertiesPanelBase(SinglePropertyEditorPanelBase, metaclass=guiHelper.SIP
 		item.Bind(wx.EVT_CHAR_HOOK, self.onEditor_charHook)
 		items.append(item)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-
+		
 		for item in (
 			hideable["hideIfNoneSupported"]
 			+ hideable["hideIfNotCHECKBOX"]
@@ -426,7 +470,7 @@ class PropertiesPanelBase(SinglePropertyEditorPanelBase, metaclass=guiHelper.SIP
 			+ hideable["hideIfNotTEXT"]
 		):
 			item.Show(False)
-
+		
 		gbSizer.AddGrowableCol(2)
 		gbSizer.FitInside(self)
 		self.gbSizer = gbSizer
@@ -501,7 +545,7 @@ class PropertiesPanelBase(SinglePropertyEditorPanelBase, metaclass=guiHelper.SIP
 			return
 		elif keycode == wx.WXK_DELETE and not mods:
 			prop = self.prop
-			if prop.editorType is not EditorType.TEXT:
+			if prop.editorType not in (EditorType.COMBO, EditorType.TEXT):
 				self.prop_reset()
 				return
 		evt.Skip()

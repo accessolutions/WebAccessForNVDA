@@ -21,7 +21,7 @@
 
 
 
-__version__ = "2024.07.25"
+__version__ = "2024.08.29"
 __authors__ = (
 	"Shirley Noël <shirley.noel@pole-emploi.fr>",
 	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
@@ -990,9 +990,9 @@ class PropertiesPanel(PropertiesPanelBase, CriteriaEditorPanel):
 		if not prop:
 			return
 		prop.value = prop.default  # Setting any value actually adds to the ChainMap based container
-		self.listCtrl_update_all()
 		self.prop = prop
-		if prop.editorType is EditorType.TEXT:
+		self.listCtrl_update_all()
+		if prop.editorType in (EditorType.COMBO, EditorType.TEXT):
 			self.editor.SetFocus()
 		else:
 			self.listCtrl.SetFocus()
