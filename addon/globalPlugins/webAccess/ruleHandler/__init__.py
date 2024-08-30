@@ -189,8 +189,8 @@ class RuleManager(ScriptableObject):
 			return tuple(self._layers[layer].values())
 		return tuple([
 			rule
-			for ruleLayers in list(self._rules.values())
-			for rule in reversed(list(ruleLayers.values()))
+			for ruleLayers in self._rules.values()
+			for rule in reversed(ruleLayers.values())
 		])
 
 	def getRule(self, name, layer=None):
@@ -335,14 +335,17 @@ class RuleManager(ScriptableObject):
 			pass
 		self.timerCheckAutoAction = None
 		self._nodeManager = None
+		self.clear()
+	
+	def clear(self):
+		self._ready = False
 		self._results.clear()
 		self._subModuleResults.clear()
 		self._mutatedControlsById.clear()
 		self._mutatedControlsByOffset.clear()
-		for ruleLayers in list(self._rules.values()):
-			for rule in list(ruleLayers.values()):
-				rule.resetResults()
-
+		for rule in self.getRules():
+			rule.resetResults()
+	
 	@logException
 	def update(self, nodeManager=None, force=False):
 		if self.webModule is None:
@@ -364,12 +367,7 @@ class RuleManager(ScriptableObject):
 				self._ready = True
 				return False
 			t = logTimeStart()
-			self._results.clear()
-			self._subModuleResults.clear()
-			self._mutatedControlsById.clear()
-			self._mutatedControlsByOffset.clear()
-			for rule in self.getRules():
-				rule.resetResults()
+			self.clear()
 			
 			for rule in (rule for rule in self.getRules() if rule.properties.subModule):
 				results = rule.getResults()

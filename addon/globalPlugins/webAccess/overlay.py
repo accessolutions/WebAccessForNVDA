@@ -23,6 +23,7 @@
 WebAccess overlay classes
 """
 
+
 __authors__ = (
 	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
 	"André-Abush Clause <a.clause@accessolutions.fr>",
@@ -51,6 +52,7 @@ import treeInterceptorHandler
 import ui
 import virtualBuffers
 
+from .utils import guarded
 
 
 from six import iteritems
@@ -1085,11 +1087,13 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		category=SCRCAT_WEBACCESS,
 		gesture="kb:NVDA+shift+f5"
 	)
+	@guarded
 	def script_refreshResults(self, gesture):
 		# Translators: Notified when manually refreshing results
 		ui.message(_("Refresh results"))
-		self.webAccess.ruleManager.update(force=True)
-
+		self.webAccess.ruleManager.clear()
+		self.webAccess.nodeManager.update(force=True)
+	
 	script_refreshResults.ignoreTreeInterceptorPassThrough = True
 	script_refreshResults.passThroughIfNoWebModule = True
 
