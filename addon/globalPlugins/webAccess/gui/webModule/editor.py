@@ -1,4 +1,4 @@
-# globalPlugins/webAccess/gui/webModuleEditor.py
+# globalPlugins/webAccess/gui/webModule/editor.py
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
@@ -23,12 +23,16 @@
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>"
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
-	"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
 )
 
 
 import itertools
 import os
+import sys
+from typing import Any
 import wx
 
 from NVDAObjects import NVDAObject, IAccessible
@@ -41,8 +45,15 @@ from gui import guiHelper
 from logHandler import log
 import ui
 
-from ..webModuleHandler import WebModule, getEditableWebModule, getUrl, getWindowTitle, save
-from . import ContextualDialog, showContextualDialog
+from ...utils import guarded
+from ...webModuleHandler import WebModule, getEditableWebModule, getUrl, getWindowTitle, save, store
+from .. import ContextualDialog, showContextualDialog
+
+
+if sys.version_info[1] < 9:
+    from typing import Mapping
+else:
+    from collections.abc import Mapping
 
 
 addonHandler.initTranslation()
@@ -140,30 +151,38 @@ class Dialog(ContextualDialog):
 		self.SetSizer(mainSizer)
 		self.CentreOnScreen()
 		self.webModuleName.SetFocus()
-
+	
+	def getData(self) -> Mapping[str, Any]:
+		return self.context["data"]["webModule"]
+	
 	def initData(self, context):
 		super().initData(context)
-		data = context.setdefault("data", {})["webModule"] = {}
+		data = context.setdefault("data", {}).setdefault("webModule", {})
 		if not context.get("new"):
 			webModule = context.get("webModule")
 			data.update(webModule.dump(webModule.layers[-1].name).data["WebModule"])
+			# Could not have been saved without triggers from this editor unless invoked
+			# from the Rule or Criteria editor.
+			subModule = data["subModule"] = not (data.get("url") or data.get("windowTitle"))
 			# Translators: Web module edition dialog title
 			title = _("Edit Web Module")
 			if config.conf["webAccess"]["devMode"]:
 				title += " ({})".format("/".join((layer.name for layer in webModule.layers)))
 		else:
+			subModule = data.get("subModule", False)
 			# Translators: Web module creation dialog title
 			title = _("New Web Module")
 			if config.conf["webAccess"]["devMode"]:
-				from .. import webModuleHandler
 				try:
 					guineaPig = getEditableWebModule(WebModule(), prompt=False)
-					store = next(iter(webModuleHandler.store.getSupportingStores(
+					supportingStore = next(iter(store.getSupportingStores(
 						"create",
 						item=guineaPig
 					))) if guineaPig is not None else None
 					title += " ({})".format(
-						store and ("user" if store.name == "userConfig" else store.name)
+						supportingStore and (
+							"user" if supportingStore.name == "userConfig" else supportingStore.name
+						)
 					)
 				except Exception:
 					log.exception()
@@ -217,9 +236,7 @@ class Dialog(ContextualDialog):
 		]
 		self.webModuleUrl.SetItems(urlsChoices)
 		self.webModuleUrl.Selection = (
-			urlsChoices.index(selectedUrl)
-			if selectedUrl
-			else 0
+			urlsChoices.index(selectedUrl) if selectedUrl else 0 if not subModule else -1
 		)
 
 		windowTitleChoices = []
@@ -240,9 +257,18 @@ class Dialog(ContextualDialog):
 			item.Value = ""
 
 		self.help.Value = data.get("help", "")
-
+	
+	def updateData(self):
+		data = self.getData()
+		data["name"] = self.webModuleName.Value.strip()
+		data["url"] = [url.strip() for url in self.webModuleUrl.Value.split(",") if url.strip()]
+		data["windowTitle"] = self.webModuleWindowTitle.Value.strip()
+	
+	@guarded
 	def onOk(self, evt):
-		name = self.webModuleName.Value.strip()
+		self.updateData()
+		data = self.getData()
+		name = data["name"]
 		if len(name) < 1:
 			gui.messageBox(
 				_("You must enter a name for this web module"),
@@ -253,10 +279,11 @@ class Dialog(ContextualDialog):
 			self.webModuleName.SetFocus()
 			return
 
-		url = [url.strip() for url in self.webModuleUrl.Value.split(",") if url.strip()]
-		windowTitle = self.webModuleWindowTitle.Value.strip()
+		subModule: bool = data.get("subModule", False)
+		url = data["url"]
+		windowTitle = data["windowTitle"]
 		help = self.help.Value.strip()
-		if not (url or windowTitle):
+		if not (url or windowTitle or subModule):
 			gui.messageBox(
 				_("You must specify at least a URL or a window title."),
 				_("Error"),
@@ -283,7 +310,7 @@ class Dialog(ContextualDialog):
 
 		if not save(webModule, prompt=self.Title):
 			return
-
+		context["webModule"] = webModule
 		self.DestroyLater()
 		self.SetReturnCode(wx.ID_OK)
 

@@ -1,4 +1,4 @@
-# globalPlugins/webAccess/gui/gestureBinding.py
+# globalPlugins/webAccess/gui/rule/gestureBinding.py
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
@@ -41,8 +41,8 @@ from gui import guiHelper
 import speech
 import ui
 
-from ..utils import guarded, logException
-from . import ScalingMixin, showContextualDialog
+from ...utils import guarded, logException
+from .. import ScalingMixin, showContextualDialog
 
 
 if sys.version_info[1] < 9:

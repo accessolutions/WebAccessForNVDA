@@ -1,4 +1,4 @@
-# globalPlugins/webAccess/gui/criteriaEditor.py
+# globalPlugins/webAccess/gui/rule/criteria.py
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
@@ -21,7 +21,7 @@
 
 
 
-__version__ = "2024.08.29"
+__version__ = "2024.08.30"
 __authors__ = (
 	"Shirley Noël <shirley.noel@pole-emploi.fr>",
 	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
@@ -48,9 +48,9 @@ import speech
 import ui
 
 import addonHandler
-from ..ruleHandler import builtinRuleActions, ruleTypes
-from ..utils import guarded, notifyError, updateOrDrop
-from . import (
+from ...ruleHandler import builtinRuleActions, ruleTypes
+from ...utils import guarded, notifyError, updateOrDrop
+from .. import (
 	ContextualMultiCategorySettingsDialog,
 	ContextualSettingsPanel,
 	DropDownWithHideableChoices,
@@ -61,8 +61,9 @@ from . import (
 	stripAccel,
 	stripAccelAndColon,
 )
+from . import createMissingSubModule
+from .abc import RuleAwarePanelBase
 from .actions import ActionsPanelBase
-from .rule.abc import RuleAwarePanelBase
 from .properties import Properties, PropertiesPanelBase, Property
 
 
@@ -245,7 +246,7 @@ def testCriteria(context):
 	ruleData.setdefault("properties", {})['multiple'] = True
 	critData.setdefault("properties", {}).pop("multiple", None)
 	mgr = context["webModule"].ruleManager
-	from ..ruleHandler import Rule
+	from ...ruleHandler import Rule
 	rule = Rule(mgr, ruleData)
 	import time
 	start = time.time()
@@ -263,7 +264,9 @@ def testCriteria(context):
 class CriteriaEditorPanel(RuleAwarePanelBase):
 	
 	def getData(self):
-		return self.context["data"].setdefault("criteria", {})
+		# Should always be initialized, as the Rule Editor populates it with at least
+		# the index of this Alternative Criteria Set ("criteriaIndex").
+		return self.context["data"]["criteria"]
 
 
 class GeneralPanel(CriteriaEditorPanel):
@@ -1023,6 +1026,11 @@ class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
 	categoryClasses = [GeneralPanel, CriteriaPanel, ActionsPanel, PropertiesPanel]
 	INITIAL_SIZE = (900, 580)
 	
+	def getData(self):
+		# Should always be initialized, as the Rule Editor populates it with at least
+		# the index of this Alternative Criteria Set ("criteriaIndex").
+		return self.context["data"]["criteria"]
+	
 	def makeSettings(self, settingsSizer):
 		super().makeSettings(settingsSizer)
 		idTestCriteria = wx.NewId()
@@ -1034,8 +1042,13 @@ class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
 	def onTestCriteria(self, evt):
 		self.currentCategory.updateData()
 		testCriteria(self.context)
+	
+	def _saveAllPanels(self):
+		super()._saveAllPanels()
+		if createMissingSubModule(self.context, self.getData(), self) is False:
+			raise ValidationError()  # Cancels closing of the dialog
 
 
 def show(context, parent=None):
-	from . import showContextualDialog
+	from .. import showContextualDialog
 	return showContextualDialog(CriteriaEditorDialog, context, parent)

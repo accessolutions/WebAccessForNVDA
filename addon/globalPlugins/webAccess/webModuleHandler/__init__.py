@@ -56,7 +56,7 @@ _webModules = None
 
 def delete(webModule, prompt=True):
 	if prompt:
-		from ..gui.webModulesManager import promptDelete
+		from ..gui.webModule import promptDelete
 		if not promptDelete(webModule):
 			return False
 	store.delete(webModule)
@@ -227,8 +227,8 @@ def save(webModule, layerName=None, prompt=True, force=False, fromRuleEditor=Fal
 	except DuplicateRefError as e:
 		if not prompt or force:
 			return False
-		from ..gui import webModuleEditor
-		if webModuleEditor.promptOverwrite():
+		from ..gui.webModule.editor import promptOverwrite
+		if promptOverwrite():
 			return save(webModule, layerName=layerName, prompt=prompt, force=True)
 		return False
 	except MalformedRefError:
@@ -347,7 +347,7 @@ def _getEditableScratchpadWebModule(webModule, layerName=None, prompt=True):
 	if layerName != "addon":
 		return None
 	if prompt:
-		from ..gui.webModulesManager import promptMask
+		from ..gui.webModule import promptMask
 		if not promptMask(webModule):
 			return False
 	data = webModule.dump(layerName).data
