@@ -19,6 +19,7 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
+
 __authors__ = (
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
 	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
@@ -224,7 +225,7 @@ class NodeManager(baseObject.ScriptableObject):
 			s += self.afficheNode(child, level + 1)
 		return s
 
-	def update(self):
+	def update(self, force=False):
 		# t = logTimeStart()
 		if self.treeInterceptor is None or not self.treeInterceptor.isReady:
 			self._ready = False
@@ -239,7 +240,7 @@ class NodeManager(baseObject.ScriptableObject):
 		except Exception:
 			self._ready = False
 			return False
-		if size == self.treeInterceptorSize:
+		if not force and size == self.treeInterceptorSize:
 			# probably not changed
 			return False
 		self.treeInterceptorSize = size
