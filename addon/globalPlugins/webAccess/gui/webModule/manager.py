@@ -1,4 +1,4 @@
-# globalPlugins/webAccess/gui/webModulesManager.py
+# globalPlugins/webAccess/gui/webModule/manager.py
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
@@ -27,64 +27,16 @@ __authors__ = (
 )
 
 
-import os
 import wx
 
 import addonHandler
 addonHandler.initTranslation()
-import config
-import core
-import globalVars
 import gui
 from gui import guiHelper
-import languageHandler
 from logHandler import log
 
-from ..utils import guarded
-from . import ContextualDialog, ListCtrlAutoWidth, showContextualDialog
-
-
-def promptDelete(webModule):
-	msg = (
-		# Translators: Prompt before deleting a web module.
-		_("Do you really want to delete this web module?")
-		+ os.linesep
-		+ str(webModule.name)
-	)
-	if config.conf["webAccess"]["devMode"]:
-		msg += " ({})".format("/".join((layer.name for layer in webModule.layers)))
-	return gui.messageBox(
-		parent=gui.mainFrame,
-		message=msg,
-		style=wx.YES_NO | wx.ICON_WARNING
-	) == wx.YES
-
-
-def promptMask(webModule):
-	ref = webModule.getLayer("addon", raiseIfMissing=True).storeRef
-	if ref[0] != "addons":
-		raise ValueError("ref={!r}".format(ref))
-	addonName = ref[1]
-	for addon in addonHandler.getRunningAddons():
-		if addon.name == addonName:
-			addonSummary = addon.manifest["summary"]
-			break
-	else:
-		raise LookupError("addonName={!r}".format(addonName))
-	log.info("Proposing to mask {!r} from addon {!r}".format(webModule, addonName))
-	msg = _(
-		"""This web module comes with the add-on {addonSummary}.
-It cannot be modified at its current location.
-
-Do you want to make a copy in your scratchpad?
-"""
-	).format(addonSummary=addonSummary)
-	return gui.messageBox(
-		parent=gui.mainFrame,
-		message=msg,
-		caption=_("Warning"),
-		style=wx.ICON_WARNING | wx.YES | wx.NO
-	) == wx.YES
+from ...utils import guarded
+from .. import ContextualDialog, ListCtrlAutoWidth, showContextualDialog
 
 
 class Dialog(ContextualDialog):
@@ -181,13 +133,11 @@ class Dialog(ContextualDialog):
 			flag=wx.EXPAND | wx.BOTTOM | wx.LEFT | wx.RIGHT,
 			border=scale(guiHelper.BORDER_FOR_DIALOGS),
 		)
+		self.Bind(wx.EVT_CHAR_HOOK, self.onCharHook)
 		self.SetSize(scale(790, 400))
 		self.SetSizer(mainSizer)
 		self.CentreOnScreen()
 		self.modulesList.SetFocus()
-	
-	def __del__(self):
-		Dialog._instance = None
 	
 	def initData(self, context):
 		super().initData(context)
@@ -195,10 +145,30 @@ class Dialog(ContextualDialog):
 		self.refreshModulesList(selectItem=module)
 	
 	@guarded
+	def onCharHook(self, evt):
+		keycode = evt.GetKeyCode()
+		if keycode == wx.WXK_ESCAPE:
+			# Try to limit the difficulty of closing the dialog using the keyboard
+			# in the event of an error later in this function
+			evt.Skip()
+			return
+		elif keycode == wx.WXK_DELETE:
+			self.onModuleDelete(None)
+			return
+		elif keycode == wx.WXK_F2:
+			self.onModuleEdit(None)
+			return
+		elif keycode == wx.WXK_F3:
+			self.onRulesManager(None)
+			return
+		evt.Skip()
+
+	
+	@guarded
 	def onModuleCreate(self, evt=None):
 		context = self.context.copy()
 		context["new"] = True
-		from .webModuleEditor import show
+		from .editor import show
 		if show(context, self):
 			self.refreshModulesList(selectItem=context["webModule"])
 	
@@ -206,10 +176,11 @@ class Dialog(ContextualDialog):
 	def onModuleDelete(self, evt=None):
 		index = self.modulesList.GetFirstSelected()
 		if index < 0:
+			wx.Bell()
 			return
 		webModule = self.modules[index]
-		from .. import webModuleHandler
-		if webModuleHandler.delete(webModule=webModule):
+		from ...webModuleHandler import delete
+		if delete(webModule=webModule):
 			self.refreshModulesList()
 	
 	@guarded
@@ -221,7 +192,7 @@ class Dialog(ContextualDialog):
 		context = self.context
 		context.pop("new", None)
 		context["webModule"] = self.modules[index]
-		from .webModuleEditor import show
+		from .editor import show
 		if show(context, self):
 			self.refreshModulesList(selectIndex=index)
 	
@@ -240,7 +211,7 @@ class Dialog(ContextualDialog):
 		if not webModule.equals(context.get("webModule")):
 			context["webModule"] = webModule
 			context.pop("result", None)
-		from .rule.manager import show
+		from ..rule.manager import show
 		show(context, self)
 	
 	def refreshButtons(self):
@@ -259,8 +230,8 @@ class Dialog(ContextualDialog):
 			for module in list(reversed(contextModule.ruleManager.subModules.all())) + [contextModule]
 		} if contextModule else {}
 		modules = self.modules = []
-		from .. import webModuleHandler
-		for index, module in enumerate(webModuleHandler.getWebModules()):
+		from ...webModuleHandler import getWebModules
+		for index, module in enumerate(getWebModules()):
 			if selectIndex is None and module.equals(selectItem):
 				selectIndex = index
 			module = contextModules.get((module.name, module.layers[0].storeRef), module)

@@ -62,22 +62,21 @@ from .. import (
 	TreeMultiCategorySettingsDialog,
 	TreeNodeInfo,
 	ValidationError,
-	criteriaEditor,
-	gestureBinding,
 	showContextualDialog,
 	stripAccel,
 	stripAccelAndColon,
 	stripAccelAndColon,
 )
-from ..actions import ActionsPanelBase
-from ..properties import (
+from . import createMissingSubModule, criteriaEditor, gestureBinding
+from .abc import RuleAwarePanelBase
+from .actions import ActionsPanelBase
+from .properties import (
 	EditorType,
 	Property,
 	Properties,
 	PropertiesPanelBase,
 	SinglePropertyEditorPanelBase,
 )
-from .abc import RuleAwarePanelBase
 
 
 if sys.version_info[1] < 9:
@@ -939,9 +938,9 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 					break
 				node = node.parent
 		super().initData(context)
-
-	def _doSave(self):
-		super()._doSave()
+	
+	def _saveAllPanels(self):
+		super()._saveAllPanels()
 		context = self.context
 		data = self.getData()
 		mgr = context["webModule"].ruleManager
@@ -952,14 +951,17 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 			layerName = rule.layer
 		webModule = webModuleHandler.getEditableWebModule(mgr.webModule, layerName=layerName)
 		if not webModule:
-			return
+			raise ValidationError()  # Cancels closing of the dialog
+		if createMissingSubModule(context, data, self) is False:
+			raise ValidationError()  # Cancels closing of the dialog
 		if context.get("new"):
 			layerName = webModule.getWritableLayer().name
 		else:
 			mgr.removeRule(rule)
 		context["rule"] = mgr.loadRule(layerName, data["name"], data)
 		webModule.getLayer(layerName, raiseIfMissing=True).dirty = True
-		webModuleHandler.save(webModule, layerName=layerName)
+		if not webModuleHandler.save(webModule, layerName=layerName):
+			raise ValidationError()  # Cancels closing of the dialog
 
 
 def show(context, parent=None):

@@ -1,4 +1,4 @@
-# globalPlugins/webAccess/gui/properties.py
+# globalPlugins/webAccess/gui/rule/properties.py
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
@@ -36,10 +36,10 @@ from gui import guiHelper
 import speech
 import ui
 
-from ..ruleHandler.controlMutation import MUTATIONS_BY_RULE_TYPE, mutationLabels
-from ..ruleHandler.properties import PropertiesBase, PropertySpec, PropertySpecValue, PropertyValue
-from ..utils import guarded, logException
-from . import ContextualSettingsPanel, EditorType, ListCtrlAutoWidth, SingleFieldEditorMixin
+from ...ruleHandler.controlMutation import MUTATIONS_BY_RULE_TYPE, mutationLabels
+from ...ruleHandler.properties import PropertiesBase, PropertySpec, PropertySpecValue, PropertyValue
+from ...utils import guarded, logException
+from .. import ContextualSettingsPanel, EditorType, ListCtrlAutoWidth, SingleFieldEditorMixin
 
 
 if sys.version_info[1] < 9:
@@ -151,7 +151,7 @@ class Property:
 		if name in cache:
 			return cache[name]
 		if name == "subModule":
-			from ..webModuleHandler import getCatalog
+			from ...webModuleHandler import getCatalog
 			suggestions = tuple(sorted({meta["name"] for ref, meta in getCatalog()}))
 		else:
 			raise ValueError(f"prop.name: {name!r}")

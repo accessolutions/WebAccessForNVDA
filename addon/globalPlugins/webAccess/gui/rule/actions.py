@@ -1,4 +1,4 @@
-# globalPlugins/webAccess/gui/actions.py
+# globalPlugins/webAccess/gui/rule/actions.py
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
@@ -38,10 +38,11 @@ import inputCore
 import gui
 from gui import guiHelper
 
-from ..ruleHandler import ruleTypes
-from ..utils import guarded
-from . import ContextualSettingsPanel, Change, gestureBinding
-from .rule.abc import RuleAwarePanelBase
+from ...ruleHandler import ruleTypes
+from ...utils import guarded
+from .. import ContextualSettingsPanel, Change
+from . import gestureBinding
+from .abc import RuleAwarePanelBase
 
 
 if sys.version_info[1] < 9:

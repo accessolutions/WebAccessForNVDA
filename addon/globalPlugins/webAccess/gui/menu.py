@@ -38,7 +38,6 @@ import gui
 from ... import webAccess
 from .. import ruleHandler
 from ..utils import guarded
-from . import webModulesManager
 
 
 addonHandler.initTranslation()
@@ -150,21 +149,21 @@ class Menu(wx.Menu):
 		show(self.context, gui.mainFrame)
 	
 	@guarded
-	def onWebModuleEdit(self, evt, webModule=None):
-		if webModule is not None:
-			self.context["webModule"] = webModule
-		from .webModuleEditor import show
+	def onWebModuleCreate(self, evt, webModule=None):
+		self.context["new"] = True
+		from .webModule.editor import show
 		show(self.context)
 	
 	@guarded
-	def onWebModuleCreate(self, evt, webModule=None):
-		self.context["new"] = True
-		from .webModuleEditor import show
+	def onWebModuleEdit(self, evt, webModule=None):
+		if webModule is not None:
+			self.context["webModule"] = webModule
+		from .webModule.editor import show
 		show(self.context)
 	
 	@guarded
 	def onWebModulesManager(self, evt):
-		from .webModulesManager import show
+		from .webModule.manager import show
 		show(self.context)
 	
 	@guarded
