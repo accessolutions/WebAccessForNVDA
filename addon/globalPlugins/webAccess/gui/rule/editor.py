@@ -355,7 +355,7 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 		
 		row = 0
 		# Translators: Label for a control in the Rule Editor
-		item = wx.StaticText(self, label=_("&Alternatives"))
+		item = wx.StaticText(self, label=_("A&lternatives"))
 		gbSizer.Add(item, pos=(row, 0))
 		
 		row += 1
@@ -398,8 +398,8 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 		
 		col += 1
 		# Translators: The label for a button on the Rule Editor dialog
-		item = self.newButton = wx.Button(self, label=_("&New..."))
-		item.Bind(wx.EVT_BUTTON, self.onNewCriteria)
+		item = self.newButton = wx.Button(self, label=_("&Add..."))
+		item.Bind(wx.EVT_BUTTON, self.onAddCriteria)
 		gbSizer.Add(item, pos=(row, col))
 		
 		row += 1
@@ -457,7 +457,7 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 		self.refreshParent(self.categoryParams.treeNode)
 
 	@guarded
-	def onNewCriteria(self, evt):
+	def onAddCriteria(self, evt):
 		context = self.context
 		prm = self.categoryParams
 		context["data"]["criteria"] = OrderedDict({
@@ -643,8 +643,8 @@ class ChildAlternativePanel(AlternativesPanel):
 		# Keep natural visual ordering but set last in tab order
 		row = summaryStartRow
 		# Translators: New criteria button label
-		item = self.newButton = wx.Button(self, label=_("&New..."))
-		item.Bind(wx.EVT_BUTTON, self.onNewCriteria)
+		item = self.newButton = wx.Button(self, label=_("&Add..."))
+		item.Bind(wx.EVT_BUTTON, self.onAddCriteria)
 		gbSizer.Add(item, pos=(row, col))
 		
 		row += 1
@@ -736,7 +736,7 @@ class ChildActionPanel(RuleEditorTreeContextualPanel):
 		# Keep natural visual ordering but set last in tab order
 		col = 0
 		# Translators: The label for a button on the Rule Editor dialog
-		item = wx.Button(self, label=_("&New..."))
+		item = wx.Button(self, label=_("&Add..."))
 		item.Bind(wx.EVT_BUTTON, self.onAddGesture)
 		gbSizer.Add(item, pos=(row, col))
 		

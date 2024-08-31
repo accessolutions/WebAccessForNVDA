@@ -102,7 +102,7 @@ class ActionsPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
 		
 		col += 1
 		# Translators: The label for a button in the Rule Editor dialog
-		item = self.addButton = wx.Button(self, label=_("&New..."))
+		item = self.addButton = wx.Button(self, label=_("&Add..."))
 		item.Bind(wx.EVT_BUTTON, self.onAddGesture)
 		items.append(item)
 		gbSizer.Add(item, pos=(row, col), flag=wx.EXPAND)
