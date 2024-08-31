@@ -1,8 +1,8 @@
-# globalPlugins/webAccess/gui/rulesManager.py
+# globalPlugins/webAccess/gui/rule/Manager.py
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2024 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2021.04.06"
+__version__ = "2024.08.02"
 __author__ = "Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
@@ -30,10 +30,11 @@ import wx
 import addonHandler
 import config
 import gui
+from gui import guiHelper
 import inputCore
 import queueHandler
 
-from ..ruleHandler import (
+from ...ruleHandler import (
 	Rule,
 	Result,
 	Zone,
@@ -42,23 +43,16 @@ from ..ruleHandler import (
 	showCreator,
 	showEditor,
 )
-from ..webModuleHandler import getEditableWebModule, save
+from ...utils import guarded
+from ...webModuleHandler import getEditableWebModule, save
+from .. import ScalingMixin
+from ..rule.editor import getSummary
 
 try:
 	from six import iteritems
 except ImportError:
 	# NVDA version < 2018.3
 	iteritems = dict.iteritems
-
-try:
-	TreeCtrl_GetItemData = wx.TreeCtrl.GetItemPyData
-	TreeCtrl_SetItemData = wx.TreeCtrl.SetItemPyData
-except AttributeError:
-	# NVDA version < 2018.3
-	TreeCtrl_GetItemData = wx.TreeCtrl.GetItemData
-	TreeCtrl_SetItemData = wx.TreeCtrl.SetItemData
-
-from gui import guiHelper
 
 
 addonHandler.initTranslation()
@@ -294,10 +288,11 @@ GROUP_BY = (
 )
 
 
-class Dialog(wx.Dialog):
+class Dialog(wx.Dialog, ScalingMixin):
 
 	def __init__(self, parent):
-		super(Dialog, self).__init__(
+		scale = self.scale
+		super().__init__(
 			parent=gui.mainFrame,
 			id=wx.ID_ANY,
 			style=wx.DEFAULT_DIALOG_STYLE | wx.MAXIMIZE_BOX
@@ -315,7 +310,7 @@ class Dialog(wx.Dialog):
 		)
 		item.Bind(wx.EVT_RADIOBOX, self.onGroupByRadio)
 		contentsSizer.Add(item, flag=wx.EXPAND)
-		contentsSizer.AddSpacer(guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS)
+		contentsSizer.AddSpacer(scale(guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS))
 
 		filtersSizer = wx.GridSizer(1, 2, 10, 10)
 
@@ -323,7 +318,7 @@ class Dialog(wx.Dialog):
 			self,
 			# Translator: A label on the RulesManager dialog.
 			_("&Filter: "),
-			wx.TextCtrl, size=(250, -1), style=wx.TE_PROCESS_ENTER
+			wx.TextCtrl, size=scale(250, -1), style=wx.TE_PROCESS_ENTER
 		)
 		item = self.filterEdit = labeledCtrlHelper.control
 		item.Bind(wx.EVT_TEXT, lambda evt: self.refreshRuleList())
@@ -339,13 +334,11 @@ class Dialog(wx.Dialog):
 		filtersSizer.Add(self.activeOnlyCheckBox)
 
 		contentsSizer.Add(filtersSizer, flag=wx.EXPAND)
-		contentsSizer.AddSpacer(
-			guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS
-		)
+		contentsSizer.AddSpacer(scale(guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS))
 
 		item = self.tree = wx.TreeCtrl(
 			self,
-			size=wx.Size(700, 300),
+			size=scale(700, 300),
 			style=wx.TR_HAS_BUTTONS | wx.TR_HIDE_ROOT | wx.TR_LINES_AT_ROOT
 		)
 		item.Bind(wx.EVT_TREE_ITEM_ACTIVATED, self.onTreeItemActivated)
@@ -353,9 +346,7 @@ class Dialog(wx.Dialog):
 		item.Bind(wx.EVT_TREE_SEL_CHANGED, self.onTreeSelChanged)
 		self.treeRoot = item.AddRoot("root")
 		contentsSizer.Add(item, flag=wx.EXPAND, proportion=2)
-		contentsSizer.AddSpacer(
-			guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS
-		)
+		contentsSizer.AddSpacer(scale(guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS))
 
 		descSizer = wx.GridBagSizer()
 		descSizer.EmptyCellSize = (0, 0)
@@ -365,18 +356,18 @@ class Dialog(wx.Dialog):
 		# Translator: The label for a field on the Rules manager
 		item = wx.StaticText(self, label=_("Summary"))
 		descSizer.Add(item, pos=(0, 0), flag=wx.EXPAND)
-		descSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(1, 0))
+		descSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(1, 0))
 		item = self.ruleSummary = wx.TextCtrl(
 			self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_DONTWRAP | wx.TE_RICH
 		)
 		descSizer.Add(item, pos=(2, 0), flag=wx.EXPAND)
 
-		descSizer.Add((guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL, 0), pos=(0, 1))
+		descSizer.Add(scale(guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL, 0), pos=(0, 1))
 
 		# Translator: The label for a field on the Rules manager
 		item = wx.StaticText(self, label=_("Technical notes"))
 		descSizer.Add(item, pos=(0, 2), flag=wx.EXPAND)
-		descSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(1, 2))
+		descSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(1, 2))
 		item = self.ruleComment = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY)
 		descSizer.Add(item, pos=(2, 2), flag=wx.EXPAND)
 
@@ -384,9 +375,7 @@ class Dialog(wx.Dialog):
 		descSizer.AddGrowableCol(2)
 		descSizer.AddGrowableRow(2)
 
-		contentsSizer.AddSpacer(
-			guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS
-		)
+		contentsSizer.AddSpacer(scale(guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS))
 
 		btnHelper = guiHelper.ButtonHelper(wx.HORIZONTAL)
 		item = self.resultMoveToButton = btnHelper.addButton(
@@ -453,13 +442,13 @@ class Dialog(wx.Dialog):
 			if groupBy.id == lastGroupBy
 		))
 		self.onGroupByRadio(None, refresh=True)
-		self.refreshRuleList(selectObj=context.get("rule"))
+		self.refreshRuleList(selectObj=context.get("result"))
 
 	def getSelectedObject(self):
 		selection = self.tree.Selection
 		if not selection.IsOk():
 			return None
-		return TreeCtrl_GetItemData(self.tree, self.tree.Selection).obj
+		return self.tree.GetItemData(self.tree.Selection).obj
 
 	def getSelectedRule(self):
 		obj = self.getSelectedObject()
@@ -496,7 +485,7 @@ class Dialog(wx.Dialog):
 		def addToTree(parent, tids):
 			for tid in tids:
 				tii = self.tree.AppendItem(parent, tid.label)
-				TreeCtrl_SetItemData(self.tree, tii, tid)
+				self.tree.SetItemData(tii, tid)
 				if shared.selectTreeItem is None:
 					if selectName:
 						if tid.label == selectName:
@@ -528,6 +517,7 @@ class Dialog(wx.Dialog):
 
 		wx.CallAfter(unselect)
 
+	@guarded
 	def onActiveOnlyCheckBox(self, evt):
 		global lastActiveOnly
 		if not self.Enabled:
@@ -535,6 +525,7 @@ class Dialog(wx.Dialog):
 		lastActiveOnly = self.activeOnlyCheckBox.Value
 		self.refreshRuleList()
 
+	@guarded
 	def onGroupByRadio(self, evt, refresh=True):
 		global lastGroupBy, lastActiveOnly
 		groupBy = GROUP_BY[self.groupByRadio.GetSelection()]
@@ -549,6 +540,7 @@ class Dialog(wx.Dialog):
 		if refresh:
 			self.refreshRuleList()
 
+	@guarded
 	def onResultMoveTo(self, evt):
 		obj = self.getSelectedObject()
 		if not obj:
@@ -569,6 +561,7 @@ class Dialog(wx.Dialog):
 		)
 		self.Close()
 
+	@guarded
 	def onRuleDelete(self, evt):
 		rule = self.getSelectedRule()
 		if not rule:
@@ -597,6 +590,7 @@ class Dialog(wx.Dialog):
 			self.refreshRuleList()
 		wx.CallAfter(self.tree.SetFocus)
 
+	@guarded
 	def onRuleEdit(self, evt):
 		rule = self.getSelectedRule()
 		if not rule:
@@ -609,6 +603,7 @@ class Dialog(wx.Dialog):
 			self.refreshRuleList(context["data"]["rule"]["name"])
 		wx.CallAfter(self.tree.SetFocus)
 
+	@guarded
 	def onRuleNew(self, evt):
 		context = self.context.copy()  # Shallow copy
 		if showCreator(context, parent=self):
@@ -622,9 +617,11 @@ class Dialog(wx.Dialog):
 # 			self.refreshRuleList(context["data"]["rule"]["name"])
 		wx.CallAfter(self.tree.SetFocus)
 
+	@guarded
 	def onTreeItemActivated(self, evt):
 		self.onResultMoveTo(evt)
 
+	@guarded
 	def onTreeKeyDown(self, evt):
 		if evt.KeyCode == wx.WXK_F2:
 			self.onRuleEdit(evt)
@@ -634,8 +631,8 @@ class Dialog(wx.Dialog):
 			return
 		evt.Skip()
 
+	@guarded
 	def onTreeSelChanged(self, evt):
-		from logHandler import log
 		if (
 			evt is not None
 			and (evt.EventObject is None or evt.EventObject.IsBeingDeleted())
@@ -652,8 +649,10 @@ class Dialog(wx.Dialog):
 			self.resultMoveToButton.Enabled = bool(rule_getResults_safe(rule))
 			self.ruleDeleteButton.Enabled = True
 			self.ruleEditButton.Enabled = True
-			from .ruleEditor import getSummary
-			self.ruleSummary.Value = getSummary(rule.dump())
+			# Mapping union was added only in Python 3.9
+			context = self.context.copy()
+			context["rule"] = rule
+			self.ruleSummary.Value = getSummary(context, rule.dump())
 			self.ruleComment.Value = rule.comment or ""
 
 	def ShowModal(self, context):
@@ -661,4 +660,4 @@ class Dialog(wx.Dialog):
 		self.Fit()
 		self.CentreOnScreen()
 		self.tree.SetFocus()
-		return super(Dialog, self).ShowModal()
+		return super().ShowModal()

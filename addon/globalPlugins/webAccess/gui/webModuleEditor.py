@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2024 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2021.03.12"
+__version__ = "2021.07.25"
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>"
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
@@ -38,14 +38,13 @@ import api
 import controlTypes
 import config
 import gui
+from gui import guiHelper
 from logHandler import log
 import ui
 
 from ..webModuleHandler import WebModule, getEditableWebModule, getUrl, getWindowTitle, save
+from . import ScalingMixin
 
-
-from gui import guiHelper
-from gui.dpiScalingHelper import DpiScalingHelperMixin
 
 addonHandler.initTranslation()
 
@@ -71,21 +70,22 @@ def show(context):
 	return result == wx.ID_OK
 
 
-class Dialog(wx.Dialog, DpiScalingHelperMixin):
+class Dialog(wx.Dialog, ScalingMixin):
 
 	# Singleton
 	_instance = None
 	def __new__(cls, *args, **kwargs):
 		if Dialog._instance is None:
-			return super(Dialog, cls).__new__(cls, *args, **kwargs)
+			return super().__new__(cls, *args, **kwargs)
 		return Dialog._instance
 
 	def __init__(self, parent):
+		scale = self.scale
 		if Dialog._instance is not None:
 			return
 		Dialog._instance = self
 
-		super(Dialog, self).__init__(
+		super().__init__(
 			parent,
 			style=wx.DEFAULT_DIALOG_STYLE | wx.MAXIMIZE_BOX | wx.RESIZE_BORDER,
 		)
@@ -103,40 +103,40 @@ class Dialog(wx.Dialog, DpiScalingHelperMixin):
 		# Translators: The label for a field in the WebModule editor
 		item = wx.StaticText(self, label=_("Web module name:"))
 		gbSizer.Add(item, pos=(row, 0))
-		gbSizer.Add((guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
+		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item = self.webModuleName = wx.TextCtrl(self)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 
 		row += 1
-		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(row, 0))
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(row, 0))
 
 		row += 1
 		# Translators: The label for a field in the WebModule editor
 		item = wx.StaticText(self, label=_("URL:"))
 		gbSizer.Add(item, pos=(row, 0))
-		gbSizer.Add((guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
+		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item = self.webModuleUrl = wx.ComboBox(self, choices=[])
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 
 		row += 1
-		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(row, 0))
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(row, 0))
 
 		row += 1
 		# Translators: The label for a field in the WebModule editor
 		item = wx.StaticText(self, label=_("Window title:"))
 		gbSizer.Add(item, pos=(row, 0))
-		gbSizer.Add((guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
+		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item = self.webModuleWindowTitle = wx.ComboBox(self, choices=[])
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 
 		row += 1
-		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(row, 0))
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(row, 0))
 
 		row += 1
 		# Translators: The label for a field in the WebModule editor
 		item = wx.StaticText(self, label=_("Help (in Markdown):"))
 		gbSizer.Add(item, pos=(row, 0))
-		gbSizer.Add((guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
+		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item = self.help = wx.TextCtrl(self, style=wx.TE_MULTILINE)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 
@@ -313,5 +313,5 @@ class Dialog(wx.Dialog, DpiScalingHelperMixin):
 		self.Fit()
 		self.CentreOnScreen()
 		self.webModuleName.SetFocus()
-		return super(Dialog, self).ShowModal()
+		return super().ShowModal()
 

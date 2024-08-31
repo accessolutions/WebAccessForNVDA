@@ -21,31 +21,46 @@
 
 
 
-__version__ = "2021.04.06"
+__version__ = "2021.06.28"
 __author__ = "Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 
 from collections import OrderedDict
+from collections.abc import Mapping, Sequence
 import re
+from typing import Any
 import wx
-# from wx.lib.expando import EVT_ETC_LAYOUT_NEEDED, ExpandoTextCtrl
+from wx.lib.expando import EVT_ETC_LAYOUT_NEEDED, ExpandoTextCtrl
 
 import controlTypes
+import inputCore
 import gui
+from gui import guiHelper
 from logHandler import log
+import speech
+import ui
 
-from ..ruleHandler import ruleTypes
-from ..utils import guarded, updateOrDrop
+import addonHandler
+from ..ruleHandler import builtinRuleActions, ruleTypes
+from ..utils import guarded, notifyError, updateOrDrop
 from . import (
 	ContextualMultiCategorySettingsDialog,
 	ContextualSettingsPanel,
 	DropDownWithHideableChoices,
+	EditorType,
 	InvalidValue,
+	SizeFrugalComboBox,
 	ValidationError,
-	guiHelper,
 	stripAccel,
-	stripAccelAndColon
+	stripAccelAndColon,
 )
+from .actions import ActionsPanelBase
+from .rule.abc import RuleAwarePanelBase
+from .properties import Properties, PropertiesPanelBase, Property
+
+
+addonHandler.initTranslation()
+
 from six import iteritems, text_type
 
 EXPR_VALUE = re.compile("(([^!&| ])+( (?=[^!&|]))*)+")
@@ -132,17 +147,28 @@ def translateStatesLblToId(expr, raiseOnError=True):
 	return translateExprValues(expr, translate)
 
 
-def getSummary(data, indent="", condensed=False):
+def getSummary_context(data) -> Sequence[str]:
 	parts = []
-	subParts = []
 	for key, label in list(CriteriaPanel.FIELDS.items()):
-		if key not in CriteriaPanel.CONTEXT_FIELDS or key not in data:
+		if (
+			key not in CriteriaPanel.CONTEXT_FIELDS
+			or (
+				key not in data
+				and key not in data.get("properties", {})
+			)
+		):
 			continue
 		value = data[key]
-		subParts.append("{} {}".format(stripAccel(label), value))
-	if not subParts:
+		parts.append("{} {}".format(stripAccel(label), value))
+	if not parts:
 		# Translators: A mention on the Criteria summary report
-		subParts.append(_("Global - Applies to the whole web module"))
+		parts.append(_("Global - Applies to the whole web module"))
+	return parts
+
+
+def getSummary(context, data, indent="", condensed=False) -> str:
+	parts = []
+	subParts = getSummary_context(data)
 	if condensed:
 		parts.append(", ".join(subParts))
 	else:
@@ -157,44 +183,54 @@ def getSummary(data, indent="", condensed=False):
 				value = translateRoleIdToLbl(value)
 			elif key == "states":
 				value = translateStatesIdToLbl(value)
-		subParts.append("{} {}".format(stripAccel(label), value))
+		subParts.append("{} {}".format(
+			stripAccel(label),
+			value
+		))
 	if subParts:
 		if condensed:
 			parts.append(", ".join(subParts))
 		else:
 			parts.extend(subParts)
+	
+	# Properties
 	subParts = []
-	for key, label in list(OverridesPanel.FIELDS.items()):
-		if key not in data:
-			continue
-		value = data[key]
-		subParts.append("{} {}".format(stripAccel(label), value))
+	props = Properties(context, data.get("properties", {}), iterOnlyFirstMap=True)
+	for prop in props:
+		subParts.append(
+			# Translators: A mention on the Criteria Summary report
+			_("{indent}{field}: {value}").format(
+				indent="  " if not condensed else "",
+				field=prop.displayName,
+				value=prop.displayValue,
+			)
+		)
 	if subParts:
+		# Translators: The label for a section on the Criteria Summary report
+		parts.append(_("{section}:").format(section=PropertiesPanel.title))
 		if condensed:
-			parts.append("{} {}".format(
-				_("Overrides:"),
-				", ".join(subParts)
-			))
+			parts.append(", ".join(subParts))
 		else:
-			for subPart in subParts:
-				parts.append("{} {}".format(_("Overrides"), subPart))
+			parts.extend(subParts)
+
 	if parts:
 		return "{}{}".format(indent, "\n{}".format(indent).join(parts))
-	else:
-		# Translators: Fail-back criteria summary in rule's criteria panel dialog.
-		return "{}{}".format(indent, _("No criteria"))
+	# Translators: A mention on the Criteria Summary report
+	return "{}{}".format(indent, _("No criteria"))
 
 
 @guarded
 def testCriteria(context):
 	ruleData = context["data"]["rule"].copy()
-	ruleData["name"] = "tmp"
+	ruleData["name"] = "__tmp__"
+	ruleData.pop("new", None)
 	ruleData.setdefault("type", ruleTypes.MARKER)
-	ruleData["multiple"] = True
 	critData = context["data"]["criteria"].copy()
-	critData.pop("criteriaIndex", None)
 	critData.pop("new", None)
+	critData.pop("criteriaIndex", None)
 	ruleData["criteria"] = [critData]
+	ruleData.setdefault("properties", {})["multiple"] = True
+	critData.setdefault("properties", {}).pop("multiple", None)
 	mgr = context["webModule"].ruleManager
 	from ..ruleHandler import Rule
 	rule = Rule(mgr, ruleData)
@@ -211,131 +247,125 @@ def testCriteria(context):
 	gui.messageBox(message, caption=_("Criteria test"))
 
 
-class GeneralPanel(ContextualSettingsPanel):
+class CriteriaEditorPanel(RuleAwarePanelBase):
+	
+	def getData(self):
+		return self.context["data"].setdefault("criteria", {})
+
+
+class GeneralPanel(CriteriaEditorPanel):
 	# Translators: The label for a Criteria editor category.
 	title = _("General")
 	
+	def __init__(self, parent):
+		self.hideable: Sequence[wx.Window] = []
+		super().__init__(parent)
+	
 	def makeSettings(self, settingsSizer):
+		scale = self.scale
 		gbSizer = wx.GridBagSizer()
 		gbSizer.EmptyCellSize = (0, 0)
 		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
-		
-		def scale(*args):
-			return self.scaleSize(args)
-		
+
 		row = 0
 		# Translator: The label for a field on the Criteria editor
-		item = wx.StaticText(self, label=_("&Name"))
+		item = wx.StaticText(self, label=_("Criteria Set &name:"))
 		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item = self.criteriaName = wx.TextCtrl(self)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-		
+
 		row += 1
 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-		
+
+		items = self.hideable
 		row += 1
 		# Translator: The label for a field on the Criteria editor
-		item = wx.StaticText(self, label=_("&Sequence order"))
+		item = wx.StaticText(self, label=_("&Sequence order:"))
+		items.append(item)
 		gbSizer.Add(item, pos=(row, 0))
-		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
+		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
+		items.append(item)
 		item = self.sequenceOrderChoice = wx.Choice(self)
+		items.append(item)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-		
+
 		row += 1
 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-		
+
 		row += 1
 		# Translator: The label for a field on the Criteria editor
-		item = wx.StaticText(self, label=_("Technical &notes"))
+		item = wx.StaticText(self, label=_("Summar&y:"))
 		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-		item = self.commentText = wx.TextCtrl(self, size=scale(400, 100), style=wx.TE_MULTILINE)
-		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-		gbSizer.AddGrowableRow(row)
-		
+		item = self.summaryText = ExpandoTextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH)
+		item.Bind(EVT_ETC_LAYOUT_NEEDED, lambda evt: self._sendLayoutUpdatedEvent())
+		gbSizer.Add(item, pos=(row, 2), span=(2, 1), flag=wx.EXPAND)
+
+		row += 2
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+
 		row += 1
 		# Translator: The label for a field on the Criteria editor
-		item = wx.StaticText(self, label=_("&Summary"))
+		item = wx.StaticText(self, label=_("Technical n&otes:"))
 		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-# 		item = self.summaryText = ExpandoTextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY)
-# 		item.Bind(EVT_ETC_LAYOUT_NEEDED, lambda evt: self._sendLayoutUpdatedEvent())
-# 		item.Bind(wx.EVT_TEXT_ENTER, lambda evt: self.Parent.Parent.ProcessEvent(wx.CommandEvent(
-# 			wx.wxEVT_COMMAND_BUTTON_CLICKED, wx.ID_OK
-# 		)))
-		item = self.summaryText = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH)
-		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-		gbSizer.AddGrowableRow(row)
-		
-		row += 1
-		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-		
-		row += 1
-		# Translator: The label for a field on the Criteria editor
-		item = wx.StaticText(self, label=_("Technical &notes"))
-		gbSizer.Add(item, pos=(row, 0))
-		gbSizer.Add((guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-# 		item = self.commentText = ExpandoTextCtrl(self, style=wx.TE_MULTILINE)
-# 		item.Bind(EVT_ETC_LAYOUT_NEEDED, lambda evt: self._sendLayoutUpdatedEvent())
 		item = self.commentText = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_RICH)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 		gbSizer.AddGrowableRow(row)
-		
+
 		gbSizer.AddGrowableCol(2)
 	
 	def initData(self, context):
-		self.context = context
-		data = context["data"]["criteria"]
+		super().initData(context)
+		data = self.getData()
 		new = data.get("new", False)
 		self.sequenceOrderChoice.Clear()
 		nbCriteria = len(context["data"]["rule"]["criteria"]) + (1 if new else 0)
 		if nbCriteria == 1:
-			self.sequenceOrderChoice.Hide()
+			for item in self.hideable:
+				item.Show(False)
 		else:
 			for index in range(nbCriteria):
 				self.sequenceOrderChoice.Append(str(index + 1))
 			index = data.get("criteriaIndex", nbCriteria + 1)
 			self.sequenceOrderChoice.SetSelection(index)
-			self.criteriaName.Value = data.get("name", "")
-			self.commentText.Value = data.get("comment", "")
-			self.refreshSummary()
-	
-	def updateData(self, data=None):
-		if data is None:
-			data = self.context["data"]["criteria"]
+		self.criteriaName.Value = data.get("name", "")
+		self.commentText.Value = data.get("comment", "")
+		self.refreshSummary()
+
+	def updateData(self):
+		data = self.getData()
 		updateOrDrop(data, "name", self.criteriaName.Value)
-		updateOrDrop(data, "comment", self.commentText.Value)		
-	
+		updateOrDrop(data, "comment", self.commentText.Value)
+
 	def getSummary(self):
 		if not self.context:
 			return ""
-		data = self.context["data"]["criteria"]
-		for panel in list(self.Parent.Parent.catIdToInstanceMap.values()):
-			panel.updateData(data)
-		return getSummary(data)
-	
+		self.Parent.Parent.currentCategory.updateData()
+		return getSummary(self.context, self.getData())
+
 	def refreshSummary(self):
 		self.summaryText.Value = self.getSummary()
-	
+
 	def onPanelActivated(self):
 		self.refreshSummary()
-		super(GeneralPanel, self).onPanelActivated()
-	
-	def onPanelDeactivated(self):
-		self.updateData()
-		super(GeneralPanel, self).onPanelDeactivated()
-	
+		super().onPanelActivated()
+
+	def spaceIsPressedOnTreeNode(self):
+		self.criteriaName.SetFocus()
+
 	def onSave(self):
-		self.updateData()
-		data = self.context["data"]["criteria"]
-		data["criteriaIndex"] = self.sequenceOrderChoice.Selection
+		super().onSave()
+		data = self.getData()
+		index = self.sequenceOrderChoice.Selection
+		data["criteriaIndex"] = index if index != -1 else 0
 
 
-class CriteriaPanel(ContextualSettingsPanel):
+class CriteriaPanel(CriteriaEditorPanel):
 	# Translators: The label for a Criteria editor category.
 	title = _("Criteria")
-	
+
 	# The semi-column is part of the labels because some localizations
 	# (ie. French) require it to be prepended with one space.
 	FIELDS = OrderedDict((
@@ -364,26 +394,17 @@ class CriteriaPanel(ContextualSettingsPanel):
 		# Translator: The label for a Rule Criteria field
 		("index", pgettext("webAccess.ruleCriteria", "Inde&x:")),
 	))
-	
+
 	CONTEXT_FIELDS = ["contextPageTitle", "contextPageType", "contextParent"]
-	
-	def getSummary(self):
-		if not self.context:
-			return ""
-		data = self.context["data"]["criteria"].copy()
-		self.updateData(data)
-		return getSummary(data)
-	
+
 	def makeSettings(self, settingsSizer):
+		scale = self.scale
 		gbSizer = wx.GridBagSizer()
 		gbSizer.EmptyCellSize = (0, 0)
 		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
-		
-		def scale(*args):
-			return self.scaleSize(args)
-		
+
 		hidable = self.hidable = {}
-		
+
 		row = 0
 		item = wx.StaticText(self, label=_("Context:"))
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
@@ -405,7 +426,7 @@ class CriteriaPanel(ContextualSettingsPanel):
 
 		row += 1
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-		
+
 		row += 1
 		items = hidable["contextPageTitle"] = []
 		item = wx.StaticText(self, label=self.FIELDS["contextPageTitle"])
@@ -415,16 +436,16 @@ class CriteriaPanel(ContextualSettingsPanel):
 		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item.Show(False)
 		items.append(item)
-		item = self.contextPageTitleCombo = wx.ComboBox(self)
+		item = self.contextPageTitleCombo = wx.ComboBox(self, size=(-1, 30))
 		item.Hide()
 		items.append(item)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-		
+
 		row += 1
 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
 		item.Show(False)
 		items.append(item)
-		
+
 		row += 1
 		items = hidable["contextPageType"] = []
 		item = wx.StaticText(self, label=self.FIELDS["contextPageType"])
@@ -438,12 +459,12 @@ class CriteriaPanel(ContextualSettingsPanel):
 		item.Hide()
 		items.append(item)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-		
+
 		row += 1
 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
 		item.Show(False)
 		items.append(item)
-		
+
 		row += 1
 		items = hidable["contextParent"] = []
 		item = wx.StaticText(self, label=self.FIELDS["contextParent"])
@@ -456,119 +477,119 @@ class CriteriaPanel(ContextualSettingsPanel):
 		item = self.contextParentCombo = wx.ComboBox(self)
 		item.Hide()
 		items.append(item)
-		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)		
-		
+		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
+
 		row += 1
 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
 		item.Show(False)
 		items.append(item)
-		
+
 		row += 1
 		item = wx.StaticText(self, label=self.FIELDS["text"])
 		gbSizer.Add(item, pos=(row, 0))
 		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-		item = self.textCombo = wx.ComboBox(self)
+		item = self.textCombo = SizeFrugalComboBox(self)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-		
+
 		row += 1
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-		
+
 		row += 1
 		item = wx.StaticText(self, label=self.FIELDS["role"])
 		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item = self.roleCombo = wx.ComboBox(self)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-		
+
 		row += 1
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-		
+
 		row += 1
 		item = wx.StaticText(self, label=self.FIELDS["tag"])
 		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item = self.tagCombo = wx.ComboBox(self)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-		
+
 		row += 1
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-		
+
 		row += 1
 		item = wx.StaticText(self, label=self.FIELDS["id"])
 		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-		item = self.idCombo = wx.ComboBox(self)
+		item = self.idCombo = SizeFrugalComboBox(self)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-		
+
 		row += 1
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-		
+
 		row += 1
 		item = wx.StaticText(self, label=self.FIELDS["className"])
 		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-		item = self.classNameCombo = wx.ComboBox(self)
+		item = self.classNameCombo = SizeFrugalComboBox(self)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-		
+
 		row += 1
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-		
+
 		row += 1
 		item = wx.StaticText(self, label=self.FIELDS["states"])
 		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-		item = self.statesCombo = wx.ComboBox(self)
+		item = self.statesCombo = SizeFrugalComboBox(self)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-		
+
 		row += 1
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-		
+
 		row += 1
 		item = wx.StaticText(self, label=self.FIELDS["src"])
 		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-		item = self.srcCombo = wx.ComboBox(self)
+		item = self.srcCombo = SizeFrugalComboBox(self)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-		
+
 		row += 1
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-		
+
 		row += 1
 		item = wx.StaticText(self, label=self.FIELDS["relativePath"])
 		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item = self.relativePathCombo = wx.TextCtrl(self)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-		
+
 		row += 1
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-		
+
 		row += 1
 		item = wx.StaticText(self, label=self.FIELDS["index"])
 		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item = self.indexText = wx.TextCtrl(self)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-		
+
 		row += 1
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-		
+
 		row += 1
 		# Translators: The label for a button in the Criteria Editor dialog
 		item = wx.Button(self, label=_("Test these criteria (F5)"))
 		item.Bind(wx.EVT_BUTTON, self.Parent.Parent.onTestCriteria)
 		gbSizer.Add(item, pos=(row, 0), span=(1, 3))
-		
+
 		gbSizer.AddGrowableCol(2)
 	
 	def initData(self, context):
-		self.context = context
-		data = self.context["data"]["criteria"]
+		super().initData(context)
+		data = self.getData()
 		mgr = context["webModule"].ruleManager
-		
+
 		if mgr.isReady and mgr.nodeManager:
 			node = mgr.nodeManager.getCaretNode()
-			
+
 			self.contextPageTitleCombo.Set([context["pageTitle"]])
 			self.contextPageTypeCombo.Set(mgr.getPageTypes())
 			parents = []
@@ -580,7 +601,7 @@ class CriteriaPanel(ContextualSettingsPanel):
 				):
 					parents.insert(0, rule.name)
 			self.contextParentCombo.Set(parents)
-			
+
 			textNode = node
 			node = node.parent
 			t = textNode.text
@@ -589,7 +610,7 @@ class CriteriaPanel(ContextualSettingsPanel):
 			textChoices = [t]
 			if node.previousTextNode is not None:
 				textChoices.append("<" + node.previousTextNode.text)
-			
+
 			roleChoices = []
 			tagChoices = []
 			idChoices = []
@@ -613,14 +634,13 @@ class CriteriaPanel(ContextualSettingsPanel):
 			self.classNameCombo.Set(classChoices)
 			self.statesCombo.Set(statesChoices)
 			self.srcCombo.Set(srcChoices)
-		
-		
+
 		self.refreshContextMacroChoices(initial=True)
 		self.onContextMacroChoice(None)
 		self.contextPageTitleCombo.Value = data.get("contextPageTitle", "")
 		self.contextPageTypeCombo.Value = data.get("contextPageType", "")
 		self.contextParentCombo.Value = data.get("contextParent", "")
-		
+
 		self.textCombo.Value = data.get("text", "")
 		value = data.get("role", "")
 		if isinstance(value, InvalidValue):
@@ -642,10 +662,9 @@ class CriteriaPanel(ContextualSettingsPanel):
 			self.indexText.Value = value.raw
 		else:
 			self.indexText.Value = str(value)
-	
-	def updateData(self, data=None):
-		if data is None:
-			data = self.context["data"]["criteria"]
+
+	def updateData(self):
+		data = self.getData()
 		updateOrDrop(data, "contextPageTitle", self.contextPageTitleCombo.Value)
 		updateOrDrop(data, "contextPageType", self.contextPageTypeCombo.Value)
 		updateOrDrop(data, "contextParent", self.contextParentCombo.Value)
@@ -671,7 +690,7 @@ class CriteriaPanel(ContextualSettingsPanel):
 		except Exception:
 			value = InvalidValue(value)
 		updateOrDrop(data, "index", value)
-	
+
 	def refreshContextMacroChoices(self, initial=False):
 		context = self.context
 		dropDown = self.contextMacroDropDown
@@ -699,7 +718,7 @@ class CriteriaPanel(ContextualSettingsPanel):
 				else:
 					dropDown.setSelectedChoiceKey(filled[0], default="global")
 		self.onContextMacroChoice(None)
-	
+
 	def onContextMacroChoice(self, evt):
 		dropDown = self.contextMacroDropDown
 		choice = self.contextMacroDropDown.getSelectedChoiceKey()
@@ -718,19 +737,17 @@ class CriteriaPanel(ContextualSettingsPanel):
 				item.Show(show)
 		self.Thaw()
 		self._sendLayoutUpdatedEvent()
-	
+
 	def onPanelActivated(self):
 		self.refreshContextMacroChoices()
-		#self.onContextMacroChoice(None)
-		super(CriteriaPanel, self).onPanelActivated()
-	
-	def onPanelDeactivated(self):
-		self.updateData()
-		super(CriteriaPanel, self).onPanelDeactivated()
-	
+		# self.onContextMacroChoice(None)
+		super().onPanelActivated()
+
+	def spaceIsPressedOnTreeNode(self):
+		self.contextMacroDropDown.SetFocus()
+
 	def isValid(self):
 		data = self.context["data"]["criteria"]
-
 		roleLblExpr = self.roleCombo.Value
 		if roleLblExpr.strip():
 			if not EXPR.match(roleLblExpr):
@@ -759,7 +776,7 @@ class CriteriaPanel(ContextualSettingsPanel):
 				)
 				self.roleCombo.SetFocus()
 				return False
-		
+
 		statesLblExpr = self.statesCombo.Value
 		if statesLblExpr:
 			if not EXPR.match(statesLblExpr):
@@ -788,7 +805,7 @@ class CriteriaPanel(ContextualSettingsPanel):
 				)
 				self.statesCombo.SetFocus()
 				return False
-		
+
 		index = self.indexText.Value
 		if index.strip():
 			try:
@@ -805,299 +822,187 @@ class CriteriaPanel(ContextualSettingsPanel):
 				)
 				self.indexText.SetFocus()
 				return False
-		
+
 		return True
-	
-	def onSave(self):
-		self.updateData()		
 
 
-# todo: make this panel
-class OverridesPanel(ContextualSettingsPanel):
-	# Translators: The label for a Criteria editor category.
-	title = _("Overrides")
-	
-	# The semi-column is part of the labels because some localizations
-	# (ie. French) require it to be prepended with one space.
-	FIELDS = OrderedDict((
-# 		# Translator: Multiple results checkbox label for the rule dialog's properties panel.
-# 		("multiple", pgettext("webAccess.ruleProperties", u"&Multiple results")),
-# 		# Translator: Activate form mode checkbox label for the rule dialog's properties panel.
-# 		("formMode", pgettext("webAccess.ruleProperties", u"Activate &form mode")),
-# 		# Translator: Skip page down checkbox label for the rule dialog's properties panel.
-# 		("skip", pgettext("webAccess.ruleProperties", u"S&kip with Page Down")),
-# 		# Translator: Speak rule name checkbox label for the rule dialog's properties panel.
-# 		("sayName", pgettext("webAccess.ruleProperties", u"&Speak rule name")),
-		# Translator: Custom name input label for the rule dialog's properties panel.
-		("customName", pgettext("webAccess.ruleProperties", "Custom &name:")),
-		# Label depends on rule type)
-		("customValue", None),
-# 		# Translator: Transform select label for the rule dialog's properties panel.
-# 		("mutation", pgettext("webAccess.ruleProperties", u"&Transform:")),
-	))
-	
-	RULE_TYPE_FIELDS = OrderedDict((
-		(ruleTypes.PAGE_TITLE_1, ("customValue",)),
-		(ruleTypes.PAGE_TITLE_2, ("customValue",)),
-		(ruleTypes.ZONE, (
-# 			"formMode",
-# 			"skip",
-# 			"sayName",
-			"customName",
-			"customValue",
-# 			"mutation"
-		)),
-		(ruleTypes.MARKER, (
-# 			"multiple",
-# 			"formMode",
-# 			"skip",
-# 			"sayName",
-			"customName",
-			"customValue",
-# 			"mutation"
-		)),
-	))
-	
-	@staticmethod
-	def getAltFieldLabel(ruleType, key, default=None):
-		if key == "customValue":
-			if ruleType in (ruleTypes.PAGE_TITLE_1, ruleTypes.PAGE_TITLE_2):
-				# Translator: Field label on the RulePropertiesEditor dialog.
-				return pgettext("webAccess.ruleProperties", "Custom page &title:")
-			elif ruleType in (ruleTypes.ZONE, ruleTypes.MARKER):
-				# Translator: Field label on the RulePropertiesEditor dialog.
-				return pgettext("webAccess.ruleProperties", "Custom messa&ge:")
-		return default
+class ActionsPanel(ActionsPanelBase, CriteriaEditorPanel):
 	
 	def makeSettings(self, settingsSizer):
-		gbSizer = wx.GridBagSizer()
-		gbSizer.EmptyCellSize = (0, 0)
-		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
-		
-		def scale(*args):
-			return tuple([
-				self.scaleSize(arg) if arg > 0 else arg
-				for arg in args
-			])
-		
-		hidable = self.hidable = {"spacers": []}
-		
-		row = 0
-		# Translators: Displayed when the selected rule type doesn't support any property
-		item = self.noPropertiesLabel = wx.StaticText(self, label=_("No property available for the selected rule type"))
-		item.Hide()
-		hidable["noProperties"] = [item]
-		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
-
-# 		row += 1
-# 		item = self.multipleCheckBox = wx.CheckBox(self, label=self.FIELDS["multiple"])
-# 		item.Hide()
-# 		hidable["multiple"] = [item]
-# 		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
-# 		
-# 		row += 1
-# 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-# 		item.Show(False)
-# 		hidable["spacers"].append(item)
-# 		
-# 		row += 1
-# 		item = self.formModeCheckBox = wx.CheckBox(self, label=self.FIELDS["formMode"])
-# 		item.Hide()
-# 		hidable["formMode"] = [item]
-# 		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
-# 		
-# 		row += 1
-# 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-# 		item.Show(False)
-# 		hidable["spacers"].append(item)
-# 		
-# 		row += 1
-# 		item = self.skipCheckBox = wx.CheckBox(self, label=self.FIELDS["skip"])
-# 		item.Hide()
-# 		hidable["skip"] = [item]
-# 		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
-# 		
-# 		row += 1
-# 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-# 		item.Show(False)
-# 		hidable["spacers"].append(item)
-# 		
-# 		row += 1
-# 		item = self.sayNameCheckBox = wx.CheckBox(self, label=self.FIELDS["sayName"])
-# 		item.Hide()
-# 		hidable["sayName"] = [item]
-# 		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
-# 		
-# 		row += 1
-# 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-# 		item.Show(False)
-# 		hidable["spacers"].append(item)
-		
-		row += 1
-		items = hidable["customName"] = []
-		item = self.customNameLabel = wx.StaticText(self, label=self.FIELDS["customName"])
-		item.Hide()
-		items.append(item)
-		gbSizer.Add(item, pos=(row, 0))
-		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-		item.Show(False)
-		items.append(item)
-		item = self.customNameText = wx.TextCtrl(self, size=scale(350, -1))
-		item.Hide()
-		items.append(item)
-		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-		
-		row += 1
-		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-		item.Show(False)
-		hidable["spacers"].append(item)
-		
-		row += 1
-		items = hidable["customValue"] = []
-		item = self.customValueLabel = wx.StaticText(self, label=self.FIELDS["customValue"] or "")
-		item.Hide()
-		items.append(item)
-		gbSizer.Add(item, pos=(row, 0))
-		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-		item.Show(False)
-		items.append(item)
-		item = self.customValueText = wx.TextCtrl(self, size=scale(350, -1))
-		item.Hide()
-		items.append(item)
-		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-		
-# 		row += 1
-# 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-# 		item.Show(False)
-# 		hidable["spacers"].append(item)
-# 		
-# 		row += 1
-# 		items = hidable["mutation"] = []
-# 		item = self.mutationLabel = wx.StaticText(self, label=self.FIELDS["mutation"])
-# 		item.Hide()
-# 		items.append(item)
-# 		gbSizer.Add(item, pos=(row, 0))
-# 		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-# 		item.Show(False)
-# 		items.append(item)
-# 		item = self.mutationCombo = wx.ComboBox(self, style=wx.CB_READONLY)
-# 		item.Hide()
-# 		items.append(item)
-# 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-		
-		gbSizer.AddGrowableCol(2)
-		
-	def initData(self, context):
-		self.context = context
-		for items in list(self.hidable.values()):
-			for item in items:
-				item.Show(False)
-		if not context:
-			for item in self.hidable["noProperties"]:
-				item.Show()
+		super().makeSettings(settingsSizer)
+		self.autoActionChoice.Bind(wx.EVT_CHAR_HOOK, self.onAutoActionChoice_charHook)
+	
+	def getAutoAction(self):
+		return self.getData().get("properties", {}).get(
+			"autoAction", self.getRuleAutoAction()
+		)
+	
+	def getRuleAutoAction(self):
+		return self.getRuleData().get("properties", {}).get("autoAction")
+	
+	def getAutoActionChoices(self):
+		choices = super().getAutoActionChoices()
+		ruleValue = self.getRuleAutoAction()
+		# Translators: An entry in the Automatic Action list on the Criteria Editor denoting the rule value
+		choices[ruleValue] = "{action} (default)".format(
+			action=choices.get(ruleValue, f"*{ruleValue}")
+		)
+		return choices
+	
+	@guarded
+	def onAutoActionChoice_charHook(self, evt):
+		keycode = evt.GetKeyCode()
+		mods = evt.GetModifiers()
+		if keycode == wx.WXK_DELETE and not mods:
+			self.resetAutoAction()
 			return
-		data = context["data"]["criteria"]
-		
-		ruleType = context["data"]["rule"].get("type")
-		fields = self.RULE_TYPE_FIELDS.get(ruleType, {})
-		hidable = self.hidable
-		
-		if not fields:
-			for item in hidable["noProperties"]:
-				item.Show(True)
-				return
-		
-		for field in fields:
-			if field in hidable:
-				for item in hidable[field]:
-					item.Show(True)
-		
-		for item in hidable["spacers"][:len(fields) - 1]:
-			item.Show(True)
-		
-# 		self.multipleCheckBox.Value = data.get("multiple", False)
-# 		self.formModeCheckBox.Value = data.get("formMode", False)
-# 		self.skipCheckBox.Value = data.get("skip", False)
-# 		self.sayNameCheckBox.Value = data.get("sayName", True)
-		self.customNameText.Value = data.get("customName", "")
-		self.customValueLabel.Label = self.getAltFieldLabel(ruleType, "customValue")
-		self.customValueText.Value = data.get("customValue", "")
-		
-# 		self.mutationCombo.Clear()
-# 		self.mutationCombo.Append(
-# 			# Translators: The label when there is no control mutation.
-# 			pgettext("webAccess.controlMutation", "<None>"),
-# 			""
-# 		)
-# 		for id in MUTATIONS_BY_RULE_TYPE.get(ruleType, []):
-# 			label = mutationLabels.get(id)
-# 			if label is None:
-# 				log.error("No label for mutation id: {}".format(id))
-# 				label = id
-# 			self.mutationCombo.Append(label, id)
-# 		mutation = data.get("mutation") # if show else None
-# 		if mutation:
-# 			for index in range(1, self.mutationCombo.Count + 1):
-# 				id = self.mutationCombo.GetClientData(index)
-# 				if id == mutation:
-# 					break
-# 			else:
-# 				# Allow to bypass mutation choice by rule type
-# 				label = mutationLabels.get(id)
-# 				if label is None:
-# 					log.warning("No label for mutation id: {}".format(id))
-# 					label = id
-# 				self.mutationCombo.Append(label, id)
-# 				index += 1
-# 		else:
-# 			index = 0
-# 		self.mutationCombo.SetSelection(index)
+		evt.Skip()
 	
-	def updateData(self, data=None):
-		if data is None:
-			data = self.context["data"]["criteria"]
-		data = self.context["data"]["rule"]
-# 		updateOrDrop(data, "multiple", str(self.multipleCheckBox.Value))
-# 		updateOrDrop(data, "formMode", str(self.formModeCheckBox.Value))
-# 		updateOrDrop(data, "skip", str(self.skipCheckBox.Value))
-# 		updateOrDrop(data, "sayName", str(self.sayNameCheckBox.Value))
-		updateOrDrop(data, "customName", self.customNameText.Value)
-		updateOrDrop(data, "customValue", self.customValueText.Value)
-# 		if self.mutationCombo.Selection > 0:
-# 			data["mutation"] = self.mutationCombo.GetClientData(self.mutationCombo.Selection)
+	def resetAutoAction(self):
+		data = self.getData().setdefault("properties", {})
+		data["autoAction"] = self.getRuleAutoAction()
+		self.updateAutoActionChoice(refreshChoices=False) 
+		# Translators: Announced when resetting a property to its default value in the editor
+		ui.message(_("Reset to {value}").format(value=self.autoActionChoice.StringSelection))
+
+
+class PropertyOverrideSelectMenu(wx.Menu):
+	"""Menu to select a property to override on the CriteriaPropertiesPanel
+	"""
 	
-	def onSave(self):
-		self.updateData()
-		data = self.context["data"]["rule"]
-		ruleType = data["type"]
-		showedFields = self.RULE_TYPE_FIELDS.get(ruleType, {})
-		for field in list(self.FIELDS.keys()):
-			if field not in showedFields and data.get(field):
-				del data[field]
+	def __init__(self, menuIdProps: Mapping[int, Property]):
+		super().__init__(title=_("Select a property to override"))
+		for menuId, prop in menuIdProps.items():
+			self.Append(menuId, prop.displayName)
+
+
+class PropertiesPanel(PropertiesPanelBase, CriteriaEditorPanel):
+	
+	def makeSettings(self, settingsSizer):
+		super().makeSettings(settingsSizer)
+		scale = self.scale
+		gbSizer = self.gbSizer
+		
+		# Translators: The label for a list on the Criteria Editor dialog
+		self.listLabel.Label = _("Properties specific to this criteria set")
+		listCtrl = self.listCtrl
+		# Translators: A hint stating a list is empty and how to populate it on the Criteria Editor dialog
+		listCtrl.descriptionIfEmpty = _("None. Press alt+n to override a property.")
+		# Translators: A column header in the Criteria Editor dialog
+		self.listCtrl.InsertColumn(2, _("Rule value"))
+
+		col = 4
+		row = 3
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL), pos=(row, col))
+
+		col += 1
+		# Translators: The label for a button on the Criteria Editor dialog
+		item = self.addPropBtn = wx.Button(self, label=_("&New")) #FIXME, size=(-1, 30))
+		item.Enable(False)
+		item.Bind(wx.EVT_BUTTON, self.onAddPropBtn)
+		gbSizer.Add(item, pos=(row, col))
+
+		row += 1
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, col))
+
+		row += 1
+		# Translators: The label for a button on the Criteria Editor dialog
+		item = self.delPropBtn = wx.Button(self, label=_("&Delete")) # FIXME, size=(-1, 30))
+		item.Enable(False)
+		item.Bind(wx.EVT_BUTTON, self.onDelPropBtn)
+		gbSizer.Add(item, pos=(row, col))
+	
+	# Called by PropertiesPanelBase.initData
+	def initData_properties(self):
+		context = self.context
+		self.props = Properties(
+			context,
+			self.getData(),
+			context["data"]["rule"].setdefault("properties", {}),
+			iterOnlyFirstMap=True,
+		)
+	
+	def listCtrl_insert(self, index: int, prop: Property) -> None:
+		super().listCtrl_insert(index, prop)
+		self.listCtrl.SetStringItem(index, 2, prop.displayDefault)
+
+	def listCtrl_update_all(self):
+		super().listCtrl_update_all()
+		props = self.props
+		self.delPropBtn.Enable(bool(props))
+		self.addPropBtn.Enable(len(props.getSupportedPropertiesName()) > len(props))
+
+	@guarded
+	def onAddPropBtn(self, evt):
+		props = self.props
+		overrideable = tuple(
+			props.getProperty(name)
+			for name in props.getSupportedPropertiesName()
+			if name not in props._map.maps[0]
+		)
+		startId = wx.Window.NewControlId(len(overrideable))
+		try:
+			menuIdProp = {startId + index: prop for index, prop in enumerate(overrideable)}
+			menu = PropertyOverrideSelectMenu(menuIdProp)
+			menuId = self.GetPopupMenuSelectionFromUser(menu)
+		except Exception:
+			try:
+				# Reserved IDs are automatically reclaimed upon assignment to the MenuItem
+				# In case something went wrong, try to unreserve them manually to avoid
+				# running out of stock.
+				wx.Window.UnreserveControlId(startId, len(overrideable))
+			except Exception:
+				pass
+			notifyError()
+			return
+		prop = menuIdProp[menuId] if menuId != wx.ID_NONE else None
+		if not prop:
+			return
+		prop.value = prop.default  # Setting any value actually adds to the ChainMap based container
+		self.listCtrl_update_all()
+		self.prop = prop
+		if prop.editorType is EditorType.TEXT:
+			self.editor.SetFocus()
+		else:
+			self.listCtrl.SetFocus()
+	
+	@guarded
+	def onDelPropBtn(self, evt):
+		self.prop.reset()
+		self.listCtrl_update_all()
+		if not self.props:
+			self.addPropBtn.SetFocus()
+	
+	def prop_reset(self):
+		# Using Property.reset would actually remove the overridden property from the list.
+		# Manually reset to its default instead.
+		# Note default values are dropped upon saving anyways.
+		prop = self.prop
+		prop.value = prop.default
+		self.updateEditor()
+		self.onEditor_change()
+		speech.cancelSpeech()  # Avoid announcing the whole eventual control refresh
+		# Translators: Announced when resetting a property to its default value in the editor
+		ui.message(_("Reset to {value}").format(value=self.prop.displayValue))
 
 
 class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
-
-	# Translators: This is the label for the WebAccess criteria settings dialog.
-	title = _("WebAccess Criteria set editor")
-	categoryClasses = [GeneralPanel, CriteriaPanel, OverridesPanel]
-	INITIAL_SIZE = (800, 480)
+	# Translators: The title of the Criteria Editor dialog.
+	title = _("WebAccess Criteria Set editor")
+	categoryClasses = [GeneralPanel, CriteriaPanel, ActionsPanel, PropertiesPanel]
+	INITIAL_SIZE = (900, 580)
 	
 	def makeSettings(self, settingsSizer):
-		super(CriteriaEditorDialog, self).makeSettings(settingsSizer)
+		super().makeSettings(settingsSizer)
 		idTestCriteria = wx.NewId()
 		self.Bind(wx.EVT_MENU, self.onTestCriteria, id=idTestCriteria)
 		self.SetAcceleratorTable(wx.AcceleratorTable([
 			(wx.ACCEL_NORMAL, wx.WXK_F5, idTestCriteria)
 		]))
-	
+
 	def onTestCriteria(self, evt):
-		self.updateData()
+		self.currentCategory.updateData()
 		testCriteria(self.context)
-	
-	def updateData(self):
-		for panel in list(self.catIdToInstanceMap.values()):
-			panel.updateData()
 
 
 def show(context, parent=None):

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2024 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 """Web Access GUI."""
 
 
-__version__ = "2021.03.13"
+__version__ = "2024.07.26"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -46,6 +46,8 @@ from ..overlay import WebAccessBmdti
 from ..store import DuplicateRefError
 from ..store import MalformedRefError
 
+
+PACKAGE_NAME = "webModulesMC"
 
 store = None
 _catalog = None
@@ -206,7 +208,7 @@ def save(webModule, layerName=None, prompt=True, force=False, fromRuleEditor=Fal
 			).format(len(layers), webModule, webModule.layers))
 		layer = layers[0]
 	try:
-		log.info("saving layer {!r}".format(layer))
+		log.debug("saving layer {!r}".format(layer))
 		if layer.storeRef is None:
 			storeRef = store.create(webModule, force=force)
 			prompt and ui.message(
@@ -251,7 +253,7 @@ def save(webModule, layerName=None, prompt=True, force=False, fromRuleEditor=Fal
 		return False
 	if not fromRuleEditor:
 		# only if webModule creation or modification
-		log.info ("refresh %s" % prompt)
+		log.debug ("refresh %s" % prompt)
 		getWebModules(refresh=True)
 	resetRunningModules()
 	return True
@@ -438,17 +440,18 @@ def getWebModuleFactory(name):
 	if not hasCustomModule(name):
 		return WebModule
 	mod = None
+	fqModName = f"{PACKAGE_NAME}.{name}"
 	try:
 		import importlib
-		mod = importlib.import_module("webModulesMC.{}".format(name), package="webModulesMC")
+		mod = importlib.import_module(fqModName, package=PACKAGE_NAME)
 	except Exception:
-		log.exception("Could not import custom module webModulesMC.{}".format(name))
+		log.exception(f"Could not import custom module {fqModName}")
 	if not mod:
 		return WebModule
 	apiVersion = getattr(mod, "API_VERSION", None)
-	log.info(f"apiVersion (str): {apiVersion!r}")
+	log.debug(f"apiVersion (str): {apiVersion!r}")
 	apiVersion = version.parse(apiVersion or "")
-	log.info(f"apiVersion (obj): {apiVersion!r} ({apiVersion})")
+	log.debug(f"apiVersion (obj): {apiVersion!r} ({apiVersion})")
 	if apiVersion != WebModule.API_VERSION:
 		raise InvalidApiVersion(apiVersion)
 	ctor = getattr(mod, "WebModule", None)
@@ -464,7 +467,7 @@ def getWebModuleFactory(name):
 
 def hasCustomModule(name):
 	return any(
-		importer.find_module("webModulesMC.{}".format(name))
+		importer.find_module(f"{PACKAGE_NAME}.{name}")
 		for importer in _importers
 		if importer
 	)
@@ -475,12 +478,12 @@ def initialize():
 	global _importers
 
 	import imp
-	webModules = imp.new_module("webModulesMC")
+	webModules = imp.new_module(PACKAGE_NAME)
 	webModules.__path__ = list()
 	import sys
-	sys.modules["webModulesMC"] = webModules
+	sys.modules[PACKAGE_NAME] = webModules
 	addDirsToPythonPackagePath(webModules)
-	_importers = list(pkgutil.iter_importers("webModulesMC.__init__"))
+	_importers = list(pkgutil.iter_importers(f"{PACKAGE_NAME}.__init__"))
 
 	from ..store.webModule import WebModuleStore
 	store = WebModuleStore()
@@ -489,7 +492,7 @@ def initialize():
 def terminate():
 	import sys
 	try:
-		del sys.modules["webModulesMC"]
+		del sys.modules[PACKAGE_NAME]
 	except KeyError:
 		pass
 	_importers = None

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2024 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -45,11 +45,13 @@ Monkey-patched NVDA functions:
 """
 
 
-__version__ = "2021.03.12"
-__author__ = (
-	"Yannick Plassiard <yan@mistigri.org>, "
-	"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
-	"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
+__version__ = "2024.08.25"
+__authors__ = (
+	"Yannick Plassiard <yan@mistigri.org>",
+	"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
 )
 
 
@@ -66,6 +68,7 @@ from scriptHandler import script
 import addonHandler
 import api
 import baseObject
+from buildVersion import version_detailed as NVDA_VERSION
 import controlTypes
 import eventHandler
 import globalPluginHandler
@@ -109,7 +112,7 @@ scheduler = None
 class DefaultBrowserScripts(baseObject.ScriptableObject):
 
 	def __init__(self, warningMessage):
-		super(DefaultBrowserScripts,self).__init__()
+		super().__init__()
 		self.warningMessage = warningMessage
 		for ascii in range(ord("a"), ord("z")+1):
 			character = chr(ascii)
@@ -144,7 +147,7 @@ def getVersion():
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def __init__(self):
-		super(globalPluginHandler.GlobalPlugin, self).__init__()
+		super().__init__()
 
 		from .config import initialize as config_initialize
 		config_initialize()
@@ -251,9 +254,14 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		from .gui.settings import WebAccessSettingsDialog
 		# FIXME:
 		# After the above import, it appears that the `gui` name now points to the `.gui` module
-		# rather that NVDA's `gui`… No clue why…
+		# rather than NVDA's `gui`… No clue why…
 		import gui
-		gui.mainFrame._popupSettingsDialog(WebAccessSettingsDialog)
+		if NVDA_VERSION < "2023.2":
+			# Deprecated as of NVDA 2023.2
+			gui.mainFrame._popupSettingsDialog(WebAccessSettingsDialog)
+		else:
+			# Now part of the public API as of NVDA PR #15121
+			gui.mainFrame.popupSettingsDialog(WebAccessSettingsDialog)
 
 	@script(
 		# Translators: Input help mode message for a command.

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2024 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2021.01.05"
+__version__ = "2024.07.25"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -33,10 +33,12 @@ import config
 import core
 import globalVars
 import gui
+from gui.nvdaControls import AutoWidthColumnListCtrl
 import languageHandler
 from logHandler import log
 
-from gui.nvdaControls import AutoWidthColumnListCtrl
+from . import ScalingMixin
+
 
 def promptDelete(webModule):
 	msg = (
@@ -87,12 +89,12 @@ def show(context):
 	gui.mainFrame.postPopup()
 
 
-class Dialog(wx.Dialog):
+class Dialog(wx.Dialog, ScalingMixin):
 	# Singleton
 	_instance = None
 	def __new__(cls, *args, **kwargs):
 		if Dialog._instance is None:
-			return super(Dialog, cls).__new__(cls, *args, **kwargs)
+			return super().__new__(cls, *args, **kwargs)
 		return Dialog._instance
 
 	def __init__(self, parent):
@@ -100,7 +102,7 @@ class Dialog(wx.Dialog):
 			return
 		Dialog._instance = self
 
-		super(Dialog, self).__init__(
+		super().__init__(
 			parent,
 			# Translators: The title of the Web Modules Manager dialog
 			title=_("Web Modules Manager"),
@@ -288,4 +290,4 @@ class Dialog(wx.Dialog):
 		self.Fit()
 		self.modulesList.SetFocus()
 		self.CentreOnScreen()
-		return super(Dialog, self).Show()
+		return super().Show()

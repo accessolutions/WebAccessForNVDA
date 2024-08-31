@@ -1,8 +1,8 @@
-# globalPlugins/webAccess/webModuleHandler/dataRecovery.py
+# globalPlugins/webAccess/webModuleHandler/dataRecovery/__init__.py
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2024 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,8 +20,11 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2021.03.12"
-__author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
+__version__ = "2024.08.24"
+__authors__ = (
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+)
 
 
 from collections import OrderedDict
@@ -34,8 +37,7 @@ import addonHandler
 addonHandler.initTranslation()
 from logHandler import getCodePath, log
 
-from ..lib.packaging import version
-from ..ruleHandler import ruleTypes
+from ...lib.packaging import version
 
 
 try:
@@ -72,10 +74,17 @@ def recover(data):
 	if formatVersion < version.parse("0.6"):
 		recoverFrom_0_5_to_0_6(data)
 		formatVersion = version.parse(data["formatVersion"])
-	if formatVersion < version.parse("0.7"):
-		recoverFrom_0_6_to_0_7(data)
+	if formatVersion < version.parse("0.7-dev"):
+		recoverFrom_0_6_to_0_9(data)
 		formatVersion = version.parse(data["formatVersion"])
-	from .webModule import WebModule
+	if formatVersion < version.parse("0.8-dev"):
+		recoverFrom_0_7_to_0_8(data)
+		formatVersion = version.parse(data["formatVersion"])
+	if formatVersion < version.parse("0.9-dev"):
+		recoverFrom_0_8_to_0_9(data)
+		formatVersion = version.parse(data["formatVersion"])
+	
+	from ..webModule import WebModule
 	if formatVersion > WebModule.FORMAT_VERSION:
 		raise NewerFormatVersion(
 			"WebModule format version not supported: {}".format(formatVersion)
@@ -137,11 +146,11 @@ def recoverFrom_0_3_to_0_4(data):
 	splitMarkers = []
 	rules = data.get("Rules", [])
 	for rule in rules:
-		rule.setdefault("type", ruleTypes.MARKER)
+		rule.setdefault("type", "marker")
 		if rule.get("definesContext") and rule.get("isPageTitle"):
 				split = rule.copy()
 				del rule["isPageTitle"]
-				split["type"] = ruleTypes.PAGE_TITLE_1
+				split["type"] = "pageTitle1"
 				split["name"] = "{} (title)".format(rule["name"])
 				for key in markerKeys:
 					try:
@@ -156,12 +165,12 @@ def recoverFrom_0_3_to_0_4(data):
 				)
 		elif rule.get("definesContext"):
 			if rule["definesContext"] in ("pageId", "pageType"):
-				rule["type"] = ruleTypes.PAGE_TYPE
+				rule["type"] = "pageType"
 			else:
-				rule["type"] = ruleTypes.PARENT
+				rule["type"] = "parent"
 			reason = "definesContext"
 		elif rule.get("isPageTitle"):
-			rule["type"] = ruleTypes.PAGE_TITLE_1
+			rule["type"] = "pageTitle1"
 			reason = "isPageTitle"
 		else:
 			reason = None
@@ -173,7 +182,7 @@ def recoverFrom_0_3_to_0_4(data):
 			):
 				split = rule.copy()
 				del split[reason]
-				split["type"] = ruleTypes.MARKER
+				split["type"] = "marker"
 				split["name"] = "{} (marker)".format(rule["name"])
 				splitMarkers.append(split)
 				logLevel = max(logLevel, log.WARNING)
@@ -183,7 +192,7 @@ def recoverFrom_0_3_to_0_4(data):
 					del rule[key]
 				except KeyError:
 					pass
-	
+
 	rules.extend(splitTitles)
 	rules.extend(splitMarkers)
 
@@ -198,7 +207,7 @@ def recoverFrom_0_3_to_0_4(data):
 				'Please redefine the required context.'
 				.format(rule.get("name"))
 			)
-		
+
 		for key in (
 			"definesContext",
 			"requiresContext",
@@ -208,10 +217,10 @@ def recoverFrom_0_3_to_0_4(data):
 				del rule[key]
 			except KeyError:
 				pass
-		
+
 		# If it is upper-case (as in non-normalized identifiers),
 		# `keyboardHandler.KeyboardInputGesture.getDisplayTextForIdentifier`
-		# does not properly handle the NVDA key. 
+		# does not properly handle the NVDA key.
 		gestures = rule.get("gestures", {})
 		# Get ready for Python 3: dict.items will return an iterator.
 		for key, value in list(gestures.items()):
@@ -277,12 +286,27 @@ def recoverFrom_0_6_to_0_7(data):
 			if key in rule:
 				criteria[key] = rule.pop(key)
 		rule["criteria"] = [criteria]
+		properties = {}
+		for key in (
+			"autoAction",
+			"customName",
+			"customValue",
+			"formMode",
+			"multiple",
+			"sayName",
+			"skip",
+			"mutation"
+		):
+			if key in rule:
+				properties[key] = rule.pop(key)
+		if properties:
+			rule["properties"] = properties
 		# The following three keys were long abandonned but not removed from earlier versions
 		rule.pop("class", None)
 		rule.pop("createWidget", None)
 		rule.pop("user", None)
 	#log.info("rulesDict: {}".format(list(rulesDict.keys())))
-	
+
 	extra = OrderedDict()
 	for name in list(rulesDict.keys()):
 		alternatives = [rule for rule in rules if rule["name"] == name]
@@ -307,7 +331,7 @@ def recoverFrom_0_6_to_0_7(data):
 # 			break
 # 		else:
 # 			sameGestures = True
-		
+
 		class HashableDict(dict):  # Utility class to help compare dictionaries
 			def __sortedDump(self):
 				return tuple((k, self[k]) for k in sorted(self))
@@ -319,7 +343,7 @@ def recoverFrom_0_6_to_0_7(data):
 			def areUnique(cls, dicts):
 				dicts = [cls(dict) for dict in dicts]
 				return len(dicts) == len(set(dicts))
-		
+
 		# Check gestures only if no priority
 		sameGestures = noPriority and not HashableDict.areUnique([rule.get("gestures", {}) for rule in alternatives])
 		if not sameGestures:
@@ -361,17 +385,17 @@ def recoverFrom_0_6_to_0_7(data):
 		rule.pop("priority", None)
 		ruleComments = []
 		for index, alternative in enumerate(alternatives):
-			overrides = OrderedDict()
+			properties = OrderedDict()
 			alternativeComments = []
-			for key, value in list(rule.items()):
+			for key, value in rule.get("properties", {}).items():
 				if key in ("criteria", "priority", "comment"):
 					continue
-				altValue = alternative.get(key)
+				altValue = alternative.get("properties", {}).get(key)
 				if altValue != value:
 					missing = key not in alternative
-					if key in ("customName", "customValue"):
+					if altValue is not None and key in ("autoAction", "customName", "customValue", "formMode", "multiple", "sayName", "skip", "mutation"):
 						if missing:
-							overrides[key] = ""
+							properties[key] = altValue
 						continue
 					alternativeComments.append(
 						"{!r} was {} instead of {!r}"
@@ -379,7 +403,8 @@ def recoverFrom_0_6_to_0_7(data):
 					)
 			for key, altValue in list(alternative.items()):
 				if key in rule or key in (
-					"criteria", "priority", "comment", "customName", "customValue"
+					"criteria", "priority", "comment",
+					"autoAction", "customName", "customValue", "formMode", "multiple", "sayName", "skip", "mutation"
 				):
 					continue
 				alternativeComments.append(
@@ -387,8 +412,9 @@ def recoverFrom_0_6_to_0_7(data):
 					.format(key, altValue)
 				)
 			criteria = alternative["criteria"][0]
-			if overrides:
-				criteria.update(overrides)
+			if properties:
+				criteria["properties"] = {}
+				criteria["properties"].update(properties)
 			if alternativeComments:
 				if criteria.get("comment"):
 					criteria["comment"] += "\n\n"
@@ -423,3 +449,94 @@ def recoverFrom_0_6_to_0_7(data):
 	if logMsgs:
 		logRecovery(data, logLevel, "\n".join(logMsgs))
 	data["formatVersion"] = "0.7-dev"
+
+
+def recoverFrom_0_6_to_0_9(data):
+	# Overridden properties and gestures
+	from .from_0_6_to_0_9 import convert
+	convert(data)
+
+
+def recoverFrom_0_7_to_0_8(data):
+	RULE_TYPE_FIELDS = {
+		"marker": (
+			"autoAction",
+			"multiple",
+			"formMode",
+			"skip",
+			"sayName",
+			"customName",
+			"customValue",
+			"mutation"
+		),
+		"zone": (
+			"autoAction",
+			"formMode",
+			"skip",
+			"sayName",
+			"customName",
+			"customValue",
+			"mutation"
+		),
+		"pageTitle1": ("customValue"),
+		"pageTitle2": ("customValue")
+	}
+	validProperties = ("autoAction", "multiple", "formMode", "skip", "sayName", "customName", "customValue", "mutation")
+	rules = data.get("Rules", [])
+	for ruleData in rules.values():
+		ruleType = ruleData.get("type")
+		ruleTypeProperties = RULE_TYPE_FIELDS.get(ruleType, ())
+		newRuleProperties = {}
+		for key in validProperties:
+			if key in ruleData and key not in ruleTypeProperties:
+				ruleData.pop(key)
+			elif key in ruleData:
+				newRuleProperties[key] = ruleData.pop(key)
+		if newRuleProperties:
+			ruleData["properties"] = newRuleProperties
+		for criterion in ruleData.get("criteria", []):
+			newCriterionProperties = {}
+			for key in validProperties:
+				if key in criterion and key not in ruleTypeProperties:
+					criterion.pop(key)
+				elif key in criterion:
+					newCriterionProperties[key] = criterion.pop(key)
+			if newCriterionProperties:
+				criterion["properties"] = newCriterionProperties
+	data["formatVersion"] = "0.8-dev"
+
+
+def recoverFrom_0_8_to_0_9(data):
+	# Properties are only stored if they differ from the default value.
+	# Choice properties default to None. Text properties default to the empty string.
+	# These defaults may have been previously stored interchangeably.
+	# A None or empty value in a Criteria Property now overrides a defined value
+	# at Rule level.
+	from collections import ChainMap
+	DEFAULTS = {
+		"autoAction": None,
+		"multiple": False,
+		"formMode": False,
+		"skip": False,
+		"sayName": False,
+		"customName": "",
+		"customValue": "",
+		"mutation": None,
+	}
+	
+	def process(container, chainMap):
+		container["properties"] = {
+			k: v
+			for k, v in chainMap.items()
+			if v not in (None, "") and v != chainMap.parents[k]
+		}
+		if not container["properties"]:
+			del container["properties"]
+	
+	for rule in data.get("Rules", {}).values():
+		ruleMap = ChainMap(rule.get("properties", {}), DEFAULTS)
+		process(rule, ruleMap)
+		for crit in rule.get("criteria", []):
+			process(crit, ruleMap.new_child(crit.get("properties", {})))
+	
+	data["formatVersion"] = "0.9-dev"

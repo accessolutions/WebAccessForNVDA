@@ -20,11 +20,13 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2024.07.22"
-__author__ = (
-	"Yannick Plassiard <yan@mistigri.org>, "
-	"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
-	"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
+__version__ = "2024.08.23"
+__authors__ = (
+	"Yannick Plassiard <yan@mistigri.org>",
+	"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
 )
 
 
@@ -94,13 +96,13 @@ class WebModuleDataLayer(baseObject.AutoPropertyObject):
 
 class WebModule(baseObject.ScriptableObject):
 
-	API_VERSION = version.parse("0.4")
+	API_VERSION = version.parse("0.5")
 
-	FORMAT_VERSION_STR = "0.7-dev"
+	FORMAT_VERSION_STR = "0.9-dev"
 	FORMAT_VERSION = version.parse(FORMAT_VERSION_STR)
 
 	def __init__(self):
-		super(WebModule, self).__init__()
+		super().__init__()
 		self.layers = []  # List of `WebModuleDataLayer` instances
 		self.activePageTitle = None
 		self.activePageIdentifier = None

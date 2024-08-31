@@ -1,4 +1,4 @@
-# globalPlugins/webAccess/ruleHandler/ruleTypes.py
+# globalPlugins/webAccess/gui/__init__.py
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
@@ -20,36 +20,22 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2024.08.20"
-__authors__ = (
-	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
-	"André-Abush Clause <a.clause@accessolutions.fr>",
-)
-
-import addonHandler
-
-addonHandler.initTranslation()
+__version__ = "2024.08.02"
+__author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
-MARKER = "marker"
-ZONE = "zone"
-PAGE_TYPE = "pageType"
-PARENT = "parent"
-PAGE_TITLE_1 = "pageTitle1"
-PAGE_TITLE_2 = "pageTitle2"
+from gui import guiHelper
+
+from .. import ContextualSettingsPanel
 
 
-ruleTypeLabels = {
-	# Translators: The label for a rule type.
-	MARKER: _("Marker"),
-	# Translators: The label for a rule type.
-	ZONE: _("Zone"),
-	# Translators: The label for a rule type.
-	PAGE_TYPE: _("Page type"),
-	# Translators: The label for a rule type.
-	PARENT: _("Parent element"),
-	# Translators: The label for a rule type.
-	PAGE_TITLE_1: _("Page main title"),
-	# Translators: The label for a rule type.
-	PAGE_TITLE_2: _("Page secondary title")
-}
+class RuleAwarePanelBase(ContextualSettingsPanel, metaclass=guiHelper.SIPABCMeta):
+	
+	def getRuleData(self):
+		return self.context["data"].setdefault("rule", {})
+	
+	def getRuleManager(self):
+		return self.context["webModule"].ruleManager
+	
+	def getRuleType(self):
+		return self.getRuleData().get("type")

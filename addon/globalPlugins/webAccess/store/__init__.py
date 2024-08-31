@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2024 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 """Web Access data store."""
 
 
-__version__ = "2021.02.04"
+__version__ = "2024.07.25"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
@@ -40,7 +40,7 @@ class Store(object):
 
 	def __str__(self, *args, **kwargs):
 		return self.name if hasattr(self, "name") \
-			else super(Store, self).__str__(*args, **kwargs)
+			else super().__str__(*args, **kwargs)
 	
 	def catalog(self, errors=None):
 		"""Return, or yield, a sequence of tuples (ref, metaData)
@@ -95,7 +95,7 @@ class DispatchStore(Store):
 			self.stores = []
 		if not hasattr(self, "storeDic"):
 			self.storeDic = dict()
-		super(DispatchStore, self).__init__(*args, **kwargs)
+		super().__init__(*args, **kwargs)
 
 	def catalog(self, errors=None):
 		for store in self.stores:
@@ -171,7 +171,7 @@ class DispatchStore(Store):
 		if "ref" in kwargs or "item" in kwargs:
 			store, kwargs = self.route(**kwargs)
 			return store.supports(operation, **kwargs)
-		return super(DispatchStore, self).supports(operation, **kwargs)
+		return super().supports(operation, **kwargs)
 
 	def track(self, store, item=None, **kwargs):
 		if "ref" not in kwargs and item is None:
@@ -198,19 +198,15 @@ class DispatchStore(Store):
 	
 
 class DuplicateRefError(Exception):
-	
-	def __init__(self, *args, **kwargs):
-		super(Exception, self).__init__(*args, **kwargs)
+	pass
 
 		
 class MalformedRefError(Exception):
-	
-	def __init__(self, *args, **kwargs):
-		super(Exception, self).__init__(*args, **kwargs)
-		
+	pass
+
 
 class UnknownRefError(Exception):
 	
 	def __init__(self, *args, **kwargs):
-		super(Exception, self).__init__(*args, **kwargs)
+		super().__init__(*args, **kwargs)
 		

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2015-2021 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2015-2024 Accessolutions (http://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,8 +20,13 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2021.04.06"
+__version__ = "2024.08.24"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
+
+
+from functools import wraps
+
+from logHandler import log
 
 
 import addonHandler
@@ -46,25 +51,56 @@ def updateOrDrop(map, key, value, default=None):
 		map[key] = value
 
 
-def notifyError(logMsg, exc_info=True):
-	from logHandler import log
-	log.exception(logMsg, exc_info=exc_info)
+def notifyError(logMsg="", exc_info=True, stack_info=False):
+	log.exception(logMsg, exc_info=exc_info, stack_info=stack_info)
 	import gui
+	import wx
 	gui.messageBox(
 		# Translators: A generic error message
 		_("An error occured. See NVDA log for more details."),
+		caption="WebAccess",
 		style=wx.ICON_ERROR
 	)
 
 
 def guarded(func):
+	"""Decorator to prevent exceptions raised by the decorated function to bubble up to the caller.
 	
+	Caught exceptions are notified and logged using `notifyError`.
+	In most cases, this decorator should only be applied on wx event handlers to prevent further UI malfunction.
+	"""
+
+	@wraps(func)
 	def wrapper(*args, **kwargs):
 		try:
 			return func(*args, **kwargs)
 		except Exception:
-			notifyError("Uncaught error while processing {!r}(args={!r}, kwargs={!r}".format(
-				func, args, kwargs
-			))
-	
+			notifyError(
+				"Uncaught error while processing {!r}(args={!r}, kwargs={!r}".format(
+					func, args, kwargs
+				),
+				stack_info=True
+			)
+
 	return wrapper
+
+
+def logException(func):
+	"""Decorator to log exceptions raised by the decorated function.
+	
+	Caught exceptions are re-raised after logging.
+	This is just a convenience function to avoid cluttering code with loads of try/except wrapping blocks.
+	It comes in especially handy to diagnose errors in property getters in conjunction with a custom
+	`__getattr__`, where exceptions from the getters are silently trapped and interpreted as `AttributeError`.
+	"""
+
+	@wraps(func)
+	def wrapper(*args, **kwargs):
+		try:
+			return func(*args, **kwargs)
+		except Exception:
+			log.exception(stack_info=True)
+			raise
+
+	return wrapper
+
