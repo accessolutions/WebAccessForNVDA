@@ -308,32 +308,39 @@ class Dialog(ContextualDialog):
 			# Translator: A label on the RulesManager dialog.
 			label=_("Group by: "),
 			choices=tuple((groupBy.label for groupBy in GROUP_BY)),
-			majorDimension=len(GROUP_BY) + 3  # +1 for the label
 		)
 		item.Bind(wx.EVT_RADIOBOX, self.onGroupByRadio)
 		contentsSizer.Add(item, flag=wx.EXPAND)
 		contentsSizer.AddSpacer(scale(guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS))
 		
-		filtersSizer = wx.GridSizer(1, 2, 10, 10)
+		filtersSizer = wx.GridBagSizer()
+		filtersSizer.SetEmptyCellSize((0, 0))
 		
-		labeledCtrlHelper = guiHelper.LabeledControlHelper(
-			self,
-			# Translator: A label on the RulesManager dialog.
-			_("&Filter: "),
-			wx.TextCtrl, size=scale(250, -1), style=wx.TE_PROCESS_ENTER
-		)
-		item = self.filterEdit = labeledCtrlHelper.control
+		row = 0
+		col = 0
+		# Translator: A label on the RulesManager dialog.
+		item = wx.StaticText(self, label=_("&Filter: "))
+		filtersSizer.Add(item, (row, col))
+		col += 1
+		filtersSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), (row, col))
+		col += 1
+		item = self.filterEdit = wx.TextCtrl(self, style=wx.TE_PROCESS_ENTER)
 		item.Bind(wx.EVT_TEXT, lambda evt: self.refreshRuleList())
 		item.Bind(wx.EVT_TEXT_ENTER, lambda evt: self.tree.SetFocus())
-		filtersSizer.Add(labeledCtrlHelper.sizer, flag=wx.EXPAND)
+		filtersSizer.Add(item, (row, col), flag=wx.EXPAND)
+		filtersSizer.AddGrowableCol(col)
 		
-		self.activeOnlyCheckBox = wx.CheckBox(
+		col += 1
+		filtersSizer.Add(scale(20, 0), (row, col))
+		
+		col += 1
+		item = self.activeOnlyCheckBox = wx.CheckBox(
 			self,
 			# Translator: A label on the RulesManager dialog.
 			label=_("Include only rules &active on the current page")
 		)
-		self.activeOnlyCheckBox.Bind(wx.EVT_CHECKBOX, self.onActiveOnlyCheckBox)
-		filtersSizer.Add(self.activeOnlyCheckBox)
+		item.Bind(wx.EVT_CHECKBOX, self.onActiveOnlyCheckBox)
+		filtersSizer.Add(item, (row, col))
 		
 		contentsSizer.Add(filtersSizer, flag=wx.EXPAND)
 		contentsSizer.AddSpacer(scale(guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS))
@@ -436,7 +443,7 @@ class Dialog(ContextualDialog):
 		self.activeOnlyCheckBox.Value = lastActiveOnly
 		mgr = context["webModule"].ruleManager
 		# disableGroupByPosition returns True if it triggered refresh
-		not mgr.isReady and self.disableGroupByPosition() or self.refreshRuleList()
+		not mgr.isReady and self.disableGroupByPosition() or self.onGroupByRadio(None)
 	
 	def getSelectedObject(self):
 		selection = self.tree.Selection
@@ -481,15 +488,6 @@ class Dialog(ContextualDialog):
 				self.cycleGroupBy(previous=True, report=False)  # Selects groupBy name
 				return True
 		return False
-	
-	def refreshGroupByRadio(self):
-		radioBox = self.groupByRadio
-		index = next(i for i, g in enumerate(GROUP_BY) if g.id == lastGroupBy)
-		if not radioBox.IsItemEnabled(index):
-			index = next(i for i in range(radioBox.Count) if radioBox.IsItemEnabled(i))
-		if radioBox.Selection != index:
-			radioBox.SetSelection(index)
-		self.onGroupByRadio(None)
 	
 	def refreshRuleList(self):
 		context = self.context
@@ -601,7 +599,7 @@ class Dialog(ContextualDialog):
 		evt.Skip()
 	
 	@guarded
-	def onGroupByRadio(self, evt, report=False):
+	def onGroupByRadio(self, evt=None, report=False):
 		global lastGroupBy, lastActiveOnly
 		self.refreshTitle()
 		groupBy = GROUP_BY[self.groupByRadio.GetSelection()]
