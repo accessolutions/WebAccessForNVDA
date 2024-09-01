@@ -984,6 +984,9 @@ class Result(ScriptableObject):
 		offset = node.offset
 		return self.startOffset <= offset and self.endOffset >= offset + node.size
 
+	def containsResult(self, result):
+		return self.startOffset <= result.startOffset and self.endOffset >= result.endOffset
+
 	def getDisplayString(self):
 		return " ".join(
 			[self.name]
@@ -1620,7 +1623,8 @@ class Zone(AutoPropertyObject):
 		)
 
 	def containsResult(self, result):
-		return self.containsOffsets(result.startOffset, result.endOffset)
+		r = self.result
+		return r and r.containsResult(result)
 
 	def containsTextInfo(self, info):
 		try:
