@@ -110,7 +110,7 @@ def rule_getResults_safe(rule):
 		return []
 
 
-def getRulesByGesture(ruleManager, filter=None, active=False):
+def iterRulesByGesture(ruleManager, filter=None, active=False):
 	gestures = {}
 	noGesture = []
 	
@@ -165,11 +165,11 @@ def getRulesByName(ruleManager, filter=None, active=False):
 			)
 			for rule in getRules(ruleManager)
 			if (
-				(not filter or filter.lower() in rule.name.lower())
+				(not filter or filter in rule.name.casefold())
 				and (not active or rule_getResults_safe(rule))
 			)
 		),
-		key=lambda tid: tid.label.lower()
+		key=lambda tid: tid.label.casefold()
 	)
 
 
@@ -179,28 +179,15 @@ def getRulesByPosition(ruleManager, filter=None, active=True):
 
 	As position depends on result, the `active` criteria is ignored.
 	"""
-	Parent = namedtuple("Parent", ("parent", "tid", "zone"))
-	
-	def filterChildlessParent(parent):
-		if (
-			not filter
-			or parent.tid.children
-			or filter.lower() in parent.tid.obj.name.lower()
-		):
-			return False
-		if parent.parent:
-			parent.parent.tid.children.remove(parent)
-		return True
-	
 	webModule = ruleManager.webModule
 	if not webModule.isReadOnly():
 		layer = webModule.getWritableLayer().name
 	elif config.conf["webAccess"]["devMode"]:
 		layer = None
 	else:
-		return
-	
-	parent = None
+		return []
+	roots: list[TreeItemData] = []
+	ancestors: list[TreeItemData] = []
 	for result in ruleManager.getResults():
 		rule = result.rule
 		if layer and rule.layer != layer:
@@ -210,37 +197,31 @@ def getRulesByPosition(ruleManager, filter=None, active=True):
 			obj=result,
 			children=[]
 		)
-		zone = None
-		if rule.type in (ruleTypes.PARENT, ruleTypes.ZONE):
-			zone = Zone(result)
-		elif filter and filter.lower() not in rule.name.lower():
-			continue
-		while parent:
-			if parent.zone.containsResult(result):
-				parent.tid.children.append(tid)
-				if zone:
-					parent = Parent(parent, tid, zone)
+		while ancestors:
+			candidate = ancestors[-1]
+			if candidate.obj.containsResult(result):
+				candidate.children.append(tid)
 				break
-			elif not filterChildlessParent(parent):
-				yield parent.tid
-			parent = parent.parent
-		else:  # no parent
-			assert parent is None
-			if zone:
-				parent = Parent(None, tid, zone)
-			else:
-				yield tid
-	while parent:
-		if not filterChildlessParent(parent):
-			yield parent.tid
-		parent = parent.parent
+			ancestors.pop()
+		else:
+			roots.append(tid)
+		if result.rule.type in (ruleTypes.PARENT, ruleTypes.ZONE):
+			ancestors.append(tid)
+	
+	def passesFilter(tid) -> bool:
+		for index, child in enumerate(tid.children.copy()):
+			if not passesFilter(child) :
+				del tid.children[index]
+		return tid.children or filter in tid.obj.name.casefold()
+	
+	return tuple(tid for tid in roots if passesFilter(tid))
 
 
 def getRulesByType(ruleManager, filter=None, active=False):
 	types = {}
 	for rule in getRules(ruleManager):
 		if (
-			(filter and filter.lower() not in rule.name.lower())
+			(filter and filter not in rule.name.casefold())
 			or (active and not rule_getResults_safe(rule))
 		):
 			continue
@@ -279,7 +260,7 @@ GROUP_BY = (
 		id="gestures",
 		# Translator: Grouping option on the RulesManager dialog.
 		label=pgettext("webAccess.rulesGroupBy", "&Gestures"),
-		func=getRulesByGesture
+		func=iterRulesByGesture
 	),
 	GroupBy(
 		id="name",
@@ -499,7 +480,7 @@ class Dialog(ContextualDialog):
 			# Pop the just created or edited rule in order to avoid keeping it selected
 			# when later cycling through groupBy
 			selectObj = context.pop("rule", result.rule if result else None)
-		filter = self.filterEdit.GetValue()
+		filter = self.filterEdit.Value.casefold()
 		active = self.activeOnlyCheckBox.Value
 		tree = self.tree
 		root = self.treeRoot
