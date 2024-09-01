@@ -983,7 +983,7 @@ class NodeField(TrackedObject):
 		Check whether the given node belongs to the subtree of this node, based
 		on their offset.
 		"""
-		if self <= node:
+		if self > node:
 			return False
 		if not self.children:
 			return False
