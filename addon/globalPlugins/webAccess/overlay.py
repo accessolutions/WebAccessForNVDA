@@ -1153,8 +1153,9 @@ class WebAccessObjectHelper(TrackedObject):
 	Utility methods and properties.
 	"""
 	
-	def __init__(self, obj):
-		self._obj = weakref.ref(obj)
+	def __init__(self, obj: NVDAObjects.NVDAObject):
+		self._obj: weakref.ref[NVDAObjects.NVDAObject] = weakref.ref(obj)
+		self._webModule: weakref.ref[WebModule] = None
 	
 	@property
 	@logException
@@ -1205,6 +1206,8 @@ class WebAccessObjectHelper(TrackedObject):
 	@property
 	@logException
 	def webModule(self):
+		if self._webModule:
+			return self._webModule()
 		ti = self.treeInterceptor
 		if not ti:
 			return None
@@ -1213,7 +1216,10 @@ class WebAccessObjectHelper(TrackedObject):
 		except Exception:
 			log.exception(stack_info=True)
 			return ti.webAccess.webModule
-		return ti.webAccess.getWebModuleAtTextInfo(info)
+		webModule = ti.webAccess.getWebModuleAtTextInfo(info)
+		if webModule:
+			self._webModule = weakref.ref(webModule)
+		return webModule
 	
 	@logException
 	def getMutatedControlAttribute(self, attr, default=None):
