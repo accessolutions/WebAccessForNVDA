@@ -31,6 +31,7 @@ __authors__ = (
 
 from abc import abstractmethod
 from collections import OrderedDict
+import config
 from dataclasses import dataclass
 from enum import Enum
 from functools import partial
@@ -835,8 +836,7 @@ class ChildPropertyPanel(
 
 
 class RuleEditorDialog(TreeMultiCategorySettingsDialog):
-	# Translators: The title of the rule editor
-	title = _("WebAccess Rule editor")
+	
 	INITIAL_SIZE = (750, 520)
 	categoryInitList = [
 		(GeneralPanel, 'getGeneralChildren'),
@@ -925,13 +925,46 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 	
 	def initData(self, context: Mapping[str, Any]) -> None:
 		context.setdefault("data", {})
+		webModule = context["webModule"]
+		ruleManager = webModule.ruleManager
 		if context.get("new"):
 			data = context["data"]["rule"] = {"type": ruleTypes.MARKER}
+			if ruleManager.parentZone is not None:
+				# Translators: A title of the rule editor
+				title = (_("Sub Module {} - New Rule").format(webModule.name))
+			elif ruleManager.subModules.all():
+				# Translators: A title of the rule editor
+				title = (_("Root Module {} - New Rule").format(webModule.name))
+			else:
+				# Translators: A title of the rule editor
+				title = (_("Web Module {} - New Rule").format(webModule.name))
 		else:
 			data = context["data"]["rule"] = context["rule"].dump()
-		mgr = context["webModule"].ruleManager.nodeManager
-		if mgr:
-			node = mgr.getCaretNode()
+			if ruleManager.parentZone is not None:
+				# Translators: A title of the rule editor
+				title = (_("Sub Module {} - Edit Rule {}").format(webModule.name, data.get("name")))
+			elif ruleManager.subModules.all():
+				# Translators: A title of the rule editor
+				title = (_("Root Module {} - Edit Rule {}").format(webModule.name, data.get("name")))
+			else:
+				# Translators: A title of the rule editor
+				title = (_("Web Module {} - Edit Rule {}").format(webModule.name, data.get("name")))
+		if config.conf["webAccess"]["devMode"]:
+			layerName = None
+			if context.get("new"):
+				try:
+					webModule = webModuleHandler.getEditableWebModule(webModule, prompt=False)
+					if webModule:
+						layerName = webModule.getWritableLayer().name
+				except Exception:
+					log.exception()
+			else:
+				layerName = context["rule"].layer
+			title += f" ({layerName})"
+		self.SetTitle(title)
+		nodeManager = ruleManager.nodeManager
+		if nodeManager:
+			node = nodeManager.getCaretNode()
 			while node is not None:
 				if node.role in formModeRoles:
 					data.setdefault("properties", {})["formMode"] = True
