@@ -128,18 +128,64 @@ class RuleManager(ScriptableObject):
 		self.lastAutoMovetoTime = 0
 		self.defaultScripts = DefaultScripts("Aucun marqueur associé à cette touche")
 		self.timerCheckAutoAction = None
-		self.zone: "Zone" = None
-		self.parentModule: "WebModule" = None
-		self.parentNode: "NodeField" = None
+		self._zone: Zone = None
 		self.subModules: SubModules = SubModules(self)
-		self._subModuleResults: Sequence["SingleNodeResult"] = []
+		self._allResults: Sequence["Result"] = []
+		"""Results for this WebModule and all of its SubModules.
+		""" 
+		self.parentZone: Zone = None
+		"""The zone containing this SubModule in its parent WebModule
+		"""
 
+	def _get_rootRuleManager(self):
+		parent = self.parentRuleManager
+		if parent:
+			return parent.rootRuleManager
+		return self
+	
+	def _get_nodeManager(self):
+		root = self.rootRuleManager
+		if root is not self:
+			return root.nodeManager
+		return self._nodeManager() if self._nodeManager else None
+	
+	def _get_parentNode(self):
+		parentZone = self.parentZone
+		if parentZone is not None:
+			return parentZone.result.Node
+		return self.nodeManager.mainNode
+	
+	def _get_parentRuleManager(self):
+		try:
+			return self.parentZone.ruleManager
+		except AttributeError:
+			return None
+	
 	def _get_webModule(self):
 		return self._webModule()
 
-	def _get_nodeManager(self):
-		return self._nodeManager and self._nodeManager()
-
+	@logException
+	def _get_zone(self):
+		if self.parentZone is not None:
+			return self.parentRuleManager.zone
+		else:
+			return self._zone
+	
+	@logException
+	def _set_zone(self, value, force=False):
+		if value is None and not force:
+			curZone = self.zone
+			curResult = curZone.result if curZone is not None else None
+			if curResult is not None:
+				for candidate in self.iterResultsAtCaret():
+					if candidate.zone not in (None, curZone) and candidate.containsResult(curResult):
+						value = candidate.zone
+						break
+		if self.parentZone is not None:
+			self.parentRuleManager.zone = value
+		else:
+			self._zone = value
+	
 	def dump(self, layer):
 		return {name: rule.dump() for name, rule in list(self._layers[layer].items())}
 
@@ -206,10 +252,19 @@ class RuleManager(ScriptableObject):
 		except StopIteration:
 			raise LookupError({"name": name, "layer": layer})
 
-	def getResults(self):
+	def getResults(self) -> tuple["Result"]:
+		"""Get the results for all the layers of this WebModule, excluding SubModules.
+		"""
 		if not self.isReady:
 			return []
-		return self._results
+		return tuple(self._results)
+	
+	def getAllResults(self) -> tuple["Result"]:
+		"""Get the results for all the layers of this WebModule and all its SubModules.
+		"""
+		if not self.isReady:
+			return []
+		return tuple(self._allResults)
 
 	def getResultsByName(self, name, layer=None):
 		return list(self.iterResultsByName(name, layer=layer))
@@ -232,6 +287,8 @@ class RuleManager(ScriptableObject):
 				yield result
 
 	def iterMutatedControls(self, direction="next", offset=None):
+		if self.parentZone is not None:
+			raise Exception("Supported on the root RuleManager only")
 		for entry in (
 			self._mutatedControlsByOffset
 			if direction == "next" else reversed(self._mutatedControlsByOffset)
@@ -253,6 +310,8 @@ class RuleManager(ScriptableObject):
 			yield entry
 
 	def getMutatedControl(self, controlId):
+		if self.parentZone is not None:
+			raise Exception("Supported on the root RuleManager only")
 		return self._mutatedControlsById.get(controlId)
 
 	def removeResults(self, rule):
@@ -274,7 +333,7 @@ class RuleManager(ScriptableObject):
 
 	def getGlobalScript(self, gesture, caret=None, fromParent=False):
 		if caret is None:
-			webModuleAtCaret = self.nodeManager.treeInterceptor.webAccess.webModuleAtCaret
+			webModuleAtCaret = self.nodeManager.treeInterceptor.webAccess.webModule
 			return webModuleAtCaret.ruleManager.getGlobalScript(gesture, caret=webModuleAtCaret)
 		
 		def gen():
@@ -340,7 +399,7 @@ class RuleManager(ScriptableObject):
 	def clear(self):
 		self._ready = False
 		self._results.clear()
-		self._subModuleResults.clear()
+		self._allResults.clear()
 		self._mutatedControlsById.clear()
 		self._mutatedControlsByOffset.clear()
 		for rule in self.getRules():
@@ -366,13 +425,17 @@ class RuleManager(ScriptableObject):
 				# already updated
 				self._ready = True
 				return False
+			self.nodeManagerIdentifier = self.nodeManager.identifier
 			t = logTimeStart()
 			self.clear()
+			# Do not clear the other mappings in subModules to avoid reloading
+			# modules that were already loaded on the last update.
+			self.subModules._results.clear()
 			
 			for rule in (rule for rule in self.getRules() if rule.properties.subModule):
 				results = rule.getResults()
 				self._results.extend(results)
-				self._subModuleResults.extend(results)
+				self.subModules._results.extend(results)
 			for rule in sorted(
 				(rule for rule in self.getRules() if not rule.properties.subModule),
 				key=lambda rule: (
@@ -382,7 +445,13 @@ class RuleManager(ScriptableObject):
 				)
 			):
 				self._results.extend(rule.getResults())
-			self._results.sort()
+			
+			def resultSortKey(result):
+				# If two Results start at the same offset, sort first the widest
+				return result.startOffset#, -result.endOffset
+			
+			self._results.sort(key=resultSortKey)
+			self._allResults.extend(self._results)
 			
 			for result in self._results:
 				if not (hasattr(result, "node") and result.properties.mutation):
@@ -395,9 +464,13 @@ class RuleManager(ScriptableObject):
 					self._mutatedControlsByOffset.append(entry)
 				else:
 					entry.apply(result)
-			self._ready = True
-			self.nodeManagerIdentifier = self.nodeManager.identifier
 			self.subModules.update()
+			self._allResults.sort(key=resultSortKey)
+			if self is self.rootRuleManager:
+				# This should have been populated only on the rootRuleManager
+				self._mutatedControlsByOffset.sort(key=lambda m: m.start)
+			self._ready = True
+			# Zone update check can be performed only once ready
 			if self.zone is not None:
 				if not self.zone.update() or not self.zone.containsTextInfo(
 					self.nodeManager.treeInterceptor.makeTextInfo(textInfos.POSITION_CARET)
@@ -541,9 +614,9 @@ class RuleManager(ScriptableObject):
 
 	def _getIncrementalResult(
 		self,
+		caret: textInfos.offsets.OffsetsTextInfo,
 		previous=False,
 		relative=True,
-		caret=None,
 		types=None,
 		name=None,
 		respectZone=False,
@@ -560,10 +633,8 @@ class RuleManager(ScriptableObject):
 				zone = result.zone
 				if not zone.containsTextInfo(caret):
 					skippedZones.append(zone)
-		for result in (
-			reversed(self.getResults())
-			if previous else self.getResults()
-		):
+		results = self.getResults() if respectZone and self.zone else self.rootRuleManager.getAllResults()
+		for result in (reversed(results) if previous else results):
 			rule = result.rule
 			if types and rule.type not in types:
 				continue
@@ -605,16 +676,15 @@ class RuleManager(ScriptableObject):
 				return result
 		return None
 
-	def getResultAtCaret(self, focus=None):
-		return next(self.iterResultsAtCaret(focus), None)
+	def getResultAtCaret(self):
+		return next(self.iterResultsAtCaret(), None)
 
-	def iterResultsAtCaret(self, focus=None):
-		if focus is None:
-			focus = api.getFocusObject()
+	def iterResultsAtCaret(self):
 		try:
-			info = focus.treeInterceptor.makeTextInfo(textInfos.POSITION_CARET)
+			ti = self.nodeManager.treeInterceptor
 		except AttributeError:
 			return
+		info = ti.makeTextInfo(textInfos.POSITION_CARET)
 		for result in self.iterResultsAtTextInfo(info):
 			yield result
 
@@ -634,19 +704,8 @@ class RuleManager(ScriptableObject):
 		if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
 			raise ValueError("Not supported {}".format(type(info)))
 		offset = info._startOffset
-# 		for result in self.iterResultsAtOffset(offset):
-# 			yield result
-#
-# 	def iterResultsAtOffset(self, offset):
-# 		if not self.isReady:
-# 			return
-# 		if not self.results:
-# 			return
 		for r in reversed(self.getResults()):
-			if (
-				hasattr(r, "node")
-				and r.node.offset <= offset < r.node.offset + r.node.size
-			):
+			if r.startOffset <= offset <= r.endOffset:
 				yield r
 
 	def quickNav(
@@ -680,8 +739,8 @@ class RuleManager(ScriptableObject):
 		# return the first/last result.
 		for relative in ((True, False) if cycle else (True,)):
 			result = self._getIncrementalResult(
-				previous=previous,
 				caret=position,
+				previous=previous,
 				relative=relative,
 				types=types,
 				name=name,
@@ -763,47 +822,70 @@ class RuleManager(ScriptableObject):
 
 class SubModules(AutoPropertyObject):
 	
-	def __init__(self, parent: RuleManager):
-		self._parent = weakref.ref(parent)
-		self.modulesByNameAndIndex: Mapping[tuple(str, int), "WebModule"] = {}
-		self.modulesByPosition: Mapping[tuple(int, int), "WebModule"] = {}
+	def __init__(self, ruleManager: RuleManager):
+		self._ruleManager = weakref.ref(ruleManager)
+		self._webModulesByNameAndIndex: Mapping[tuple(str, int), "WebModule"] = {}
+		"""Ensure SubModules are not re-instanciated upon update 
+		"""
+		self._webModulesByPosition: Mapping[tuple(int, int), "WebModule"] = {}
+		self._results: Sequence["SingleNodeResult"] = []
+		"""Results for this WebModule that should load a SubModule (ie. `result.properties.subModule` is set)
+		
+		Used in `Criteria.iterResults` to not search for nested matches.
+		"""
 	
-	def _get_parent(self):
-		return self._parent and self._parent()
+	def _get_ruleManager(self):
+		return self._ruleManager()
 	
 	def all(self) -> Sequence["WebModule"]:
-		return tuple(self.modulesByNameAndIndex.values())
+		return tuple(self._webModulesByPosition.values())
 	
 	@logException
 	def atPosition(self, offset) -> "WebModule":
-		for (start, end), module in self.modulesByPosition.items():
-			if start <= offset <= end:
-				return module.ruleManager.subModules.atPosition(offset) or module
-		
+		for (start, end), webModule in self._webModulesByPosition.items():
+			if start <= offset < end:
+				subModule = webModule.ruleManager.subModules.atPosition(offset)
+				return subModule if subModule is not None else webModule
+	
 	@logException
 	def update(self):
 		from ..webModuleHandler import getWebModule
-		previous = self.modulesByNameAndIndex.copy()
-		self.modulesByNameAndIndex.clear()
-		for result in self.parent.getResults():
-			if result.properties.subModule:
-				key = (result.rule.name, result.index)
-				webModule = previous.get(key)
-				if not webModule:
-					webModule = getWebModule(result.properties.subModule)
-				if not webModule:
-					log.error(f"WebModule not found: {result.properties.subModule!r}")
-					continue
-				self.modulesByNameAndIndex[key] = webModule
-				self.modulesByPosition[(result.startOffset, result.endOffset)] = webModule
-				webModule.ruleManager.parentModule = self.parent.webModule
-				webModule.ruleManager.parentNode = result.node
-				webModule.ruleManager.update(self.parent.nodeManager)
+		webModulesByNameAndIndex = self._webModulesByNameAndIndex
+		webModulesByPosition = self._webModulesByPosition
+		previousByNameAndIndex = webModulesByNameAndIndex.copy()
+		webModulesByNameAndIndex.clear()
+		webModulesByPosition.clear()
+		ruleManager = self.ruleManager
+		rootRuleManager = ruleManager.rootRuleManager
+		nodeManager = rootRuleManager.nodeManager
+		mutatedControlsById = rootRuleManager._mutatedControlsById
+		mutatedControlsByOffset = rootRuleManager._mutatedControlsByOffset
+		for result in self._results:
+			key = (result.rule.name, result.index)
+			webModule = previousByNameAndIndex.get(key)
+			if not webModule:
+				webModule = getWebModule(result.properties.subModule)
+			else:
+				webModule.ruleManager.parentZone.update(result=result)
+			if not webModule:
+				log.error(f"WebModule not found: {result.properties.subModule!r}")
+				continue
+			webModulesByNameAndIndex[key] = webModule
+			webModulesByPosition[(result.startOffset, result.endOffset)] = webModule
+			subRuleManager = webModule.ruleManager
+			subRuleManager.parentZone = result.zone
+			subRuleManager.update(nodeManager)
+			ruleManager._allResults.extend(subRuleManager.getAllResults())
+			mutatedControlsById.update(subRuleManager._mutatedControlsById)
+			mutatedControlsByOffset.extend(subRuleManager._mutatedControlsByOffset)
 	
 	def terminate(self):
-		self.modulesByNameAndIndex.clear()
-		self.modulesByPosition.clear()
-		self._parent = None
+		self._ruleManager = None
+		for webModule in self._webModulesByNameAndIndex.values():
+			webModule.terminate()
+		self._results.clear()
+		self._webModulesByNameAndIndex.clear()
+		self._webModulesByPosition.clear()
 
 
 class CustomActionDispatcher(object):
@@ -978,7 +1060,10 @@ class Result(ScriptableObject):
 		raise NotImplementedError
 
 	def __lt__(self, other):
-		raise NotImplementedError
+		try:
+			return self.startOffset < other.startOffset
+		except AttributeError as e:
+			raise TypeError(f"'<' not supported between instances of '{type(self)}' and '{type(other)}'") from e
 
 	def containsNode(self, node):
 		offset = node.offset
@@ -1035,21 +1120,20 @@ class SingleNodeResult(Result):
 			return
 		treeInterceptor.passThrough = self.properties.formMode
 		browseMode.reportPassThrough.last = treeInterceptor.passThrough
-		if rule.type == ruleTypes.ZONE:
-			rule.ruleManager.zone = Zone(self)
+		if self.zone:
+			rule.ruleManager.zone = self.zone
 			# Ensure the focus does not remain on a control out of the zone
 			treeInterceptor.rootNVDAObject.setFocus()
 		else:
 			for result in reversed(rule.ruleManager.getResults()):
-				if result.rule.type != ruleTypes.ZONE:
+				zone = result.zone
+				if zone is None:
 					continue
-				zone = Zone(result)
 				if zone.containsResult(self):
-					if zone != rule.ruleManager.zone:
-						rule.ruleManager.zone = zone
+					rule.ruleManager.zone = zone
 					break
 			else:
-				rule.ruleManager.zone = None
+				rule.ruleManager._set_zone(rule.ruleManager.parentZone, force=True)
 		offset = self.startOffset
 		info = treeInterceptor.makeTextInfo(textInfos.offsets.Offsets(offset, offset))
 		treeInterceptor.selection = info
@@ -1129,12 +1213,6 @@ class SingleNodeResult(Result):
 
 	def __bool__(self):
 		return bool(self.node)
-
-	def __lt__(self, other):
-		try:
-			return self.startOffset < other.startOffset
-		except AttributeError as e:
-			raise TypeError(f"'<' not supported between instances of '{type(self)}' and '{type(other)}'") from e
 
 	def containsNode(self, node):
 		return node in self.node
@@ -1301,8 +1379,6 @@ class Criteria(ScriptableObject):
 			return
 		if not self.checkContextPageType():
 			return
-		# Restrict to current SubModule
-		parentNode = mgr.parentNode or mgr.nodeManager.mainNode
 		# Handle contextParent
 		rootNodes = set()  # Set of possible parent nodes
 		excludedNodes = set()  # Set of excluded parent nodes
@@ -1335,7 +1411,7 @@ class Criteria(ScriptableObject):
 				else:
 					multipleContext = False
 				if results:
-					nodes = [result.node for result in results if result.node in parentNode]
+					nodes = (result.node for result in results)
 					if exclude:
 						excludedNodes.update(nodes)
 					else:
@@ -1358,7 +1434,7 @@ class Criteria(ScriptableObject):
 			rootNodes = newRootNodes
 		kwargs = getSimpleSearchKwargs(self)
 		excludedNodes.update({
-			result.node for result in self.rule.ruleManager._subModuleResults
+			result.node for result in self.rule.ruleManager.subModules._results
 		})
 		if excludedNodes:
 			kwargs["exclude"] = excludedNodes
@@ -1367,7 +1443,13 @@ class Criteria(ScriptableObject):
 			limit = self.index or 1  # 1-based
 
 		index = 0
-		for root in rootNodes or (mgr.nodeManager.mainNode,):
+		if not rootNodes:
+			parentZone = mgr.parentZone
+			if parentZone is not None:
+				rootNodes = (parentZone.result.node,)
+			else:
+				rootNodes = (mgr.nodeManager.mainNode,)
+		for root in rootNodes or (parentNode,):
 			rootLimit = limit
 			if multipleContext:
 				index = 0
@@ -1689,13 +1771,18 @@ class Zone(AutoPropertyObject):
 			info._startOffset = result.endOffset
 		return res
 
-	def update(self):
+	def update(self, result=None):
+		if result is not None:
+			self._result = result
+			return True
 		try:
 			# Result index is 1-based
-			self.result = self.ruleManager.getResultsByName(
-				self.name, layer=self.layer
-			)[self.index - 1]
+			self.result = self.getRule().getResults()[self.index - 1]
 		except IndexError:
+			self._result = None
+			return False
+		except Exception:
+			log.exception()
 			self._result = None
 			return False
 		return True

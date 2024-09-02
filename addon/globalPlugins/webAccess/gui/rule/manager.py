@@ -177,6 +177,7 @@ def getRulesByPosition(ruleManager, filter=None, active=True):
 	"""
 	Yield rules by position.
 
+	Includes results from all active WebModules on the document.
 	As position depends on result, the `active` criteria is ignored.
 	"""
 	webModule = ruleManager.webModule
@@ -188,7 +189,7 @@ def getRulesByPosition(ruleManager, filter=None, active=True):
 		return []
 	roots: list[TreeItemData] = []
 	ancestors: list[TreeItemData] = []
-	for result in ruleManager.getResults():
+	for result in ruleManager.rootRuleManager.getAllResults():
 		rule = result.rule
 		if layer and rule.layer != layer:
 			continue
@@ -520,12 +521,26 @@ class Dialog(ContextualDialog):
 			tree.EnsureVisible(selectTreeItem)
 	
 	def refreshTitle(self):
-		webModule = self.context["webModule"]
-		# Translators: The title of the Rules Manager dialog
-		title = "Web Module {} - Rules by {}".format(
-			webModule.name,
-			stripAccel(GROUP_BY[self.groupByRadio.GetSelection()].label).lower(),
-		)
+		context = self.context
+		webModule = context["webModule"]
+		groupBy = GROUP_BY[self.groupByRadio.GetSelection()]
+		if self.filterEdit.Value:
+			if groupBy.id != "position" and lastActiveOnly:
+				# Translators: A possible title of the Rules Manager dialog
+				title = "Web Module {} - Filtered active rules by {}"
+			else:
+				# Translators: A possible title of the Rules Manager dialog
+				title = "Web Module {} - Filtered rules by {}"
+		else:
+			if groupBy.id != "position" and lastActiveOnly:
+				# Translators: A possible title of the Rules Manager dialog
+				title = "Web Module {} - Active rules by {}"
+			else:
+				# Translators: A possible title of the Rules Manager dialog
+				title = "Web Module {} - Rules by {}"
+		title = title.format(webModule.name, stripAccel(groupBy.label).lower())
+		if groupBy.id == "position" and webModule.ruleManager.rootRuleManager.subModules.all():
+			title += " for all active WebModules on this page"
 		if config.conf["webAccess"]["devMode"]:
 			title += " ({})".format("/".join((layer.name for layer in webModule.layers)))
 		self.Title = title
@@ -653,6 +668,7 @@ class Dialog(ContextualDialog):
 		context = self.context.copy()
 		context["new"] = False
 		context["rule"] = rule
+		context["webModule"] = rule.ruleManager.webModule
 		from .editor import show
 		if show(context, parent=self):
 			rule = self.context["rule"] = context["rule"]
