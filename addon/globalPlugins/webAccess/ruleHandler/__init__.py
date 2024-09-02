@@ -677,9 +677,13 @@ class RuleManager(ScriptableObject):
 		return None
 
 	def getResultAtCaret(self):
+		"""Includes Results from all WebModules active on the document
+		"""
 		return next(self.iterResultsAtCaret(), None)
 
 	def iterResultsAtCaret(self):
+		"""Includes Results from all WebModules active on the document
+		"""
 		try:
 			ti = self.nodeManager.treeInterceptor
 		except AttributeError:
@@ -689,6 +693,8 @@ class RuleManager(ScriptableObject):
 			yield result
 
 	def iterResultsAtObject(self, obj):
+		"""Includes Results from all WebModules active on the document
+		"""
 		try:
 			info = obj.treeInterceptor.makeTextInfo(obj)
 		except AttributeError:
@@ -697,14 +703,18 @@ class RuleManager(ScriptableObject):
 			yield result
 
 	def iterResultsAtTextInfo(self, info):
-		if not self.isReady:
+		"""Includes Results from all WebModules active on the document
+		"""
+		root = self.rootRuleManager
+		if not root.isReady:
 			return
-		if not self.getResults():
+		results = root.getAllResults()
+		if not results:
 			return
 		if not isinstance(info, textInfos.offsets.OffsetsTextInfo):
 			raise ValueError("Not supported {}".format(type(info)))
 		offset = info._startOffset
-		for r in reversed(self.getResults()):
+		for r in reversed(results):
 			if r.startOffset <= offset <= r.endOffset:
 				yield r
 
