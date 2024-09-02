@@ -148,10 +148,10 @@ class WebAppScheduler(threading.Thread):
 			nodeManager
 			and nodeManager.treeInterceptor
 			and isinstance(nodeManager.treeInterceptor, WebAccessBmdti)
-			and nodeManager.treeInterceptor.webAccess.ruleManager
+			and nodeManager.treeInterceptor.webAccess.rootWebModule
 		):
 			return
-		nodeManager.treeInterceptor.webAccess.ruleManager.update(nodeManager)
+		nodeManager.treeInterceptor.webAccess.rootRuleManager.update(nodeManager)
 
 	def event_ruleManagerUpdated(self, ruleManager):
 		# Doesn't work outside of the main thread for Google Chrome 83

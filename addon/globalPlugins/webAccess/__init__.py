@@ -214,7 +214,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			# Translators: Error message when attempting to show the Web Access GUI.
 			ui.message(_("You must be in a web browser to use Web Access."))
 			return
-		if obj.treeInterceptor is None or not isinstance(obj, overlay.WebAccessObject):
+		if not isinstance(obj.treeInterceptor, overlay.WebAccessBmdti):
 			# Translators: Error message when attempting to show the Web Access GUI.
 			ui.message(_("You must be on the web page to use Web Access."))
 			return
@@ -223,16 +223,21 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			"webAccess": self,
 			"focusObject": obj,
 		}
-		if obj.webAccess.webModule:
-			webModule = obj.treeInterceptor.webAccess.webModuleAtCaret
+		# Use the helper of the TreeInterceptor to get the WebModule at caret
+		# rather than the one where the focus is stuck.
+		webModule = obj.treeInterceptor.webAccess.webModule
+		if webModule:
 			context["webModule"] = webModule
 			context["pageTitle"] = webModule.pageTitle
 			mgr = webModule.ruleManager
-			context["result"] = mgr.getResultAtCaret(focus=obj)
+			context["result"] = mgr.getResultAtCaret()
 			stack = []
-			while webModule:
+			while True:
 				stack.append(webModule)
-				webModule = webModule.ruleManager.parentModule
+				try:
+					webModule = webModule.ruleManager.parentRuleManager.webModule
+				except AttributeError:
+					break
 			if len(stack) > 1:
 				context["webModuleStackAtCaret"] = stack
 		menu.show(context)
@@ -347,8 +352,8 @@ def eventExecuter_gen(self, eventName, obj):
 		if func:
 			yield func, (obj, self.next)
 
-	# webApp level
-	if  not canHaveWebAccessSupport(obj) and eventName in ["gainFocus"] and activeWebModule is not None:
+	# WebModule level.
+	if not canHaveWebAccessSupport(obj) and eventName in ["gainFocus"] and activeWebModule is not None:
 		# log.info("Received event %s on a non-hosted object" % eventName)
 		webAppLoseFocus(obj)
 	else:
@@ -361,7 +366,7 @@ def eventExecuter_gen(self, eventName, obj):
 			# log.info("Getting method %s -> %s" %(webApp.name, funcName))
 			func = getattr(webModule, funcName, None)
 			if func:
-				yield func,(obj, self.next)
+				yield func, (obj, self.next)
 
 	# App module level.
 	app = obj.appModule

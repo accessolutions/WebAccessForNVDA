@@ -34,6 +34,8 @@ __authors__ = (
 import weakref
 import wx
 
+import NVDAObjects
+from NVDAObjects.IAccessible import IAccessible
 import addonHandler
 import baseObject
 import browseMode
@@ -41,24 +43,19 @@ import config
 import controlTypes
 import core
 import cursorManager
+from garbageHandler import TrackedObject
 import gui
 from logHandler import log
 from scriptHandler import script
-import NVDAObjects
-from NVDAObjects.IAccessible import IAccessible
 import speech
 import textInfos
 import treeInterceptorHandler
 import ui
 import virtualBuffers
 
-from .utils import guarded
+from .utils import guarded, logException
 
 
-from six import iteritems
-from six.moves import xrange
-
-from garbageHandler import TrackedObject
 
 REASON_CARET = controlTypes.OutputReason.CARET
 
@@ -151,22 +148,23 @@ class WebAccessBmdtiHelper(TrackedObject):
 	Utility methods and properties.
 	"""
 	WALK_ALL_TREES = False
-
+	
 	def __init__(self, treeInterceptor):
 		self.caretHitZoneBorder = False
 		self._nodeManager = None
 		self._treeInterceptor = weakref.ref(treeInterceptor)
-		self._webModule = None
-
+		self._rootWebModule = None
+	
 	def terminate(self):
-		if self._webModule is not None:
-			self._webModule.terminate()
-		self._webModule = None
+		if self._rootWebModule is not None:
+			self._rootWebModule.terminate()
+		self._rootWebModule = None
 		if self._nodeManager is not None:
 			self._nodeManager.terminate()
 		self._nodeManager = None
-
+	
 	@property
+	@logException
 	def nodeManager(self):
 		nodeManager = self._nodeManager
 		ti = self.treeInterceptor
@@ -178,14 +176,48 @@ class WebAccessBmdtiHelper(TrackedObject):
 			from .webAppScheduler import scheduler
 			nodeManager = self._nodeManager = NodeManager(ti, scheduler.onNodeMoveto)
 		return nodeManager
-
+	
 	@property
-	def ruleManager(self):
-		if not self.webModule:
+	@logException
+	def rootRuleManager(self):
+		webModule = self.rootWebModule
+		if not webModule:
 			return None
-		return self.webModule.ruleManager
-
+		return webModule.ruleManager
+	
 	@property
+	@logException
+	def rootWebModule(self):
+		from . import canHaveWebAccessSupport, webAccessEnabled
+		if not webAccessEnabled:
+			return None
+		ti = self.treeInterceptor
+		if not ti:
+			self._rootWebModule = None
+			return None
+		webModule = self._rootWebModule
+		if not webModule:
+			obj = ti.rootNVDAObject
+			if not canHaveWebAccessSupport(obj):
+				return None
+			from . import webModuleHandler
+			try:
+				webModule = self._rootWebModule = webModuleHandler.getWebModuleForTreeInterceptor(ti)
+			except Exception:
+				log.exception()
+		return webModule
+	
+	@property
+	@logException
+	@logException
+	def ruleManager(self):
+		webModule = self.webModule
+		if not webModule:
+			return None
+		return webModule.ruleManager
+	
+	@property
+	@logException
 	def treeInterceptor(self):
 		if hasattr(self, "_treeInterceptor"):
 			ti = self._treeInterceptor
@@ -195,44 +227,30 @@ class WebAccessBmdtiHelper(TrackedObject):
 				return ti
 			else:
 				return None
-
+	
 	@property
+	@logException
 	def webModule(self):
-		from . import canHaveWebAccessSupport, webAccessEnabled
-		if not webAccessEnabled:
+		root = self.rootWebModule
+		if not root:
 			return None
-		ti = self.treeInterceptor
-		if not ti:
-			self._webModule = None
-			return None
-		webModule = self._webModule
-		if not webModule:
-			obj = ti.rootNVDAObject
-			if not canHaveWebAccessSupport(obj):
-				return None
-			from . import webModuleHandler
-			try:
-				webModule = self._webModule = webModuleHandler.getWebModuleForTreeInterceptor(ti)
-			except Exception:
-				log.exception()
-		return webModule
+		try:
+			info = self.treeInterceptor.makeTextInfo(textInfos.POSITION_CARET)
+		except Exception:
+			#log.exception(stack_info=True)
+			return root
+		return root.ruleManager.subModules.atPosition(info._startOffset) or root
 	
 	@property
-	def webModuleAtCaret(self):
-		rootModule = self.webModule
-		if not rootModule:
-			return None
-		info = self.treeInterceptor.makeTextInfo(textInfos.POSITION_CARET)
-		return self.ruleManager.subModules.atPosition(info._startOffset) or rootModule
-	
-	@property
+	@logException
 	def zone(self):
 		ruleManager = self.ruleManager
 		if not ruleManager:
 			return None
 		return ruleManager.zone
-
+	
 	@zone.setter
+	@logException
 	def zone(self, value):
 		if value is None:
 			# Avoid raising an AttributeError if we only want to ensure
@@ -243,6 +261,13 @@ class WebAccessBmdtiHelper(TrackedObject):
 			return
 		# Properly raise AttributeError if there is no RuleManager.
 		self.ruleManager.zone = value
+	
+	@logException
+	def getWebModuleAtTextInfo(self, info):
+		rootModule = self.webModule
+		if not rootModule:
+			return None
+		return self.ruleManager.subModules.atPosition(info._startOffset) or rootModule
 
 
 class WebAccessBmdtiTextInfo(textInfos.offsets.OffsetsTextInfo):
@@ -332,7 +357,7 @@ class WebAccessBmdtiTextInfo(textInfos.offsets.OffsetsTextInfo):
 				break
 		else:
 			raise LookupError
-		mgr = self.obj.webAccess.ruleManager
+		mgr = self.obj.webAccess.rootRuleManager
 		if not mgr:
 			return attrs
 		mutated = mgr.getMutatedControl(controlId)
@@ -344,7 +369,7 @@ class WebAccessBmdtiTextInfo(textInfos.offsets.OffsetsTextInfo):
 		fields = super()._getFieldsInRange(
 			start, end
 		)
-		mgr = self.obj.webAccess.ruleManager
+		mgr = self.obj.webAccess.rootRuleManager
 		if not mgr or not mgr.isReady:
 			return fields
 		for field in fields:
@@ -470,7 +495,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		return getDynamicClass((WebAccessBmdtiTextInfo, superCls))
 
 	def _set_selection(self, info, reason=REASON_CARET):
-		webModule = self.webAccess.webModule
+		webModule = self.webAccess.getWebModuleAtTextInfo(info)
 		if webModule and hasattr(webModule, "_set_selection"):
 			webModule._set_selection(self, info, reason=reason)
 			return
@@ -504,7 +529,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 					self.webAccess.caretHitZoneBorder = True
 			elif (
 				posUnit == textInfos.POSITION_LAST
-				and zone.isTextInfoAtEnd(info)
+				and zone.isTextInfoAtOfAfterEnd(info)
 			) or (
 				posUnit == textInfos.POSITION_FIRST
 				and zone.isTextInfoAtStart(info)
@@ -546,7 +571,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 				yield next(superIter)
 			except StopIteration:
 				return
-		mgr = self.webAccess.ruleManager
+		mgr = self.webAccess.rootRuleManager
 		if not mgr:
 			for item in superIter:
 				yield item
@@ -587,7 +612,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 				elif isinstance(item, browseMode.TextInfoQuickNavItem):
 					try:
 						obj = item.textInfo.NVDAObjectAtStart
-						controlId = obj.IA2UniqueID
+						controlId = str(self.getIdentifierFromNVDAObject(obj)[1])
 					except Exception:
 						log.exception()
 				if controlId is None:
@@ -728,7 +753,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 
 		See `__mutatedControlMatchesCriteria` for details on criteria format.
 		"""
-		mgr = self.webAccess.ruleManager
+		mgr = self.webAccess.rootRuleManager
 		if not mgr:
 			return
 		if not criteria:
@@ -788,7 +813,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		parentAttrs = None  # Fetch lazily as seldom needed
 		parentNode = mutated.node.parent
 		for alternative in criteria:
-			for key, values in iteritems(alternative):
+			for key, values in alternative.items():
 				if key.endswith("::not"):
 					negate = True
 					key = key[:-len("::not")]
@@ -877,6 +902,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			if not willSayAllResume:
 				speech.speakTextInfo(info, reason=REASON_CARET)
 		elif self.webAccess.zone:
+			
 			def ask():
 				if gui.messageBox(
 					"\n".join((
@@ -893,6 +919,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 						reverse=reverse,
 						caseSensitive=caseSensitive
 					)
+			
 			wx.CallAfter(ask)
 		else:
 			wx.CallAfter(
@@ -940,7 +967,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		return super().getAlternativeScript(gesture, script)
 
 	def getScript(self, gesture):
-		webModule = self.webAccess.webModuleAtCaret
+		webModule = self.webAccess.webModule
 		if webModule:
 			script = webModule.getScript(gesture)
 			if script:
@@ -962,7 +989,12 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			and self.webAccess.zone
 		):
 			self.webAccess.zone = None
-			ui.message(_("Zone restriction cancelled"))
+			if self.webAccess.zone is None:
+				# Translators: Reported when cancelling zone restriction
+				ui.message(_("Zone restriction cancelled"))
+			else:
+				# Translators: Reported when cancelling zone restriction
+				ui.message(_("Zone restriction enlarged to a wider zone"))
 		else:
 			super().script_disablePassThrough(gesture)
 
@@ -1091,7 +1123,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 	def script_refreshResults(self, gesture):
 		# Translators: Notified when manually refreshing results
 		ui.message(_("Refresh results"))
-		self.webAccess.ruleManager.clear()
+		self.webAccess.rootRuleManager.clear()
 		self.webAccess.nodeManager.update(force=True)
 	
 	script_refreshResults.ignoreTreeInterceptorPassThrough = True
@@ -1120,10 +1152,12 @@ class WebAccessObjectHelper(TrackedObject):
 	"""
 	Utility methods and properties.
 	"""
+	
 	def __init__(self, obj):
 		self._obj = weakref.ref(obj)
-
+	
 	@property
+	@logException
 	def nodeManager(self):
 		ti = self.treeInterceptor
 		if not ti:
@@ -1131,17 +1165,28 @@ class WebAccessObjectHelper(TrackedObject):
 		return ti.webAccess.nodeManager
 
 	@property
+	@logException
 	def obj(self):
 		return self._obj()
 
 	@property
+	@logException
 	def ruleManager(self):
-		ti = self.treeInterceptor
-		if not ti:
+		webModule = self.webModule
+		if not webModule:
 			return None
-		return ti.webAccess.ruleManager
-
+		return webModule.ruleManager
+	
 	@property
+	@logException
+	def rootRuleManager(self):
+		ti = self.treeInterceptor
+		if not isinstance(ti, WebAccessBmdti):
+			return None
+		return ti.webAccess.rootRuleManager
+	
+	@property
+	@logException
 	def treeInterceptor(self):
 		obj = self.obj
 		while True:
@@ -1156,16 +1201,23 @@ class WebAccessObjectHelper(TrackedObject):
 				obj = ti.rootNVDAObject.parent
 			except Exception:
 				return None
-
+	
 	@property
+	@logException
 	def webModule(self):
 		ti = self.treeInterceptor
 		if not ti:
 			return None
-		return ti.webAccess.webModule
-
+		try:
+			info = ti.makeTextInfo(self.obj)
+		except Exception:
+			log.exception(stack_info=True)
+			return ti.webAccess.webModule
+		return ti.webAccess.getWebModuleAtTextInfo(info)
+	
+	@logException
 	def getMutatedControlAttribute(self, attr, default=None):
-		mgr = self.ruleManager
+		mgr = self.rootRuleManager
 		if not mgr:
 			return default
 		obj = self.obj
