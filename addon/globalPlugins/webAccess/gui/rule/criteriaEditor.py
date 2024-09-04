@@ -21,7 +21,6 @@
 
 
 
-__version__ = "2024.08.30"
 __authors__ = (
 	"Shirley Noël <shirley.noel@pole-emploi.fr>",
 	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
@@ -176,7 +175,7 @@ def getSummary_context(data) -> Sequence[str]:
 		parts.append("{} {}".format(stripAccel(label), value))
 	if not parts:
 		# Translators: A mention on the Criteria summary report
-		parts.append(_("Global - Applies to the whole web module"))
+		parts.append(_("General - Applies to the whole web module"))
 	return parts
 
 
@@ -430,7 +429,7 @@ class CriteriaPanel(CriteriaEditorPanel):
 		item = self.contextMacroDropDown = DropDownWithHideableChoices(self)
 		item.setChoices((
 			# Translator: A selection value for the Context field on the Criteria editor
-			("global", _("Global - Applies to the whole web module")),
+			("general", _("General - Applies to the whole web module")),
 			# Translator: A selection value for the Context field on the Criteria editor
 			("contextPageTitle", _("Page title - Applies only to pages with the given title")),
 			# Translator: A selection value for the Context field on the Criteria editor
@@ -746,11 +745,11 @@ class CriteriaPanel(CriteriaEditorPanel):
 					if data.get(field)
 				]
 				if not filled:
-					dropDown.setSelectedChoiceKey("global")
+					dropDown.setSelectedChoiceKey("general")
 				elif len(filled) > 1:
 					dropDown.setSelectedChoiceKey("advanced")
 				else:
-					dropDown.setSelectedChoiceKey(filled[0], default="global")
+					dropDown.setSelectedChoiceKey(filled[0], default="general")
 		self.onContextMacroChoice(None)
 
 	def onContextMacroChoice(self, evt):
