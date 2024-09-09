@@ -262,13 +262,6 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			gui.mainFrame.popupSettingsDialog(WebAccessSettingsDialog)
 
 	@script(
-		# Translators: Input help mode message for a command.
-		description=_("Toggle debug mode."),
-		category=SCRIPT_CATEGORY,
-		gesture="kb:nvda+control+shift+w"
-	)
-
-	@script(
 		# Translators: Input help mode message for show Web Access menu command.
 		description=_("Show the element description."),
 		category=SCRIPT_CATEGORY,
