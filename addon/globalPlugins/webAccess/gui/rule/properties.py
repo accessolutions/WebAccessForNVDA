@@ -20,7 +20,12 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__author__ = "Sendhil Randon <sendhil.randon-ext@francetravail.fr>"
+__authors__ = (
+	"Sendhil Randon <sendhil.randon-ext@francetravail.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+)
 
 
 from collections import ChainMap
@@ -171,7 +176,10 @@ class Property:
 		if value in (None, ""):
 			return self.displayValueIfUndefined
 		if self.isRestrictedChoice:
-			return self.choices[value]
+			try:
+				return self.choices[value]
+			except LookupError:
+				return f"*{value}"
 		if self.valueType is bool:
 			if value:
 				# Translators: The displayed value of a yes/no rule property
