@@ -346,20 +346,17 @@ def eventExecuter_gen(self, eventName, obj):
 			yield func, (obj, self.next)
 
 	# WebModule level.
-	if not canHaveWebAccessSupport(obj) and eventName in ["gainFocus"] and activeWebModule is not None:
-		# log.info("Received event %s on a non-hosted object" % eventName)
-		webAppLoseFocus(obj)
+	webModule = obj.webAccess.webModule if isinstance(obj, overlay.WebAccessObject) else None
+	if webModule is None:
+		# Currently dead code, but will likely be revived for issue #17.
+		if activeWebModule is not None and obj.hasFocus:
+			#log.info("Disabling active webApp event %s" % eventName)
+			webAppLoseFocus(obj)
 	else:
-		webModule = obj.webAccess.webModule if isinstance(obj, overlay.WebAccessObject) else None
-		if webModule is None:
-			if activeWebModule is not None and obj.hasFocus:
-				#log.info("Disabling active webApp event %s" % eventName)
-				webAppLoseFocus(obj)
-		else:
-			# log.info("Getting method %s -> %s" %(webApp.name, funcName))
-			func = getattr(webModule, funcName, None)
-			if func:
-				yield func, (obj, self.next)
+		# log.info("Getting method %s -> %s" %(webApp.name, funcName))
+		func = getattr(webModule, funcName, None)
+		if func:
+			yield func, (obj, self.next)
 
 	# App module level.
 	app = obj.appModule

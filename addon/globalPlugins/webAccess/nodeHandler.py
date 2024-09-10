@@ -30,6 +30,7 @@ __authors__ = (
 
 import gc
 import re
+import sys
 import time
 import weakref
 from ast import literal_eval
@@ -47,6 +48,12 @@ import winUser
 from garbageHandler import TrackedObject
 
 from .webAppLib import *
+
+
+if sys.version_info[1] < 9:
+    from typing import Mapping
+else:
+    from collections.abc import Mapping
 
 
 TRACE = lambda *args, **kwargs: None  # noqa: E731
@@ -275,7 +282,7 @@ class NodeManager(baseObject.ScriptableObject):
 		# logTime ("Update node manager %d nodes" % len(fields), t)
 		self.updating = False
 		# playWebAccessSound("tick")
-		self._curNode = self.caretNode = self.getCaretNode()
+		self._curNode = self.caretNode = self.getCaretNode()  # FIXME: Dead code
 		try:
 			info = self.treeInterceptor.makeTextInfo(textInfos.POSITION_LAST)
 		except Exception:
@@ -348,7 +355,25 @@ class NodeManager(baseObject.ScriptableObject):
 			return self.searchOffset(info._startOffset)
 		except Exception:
 			return None
-
+	
+	def getControlIdToPosition(self):
+		if not self.isReady:
+			return {}
+		map: Mapping[str, int] = {}
+		
+		def walk(node):
+			id = node.controlIdentifier
+			if id:
+				if id in map and map[id] != node.offset:
+					log.warning(f"ControlId double: {id} at {map[id]} and {node.offset}")
+				map[id] = node.offset
+			for child in node.children:
+				walk(child)
+		
+		walk(self.mainNode)
+		return map
+	
+	# FIXME: Dead code
 	def getCurrentNode(self):
 		if not self.isReady:
 			return None
@@ -356,18 +381,21 @@ class NodeManager(baseObject.ScriptableObject):
 			self._curNode = self.getCaretNode()
 		return self._curNode
 
+	# FIXME: Dead code
 	def setCurrentNode(self, node):
 		if hasattr(node, 'control') is False:
 			self._curNode = node.parent
 		else:
 			self._curNode = node
 
+	# FIXME: Dead code from day 1 (probably used with presenters)
 	def event_caret(self, obj, nextHandler):  # @UnusedVariable
 		if not self.isReady:
 			return
 		self.display(self._curNode)
 		nextHandler()
 
+	# FIXME: Dead code from here to end of class
 	def script_nextItem(self, gesture):
 		if not self.isReady:
 			return
@@ -920,6 +948,7 @@ class NodeField(TrackedObject):
 		winUser.setCursorPos(x, y)
 		mouseHandler.executeMouseMoveEvent(x, y)
 
+	# FIXME: Dead code
 	def getPresentationString(self):
 		"""Returns the current node text and role for speech and Braille.
 		@param None
@@ -934,6 +963,7 @@ class NodeField(TrackedObject):
 			return "_innerText_ _role_ de niveau %s" % self.control["level"]
 		return "_innerText_ _role_"
 
+	# FIXME: Dead code
 	def getBraillePresentationString(self):
 		return False
 

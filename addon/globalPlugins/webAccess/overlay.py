@@ -1156,6 +1156,14 @@ class WebAccessObjectHelper(TrackedObject):
 	def __init__(self, obj: NVDAObjects.NVDAObject):
 		self._obj: weakref.ref[NVDAObjects.NVDAObject] = weakref.ref(obj)
 		self._webModule: weakref.ref[WebModule] = None
+		"""Cached to try sustain operations during RuleManager update.
+		"""
+	
+	@property
+	@logException
+	def controlId(self):
+		obj = self.obj
+		return str(obj.treeInterceptor.getIdentifierFromNVDAObject(obj)[1])
 	
 	@property
 	@logException
@@ -1206,18 +1214,36 @@ class WebAccessObjectHelper(TrackedObject):
 	@property
 	@logException
 	def webModule(self):
-		if self._webModule:
-			return self._webModule()
-		ti = self.treeInterceptor
-		if not ti:
+		mgr = self.rootRuleManager
+		if mgr is None:
 			return None
 		try:
-			info = ti.makeTextInfo(self.obj)
+			controlId = self.controlId
 		except Exception:
-			log.exception(stack_info=True)
-			return ti.webAccess.webModule
-		webModule = ti.webAccess.getWebModuleAtTextInfo(info)
-		if webModule:
+			log.exception()
+			return None
+		try:
+			webModule = mgr.getWebModuleForControlId(controlId)
+		except LookupError:
+			log.warning(f"Unknown controlId: {controlId}")
+			webModule = None
+		if webModule is None and self._webModule is not None:
+			# The RumeManager is not ready, return the last cached value
+			return self._webModule()
+		if webModule is None:
+			# Lookup by controlId failed and there is no cached value.
+			# Attempt lookup by position.
+			ti = self.treeInterceptor
+			if not ti:
+				return None
+			try:
+				info = ti.makeTextInfo(self.obj)
+			except Exception:
+				log.exception(stack_info=True)
+				# Failback to the WebModule at caret (not cached)
+				return ti.webAccess.webModule
+			webModule = ti.webAccess.getWebModuleAtTextInfo(info)
+		if webModule is not None:
 			self._webModule = weakref.ref(webModule)
 		return webModule
 	
@@ -1226,9 +1252,8 @@ class WebAccessObjectHelper(TrackedObject):
 		mgr = self.rootRuleManager
 		if not mgr:
 			return default
-		obj = self.obj
 		try:
-			controlId = obj.treeInterceptor.getIdentifierFromNVDAObject(obj)[1]
+			controlId = self.controlId
 		except Exception:
 			log.exception()
 			return default
