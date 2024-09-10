@@ -69,7 +69,7 @@ from .. import (
 	stripAccelAndColon,
 	stripAccelAndColon,
 )
-from . import createMissingSubModule, criteriaEditor, gestureBinding
+from . import criteriaEditor, gestureBinding, saveRule
 from .abc import RuleAwarePanelBase
 from .gestures import GesturesPanelBase
 from .properties import (
@@ -205,7 +205,6 @@ class GeneralPanel(RuleEditorTreeContextualPanel):
 	def makeSettings(self, settingsSizer):
 		scale = self.scale
 		gbSizer = wx.GridBagSizer()
-		#gbSizer.EmptyCellSize = (0, 0)
 		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
 
 		row = 0
@@ -342,6 +341,7 @@ class GeneralPanel(RuleEditorTreeContextualPanel):
 		super().onPanelActivated()
 
 	def isValid(self):
+		# Beware this method is also used on the GeneralPage of the Rule Creation Wizard
 		self.updateData()
 		data = self.getData()
 		# Type is required
@@ -1209,6 +1209,7 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 		data = self.getData()
 		webModule = context["webModule"]
 		ruleManager = webModule.ruleManager
+		fromWizardPage = context.pop("fromWizardPage", None)
 		reload = context.pop("RuleEditorFocusOnReload", None)
 		if context.get("new"):
 			if ruleManager.parentZone is not None:
@@ -1231,13 +1232,13 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 		else:
 			if ruleManager.parentZone is not None:
 				# Translators: A title of the rule editor
-				title = (_("Sub Module {} - Edit Rule {}").format(webModule.name, data.get("name")))
+				title = _("Sub Module {} - Edit Rule {}").format(webModule.name, data.get("name"))
 			elif ruleManager.subModules.all():
 				# Translators: A title of the rule editor
-				title = (_("Root Module {} - Edit Rule {}").format(webModule.name, data.get("name")))
+				title = _("Root Module {} - Edit Rule {}").format(webModule.name, data.get("name"))
 			else:
 				# Translators: A title of the rule editor
-				title = (_("Web Module {} - Edit Rule {}").format(webModule.name, data.get("name")))
+				title = _("Web Module {} - Edit Rule {}").format(webModule.name, data.get("name"))
 		if config.conf["webAccess"]["devMode"]:
 			layerName = None
 			if context.get("new"):
@@ -1251,19 +1252,33 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 				layerName = context["rule"].layer
 			title += f" ({layerName})"
 		self.SetTitle(title)
-		if reload and data.get("criteria") == [{"selector": {}}]:
+		if (
+			fromWizardPage is not None or reload is not None
+		) and data.get("criteria") == [{"selector": {}}]:
 			del data["criteria"]
 		super().initData(context)
-		if reload is not None:
+		if fromWizardPage is not None or reload is not None:
+			if fromWizardPage is not None:
+				treePath = ({
+					"GeneralPage": 0,
+					"ContextPage": 1,
+					"CriteriaPage": 1,
+					"GesturesPage": 2,
+					"PropertiesPage": 3,
+				}[fromWizardPage],)
+				treeFocus = True
+			else:
+				treePath = reload["tree.path"]
+				treeFocus = reload["tree.focus"]
 			tree = self.catListCtrl
 			node = tree.RootItem
-			for index in reload["tree.path"]:
+			for index in treePath:
 				children = tree.getChildren(node)
 				node = children[index]
 			tree.SelectItem(node)
 			catInfos = tree.getTreeNodeInfo(node)
 			self._doCategoryChange(catInfos)
-			if reload["tree.focus"]:
+			if treeFocus:
 				tree.SetFocus()
 			else:
 				self.currentCategory.SetFocus()
@@ -1319,75 +1334,17 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 	
 	def _saveAllPanels(self):
 		super()._saveAllPanels()
-		context = self.context
-		data = self.getData()
-		
-		if any(
-			set(critData.get("selector", {}).keys()) == {"start", "end"}
-			for critData in data.get("criteria", [])
-		) and any(
-			key == "mutation" and value
-			for key, value in data.get("properties", {}).items()
-		):
-			if gui.messageBox(
-				# Translators: A warning message on the Rule editor
-				_(
-					'''The "Transform" property is not supported with free zones (two sets of criteria).
-
-Do you want to proceed anyway?
-'''
-				),
-				# Translators: The title of a message dialog
-				caption=_("Warning"),
-				style=wx.ICON_WARNING | wx.YES_NO | wx.CANCEL | wx.NO_DEFAULT
-			) != wx.YES:
-				raise ValidationError()  # Cancels closing of the dialog
-		
-		# Remove gesture bindings and properties not supported for the selected Rule Type.
-		# This needs to be done here rather than
-		#  - upon changing the Rule Type for easier non-destructive cycle-through
-		#    the different types,
-		#  - in the panel's doSave because the Rule Type might have been changed
-		#    without even instantiating any other panel.
-		cnts = [data] + [crit for crit in data.get("criteria", tuple())]
-		for cnt in cnts:
-			if data["type"] not in ruleTypes.ACTION_TYPES or not cnt.get("gestures"):
-				cnt.pop("gestures", None)
-			updateOrDrop(
-				cnt,
-				"properties",
-				Properties(context, cnt.get("properties", {}), iterOnlyFirstMap=True).dump(),
-				{}
-			)
-		
-		mgr = context["webModule"].ruleManager
-		if context.get("new"):
-			layerName = None
-		else:
-			rule = context["rule"]
-			layerName = rule.layer
-		webModule = webModuleHandler.getEditableWebModule(mgr.webModule, layerName=layerName)
-		if not webModule:
-			raise ValidationError()  # Cancels closing of the dialog
-		if createMissingSubModule(context, data, self) is False:
-			raise ValidationError()  # Cancels closing of the dialog
-		if context.get("new"):
-			layerName = webModule.getWritableLayer().name
-		else:
-			mgr.removeRule(rule)
-		context["rule"] = mgr.loadRule(layerName, data["name"], data)
-		webModule.getLayer(layerName, raiseIfMissing=True).dirty = True
-		if not webModuleHandler.save(webModule, layerName=layerName):
-			raise ValidationError()  # Cancels closing of the dialog
+		saveRule(self.context, self.getData(), self)
 
 
 def show(context, parent=None):
 	if parent is None:
 		parent = gui.mainFrame
 	data = context.setdefault("data", {})
+	# Do not erase data eventualy coming from the Rule wizard
 	if context.get("new"):
-		data["rule"] = {"type": ruleTypes.MARKER}
-	else:
+		data.setdefault("rule", {"type": ruleTypes.MARKER})
+	elif not data.get("rule"):
 		rule = context["rule"]
 		data["rule"] = rule.dump()
 	
