@@ -130,6 +130,9 @@ class RuleManager(ScriptableObject):
 		self.timerCheckAutoAction = None
 		self._zone: Zone = None
 		self.subModules: SubModules = SubModules(self)
+		self._controlIdToPosition: Mapping[str, int] = {}
+		"""Used for safer retrieval of the WebModule associated to an object in focus mode
+		"""
 		self._allResults: Sequence["Result"] = []
 		"""Results for this WebModule and all of its SubModules.
 		""" 
@@ -378,7 +381,19 @@ class RuleManager(ScriptableObject):
 # 				if func is not None:
 # 					return func
 		return self.defaultScripts.getScript(gesture)
-
+	
+	def getWebModuleForControlId(self, controlId):
+		if self.parentZone is not None:
+			raise Exception("Supported on the root RuleManager only")
+		if not self.isReady:
+			return None
+		# Raises LookupError on purpose, to distinguish from returning None meaning "Not Ready"
+		offset = self._controlIdToPosition[controlId]
+		webModule = self.subModules.atPosition(offset)
+		if webModule is None:
+			webModule = self.webModule
+		return webModule
+	
 	def _get_isReady(self):
 		if not self._ready or not self.nodeManager or not self.nodeManager.isReady or self.nodeManager.identifier != self.nodeManagerIdentifier:
 			return False
@@ -402,6 +417,7 @@ class RuleManager(ScriptableObject):
 		self._allResults.clear()
 		self._mutatedControlsById.clear()
 		self._mutatedControlsByOffset.clear()
+		self._controlIdToPosition.clear()
 		for rule in self.getRules():
 			rule.resetResults()
 	
@@ -417,15 +433,17 @@ class RuleManager(ScriptableObject):
 			except AttributeError:
 				pass
 			self.timerCheckAutoAction = None
-			if nodeManager is not None:
+			if nodeManager is None:
+				nodeManager = self.nodeManager
+			else:
 				self._nodeManager = weakref.ref(nodeManager)
-			if self.nodeManager is None or not self.nodeManager.isReady:
+			if nodeManager is None or not nodeManager.isReady:
 				return False
-			if not force and self.nodeManagerIdentifier == self.nodeManager.identifier:
+			if not force and self.nodeManagerIdentifier == nodeManager.identifier:
 				# already updated
 				self._ready = True
 				return False
-			self.nodeManagerIdentifier = self.nodeManager.identifier
+			self.nodeManagerIdentifier = nodeManager.identifier
 			t = logTimeStart()
 			self.clear()
 			# Do not clear the other mappings in subModules to avoid reloading
@@ -467,13 +485,13 @@ class RuleManager(ScriptableObject):
 			self.subModules.update()
 			self._allResults.sort(key=resultSortKey)
 			if self is self.rootRuleManager:
-				# This should have been populated only on the rootRuleManager
 				self._mutatedControlsByOffset.sort(key=lambda m: m.start)
+				self._controlIdToPosition = nodeManager.getControlIdToPosition()
 			self._ready = True
 			# Zone update check can be performed only once ready
 			if self.zone is not None:
 				if not self.zone.update() or not self.zone.containsTextInfo(
-					self.nodeManager.treeInterceptor.makeTextInfo(textInfos.POSITION_CARET)
+					nodeManager.treeInterceptor.makeTextInfo(textInfos.POSITION_CARET)
 				):
 					self.zone = None
 			#logTime("update marker", t)
