@@ -651,7 +651,7 @@ class Dialog(ContextualDialog):
 			webModule = getEditableWebModule(self.context["webModule"], layerName=rule.layer)
 			if not webModule:
 				return
-			self.ruleManager.removeRule(rule)
+			rule.ruleManager.removeRule(rule)
 			save(
 				webModule=self.context["webModule"],
 				layerName=rule.layer,
