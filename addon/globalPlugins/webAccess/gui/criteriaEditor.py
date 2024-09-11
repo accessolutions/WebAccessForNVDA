@@ -221,16 +221,16 @@ def getSummary(context, data, indent="", condensed=False) -> str:
 
 @guarded
 def testCriteria(context):
-	ruleData = context["data"]["rule"].copy()
+	ruleData = copy.deepcopy(context["data"]["rule"])
 	ruleData["name"] = "__tmp__"
 	ruleData.pop("new", None)
-	ruleData.setdefault("type", ruleTypes.MARKER)
+	ruleData["type"] = ruleTypes.MARKER
 	critData = context["data"]["criteria"].copy()
 	critData.pop("new", None)
 	critData.pop("criteriaIndex", None)
 	ruleData["criteria"] = [critData]
-	ruleData.setdefault("properties", {})["multiple"] = True
-	critData.setdefault("properties", {}).pop("multiple", None)
+	ruleData.setdefault("properties", {})['multiple'] = True
+	critData.setdefault("properties", {}).pop("multiple", True)
 	mgr = context["webModule"].ruleManager
 	from ..ruleHandler import Rule
 	rule = Rule(mgr, ruleData)
