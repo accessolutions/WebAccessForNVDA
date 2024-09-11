@@ -48,11 +48,14 @@ from gui.settingsDialogs import (
 	EVT_RW_LAYOUT_NEEDED
 )
 from logHandler import log
+import addonHandler
 import speech
 import ui
 import winUser
 
 from ..utils import guarded, logException, notifyError, updateOrDrop
+
+addonHandler.initTranslation()
 
 LABEL_ACCEL = re.compile("&(?!&)")
 """
@@ -762,7 +765,7 @@ class TreeNodeInfo:
 		return self.__str__()
 
 	def __str__(self):
-		return f"{self.title} : {self.children}"
+		return f"{self.title}: {self.children}"
 
 	def updateTreeParams(self, tree, treeNode, treeParent=None):
 		if not treeParent:
