@@ -53,7 +53,7 @@ import treeInterceptorHandler
 import ui
 import virtualBuffers
 
-from .utils import guarded, logException
+from .utils import guarded, logException, tryInt
 
 
 
@@ -340,7 +340,7 @@ class WebAccessBmdtiTextInfo(textInfos.offsets.OffsetsTextInfo):
 			self.obj.webAccess.zone = None
 		super().updateSelection()
 
-	def _getControlFieldAttribs(self, docHandle, controlId):
+	def _getControlFieldAttribs(self, docHandle, id):
 		info = self.copy()
 		info.expand(textInfos.UNIT_CHARACTER)
 		for field in reversed(info.getTextWithFields()):
@@ -351,8 +351,8 @@ class WebAccessBmdtiTextInfo(textInfos.offsets.OffsetsTextInfo):
 				continue
 			attrs = field.field
 			if (
-				int(attrs["controlIdentifier_docHandle"]) == docHandle
-				and int(attrs["controlIdentifier_ID"]) == controlId
+				tryInt(attrs["controlIdentifier_docHandle"]) == docHandle
+				and tryInt(attrs["controlIdentifier_ID"]) == id
 			):
 				break
 		else:
@@ -360,7 +360,7 @@ class WebAccessBmdtiTextInfo(textInfos.offsets.OffsetsTextInfo):
 		mgr = self.obj.webAccess.rootRuleManager
 		if not mgr:
 			return attrs
-		mutated = mgr.getMutatedControl(controlId)
+		mutated = mgr.getMutatedControl((docHandle, id))
 		if mutated:
 			attrs.update(mutated.attrs)
 		return attrs
@@ -379,8 +379,9 @@ class WebAccessBmdtiTextInfo(textInfos.offsets.OffsetsTextInfo):
 			):
 				continue
 			attrs = field.field
-			controlId = int(attrs["controlIdentifier_ID"])
-			mutated = mgr.getMutatedControl(controlId)
+			mutated = mgr.getMutatedControl((
+				tryInt(attrs["controlIdentifier_docHandle"]), tryInt(attrs["controlIdentifier_ID"])
+			))
 			if mutated:
 				attrs.update(mutated.attrs)
 		return fields
@@ -394,16 +395,13 @@ class WebAccessMutatedQuickNavItem(browseMode.TextInfoQuickNavItem):
 		super().__init__(
 			itemType, document, textInfo
 		)
-		self.controlId = controlId
 		# Support for `virtualBuffers.VirtualBufferQuickNavItem.isChild`
 		# so that the Elements List dialog can relate nested headings.
-		self.vbufFieldIdentifier = (document.rootDocHandle, controlId)
+		self.vbufFieldIdentifier = controlId
 
 	@property
 	def obj(self):
-		return self.document.getNVDAObjectFromIdentifier(
-			self.document.rootDocHandle, self.controlId
-		)
+		return self.document.getNVDAObjectFromIdentifier(self.vbufFieldIdentifier)
 
 	def isChild(self, parent):
 		if self.itemType == "heading":
@@ -430,10 +428,7 @@ class WebAccessMutatedQuickNavItem(browseMode.TextInfoQuickNavItem):
 				# that is, in the Elements List dialog.
 				info = self.textInfo.copy()
 				info.expand(textInfos.UNIT_CHARACTER)
-				attrs.update(info._getControlFieldAttribs(
-					self.document.rootDocHandle,
-					self.controlId
-				))
+				attrs.update(info._getControlFieldAttribs(*self.vbufFieldIdentifier))
 			return attrs.get(prop)
 
 		return self._getLabelForProperties(propertyGetter)
@@ -608,11 +603,11 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			if not isinstance(item, WebAccessMutatedQuickNavItem):
 				controlId = None
 				if isinstance(item, virtualBuffers.VirtualBufferQuickNavItem):
-					docHandle, controlId = item.vbufFieldIdentifier
+					controlId = item.vbufFieldIdentifier
 				elif isinstance(item, browseMode.TextInfoQuickNavItem):
 					try:
 						obj = item.textInfo.NVDAObjectAtStart
-						controlId = str(self.getIdentifierFromNVDAObject(obj)[1])
+						controlId = self.getIdentifierFromNVDAObject(obj)
 					except Exception:
 						log.exception()
 				if controlId is None:
@@ -807,8 +802,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		if info is None:
 			info = mutated.node.getTextInfo()
 		docHandle = self.rootDocHandle
-		controlId = mutated.controlId
-		controlAttrs = info._getControlFieldAttribs(docHandle, controlId)
+		controlAttrs = info._getControlFieldAttribs(*mutated.controlId)
 		controlNode = mutated.node
 		parentAttrs = None  # Fetch lazily as seldom needed
 		parentNode = mutated.node.parent
@@ -824,9 +818,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 					if parentAttrs is None:
 						parent = mutated.node.parent
 						parentInfo = parent.getTextInfo()
-						parentAttrs = parentInfo._getControlFieldAttribs(
-							docHandle, int(parent.controlIdentifier)
-						)
+						parentAttrs = parentInfo._getControlFieldAttribs(*parent.controlIdentifier)
 					attrs = parentAttrs
 					node = parentNode
 				else:
@@ -1163,7 +1155,7 @@ class WebAccessObjectHelper(TrackedObject):
 	@logException
 	def controlId(self):
 		obj = self.obj
-		return str(obj.treeInterceptor.getIdentifierFromNVDAObject(obj)[1])
+		return obj.treeInterceptor.getIdentifierFromNVDAObject(obj)
 	
 	@property
 	@logException

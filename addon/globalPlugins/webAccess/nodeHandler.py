@@ -47,6 +47,7 @@ import ui
 import winUser
 from garbageHandler import TrackedObject
 
+from .utils import tryInt
 from .webAppLib import *
 
 
@@ -359,19 +360,22 @@ class NodeManager(baseObject.ScriptableObject):
 	def getControlIdToPosition(self):
 		if not self.isReady:
 			return {}
-		map: Mapping[str, int] = {}
+		map: Mapping[tuple[int, int], tuple[int, int]] = {}
 		
 		def walk(node):
-			id = node.controlIdentifier
-			if id:
-				if id in map and map[id] != node.offset:
-					log.warning(f"ControlId double: {id} at {map[id]} and {node.offset}")
-				map[id] = node.offset
+			controlId = node.controlIdentifier
+			span = (node.offset, node.offset + node.size)
+			if controlId:
+				if controlId in map:
+					prev = map[controlId]
+					if not(prev[0] <= span[0] and span[1] <= prev[1]):
+						log.warning(f"ControlId double: {controlId} at {prev} and {span}")
+				map[controlId] = span
 			for child in node.children:
 				walk(child)
 		
 		walk(self.mainNode)
-		return map
+		return {key: startOffset for key, (startOffset, endOffset) in map.items()}
 	
 	# FIXME: Dead code
 	def getCurrentNode(self):
@@ -492,7 +496,10 @@ class NodeField(TrackedObject):
 			self.name = attrs.get("name", "")
 			self.role = attrs["role"]
 			self.states = attrs["states"]
-			self.controlIdentifier = attrs.get("controlIdentifier_ID", 0)
+			self.controlIdentifier = (
+				tryInt(attrs.get("controlIdentifier_docHandle", 0)),
+				tryInt(attrs.get("controlIdentifier_ID", 0)),
+			)
 			self.tag = attrs.get("IAccessible2::attribute_tag")
 			if not self.tag:
 				self.tag = attrs.get("IHTMLDOMNode::nodeName")
