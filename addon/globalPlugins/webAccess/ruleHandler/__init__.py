@@ -474,7 +474,7 @@ class RuleManager(ScriptableObject):
 			for result in self._results:
 				if not (hasattr(result, "node") and result.properties.mutation):
 					continue
-				controlId = int(result.node.controlIdentifier)
+				controlId = result.node.controlIdentifier
 				entry = self._mutatedControlsById.get(controlId)
 				if entry is None:
 					entry = MutatedControl(result)

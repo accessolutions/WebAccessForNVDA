@@ -60,7 +60,7 @@ class MutatedControl(object):
 
 	@property
 	def controlId(self):
-		return int(self.node.controlIdentifier)
+		return self.node.controlIdentifier
 
 	@property
 	def start(self):

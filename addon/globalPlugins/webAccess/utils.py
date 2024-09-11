@@ -20,7 +20,11 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
+__authors__ = (
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+)
 
 
 from functools import wraps
@@ -103,3 +107,13 @@ def logException(func):
 
 	return wrapper
 
+
+def tryInt(value):
+	"""Try to convert the given value to `int`
+	
+	If the conversion fails, the value is returned unchanged.
+	"""
+	try:
+		return int(value)
+	except ValueError:
+		return value
