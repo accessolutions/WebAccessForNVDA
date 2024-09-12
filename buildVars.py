@@ -29,7 +29,7 @@ addon_info = {
 	"addon_version" : "2024.08.31",
 	# Author(s)
 	"addon_author" : (
-		"Accessolutions <dev@accessolutions.fr>, "
+		"Accessolutions (https://accessolutions.fr), "
 		"Frédéric Brugnot <f.brugnot@accessolutions.fr>, "
 		"Yannick Plassiard <yan@mistigri.org>, "
 		"Julien Cochuyt <j.cochuyt@accessolutions.fr>, "

@@ -1,7 +1,7 @@
 # globalPlugins/webAccess/webModuleHandler/dataRecovery/recoveryFrom_0_6_to_0_8.py
 
 # This file is part of Web Access for NVDA.
-# Copyright (C) 2024 Accessolutions (http://accessolutions.fr)
+# Copyright (C) 2024 Accessolutions (https://accessolutions.fr)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
