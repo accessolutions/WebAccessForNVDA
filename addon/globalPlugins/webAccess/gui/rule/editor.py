@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2024.08.24"
+__version__ = "2024.09.12"
 __authors__ = (
 	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
 	"Shirley Noël <shirley.noel@pole-emploi.fr>",
@@ -151,7 +151,6 @@ class RuleEditorTreeContextualPanel(RuleAwarePanelBase, TreeContextualPanel):
 	
 	def onRuleType_change(self):
 		prm = self.categoryParams
-		# FIXME: Having a mapping stored in an attribute initialized with an unused sequence is quite misleading
 		categoryClasses = tuple(nodeInfo.categoryClass for nodeInfo in self.Parent.Parent.categoryClasses)
 		for index in (categoryClasses.index(cls) for cls in (ActionsPanel, PropertiesPanel)):
 			category = prm.tree.getXChild(prm.tree.GetRootItem(), index)
@@ -195,7 +194,7 @@ class GeneralPanel(RuleEditorTreeContextualPanel):
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item = self.ruleName = wx.TextCtrl(self)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-		self.ruleName.Bind(wx.EVT_KILL_FOCUS, self.onNameEdited)
+		self.ruleName.Bind(wx.EVT_TEXT, self.onRuleName)
 
 		row += 1
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
@@ -231,8 +230,9 @@ class GeneralPanel(RuleEditorTreeContextualPanel):
 		else:
 			self.ruleType.SetSelection(0)
 
-		self.ruleName.Value = data.get("name", "")
-		self.commentText.Value = data.get("comment", "")
+		# Does not emit EVT_TEXT
+		self.ruleName.ChangeValue(data.get("name", ""))
+		self.commentText.ChangeValue(data.get("comment", ""))
 		self.refreshSummary()
 
 	@staticmethod
@@ -244,18 +244,32 @@ class GeneralPanel(RuleEditorTreeContextualPanel):
 
 	def updateData(self):
 		data = self.getData()
-		# The rule type should already be stored as of onRuleType_choice
-		data["name"] = self.ruleName.Value
-		data['type'] = self.getTypeFieldValue()
+		# The type and name are already stored by their respective event handlers and should
+		# not be updated here to avoid resetting changes made through the SingleFieldEditor on
+		# the tree child nodes.
 		updateOrDrop(data, "comment", self.commentText.Value)
 
 	def spaceIsPressedOnTreeNode(self, withShift=False):
 		self.ruleType.SetFocus()
 
 	@guarded
-	def onNameEdited(self, evt):
-		self.getData()["name"] = self.ruleName.Value
-		self.refreshParent(self.categoryParams.treeNode, deleteChildren=False)
+	def onRuleName(self, evt):
+		data = self.getData()
+		value = data["name"] = self.ruleName.Value.strip()
+		prm = self.categoryParams
+		for index, childPrm in enumerate(
+			child.categoryParams
+			for child in prm.tree.getTreeNodeInfo(prm.treeNode).children
+		):
+			if childPrm.fieldName == "name":
+				break
+		else:
+			raise Exception("Could not find child TreeNode for updating")
+			return
+		nodeId = prm.tree.getXChild(prm.treeNode, index)
+		nodeInfo = prm.tree.getTreeNodeInfo(nodeId)
+		cls = nodeInfo.categoryClass.func  # This is a partial
+		prm.tree.SetItemText(nodeId, cls.getTreeNodeLabel(childPrm.fieldDisplayName, value))
 
 	@guarded
 	def onRuleType_choice(self, evt):
@@ -283,8 +297,11 @@ class GeneralPanel(RuleEditorTreeContextualPanel):
 		super().onPanelActivated()
 
 	def isValid(self):
+		self.updateData()
+		data = self.getData()
 		# Type is required
-		if not self.ruleType.Selection >= 0:
+		if not data.get("type"):
+			# This should not happen as there is no way to unset the default choice
 			gui.messageBox(
 				# Translators: Error message when no type is chosen before saving the rule
 				message=_("You must choose a type for this rule"),
@@ -296,7 +313,7 @@ class GeneralPanel(RuleEditorTreeContextualPanel):
 			return False
 
 		# Name is required
-		if not self.ruleName.Value.strip():
+		if not data.get("name"):
 			gui.messageBox(
 				# Translators: Error message when no name is entered before saving the rule
 				message=_("You must choose a name for this rule"),
@@ -550,7 +567,6 @@ class ActionsPanel(ActionsPanelBase, RuleEditorTreeContextualPanel):
 	def onAutoActionChoice(self, evt):
 		super().onAutoActionChoice(evt)
 		# Refresh ChildProperty tree node label
-		# FIXME: Having a mapping stored in an attribute initialized with an unused sequence is quite misleading
 		index = tuple(
 			nodeInfo.categoryClass
 			for nodeInfo in self.Parent.Parent.categoryClasses
@@ -866,15 +882,15 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 				categoryParams=prm
 			)
 			for editorType, prm in (
-				(EditorType.TEXT, cls.CategoryParams(
-					fieldDisplayName=SHARED_LABELS["name"],
-					fieldName="name",
-				)),
 				(EditorType.CHOICE, cls.CategoryParams(
 					editorChoices=ruleTypes.ruleTypeLabels,
 					fieldDisplayName=SHARED_LABELS["type"],
 					fieldName="type",
 					onEditor_change=cls.onRuleType_change,
+				)),
+				(EditorType.TEXT, cls.CategoryParams(
+					fieldDisplayName=SHARED_LABELS["name"],
+					fieldName="name",
 				)),
 			)
 		)

@@ -20,7 +20,7 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2024.08.24"
+__version__ = "2024.09.12"
 __authors__ = (
 	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
 	"André-Abush Clause <a.clause@accessolutions.fr>",
@@ -998,8 +998,13 @@ class SingleFieldEditorMixin(metaclass=guiHelper.SIPABCMeta):
 		self.setFieldValue(value)
 		self.updateEditor()
 		self.onEditor_change()
-		speech.cancelSpeech()  # Avoid announcing the whole eventual control refresh
-		ui.message(self.getFieldDisplayValue(value, choices=self.editorChoices))
+		
+		def report():
+			speech.cancelSpeech()  # Avoid announcing the whole eventual control refresh
+			ui.message(self.getFieldDisplayValue(value, choices=self.editorChoices))
+		
+		# Should be triggered right after the tree node update
+		wx.CallLater(5, report)
 	
 	def updateEditor(self) -> None:
 		editor = self.editor
