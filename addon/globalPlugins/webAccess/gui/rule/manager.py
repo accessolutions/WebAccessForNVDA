@@ -82,6 +82,22 @@ def getGestureLabel(gesture):
 	return "{main} ({source})".format(source=source, main=main)
 
 
+def getResultLabel(result):
+	rule = result.rule
+	label = rule.name
+	if len(rule.criteria) > 1:
+		if result.criteria.name:
+			label += f" - {result.criteria.name}"
+		else:
+			label += f" - #{rule.criteria.index(result.criteria) + 1}"
+	if rule._gestureMap:
+		label += " ({gestures})".format(gestures=", ".join(
+			inputCore.getDisplayTextForGestureIdentifier(identifier)[1]
+			for identifier in list(rule._gestureMap.keys())
+		))
+	return label
+
+
 def getRuleLabel(rule):
 	label = rule.name
 	if rule._gestureMap:
@@ -194,7 +210,7 @@ def getRulesByPosition(ruleManager, filter=None, active=True):
 		if layer and rule.layer != layer:
 			continue
 		tid = TreeItemData(
-			label=getRuleLabel(rule),
+			label=getResultLabel(result),
 			obj=result,
 			children=[]
 		)
