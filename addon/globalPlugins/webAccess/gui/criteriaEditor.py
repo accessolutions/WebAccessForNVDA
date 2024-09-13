@@ -26,6 +26,7 @@ __author__ = "Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 from collections import OrderedDict
 from collections.abc import Mapping, Sequence
+from copy import deepcopy
 import re
 from typing import Any
 import wx
@@ -220,7 +221,7 @@ def getSummary(context, data, indent="", condensed=False) -> str:
 
 @guarded
 def testCriteria(context):
-	ruleData = copy.deepcopy(context["data"]["rule"])
+	ruleData = deepcopy(context["data"]["rule"])
 	ruleData["name"] = "__tmp__"
 	ruleData.pop("new", None)
 	ruleData["type"] = ruleTypes.MARKER
