@@ -79,17 +79,18 @@ addonHandler.initTranslation()
 
 SCRIPT_CATEGORY = "WebAccess"
 
-builtinRuleActions = {}
-# Translators: Action name
-builtinRuleActions["moveto"] = pgettext("webAccess.action", "Move to")
-# Translators: Action name
-builtinRuleActions["sayall"] = pgettext("webAccess.action", "Say all")
-# Translators: Action name
-builtinRuleActions["speak"] = pgettext("webAccess.action", "Speak")
-# Translators: Action name
-builtinRuleActions["activate"] = pgettext("webAccess.action", "Activate")
-# Translators: Action name
-builtinRuleActions["mouseMove"] = pgettext("webAccess.action", "Mouse move")
+builtinActions = {
+	# Translators: Action name
+	"moveto": pgettext("webAccess.action", "Move to"),
+	# Translators: Action name
+	"sayall": pgettext("webAccess.action", "Say all"),
+	# Translators: Action name
+	"speak": pgettext("webAccess.action", "Speak"),
+	# Translators: Action name
+	"activate": pgettext("webAccess.action", "Activate"),
+	# Translators: Action name
+	"mouseMove": pgettext("webAccess.action", "Mouse move"),
+}
 
 
 class DefaultScripts(ScriptableObject):
@@ -323,13 +324,13 @@ class RuleManager(ScriptableObject):
 				del self._results[index]
 
 	def getActions(self) -> Mapping[str, str]:
-		actions = builtinRuleActions.copy()
+		actions = builtinActions.copy()
 		prefix = "action_"
 		for key in dir(self.webModule):
 			if key[:len(prefix)] == prefix:
 				actionId = key[len(prefix):]
 				actionLabel = getattr(self.webModule, key).__doc__ or actionId
-				# Prefix to denote customized action
+				# Prefix to denote custom action
 				actionLabel = "*" + actionLabel
 				actions.setdefault(actionId, actionLabel)
 		return actions

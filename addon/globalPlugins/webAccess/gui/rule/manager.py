@@ -41,13 +41,7 @@ import inputCore
 import queueHandler
 import ui
 
-from ...ruleHandler import (
-	Rule,
-	Result,
-	Zone,
-	builtinRuleActions,
-	ruleTypes,
-)
+from ...ruleHandler import Rule, Result, Zone, ruleTypes
 from ...utils import guarded
 from ...webModuleHandler import getEditableWebModule, save
 from .. import ContextualDialog, showContextualDialog, stripAccel
@@ -149,7 +143,7 @@ def iterRulesByGesture(ruleManager, filter=None, active=False):
 				label=(
 					"{rule} - {action}".format(
 						rule=rule.name,
-						action=builtinRuleActions.get(action, action)
+						action=rule.ruleManager.getActions().get(action, f"*{action}")
 					)
 					if action != "moveto"
 					else rule.name
