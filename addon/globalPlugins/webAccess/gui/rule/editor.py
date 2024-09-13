@@ -49,7 +49,7 @@ from logHandler import log
 import ui
 
 from ... import webModuleHandler
-from ...ruleHandler import RuleManager, builtinRuleActions, ruleTypes
+from ...ruleHandler import RuleManager, ruleTypes
 from ...ruleHandler.controlMutation import (
 	MUTATIONS_BY_RULE_TYPE,
 	mutationLabels
@@ -70,7 +70,7 @@ from .. import (
 )
 from . import createMissingSubModule, criteriaEditor, gestureBinding
 from .abc import RuleAwarePanelBase
-from .actions import ActionsPanelBase
+from .gestures import GesturesPanelBase
 from .properties import (
 	EditorType,
 	Property,
@@ -158,7 +158,7 @@ class RuleEditorTreeContextualPanel(RuleAwarePanelBase, TreeContextualPanel):
 	def onRuleType_change(self):
 		prm = self.categoryParams
 		categoryClasses = tuple(nodeInfo.categoryClass for nodeInfo in self.Parent.Parent.categoryClasses)
-		for index in (categoryClasses.index(cls) for cls in (GeneralPanel, ActionsPanel, PropertiesPanel)):
+		for index in (categoryClasses.index(cls) for cls in (GeneralPanel, GesturesPanel, PropertiesPanel)):
 			category = prm.tree.getXChild(prm.tree.GetRootItem(), index)
 			self.refreshParent(category)
 
@@ -545,7 +545,7 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 			data.pop("gestures", None)
 
 
-class ActionsPanel(ActionsPanelBase, RuleEditorTreeContextualPanel):
+class GesturesPanel(GesturesPanelBase, RuleEditorTreeContextualPanel):
 	
 	def delete(self):
 		wx.Bell()
@@ -557,24 +557,6 @@ class ActionsPanel(ActionsPanelBase, RuleEditorTreeContextualPanel):
 	
 	def spaceIsPressedOnTreeNode(self, withShift=False):
 		self.gesturesListBox.SetFocus()
-	
-	@guarded
-	def onAutoActionChoice(self, evt):
-		super().onAutoActionChoice(evt)
-		# Refresh ChildProperty tree node label
-		index = tuple(
-			nodeInfo.categoryClass
-			for nodeInfo in self.Parent.Parent.categoryClasses
-		).index(PropertiesPanel)
-		prm = self.categoryParams
-		propsCat = prm.tree.getXChild(prm.tree.GetRootItem(), index)
-		data = super().getData()
-		props = Properties(self.context, data)
-		index = tuple(p.name for p in props).index("autoAction")
-		prm.tree.SetItemText(
-			prm.tree.getXChild(propsCat, index),
-			ChildPropertyPanel.getTreeNodeLabelForProp(props[index])
-		)
 
 
 class PropertiesPanel(PropertiesPanelBase, RuleEditorTreeContextualPanel):
@@ -699,7 +681,7 @@ class ChildAlternativePanel(AlternativesPanel):
 		prm.tree.SetFocus()
 
 
-class ChildActionPanel(RuleEditorTreeContextualPanel):
+class ChildGesturePanel(RuleEditorTreeContextualPanel):
 
 	@dataclass
 	class CategoryParams(TreeContextualPanel.CategoryParams):
@@ -841,14 +823,14 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 	categoryInitList = [
 		(GeneralPanel, 'getGeneralChildren'),
 		(AlternativesPanel, 'getAlternativeChildren'),
-		(ActionsPanel, 'getActionsChildren'),
+		(GesturesPanel, 'getGesturesChildren'),
 		#FIXME PropertiesPanel, 'getPropertiesChildren'),
 		(PropertiesPanel, 'getPropertiesChildren'),
 	]
 	categoryClasses = [
 		GeneralPanel,
 		AlternativesPanel,
-		ActionsPanel,
+		GesturesPanel,
 		#FIXME PropertiesPanel,
 		PropertiesPanel,
 	]
@@ -894,17 +876,17 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 			for data in self.getData().get("criteria", [])
 		)
 
-	def getActionsChildren(self):
+	def getGesturesChildren(self):
 		data = self.getData()
 		if data["type"] not in [ruleTypes.ACTION_TYPES]:
 			return []
 		mgr = self.context["webModule"].ruleManager
-		actionsPanel = []
+		panels = []
 		for key, value in data.get('gestures', {}).items():
-			title = ChildActionPanel.getTreeNodeLabel(mgr, key, value)
-			prm = ChildActionPanel.CategoryParams(title=title, gestureIdentifier=key)
-			actionsPanel.append(TreeNodeInfo(ChildActionPanel, title=title, categoryParams=prm))
-		return actionsPanel
+			title = ChildGesturePanel.getTreeNodeLabel(mgr, key, value)
+			prm = ChildGesturePanel.CategoryParams(title=title, gestureIdentifier=key)
+			panels.append(TreeNodeInfo(ChildGesturePanel, title=title, categoryParams=prm))
+		return panels
 
 	def getPropertiesChildren(self) -> Sequence[TreeNodeInfo]:
 		context = self.context

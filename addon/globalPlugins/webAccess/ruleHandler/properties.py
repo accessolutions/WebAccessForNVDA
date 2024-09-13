@@ -83,7 +83,7 @@ class PropertySpecValue:
 class PropertySpec(Enum):
 	
 	autoAction = PropertySpecValue(
-		ruleTypes=(ruleTypes.GLOBAL_MARKER, ruleTypes.MARKER, ruleTypes.ZONE),
+		ruleTypes=ruleTypes.ACTION_TYPES,
 		valueType=str,
 		default=None,
 		# Translators: The display name for a rule property

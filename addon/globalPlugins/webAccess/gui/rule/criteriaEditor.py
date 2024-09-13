@@ -47,7 +47,7 @@ import speech
 import ui
 
 import addonHandler
-from ...ruleHandler import builtinRuleActions, ruleTypes
+from ...ruleHandler import ruleTypes
 from ...utils import guarded, notifyError, updateOrDrop
 from .. import (
 	ContextualMultiCategorySettingsDialog,
@@ -62,7 +62,7 @@ from .. import (
 )
 from . import createMissingSubModule
 from .abc import RuleAwarePanelBase
-from .actions import ActionsPanelBase
+from .gestures import GesturesPanelBase
 from .properties import Properties, PropertiesPanelBase, Property
 
 
@@ -859,44 +859,8 @@ class CriteriaPanel(CriteriaEditorPanel):
 		return True
 
 
-class ActionsPanel(ActionsPanelBase, CriteriaEditorPanel):
-	
-	def makeSettings(self, settingsSizer):
-		super().makeSettings(settingsSizer)
-		self.autoActionChoice.Bind(wx.EVT_CHAR_HOOK, self.onAutoActionChoice_charHook)
-	
-	def getAutoAction(self):
-		return self.getData().get("properties", {}).get(
-			"autoAction", self.getRuleAutoAction()
-		)
-	
-	def getRuleAutoAction(self):
-		return self.getRuleData().get("properties", {}).get("autoAction")
-	
-	def getAutoActionChoices(self):
-		choices = super().getAutoActionChoices()
-		ruleValue = self.getRuleAutoAction()
-		# Translators: An entry in the Automatic Action list on the Criteria Editor denoting the rule value
-		choices[ruleValue] = "{action} (default)".format(
-			action=choices.get(ruleValue, f"*{ruleValue}")
-		)
-		return choices
-	
-	@guarded
-	def onAutoActionChoice_charHook(self, evt):
-		keycode = evt.GetKeyCode()
-		mods = evt.GetModifiers()
-		if keycode == wx.WXK_DELETE and not mods:
-			self.resetAutoAction()
-			return
-		evt.Skip()
-	
-	def resetAutoAction(self):
-		data = self.getData().setdefault("properties", {})
-		data["autoAction"] = self.getRuleAutoAction()
-		self.updateAutoActionChoice(refreshChoices=False) 
-		# Translators: Announced when resetting a property to its default value in the editor
-		ui.message(_("Reset to {value}").format(value=self.autoActionChoice.StringSelection))
+class GesturesPanel(GesturesPanelBase, CriteriaEditorPanel):
+	pass
 
 
 class PropertyOverrideSelectMenu(wx.Menu):
@@ -1022,7 +986,7 @@ class PropertiesPanel(PropertiesPanelBase, CriteriaEditorPanel):
 class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
 	# Translators: The title of the Criteria Editor dialog.
 	title = _("WebAccess Criteria Set editor")
-	categoryClasses = [GeneralPanel, CriteriaPanel, ActionsPanel, PropertiesPanel]
+	categoryClasses = [GeneralPanel, CriteriaPanel, GesturesPanel, PropertiesPanel]
 	INITIAL_SIZE = (900, 580)
 	
 	def getData(self):
