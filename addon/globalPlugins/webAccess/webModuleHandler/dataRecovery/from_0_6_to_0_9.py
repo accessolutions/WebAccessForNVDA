@@ -23,7 +23,6 @@ Script for upgrading a JSON-based WebModule from format version 0.6 to version 0
 """
 
 
-__version__ = "2024.08.24"
 __authors__ = (
 	"André-Abush Clause <a.clause@accessolutions.fr>",
 	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",

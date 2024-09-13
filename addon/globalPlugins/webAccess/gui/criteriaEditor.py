@@ -21,7 +21,6 @@
 
 
 
-__version__ = "2021.06.28"
 __author__ = "Shirley Noël <shirley.noel@pole-emploi.fr>"
 
 

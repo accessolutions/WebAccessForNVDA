@@ -45,7 +45,6 @@ Monkey-patched NVDA functions:
 """
 
 
-__version__ = "2024.08.25"
 __authors__ = (
 	"Yannick Plassiard <yan@mistigri.org>",
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>",

@@ -22,7 +22,6 @@
 """Web Access data store."""
 
 
-__version__ = "2024.07.25"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 

@@ -22,7 +22,6 @@
 """Web Access GUI."""
 
 
-__version__ = "2024.08.02"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
  

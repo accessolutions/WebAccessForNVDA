@@ -22,7 +22,6 @@
 # Get ready for Python 3
 
 
-__version__ = "2019.07.17"
 __author__ = "Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 

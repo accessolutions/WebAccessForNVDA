@@ -20,7 +20,6 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__version__ = "2024.07.25"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 

@@ -19,7 +19,6 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
-__version__ = "2024.08.02"
 __author__ = "Sendhil Randon <sendhil.randon-ext@francetravail.fr>"
 
 from collections import ChainMap

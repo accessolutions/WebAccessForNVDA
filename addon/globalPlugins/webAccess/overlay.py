@@ -23,7 +23,6 @@
 WebAccess overlay classes
 """
 
-__version__ = "2021.03.12"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 

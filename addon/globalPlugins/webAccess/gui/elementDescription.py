@@ -23,7 +23,6 @@
 # Get ready for Python 3
 
 
-__version__ = "2021.02.10"
 __author__ = "Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 __license__ = "GPL"
 
