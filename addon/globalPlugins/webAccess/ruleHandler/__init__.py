@@ -1013,7 +1013,7 @@ class SingleNodeResult(Result):
 		)
 
 	def script_activate(self, gesture):
-		if self.node.nodeManager is None:
+		if self.node is None or self.node.nodeManager is None:
 			return
 		if not self.rule.ruleManager.isReady :
 			log.info ("not ready")
