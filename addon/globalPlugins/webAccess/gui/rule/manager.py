@@ -30,6 +30,7 @@ __authors__ = (
 
 
 from collections import namedtuple
+import sys
 import wx
 
 import addonHandler
@@ -52,6 +53,13 @@ from ...webModuleHandler import getEditableWebModule, save
 from .. import ContextualDialog, showContextualDialog, stripAccel
 from .editor import getSummary
 
+
+if sys.version_info[1] < 9:
+    from typing import Mapping
+else:
+    from collections.abc import Mapping
+
+
 try:
 	from six import iteritems
 except ImportError:
@@ -73,6 +81,22 @@ def show(context, parent):
 TreeItemData = namedtuple("TreeItemData", ("label", "obj", "children"))
 
 
+def getCriteriaLabel(criteria):
+	rule = criteria.rule
+	label = rule.name
+	if len(rule.criteria) > 1:
+		if criteria.name:
+			label += f" - {criteria.name}"
+		else:
+			label += f" - #{rule.criteria.index(criteria) + 1}"
+	if rule._gestureMap:
+		label += " ({gestures})".format(gestures=", ".join(
+			inputCore.getDisplayTextForGestureIdentifier(identifier)[1]
+			for identifier in list(rule._gestureMap.keys())
+		))
+	return label
+
+
 def getGestureLabel(gesture):
 	source, main = inputCore.getDisplayTextForGestureIdentifier(
 		inputCore.normalizeGestureIdentifier(gesture)
@@ -80,22 +104,6 @@ def getGestureLabel(gesture):
 	if gesture.startswith("kb:"):
 		return main
 	return "{main} ({source})".format(source=source, main=main)
-
-
-def getResultLabel(result):
-	rule = result.rule
-	label = rule.name
-	if len(rule.criteria) > 1:
-		if result.criteria.name:
-			label += f" - {result.criteria.name}"
-		else:
-			label += f" - #{rule.criteria.index(result.criteria) + 1}"
-	if rule._gestureMap:
-		label += " ({gestures})".format(gestures=", ".join(
-			inputCore.getDisplayTextForGestureIdentifier(identifier)[1]
-			for identifier in list(rule._gestureMap.keys())
-		))
-	return label
 
 
 def getRuleLabel(rule):
@@ -171,6 +179,54 @@ def iterRulesByGesture(ruleManager, filter=None, active=False):
 		)
 
 
+def getRulesByContext(ruleManager, filter=None, active=False):
+	contexts: Mapping[tuple[str, str, str], Rule] = {}
+	for rule in getRules(ruleManager):
+		if filter and filter not in rule.name.casefold():
+			continue
+		if active:
+			results = rule_getResults_safe(rule)
+			if not results:
+				continue
+			alternatives = (result.criteria for result in results)
+		else:
+			alternatives = (criteria for criteria in rule.criteria)
+		for criteria in alternatives:
+			contexts.setdefault((
+				criteria.contextPageTitle or "",  # Avoiding None eases later sorting
+				criteria.contextPageType or "",
+				criteria.contextParent or "",
+			), []).append(TreeItemData(
+				label=getCriteriaLabel(criteria),
+				obj=rule,
+				children=[]
+			))
+	for context, tids in sorted(
+		contexts.items(),
+		key=lambda item: (item[0] == ("", "", ""), item[0])  # Move "General" to the end
+	):
+		parts = []
+		if context[0]:
+			# Translators: A part of a context grouping label on the Rules Manager
+			parts.append(_("Page Title: {contextPageTitle}").format(contextPageTitle=context[0]))
+		if context[1]:
+			# Translators: A part of a context grouping label on the Rules Manager
+			parts.append(_("Page Type: {contextPageTitle}").format(contextPageTitle=context[1]))
+		if context[2]:
+			# Translators: A part of a context grouping label on the Rules Manager
+			parts.append(_("Parent: {contextPageTitle}").format(contextPageTitle=context[2]))
+		if parts:
+			label = ", ".join(parts)
+		else:
+			# Translators: A context grouping label on the Rules Manager
+			label = "General"
+		yield TreeItemData(
+			label=label,
+			obj=None,
+			children=sorted(tids, key=lambda tid: tid.label)
+		)
+
+
 def getRulesByName(ruleManager, filter=None, active=False):
 	return sorted(
 		(
@@ -210,7 +266,7 @@ def getRulesByPosition(ruleManager, filter=None, active=True):
 		if layer and rule.layer != layer:
 			continue
 		tid = TreeItemData(
-			label=getResultLabel(result),
+			label=getCriteriaLabel(result.criteria),
 			obj=result,
 			children=[]
 		)
@@ -272,6 +328,12 @@ GROUP_BY = (
 		# Translator: Grouping option on the RulesManager dialog.
 		label=pgettext("webAccess.rulesGroupBy", "&Type"),
 		func=getRulesByType
+	),
+	GroupBy(
+		id="type",
+		# Translator: Grouping option on the RulesManager dialog.
+		label=pgettext("webAccess.rulesGroupBy", "&Context"),
+		func=getRulesByContext
 	),
 	GroupBy(
 		id="gestures",
