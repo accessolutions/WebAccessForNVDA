@@ -1285,6 +1285,8 @@ class Criteria(ScriptableObject):
 		self.relativePath = data.pop("relativePath", None)
 		self.index = data.pop("index", None)
 		self.gestures = data.pop("gestures", {})
+		if self.text:
+			self.text = self.text.strip()
 		gesturesMap = {}
 		for gestureIdentifier in list(self.gestures.keys()):
 			gesturesMap[gestureIdentifier] = "notFound"
