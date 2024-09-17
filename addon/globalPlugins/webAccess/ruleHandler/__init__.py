@@ -371,15 +371,16 @@ class RuleManager(ScriptableObject):
 				script = result.getScript(gesture)
 				if script:
 					return script
-# 		for rules in reversed(list(self._layers.values())):
-# 			for rule in list(rules.values()):
-# 				for criterion in rule.criteria:
-# 					func = rule.getScript(gesture)
-# 					if func is not None:
-# 						return func
-# 				func = rule.getScript(gesture)
-# 				if func is not None:
-# 					return func
+		# Handle script_notFound fallback 
+		for rules in reversed(list(self._layers.values())):
+			for rule in list(rules.values()):
+				for criterion in rule.criteria:
+					func = rule.getScript(gesture)
+					if func is not None:
+						return func
+				func = rule.getScript(gesture)
+				if func is not None:
+					return func
 		return self.defaultScripts.getScript(gesture)
 	
 	def getWebModuleForControlId(self, controlId):
