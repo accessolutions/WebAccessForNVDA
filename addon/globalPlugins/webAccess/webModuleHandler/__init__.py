@@ -86,7 +86,39 @@ def getWebModule(name: str) -> WebModule:
 
 
 def getWebModuleForTreeInterceptor(treeInterceptor):
+	from ..overlay import WebAccessObject
 	obj = treeInterceptor.rootNVDAObject
+	
+	# Dialogs and Applications are handled by NVDA in a separate TreeInterceptor
+	# (while, sadly, IFrames are not).
+	# If the Dialog or Application belongs to a SubModule, we need to pass it here
+	# as it can't be loaded using the usual triggers (URL or WindowTitle).
+	# Still, if we simply set the same SubModule on the new TreeInterceptor, its current
+	# results will be invalidated by the upcoming update and it will finally get terminated
+	# when the TreeInterceptor gets killed when the modal is discarded.
+	if (
+		isinstance(obj, WebAccessObject)
+		and obj._get_role(original=True) in (controlTypes.ROLE_DIALOG, controlTypes.ROLE_APPLICATION)
+	):
+		class Break(Exception):
+			"""Block-level break."""
+	
+		try:
+			parent = obj.parent
+			if isinstance(parent, WebAccessObject):
+				webModule = parent.webAccess.webModule
+				if webModule is None:
+					raise Break()
+				# Not testing on purpose if this is a SubModule: Applications/dialogs can be nested in
+				# one another and, while we could walk up the ancestry to check this, it wouldn't give
+				# much benefits as in a single WebModule scenario, a new instance would be loaded for
+				# the new TreeInterceptor anyway.
+				return store.get(webModule.layers[-1].storeRef)
+		except Break:
+			pass
+		except Exception:
+			log.exception()
+	
 	windowTitle = getWindowTitle(obj)
 	if windowTitle:
 		mod = getWebModuleForWindowTitle(windowTitle)
