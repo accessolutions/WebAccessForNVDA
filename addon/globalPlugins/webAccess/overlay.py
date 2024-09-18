@@ -183,7 +183,7 @@ class WebAccessBmdtiHelper(TrackedObject):
 		webModule = self.rootWebModule
 		if not webModule:
 			return None
-		return webModule.ruleManager
+		return webModule.ruleManager.rootRuleManager
 	
 	@property
 	@logException
