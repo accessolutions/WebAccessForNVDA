@@ -368,7 +368,11 @@ class NodeManager(baseObject.ScriptableObject):
 			if controlId:
 				if controlId in map:
 					prev = map[controlId]
-					if not(prev[0] <= span[0] and span[1] <= prev[1]):
+					if prev[1] == span[0]:
+						# Consecutive spans for the same control. Expand the recorded span.
+						span = (prev[0], span[1]) 
+					elif not(prev[0] <= span[0] and span[1] <= prev[1]):
+						# Neither consecutive nor nested
 						log.warning(f"ControlId double: {controlId} at {prev} and {span}")
 				map[controlId] = span
 			for child in node.children:
