@@ -236,14 +236,18 @@ def getSummary(context, data, indent="", condensed=False) -> str:
 def testCriteria(context):
 	ruleData = deepcopy(context["data"]["rule"])
 	ruleData["name"] = "__tmp__"
-	# Other rule types might not support the "multiple" property we are forcing for the test
-	ruleData["type"] = ruleTypes.MARKER
 	critData = context["data"]["criteria"].copy()
 	critData.pop("new", None)
 	critData.pop("criteriaIndex", None)
 	ruleData["criteria"] = [critData]
-	ruleData.setdefault("properties", {})['multiple'] = True
-	critData.setdefault("properties", {}).pop("multiple", None)
+	# Ensure the user is informed about all the match occurrences, even if only
+	# the first is retained by a disabled "multiple" property.
+	# All rule types do not support this property, hence force the rule type "marker".
+	# Rather than filtering out properties not supported for this type, simply drop them all
+	# as they have no impact on the actual search.
+	ruleData["type"] = ruleTypes.MARKER
+	ruleData["properties"] = {"multiple": True}
+	critData["properties"] = {"multiple": True}
 	mgr = context["webModule"].ruleManager
 	from ...ruleHandler import Rule
 	rule = Rule(mgr, ruleData)
