@@ -192,6 +192,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			if cls in clsList
 		):
 			if obj.role in (
+				controlTypes.ROLE_APPLICATION,
 				controlTypes.ROLE_DIALOG,
 				controlTypes.ROLE_DOCUMENT,
 			):
