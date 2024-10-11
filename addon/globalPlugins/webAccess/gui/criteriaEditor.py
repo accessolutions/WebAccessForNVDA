@@ -887,7 +887,7 @@ class PropertiesPanel(PropertiesPanelBase, CriteriaEditorPanel):
 		self.listLabel.Label = _("Properties specific to this criteria set")
 		listCtrl = self.listCtrl
 		# Translators: A hint stating a list is empty and how to populate it on the Criteria Editor dialog
-		listCtrl.descriptionIfEmpty = _("None. Press alt+n to override a property.")
+		listCtrl.descriptionIfEmpty = _("None. Press Alt+A to override a property.")
 		# Translators: A column header in the Criteria Editor dialog
 		self.listCtrl.InsertColumn(2, _("Rule value"))
 
@@ -897,7 +897,7 @@ class PropertiesPanel(PropertiesPanelBase, CriteriaEditorPanel):
 
 		col += 1
 		# Translators: The label for a button on the Criteria Editor dialog
-		item = self.addPropBtn = wx.Button(self, label=_("&New")) #FIXME, size=(-1, 30))
+		item = self.addPropBtn = wx.Button(self, label=_("&Add")) #FIXME, size=(-1, 30))
 		item.Enable(False)
 		item.Bind(wx.EVT_BUTTON, self.onAddPropBtn)
 		gbSizer.Add(item, pos=(row, col))
