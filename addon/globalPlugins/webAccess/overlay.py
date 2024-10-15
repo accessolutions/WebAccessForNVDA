@@ -1115,8 +1115,18 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 	def script_refreshResults(self, gesture):
 		# Translators: Notified when manually refreshing results
 		ui.message(_("Refresh results"))
-		self.webAccess.rootRuleManager.clear()
-		self.webAccess.nodeManager.update(force=True)
+		try:
+			res = self.webAccess.nodeManager.update(
+				force=True,
+				ruleManager=self.webAccess.rootRuleManager,
+			)
+		except Exception:
+			log.exception()
+			res = False
+		if res:
+			ui.message(_("Updated"))
+		else:
+			ui.message(_("Update failed"))
 	
 	script_refreshResults.ignoreTreeInterceptorPassThrough = True
 	script_refreshResults.passThroughIfNoWebModule = True
