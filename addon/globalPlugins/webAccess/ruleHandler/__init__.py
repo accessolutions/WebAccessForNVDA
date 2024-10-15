@@ -1038,6 +1038,12 @@ class Result(ScriptableObject):
 		})
 		self.bindGestures(criteria.gestures)
 
+	def __repr__(self):
+		try:
+			return f"<{type(self).__name__} of {self.rule.name!r} at {self.startOffset, self.endOffset}>"
+		except Exception:
+			return super().__repr__()
+
 	def _get_criteria(self):
 		return self._criteria()
 
@@ -1399,13 +1405,11 @@ class Criteria(ScriptableObject):
 			if not (found or exclude):
 				return False
 		return True
-
-	def createResult(self, node, context, index):
-		return SingleNodeResult(self, node, context, index)
-
+	
 	def iterResults(self):
 		t = logTimeStart()
-		mgr = self.rule.ruleManager
+		rule = self.rule
+		mgr = rule.ruleManager
 		text = self.text
 		if not self.checkContextPageTitle():
 			return
@@ -1429,14 +1433,18 @@ class Criteria(ScriptableObject):
 				name = name.strip()
 				if not name:
 					continue
-				rule = mgr.getRule(name, layer=self.layer)
-				if rule is None:
-					log.error((
-						"In rule \"{rule}\".contextParent: "
-						"Rule not found: \"{parent}\""
-					).format(rule=self.name, parent=name))
+				parentRule = mgr.getRule(name, layer=self.layer)
+				if parentRule is None:
+					log.error(
+						'In rule "{rule}", alternative "{alternative}" .contextParent: '
+						'Rule not found: "{parent}"'
+					).format(
+						rule=rule.name,
+						alternative=self.name or f"#{rule.criteria.index(self)}",
+						parent=name,
+					)
 					return
-				results = rule.getResults()
+				results = parentRule.getResults()
 				if not exclude and any(r.properties.multiple for r in results):
 					if multipleContext is None:
 						multipleContext = True
@@ -1466,7 +1474,7 @@ class Criteria(ScriptableObject):
 			rootNodes = newRootNodes
 		kwargs = getSimpleSearchKwargs(self)
 		excludedNodes.update({
-			result.node for result in self.rule.ruleManager.subModules._results
+			result.node for result in mgr.subModules._results
 		})
 		if excludedNodes:
 			kwargs["exclude"] = excludedNodes
@@ -1497,8 +1505,8 @@ class Criteria(ScriptableObject):
 				context = textInfos.offsets.Offsets(
 					startOffset=root.offset,
 					endOffset=root.offset + root.size
-				) if root is not self.ruleManager.nodeManager.mainNode else None
-				yield self.createResult(node, context, index)
+				) if root is not mgr.nodeManager.mainNode else None
+				yield rule.createResult(self, node, context, index)
 				if not self.properties.multiple and not multipleContext:
 					return
 
@@ -1566,6 +1574,9 @@ class Rule(ScriptableObject):
 				+ ": "
 				+ ", ".join(list(data.keys()))
 			)
+
+	def createResult(self, criteria, node, context, index):
+		return SingleNodeResult(criteria, node, context, index)
 
 	def resetResults(self):
 		self._results = None
