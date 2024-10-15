@@ -233,23 +233,36 @@ class NodeManager(baseObject.ScriptableObject):
 			s += self.afficheNode(child, level + 1)
 		return s
 
-	def update(self, force=False):
+	def update(self, force=False, ruleManager=None, debug=False):
+		"""Analyze the VirtualBuffer
+		
+		If a RuleManager is specified, it is immediately updated and no
+		event is sent to the scheduler.
+		"""
 		# t = logTimeStart()
 		if self.treeInterceptor is None or not self.treeInterceptor.isReady:
 			self._ready = False
+			if debug:
+				log.info(f"No TreeInterceptor")
 			return False
 		try:
 			info = self.treeInterceptor.makeTextInfo(textInfos.POSITION_LAST)
 		except Exception:
 			self._ready = False
+			if debug:
+				log.exception()
 			return False
 		try:
 			size = info._endOffset + 1
 		except Exception:
 			self._ready = False
+			if debug:
+				log.exception()
 			return False
 		if not force and size == self.treeInterceptorSize:
 			# probably not changed
+			if debug:
+				log.info(f"Size unchanged: {size}")
 			return False
 		self.treeInterceptorSize = size
 		if True:
@@ -260,6 +273,8 @@ class NodeManager(baseObject.ScriptableObject):
 			end = info._endOffset
 			if start == end:
 				self._ready = False
+				if debug:
+					log.info("The VirtualBuffer is empty")
 				return False
 			text = NVDAHelper.VBuf_getTextInRange(
 				info.obj.VBufHandle, start, end, True)
@@ -278,22 +293,33 @@ class NodeManager(baseObject.ScriptableObject):
 		if self.mainNode is None:
 			self.updating = False
 			self._ready = False
+			if debug:
+				# @@@
+				log.info("NodeManager.update: ")
 			return False
 		self.identifier = time.time()
 		# logTime ("Update node manager %d nodes" % len(fields), t)
 		self.updating = False
 		# playWebAccessSound("tick")
 		self._curNode = self.caretNode = self.getCaretNode()  # FIXME: Dead code
+		if ruleManager:
+			# Synchronous update, eg. from WebAccessBmdti.script_refreshResults
+			self._ready = True
+			return ruleManager.update(nodeManager=self, force=force)
 		try:
 			info = self.treeInterceptor.makeTextInfo(textInfos.POSITION_LAST)
 		except Exception:
 			self._ready = False
+			if debug:
+				log.exception()
 			return False
 		size = info._endOffset + 1
 		from . import webAppScheduler
 		if size != self.treeInterceptorSize:
 			# treeInterceptor has changed during analyze
 			self._ready = False
+			if debug:
+				log.info("VirtualBuffer has changed during analysis")
 			webAppScheduler.scheduler.send(
 				eventName="updateNodeManager",
 				treeInterceptor=self.treeInterceptor
