@@ -71,7 +71,7 @@ countNode = 0
 nodeManagerIndex = 0
 
 
-class NodeManager(baseObject.ScriptableObject):
+class NodeManager(baseObject.AutoPropertyObject):
 
 	def __init__(self, treeInterceptor, callbackNodeMoveto=None):
 		super().__init__()
@@ -132,7 +132,6 @@ class NodeManager(baseObject.ScriptableObject):
 		self.devNode = None
 		self.callbackNodeMoveto = None
 		self.updating = False
-		self._curNode = self.caretNode = None
 
 	def formatAttributes(self, attrs):
 		s = ""
@@ -265,31 +264,24 @@ class NodeManager(baseObject.ScriptableObject):
 				log.info(f"Size unchanged: {size}")
 			return False
 		self.treeInterceptorSize = size
-		if True:
-			self.updating = True
-			info = self.treeInterceptor.makeTextInfo(textInfos.POSITION_ALL)
-			self.info = info
-			start = info._startOffset
-			end = info._endOffset
-			if start == end:
-				self._ready = False
-				if debug:
-					log.info("The VirtualBuffer is empty")
-				return False
-			text = NVDAHelper.VBuf_getTextInRange(
-				info.obj.VBufHandle, start, end, True)
-			if self.mainNode is not None:
-				self.mainNode.recursiveDelete()
-			self.parseXML(text)
-			# logTime("Update node manager %d, text=%d" % (self.index, len(text)), t)
-			self.info = None
-			gc.collect()
-		else:
-			self.updating = False
+		self.updating = True
+		info = self.treeInterceptor.makeTextInfo(textInfos.POSITION_ALL)
+		self.info = info
+		start = info._startOffset
+		end = info._endOffset
+		if start == end:
 			self._ready = False
-			log.info("reading vBuff error")
+			if debug:
+				log.info("The VirtualBuffer is empty")
 			return False
-		# self.info = info
+		text = NVDAHelper.VBuf_getTextInRange(
+			info.obj.VBufHandle, start, end, True)
+		if self.mainNode is not None:
+			self.mainNode.recursiveDelete()
+		self.parseXML(text)
+		# logTime("Update node manager %d, text=%d" % (self.index, len(text)), t)
+		self.info = None
+		gc.collect()
 		if self.mainNode is None:
 			self.updating = False
 			self._ready = False
@@ -301,7 +293,6 @@ class NodeManager(baseObject.ScriptableObject):
 		# logTime ("Update node manager %d nodes" % len(fields), t)
 		self.updating = False
 		# playWebAccessSound("tick")
-		self._curNode = self.caretNode = self.getCaretNode()  # FIXME: Dead code
 		if ruleManager:
 			# Synchronous update, eg. from WebAccessBmdti.script_refreshResults
 			self._ready = True
@@ -406,83 +397,6 @@ class NodeManager(baseObject.ScriptableObject):
 		
 		walk(self.mainNode)
 		return {key: startOffset for key, (startOffset, endOffset) in map.items()}
-	
-	# FIXME: Dead code
-	def getCurrentNode(self):
-		if not self.isReady:
-			return None
-		if self._curNode is None:
-			self._curNode = self.getCaretNode()
-		return self._curNode
-
-	# FIXME: Dead code
-	def setCurrentNode(self, node):
-		if hasattr(node, 'control') is False:
-			self._curNode = node.parent
-		else:
-			self._curNode = node
-
-	# FIXME: Dead code from day 1 (probably used with presenters)
-	def event_caret(self, obj, nextHandler):  # @UnusedVariable
-		if not self.isReady:
-			return
-		self.display(self._curNode)
-		nextHandler()
-
-	# FIXME: Dead code from here to end of class
-	def script_nextItem(self, gesture):
-		if not self.isReady:
-			return
-		if self.treeInterceptor.passThrough is True:
-			gesture.send()
-			return
-		c = self.searchOffset(self._curNode.offset + self._curNode.size + 0)
-		if c == self._curNode or c is None:
-			ui.message("Bas du document")
-			self._curNode.moveto()
-			return
-		if c.parent.role not in (
-			controlTypes.ROLE_SECTION, controlTypes.ROLE_PARAGRAPH
-		):
-			c = c.parent
-		# log.info("C set to %s" % c)
-		self._curNode = c
-		c.moveto()
-
-	def script_previousItem(self, gesture):
-		if not self.isReady:
-			return
-		if self.treeInterceptor.passThrough is True:
-			gesture.send()
-			return
-		c = self.searchOffset(self._curNode.offset - 1)
-		# log.info("C is %s" % c)
-		if c is None:
-			ui.message("Début du document")
-			self._curNode.moveto()
-			return
-		if c.parent.role not in (
-			controlTypes.ROLE_SECTION, controlTypes.ROLE_PARAGRAPH
-		):
-			c = c.parent
-		# log.info("C set to %s" % c)
-		self._curNode = c
-		c.moveto()
-
-	def script_enter(self, gesture):
-		if not self.isReady:
-			return
-		if self.treeInterceptor.passThrough is True:
-			gesture.send()
-			return
-		self._curNode.moveto()
-		self._curNode.activate()
-
-	__gestures = {
-		"kb:downarrow": "nextItem",
-		"kb:uparrow": "previousItem",
-		"kb:enter": "enter",
-	}
 
 
 class NodeField(TrackedObject):
@@ -984,34 +898,6 @@ class NodeField(TrackedObject):
 		y = top + (height // 2)
 		winUser.setCursorPos(x, y)
 		mouseHandler.executeMouseMoveEvent(x, y)
-
-	# FIXME: Dead code
-	def getPresentationString(self):
-		"""Returns the current node text and role for speech and Braille.
-		@param None
-		@returns a presentation string
-		@rtype str
-		"""
-		if hasattr(self, 'text'):
-			return self.text
-		elif self.role is controlTypes.ROLE_EDITABLETEXT:
-			return "_name_ _role_"
-		elif self.role is controlTypes.ROLE_HEADING:
-			return "_innerText_ _role_ de niveau %s" % self.control["level"]
-		return "_innerText_ _role_"
-
-	# FIXME: Dead code
-	def getBraillePresentationString(self):
-		return False
-
-	# TODO: Thoroughly check this wasn't used anywhere
-	# In Python 3, all classes defining __eq__ must also define __hash__
-# 	def __eq__(self, node):
-# 		if node is None:
-# 			return False
-# 		if self.offset == node.offset:
-# 			return True
-# 		return False
 
 	def __lt__(self, node):
 		"""
