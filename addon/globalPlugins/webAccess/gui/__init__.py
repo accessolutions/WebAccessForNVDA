@@ -33,7 +33,7 @@ from collections.abc import Mapping, Sequence, Set
 from dataclasses import dataclass
 from enum import Enum, auto
 import re
-from typing import Any, Callable, Self
+from typing import Any, Callable
 import wx
 import wx.lib.mixins.listctrl as listmix
 
@@ -1049,7 +1049,8 @@ class SingleFieldEditorPanelBase(SingleFieldEditorMixin, TreeContextualPanel):
 		editorChoices: Mapping[Any, str] = None
 		fieldDisplayName: str = None
 		fieldName: str = None
-		onEditor_change: Callable[[Self], None] = None
+		# Type hint "Self" was added only in Python 3.11 (NVDA >= 2024.1)
+		onEditor_change: Callable[["SingleFieldEditorPanelBase"], None] = None
 		"""Additional `onEditor_change` handler callback.
 		
 		It is called with a reference to the panel during `onEditor_change`, thus avoiding the need
