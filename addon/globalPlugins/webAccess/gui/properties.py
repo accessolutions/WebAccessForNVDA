@@ -22,9 +22,9 @@
 __author__ = "Sendhil Randon <sendhil.randon-ext@francetravail.fr>"
 
 from collections import ChainMap
-from collections.abc import Iterator, Mapping
 from abc import abstractmethod
 from enum import Enum
+import sys
 from typing import Any
 import wx
 
@@ -38,6 +38,12 @@ from ..ruleHandler.controlMutation import MUTATIONS_BY_RULE_TYPE, mutationLabels
 from ..ruleHandler.properties import PropertiesBase, PropertySpec, PropertySpecValue, PropertyValue
 from ..utils import guarded, logException
 from . import ContextualSettingsPanel, EditorType, ListCtrlAutoWidth, SingleFieldEditorMixin
+
+
+if sys.version_info[1] < 9:
+    from typing import Iterator, Mapping
+else:
+    from collections.abc import Iterator, Mapping
 
 
 addonHandler.initTranslation()

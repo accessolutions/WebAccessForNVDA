@@ -26,13 +26,14 @@ __authors__ = (
 	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
 )
 
+
 from abc import abstractmethod
 from buildVersion import version_detailed as NVDA_VERSION
 from collections import OrderedDict
-from collections.abc import Mapping, Sequence, Set
 from dataclasses import dataclass
 from enum import Enum, auto
 import re
+import sys
 from typing import Any, Callable
 import wx
 import wx.lib.mixins.listctrl as listmix
@@ -53,6 +54,13 @@ import ui
 import winUser
 
 from ..utils import guarded, logException, notifyError, updateOrDrop
+
+
+if sys.version_info[1] < 9:
+    from typing import Mapping, Sequence, Set
+else:
+    from collections.abc import Mapping, Sequence, Set
+
 
 addonHandler.initTranslation()
 

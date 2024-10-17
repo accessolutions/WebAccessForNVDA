@@ -25,14 +25,20 @@ __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 from abc import ABC, abstractmethod
 from collections import ChainMap
-from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from pprint import pformat
+import sys
 from typing import Any, TypeAlias
 import weakref
 
 import addonHandler
+
+
+if sys.version_info[1] < 9:
+    from typing import Iterator, Mapping, Sequence
+else:
+    from collections.abc import Iterator, Mapping, Sequence
 
 
 addonHandler.initTranslation()

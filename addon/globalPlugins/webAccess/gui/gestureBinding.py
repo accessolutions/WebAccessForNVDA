@@ -23,7 +23,7 @@
 __author__ = "Shirley Noel <shirley.noel@pole-emploi.fr>"
 
 
-from collections.abc import Mapping
+import sys
 from typing import Any
 import wx
 
@@ -36,6 +36,12 @@ import ui
 
 from ..utils import guarded, logException
 from . import ScalingMixin, showContextualDialog
+
+
+if sys.version_info[1] < 9:
+    from typing import Mapping
+else:
+    from collections.abc import Mapping
 
 
 addonHandler.initTranslation()

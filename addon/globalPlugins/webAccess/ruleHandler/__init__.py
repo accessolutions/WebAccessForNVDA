@@ -29,11 +29,11 @@ __authors__ = (
 )
 
 
-from collections.abc import Mapping
 from itertools import chain
 from pprint import pformat
 import threading
 import time
+import sys
 import weakref
 
 import wx
@@ -65,6 +65,13 @@ from .. import webAppScheduler
 from . import ruleTypes
 from .controlMutation import MUTATIONS, MutatedControl, getMutationId
 from .properties import RuleProperties, CriteriaProperties
+
+
+if sys.version_info[1] < 9:
+    from typing import Mapping
+else:
+    from collections.abc import Mapping
+
 
 addonHandler.initTranslation()
 

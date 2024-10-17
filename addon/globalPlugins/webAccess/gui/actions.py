@@ -26,7 +26,7 @@ __authors__ = (
 )
 
 
-from collections.abc import Mapping
+import sys
 from typing import Any
 import wx
 
@@ -39,6 +39,12 @@ from ..ruleHandler import ruleTypes
 from ..utils import guarded
 from . import ContextualSettingsPanel, Change, gestureBinding
 from .rule.abc import RuleAwarePanelBase
+
+
+if sys.version_info[1] < 9:
+    from typing import Mapping
+else:
+    from collections.abc import Mapping
 
 
 addonHandler.initTranslation()
