@@ -1,4 +1,4 @@
-# globalPlugins/webAccess/gui/actions.py
+# globalPlugins/webAccess/gui/rule/gestures.py
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
@@ -23,6 +23,9 @@
 __authors__ = (
 	"Shirley Noel <shirley.noel@pole-emploi.fr>",
 	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+	"Sendhil Randon <sendhil.randon-ext@francetravail.fr>",
+	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
 )
 
 
@@ -35,10 +38,11 @@ import inputCore
 import gui
 from gui import guiHelper
 
-from ..ruleHandler import ruleTypes
-from ..utils import guarded
-from . import ContextualSettingsPanel, Change, gestureBinding
-from .rule.abc import RuleAwarePanelBase
+from ...ruleHandler import ruleTypes
+from ...utils import guarded
+from .. import ContextualSettingsPanel, Change
+from . import gestureBinding
+from .abc import RuleAwarePanelBase
 
 
 if sys.version_info[1] < 9:
@@ -50,22 +54,22 @@ else:
 addonHandler.initTranslation()
 
 
-class ActionsPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
-	"""ABC for Actions panels
+class GesturesPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
+	"""ABC for Gestures panels
 	
 	Sub-classes must implement the methods `getData` (inherited from `ContextualSettingsPanel`)
 	and `getRuleType` (inherited from `RuleTypeAware`).
 	
 	Known sub-classes:
-	 - `criteriaEditor.ActionsPanel`
-	 - `ruleEditor.ActionsPanel`
+	 - `criteriaEditor.GesturesPanel`
+	 - `ruleEditor.GesturesPanel`
 	"""
 
 	# Translators: The label for a category in the Rule and Criteria editors
-	title = _("Actions")
+	title = _("Input Gestures")
 	
-	# Translators: Displayed when the selected rule type doesn't support any action
-	descriptionIfNoneSupported = _("No action available for the selected rule type.")
+	# Translators: Displayed when the selected rule type doesn't support input gestures
+	descriptionIfNoneSupported = _("The selected Rule Type does not support Input Gestures.")
 	
 	def __init__(self, *args, **kwargs):
 		self.hideable: Mapping[str, Sequence[wx.Window]] = {}
@@ -83,14 +87,14 @@ class ActionsPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
 		item = wx.StaticText(self, label=self.descriptionIfNoneSupported)
 		item.Hide()
 		items.append(item)
-		gbSizer.Add(item, pos=(row, 0), span=(1, 5), flag=wx.EXPAND)
+		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
 		
 		row += 1
 		items = self.hideable["IfSupported"] = []
 		# Translators: The label for a list on the Rule Editor dialog
 		item = wx.StaticText(self, label=_("&Gestures"))
 		items.append(item)
-		gbSizer.Add(item, pos=(row, col), span=(1, 3), flag=wx.EXPAND)
+		gbSizer.Add(item, pos=(row, col), flag=wx.EXPAND)
 		
 		row += 1
 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(row, 0))
@@ -99,9 +103,11 @@ class ActionsPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
 		row += 1
 		item = self.gesturesListBox = wx.ListBox(self, size=scale(-1, 100))
 		items.append(item)
-		gbSizer.Add(item, pos=(row, col), span=(6, 3), flag=wx.EXPAND)
+		gbSizer.Add(item, pos=(row, col), span=(6, 1), flag=wx.EXPAND)
+		gbSizer.AddGrowableCol(col)
+		gbSizer.AddGrowableRow(row + 5)
 		
-		col += 3
+		col += 1
 		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, col))
 		items.append(item)
 		
@@ -133,72 +139,29 @@ class ActionsPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
 		item.Bind(wx.EVT_BUTTON, self.onDeleteGesture)
 		items.append(item)
 		gbSizer.Add(item, pos=(row, col), flag=wx.EXPAND)
-		
-		row += 2
-		col = 0
-		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, col))
-		items.append(item)
-		
-		row += 1
-		# Translators: Automatic action at rule detection input label for the rule dialog's action panel.
-		item = wx.StaticText(self, label=_("A&utomatic action at rule detection:"))
-		items.append(item)
-		gbSizer.Add(item, pos=(row, col))
-		
-		col += 1
-		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, col))
-		items.append(item)
-		
-		col += 1
-		item = self.autoActionChoice = wx.Choice(self, choices=[])
-		item.Bind(wx.EVT_CHOICE, self.onAutoActionChoice)
-		items.append(item)
-		gbSizer.Add(item, pos=(row, col), span=(1, 3), flag=wx.EXPAND)
-		
-		gbSizer.AddGrowableCol(2)
 	
 	def initData(self, context: Mapping[str, Any]) -> None:
 		super().initData(context)
 		data = self.getData()
 		self.gesturesMap = data.setdefault("gestures", {})
 		self.updateGesturesListBox()
-		self.updateAutoActionChoice(refreshChoices=True)
 	
 	def updateData(self):
 		# Nothing to update: This panel writes directly into the data map.
 		pass
 	
-	def getAutoAction(self):
-		return self.getData().get("properties", {}).get("autoAction")
-	
-	def getAutoActionChoices(self) -> Mapping[str, str]:
-		mgr = self.context["webModule"].ruleManager
-		# Translators: An entry in the Automatic Action selection list.
-		choices = {None: pgettext("webAccess.action", "No action")}
-		choices.update(mgr.getActions())
-		action = self.getAutoAction()
-		if action not in choices:
-			choices[action] = f"*{action}"
-		return choices
-		
 	def getSelectedGesture(self):
 		index = self.gesturesListBox.Selection
 		return self.gesturesListBox.GetClientData(index) if index > -1 else None
 	
 	@guarded
-	def onAutoActionChoice(self, evt):
-		action = evt.EventObject.GetClientData(evt.Selection)
-		self.getData().setdefault("properties", {})["autoAction"] = action
-	
-	@guarded
 	def onAddGesture(self, evt):
-		context = self.context
+		context = self.context.copy()
 		context["data"]["gestures"] = self.gesturesMap
-		if gestureBinding.show(context=context, parent=self) == wx.ID_OK:
-			id = context["data"].pop("gestureBinding")["gestureIdentifier"]
+		if gestureBinding.show(context, self):
+			id = context["data"]["gestureBinding"]["gestureIdentifier"]
 			self.onGestureChange(Change.CREATION, id)
-		del context["data"]["gestures"]
-
+	
 	@guarded
 	def onDeleteGesture(self, evt):
 		index = self.gesturesListBox.Selection
@@ -208,33 +171,18 @@ class ActionsPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
 
 	@guarded
 	def onEditGesture(self, evt):
-		context = self.context
+		context = self.context.copy()
 		gestures = context["data"]["gestures"] = self.gesturesMap
 		id = self.getSelectedGesture()
 		context["data"]["gestureBinding"] = {"gestureIdentifier": id, "action":  gestures[id]}
-		if gestureBinding.show(context=context, parent=self) == wx.ID_OK:
+		if gestureBinding.show(context=context, parent=self):
 			id = context["data"]["gestureBinding"]["gestureIdentifier"]
 			self.onGestureChange(Change.UPDATE, id)
-		del context["data"]["gestureBinding"]
-		del context["data"]["gestures"]
 	
 	def onGestureChange(self, change: Change, id: str):
 		if change is Change.DELETION:
 			index = None
 		self.updateGesturesListBox(selectId=id, focus=True)
-	
-	def updateAutoActionChoice(self, refreshChoices: bool):
-		ctrl = self.autoActionChoice
-		value = self.getAutoAction()
-		if refreshChoices:
-			choices = self.getAutoActionChoices()
-			ctrl.Clear()
-			for action, displayName in choices.items():
-				ctrl.Append(displayName, action)
-			index = tuple(choices.keys()).index(self.getAutoAction())
-		else:
-			index = tuple(ctrl.GetClientData(i) for i in range(ctrl.Count)).index(value)
-		ctrl.SetSelection(index)
 	
 	def updateGesturesListBox(self, selectId: str = None, focus: bool = False):
 		mgr = self.getRuleManager()
@@ -265,7 +213,7 @@ class ActionsPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
 	@guarded
 	def onPanelActivated(self):
 		super().onPanelActivated()
-		supported = self.getRuleType() in (ruleTypes.ZONE, ruleTypes.MARKER)
+		supported = self.getRuleType() in ruleTypes.ACTION_TYPES
 		self.panelDescription = "" if supported else self.descriptionIfNoneSupported
 		self.Freeze()
 		for item in self.hideable["IfSupported"]:
@@ -278,9 +226,8 @@ class ActionsPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
 	def onSave(self):
 		super().onSave()
 		data = self.getData()
-		if self.getRuleType() not in (ruleTypes.ZONE, ruleTypes.MARKER):
+		if self.getRuleType() not in ruleTypes.ACTION_TYPES:
 			data.pop("gestures", None)
-			data.get("properties", {}).pop("autoAction", None)
 		elif not data.get("gestures"):
 			data.pop("gestures", None)
 

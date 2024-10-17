@@ -61,7 +61,7 @@ except ImportError:
 
 class WebModuleJsonFileDataStore(Store):
 
-	def __init__(self, name, basePath, dirName="webModulesMC"):
+	def __init__(self, name, basePath, dirName="webModulesSM"):
 		super().__init__(name=name)
 		self.basePath = basePath
 		self.path = os.path.join(basePath, dirName)
@@ -81,7 +81,8 @@ class WebModuleJsonFileDataStore(Store):
 				try:
 					data = self.get(ref).data
 					meta = {}
-					for key in ("windowTitle", "url"):
+					for key in ("name", "url", "windowTitle"):
+						# "WebApp" corresponds to legacy format version (pre 0.1)
 						value = data.get("WebModule", data.get("WebApp", {})).get(key)
 						if value:
 							meta[key] = value
@@ -214,7 +215,7 @@ class WebModuleJsonFileDataStore(Store):
 class WebModuleStore(DispatchStore):
 
 	def __init__(self, *args, **kwargs):
-			# The order of this list is meaningful. See `catalog`
+		# The order of this list is meaningful. See `catalog`
 		stores = kwargs["stores"] = []
 		store = self.userStore = WebModuleJsonFileDataStore(
 			name="userConfig", basePath=globalVars.appArgs.configPath

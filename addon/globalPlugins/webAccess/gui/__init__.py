@@ -38,7 +38,8 @@ from typing import Any, Callable
 import wx
 import wx.lib.mixins.listctrl as listmix
 
-from gui import guiHelper, nvdaControls, _isDebug
+import gui
+from gui import guiHelper, nvdaControls
 from gui.dpiScalingHelper import DpiScalingHelperMixinWithoutInit
 from gui.settingsDialogs import (
 	MultiCategorySettingsDialog,
@@ -57,9 +58,9 @@ from ..utils import guarded, logException, notifyError, updateOrDrop
 
 
 if sys.version_info[1] < 9:
-    from typing import Mapping, Sequence, Set
+    from typing import Iterable, Mapping, Sequence, Set
 else:
-    from collections.abc import Mapping, Sequence, Set
+    from collections.abc import Iterable, Mapping, Sequence, Set
 
 
 addonHandler.initTranslation()
@@ -217,6 +218,7 @@ class InvalidValue(object):
 
 
 class ScalingMixin(DpiScalingHelperMixinWithoutInit):
+	
 	def scale(self, *args):
 		sizes = tuple((
 			self.scaleSize(arg) if arg > 0 else arg
@@ -244,6 +246,13 @@ class FillableSettingsPanel(SettingsPanel, ScalingMixin):
 		self.mainSizer.Add(self.settingsSizer, flag=wx.ALL | wx.EXPAND, proportion=1)
 		self.mainSizer.Fit(self)
 		self.SetSizer(self.mainSizer)
+
+
+# TODO: Consider migrating to NVDA's SettingsDialog once we hit 2023.2 as minimum version 
+class ContextualDialog(ScalingMixin, wx.Dialog):
+	
+	def initData(self, context):
+		self.context = context
 
 
 class ContextualSettingsPanel(FillableSettingsPanel, metaclass=guiHelper.SIPABCMeta):
@@ -298,7 +307,9 @@ class FillableMultiCategorySettingsDialog(MultiCategorySettingsDialog, ScalingMi
 
 	See `FillableSettingsPanel`
 	"""
-
+	
+	onCategoryChange = guarded(MultiCategorySettingsDialog.onCategoryChange)
+	
 	def _getCategoryPanel(self, catId):
 		# Changes to the original implementation:
 		#  - Add `proportion=1`
@@ -331,7 +342,7 @@ class FillableMultiCategorySettingsDialog(MultiCategorySettingsDialog, ScalingMi
 			panel.SetAccessible(SettingsPanelAccessible(panel))
 
 		return panel
-
+	
 	@guarded
 	def _enterActivatesOk_ctrlSActivatesApply(self, evt):
 		if evt.KeyCode in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER):
@@ -403,6 +414,7 @@ class KbNavMultiCategorySettingsDialog(FillableMultiCategorySettingsDialog):
 class ContextualMultiCategorySettingsDialog(
 	KbNavMultiCategorySettingsDialog,
 	configuredSettingsDialogType(hasApplyButton=False),
+	ContextualDialog,
 ):
 
 	def __new__(cls, *args, **kwargs):
@@ -456,18 +468,15 @@ class ContextualMultiCategorySettingsDialog(
 	
 	# Changed from NVDA's MultiCategorySettingsDialog: Use ValidationError instead of ValueError,
 	# in order to not misinterpret a real unintentional ValueError.
-	# Hence, ContextualSettingsPanel.isValid can either return False or willingly raise a ValidationError
-	# with the same outcome of cancelling the save operation and the destruction of the dialog.
 	# Additionnaly, this implementation selects the category for the invalid panel.
 	def _validateAllPanels(self):
 		"""Check if all panels are valid, and can be saved
 		@note: raises ValidationError if a panel is not valid. See c{SettingsPanel.isValid}
 		"""
 		for panel in self.catIdToInstanceMap.values():
-			if panel.isValid() is False:
+			if not panel.isValid():
 				self.selectPanel(panel)
 				raise ValidationError("Validation for %s blocked saving settings" % panel.__class__.__name__)
-
 
 
 class TreeContextualPanel(ContextualSettingsPanel):
@@ -783,12 +792,23 @@ class TreeNodeInfo:
 		prm.treeParent = treeParent
 
 
-def showContextualDialog(cls, context, parent, *args, **kwargs):
+def showContextualDialog(
+	cls: type(ContextualDialog),
+	context: Mapping[str, Any],
+	parent: wx.Window,
+	*args,
+	**kwargs
+):
+	"""
+	Show a `ContextualDialog`
+	
+	If a `parent` is specified, the dialog is shown modal and this function
+	returns its return code.
+	"""
 	if parent is not None:
 		with cls(parent, *args, **kwargs) as dlg:
 			dlg.initData(context)
 			return dlg.ShowModal()
-	import gui
 	gui.mainFrame.prePopup()
 	try:
 		dlg = cls(gui.mainFrame, *args, **kwargs)
@@ -882,6 +902,12 @@ class DropDownWithHideableChoices(wx.ComboBox):
 				self.setSelectedChoiceKey(default)
 
 
+class Change(Enum):
+	CREATION = auto()
+	UPDATE = auto()
+	DELETION = auto()
+
+
 @dataclass
 class EditorTypeValue:
 	editorClass: type(wx.Control) = None
@@ -890,15 +916,10 @@ class EditorTypeValue:
 	isLabeled: bool = None
 
 
-class Change(Enum):
-	CREATION = auto()
-	UPDATE = auto()
-	DELETION = auto()
-
-
 class EditorType(Enum):
 	CHECKBOX = EditorTypeValue(wx.CheckBox, wx.EVT_CHECKBOX, "onEditor_checkBox", True)
 	CHOICE = EditorTypeValue(wx.Choice, wx.EVT_CHOICE, "onEditor_choice", False)
+	COMBO = EditorTypeValue(wx.ComboBox, wx.EVT_TEXT, "onEditor_combo", False)
 	TEXT = EditorTypeValue(wx.TextCtrl, wx.EVT_TEXT, "onEditor_text", False)
 
 
@@ -947,6 +968,11 @@ class SingleFieldEditorMixin(metaclass=guiHelper.SIPABCMeta):
 	
 	@property
 	@abstractmethod
+	def editorSuggestions(self) -> Iterable[str]:
+		raise NotImplementedError
+	
+	@property
+	@abstractmethod
 	def editorType(self) -> EditorType:
 		raise NotImplementedError
 	
@@ -979,6 +1005,11 @@ class SingleFieldEditorMixin(metaclass=guiHelper.SIPABCMeta):
 		self.onEditor_change()
 	
 	@guarded
+	def onEditor_combo(self, evt):
+		self.setFieldValue(evt.EventObject.Value)
+		self.onEditor_change()
+	
+	@guarded
 	def onEditor_text(self, evt):
 		self.setFieldValue(evt.EventObject.Value)
 		self.onEditor_change()
@@ -997,7 +1028,7 @@ class SingleFieldEditorMixin(metaclass=guiHelper.SIPABCMeta):
 				notifyError(f"value: {value!r}, choices: {choices!r}")
 				return
 			value = keys[index]
-		elif editorType is EditorType.TEXT:
+		elif editorType in (EditorType.COMBO, EditorType.TEXT):
 			self.editor.SetFocus()
 			return
 		else:
@@ -1023,7 +1054,7 @@ class SingleFieldEditorMixin(metaclass=guiHelper.SIPABCMeta):
 		elif editorType is EditorType.CHOICE:
 			# Does not emit wx.EVT_CHOICE
 			editor.Selection = tuple(self.editorChoices.keys()).index(value)
-		elif editorType is EditorType.TEXT:
+		elif editorType in (EditorType.COMBO, EditorType.TEXT):
 			# Does not emit wx.EVT_TEXT
 			editor.ChangeValue(value if value is not None else "")
 	
@@ -1031,6 +1062,14 @@ class SingleFieldEditorMixin(metaclass=guiHelper.SIPABCMeta):
 		editor = self.editor
 		editor.Clear()
 		editor.AppendItems(tuple(self.editorChoices.values()))
+	
+	def updateEditorSuggestions(self):
+		editor = self.editor
+		value = editor.Value
+		editor.SetEvtHandlerEnabled(False)
+		editor.Set(tuple(self.editorSuggestions))
+		editor.SetEvtHandlerEnabled(True)
+		editor.ChangeValue(value)
 	
 	def updateEditorLabel(self):
 		# Translators: A field label. French typically adds a space before the colon.
@@ -1055,6 +1094,7 @@ class SingleFieldEditorPanelBase(SingleFieldEditorMixin, TreeContextualPanel):
 	@dataclass
 	class CategoryParams(TreeContextualPanel.CategoryParams):
 		editorChoices: Mapping[Any, str] = None
+		editorSuggestions: Sequence[str] = None
 		fieldDisplayName: str = None
 		fieldName: str = None
 		# Type hint "Self" was added only in Python 3.11 (NVDA >= 2024.1)
@@ -1080,6 +1120,10 @@ class SingleFieldEditorPanelBase(SingleFieldEditorMixin, TreeContextualPanel):
 	@property
 	def editorChoices(self) -> str:
 		return self.categoryParams.editorChoices
+	
+	@property
+	def editorSuggestions(self) -> str:
+		return self.categoryParams.editorSuggestions
 	
 	@property
 	def fieldDisplayName(self) -> str:
@@ -1113,6 +1157,8 @@ class SingleFieldEditorPanelBase(SingleFieldEditorMixin, TreeContextualPanel):
 			self.editorLabel = self.editor
 		if editorType is EditorType.CHOICE:
 			self.updateEditorChoices()
+		elif editorType is EditorType.COMBO:
+			self.updateEditorSuggestions()
 		self.updateEditor()
 		self.updateEditorLabel()
 	

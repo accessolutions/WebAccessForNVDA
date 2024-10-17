@@ -1,4 +1,4 @@
-# globalPlugins/webAccess/gui/gestureBinding.py
+# globalPlugins/webAccess/gui/rule/gestureBinding.py
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
@@ -20,7 +20,14 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__author__ = "Shirley Noel <shirley.noel@pole-emploi.fr>"
+__authors__ = (
+	"Shirley Noel <shirley.noel@pole-emploi.fr>",
+	"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+	"Sendhil Randon <sendhil.randon-ext@francetravail.fr>",
+	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
+)
 
 
 import sys
@@ -34,8 +41,8 @@ from gui import guiHelper
 import speech
 import ui
 
-from ..utils import guarded, logException
-from . import ScalingMixin, showContextualDialog
+from ...utils import guarded, logException
+from .. import ScalingMixin, showContextualDialog
 
 
 if sys.version_info[1] < 9:
@@ -216,4 +223,4 @@ class GestureBindingDialog(wx.Dialog, ScalingMixin):
 
 
 def show(context: Mapping[str, Any], parent: wx.Window):
-	return showContextualDialog(GestureBindingDialog, context, parent)
+	return showContextualDialog(GestureBindingDialog, context, parent) == wx.ID_OK

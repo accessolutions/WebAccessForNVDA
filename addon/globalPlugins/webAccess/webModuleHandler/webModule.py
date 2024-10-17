@@ -33,6 +33,7 @@ from collections import OrderedDict
 import datetime
 import json
 import os
+import sys
 
 import addonHandler
 addonHandler.initTranslation()
@@ -48,8 +49,14 @@ import speech
 import ui
 from ..lib.markdown2 import markdown
 from ..lib.packaging import version
-from ..webAppLib import playWebAppSound
-from .. import ruleHandler
+from ..webAppLib import playWebAccessSound
+
+
+if sys.version_info[1] < 9:
+    from typing import Sequence
+else:
+    from collections.abc import Sequence
+
 
 class InvalidApiVersion(version.InvalidVersion):
 	pass
@@ -57,19 +64,16 @@ class InvalidApiVersion(version.InvalidVersion):
 
 class WebModuleDataLayer(baseObject.AutoPropertyObject):
 
-	def __init__(self, name, data, storeRef, rulesOnly=False, readOnly=None):
+	def __init__(self, name, data, storeRef, readOnly=None):
 		self.name = name
 		self.data = data
 		self.storeRef = storeRef
-		self.rulesOnly = rulesOnly
 		if readOnly is not None:
 			self.readOnly = readOnly
 		self.dirty = False
 
 	def __repr__(self):
-		return "<WebModuleDataLayer (name={!r}, storeRef={!r}, rulesOnly={!r}".format(
-			self.name, self.storeRef, self.rulesOnly
-		)
+		return "<WebModuleDataLayer (name={!r}, storeRef={!r}>".format(self.name, self.storeRef)
 
 	def _get_readOnly(self):
 		storeRef = self.storeRef
@@ -95,17 +99,18 @@ class WebModuleDataLayer(baseObject.AutoPropertyObject):
 
 class WebModule(baseObject.ScriptableObject):
 
-	API_VERSION = version.parse("0.5")
+	API_VERSION = version.parse("0.6")
 
-	FORMAT_VERSION_STR = "0.9-dev"
+	FORMAT_VERSION_STR = "0.10-dev"
 	FORMAT_VERSION = version.parse(FORMAT_VERSION_STR)
 
 	def __init__(self):
 		super().__init__()
-		self.layers = []  # List of `WebModuleDataLayer` instances
+		self.layers: Sequence[WebModuleDataLayer] = []
 		self.activePageTitle = None
 		self.activePageIdentifier = None
-		self.ruleManager = ruleHandler.RuleManager(self)
+		from ..ruleHandler import RuleManager
+		self.ruleManager = RuleManager(self)
 
 	def __repr__(self):
 		return "WebModule {name}".format(
@@ -173,8 +178,12 @@ class WebModule(baseObject.ScriptableObject):
 		"""
 		return False
 
+	def getScript(self,gesture):
+		return super().getScript(gesture) or self.ruleManager.getScript(gesture)
+
 	def createRule(self, data):
-		return ruleHandler.Rule(self.ruleManager, data)
+		from ..ruleHandler import Rule
+		return Rule(self.ruleManager, data)
 
 	def dump(self, layerName):
 		layer = self.getLayer(layerName, raiseIfMissing=True)
@@ -183,13 +192,34 @@ class WebModule(baseObject.ScriptableObject):
 		data["Rules"] = self.ruleManager.dump(layerName)
 		return layer
 
+	def equals(self, obj):
+		"""Check if `obj` represents an instance of the same `WebModule`.
+		
+		This cannot be achieved by implementing the usual `__eq__` method
+		because `baseObjects.AutoPropertyObject.__new__` requires it to
+		operate on identity as it stores the instance as key in a `WeakKeyDictionnary`
+		in order to later invalidate property cache.
+		"""
+		if type(self) is not type(obj):
+			return False
+		if self.name != obj.name:
+			return False
+		if len(self.layers) != len(obj.layers):
+			return False
+		for i in range(len(self.layers)):
+			l1 = self.layers[i]
+			l2 = obj.layers[i]
+			if l1.name != l2.name or l1.storeRef != l2.storeRef:
+				return False
+		return True
+
 	def isReadOnly(self):
 		try:
-			return not bool(self._getWritableLayer())
+			return not bool(self.getWritableLayer())
 		except LookupError:
 			return True
 
-	def load(self, layerName, index=None, data=None, storeRef=None, rulesOnly=False, readOnly=None):
+	def load(self, layerName, index=None, data=None, storeRef=None, readOnly=None):
 		for candidateIndex, layer in enumerate(self.layers):
 			if layer.name == layerName:
 				self.unload(layerName)
@@ -198,12 +228,11 @@ class WebModule(baseObject.ScriptableObject):
 		if data is not None:
 			from .dataRecovery import recover
 			recover(data)
-			layer = WebModuleDataLayer(layerName, data, storeRef, rulesOnly=rulesOnly)
+			layer = WebModuleDataLayer(layerName, data, storeRef)
 		elif storeRef is not None:
 			from . import store
 			layer = store.getData(storeRef)
 			layer.name = layerName
-			layer.rulesOnly = rulesOnly
 			data = layer.data
 			from .dataRecovery import recover
 			recover(data)
@@ -211,11 +240,11 @@ class WebModule(baseObject.ScriptableObject):
 			data = OrderedDict({"WebModule": OrderedDict()})
 			data["WebModule"] = OrderedDict()
 			data["WebModule"]["name"] = self.name
-			for attr in ("url", "windowTitle"):
+			for attr in ("url", "windowTitle"):  # FIXME: Why not "help" as whell?
 				value = getattr(self, attr)
 				if value:
 					data["WebModule"][attr] = value
-			layer = WebModuleDataLayer(layerName, data, storeRef, rulesOnly=rulesOnly)
+			layer = WebModuleDataLayer(layerName, data, storeRef)
 		if index is not None:
 			self.layers.insert(index, layer)
 		else:
@@ -229,6 +258,17 @@ class WebModule(baseObject.ScriptableObject):
 		if raiseIfMissing:
 			raise LookupError(repr(layerName))
 		return None
+
+	def getWritableLayer(self) -> WebModuleDataLayer:
+		"""Retreive the lowest writable layer of this WebModule
+		
+		See also: `webModuleHandler.getEditableWebModule`
+		"""
+		for layer in reversed(self.layers):
+			if not layer.readOnly:
+				return layer
+			break
+		raise LookupError("No suitable data layer")
 
 	def unload(self, layerName):
 		for index, layer in enumerate(self.layers):
@@ -244,8 +284,6 @@ class WebModule(baseObject.ScriptableObject):
 
 	def _getLayeredProperty(self, name, startLayerIndex=-1, raiseIfMissing=False):
 		for index, layer in list(enumerate(self.layers))[startLayerIndex::-1]:
-			if layer.rulesOnly:
-				continue
 			data = layer.data["WebModule"]
 			if name not in data:
 				continue
@@ -257,15 +295,8 @@ class WebModule(baseObject.ScriptableObject):
 		if raiseIfMissing:
 			raise LookupError("name={!r}, startLayerIndex={!r}".format(name, startLayerIndex))
 
-	def _getWritableLayer(self):
-		for layer in reversed(self.layers):
-			if not layer.readOnly and not layer.rulesOnly:
-				return layer
-			break
-		raise LookupError("No suitable data layer")
-
 	def _setLayeredProperty(self, name, value):
-		layer = self._getWritableLayer()
+		layer = self.getWritableLayer()
 		data = layer.data["WebModule"]
 		if data.get(name) != value:
 			layer.dirty = True
@@ -280,19 +311,17 @@ class WebModule(baseObject.ScriptableObject):
 				layer.dirty = True
 				data["overrides"][name] = overridden
 
-	def event_webApp_init(self, obj, nextHandler):
-		self.loadUserFile()
-		nextHandler()
-
-	def event_webApp_pageChanged(self, pageTitle, nextHandler):
+	def event_webModule_pageChanged(self, pageTitle, nextHandler):
 		speech.cancelSpeech()
-		playWebAppSound("pageChanged")
+		playWebAccessSound("pageChanged")
 		speech.speakMessage(pageTitle)
 
-	def event_webApp_gainFocus(self, obj, nextHandler):
+	# Currently dead code, but will likely be revived for issue #17
+	def event_webModule_gainFocus(self, obj, nextHandler):
 		if obj.role not in [controlTypes.ROLE_DOCUMENT, controlTypes.ROLE_FRAME, controlTypes.ROLE_INTERNALFRAME]:
 			nextHandler()
 
+	# Currently dead code, but will likely be revived for issue #17
 	def event_focusEntered(self, obj, nextHandler):
 		if obj.role != controlTypes.ROLE_DOCUMENT:
 			nextHandler()
@@ -300,8 +329,8 @@ class WebModule(baseObject.ScriptableObject):
 	def event_gainFocus(self, obj, nextHandler):
 		nextHandler()
 
-	def event_webApp_loseFocus(self, obj, nextHandler):
-		playWebAppSound("webAppLoseFocus")
+	def event_webModule_loseFocus(self, obj, nextHandler):
+		playWebAccessSound("webAppLoseFocus")
 		nextHandler()
 
 	def script_contextualHelp(self, gesture):

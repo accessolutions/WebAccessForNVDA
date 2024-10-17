@@ -22,7 +22,12 @@
 # Get ready for Python 3
 
 
-__author__ = "Frédéric Brugnot <f.brugnot@accessolutions.fr>"
+__authors__ = (
+	"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
+)
 
 
 import threading
@@ -80,7 +85,7 @@ class WebAppScheduler(threading.Thread):
 
 				else:
 					log.info("event %s is not found" % eventName)
-		log.info  ("webAppScheduler stopped !")
+		log.info("webAppScheduler stopped!")
 
 	def send(self, **kwargs):
 		self.queue.put(kwargs)
@@ -103,10 +108,10 @@ class WebAppScheduler(threading.Thread):
 	def fakeNext(self = None):
 		return True
 
-	def event_webApp(self, name=None, obj=None, webApp=None):
+	def event_webModule(self, name=None, obj=None, webModule=None):
 		funcName = 'event_%s' % name
-		#log.info("webApp %s will handle the event %s" % (webApp.name, name))
-		func = getattr(webApp, funcName, None)
+		#log.info("webModule %s will handle the event %s" % (webModule.name, name))
+		func = getattr(webModule, funcName, None)
 		if func:
 			func(obj, self.fakeNext)
 	
@@ -130,29 +135,6 @@ class WebAppScheduler(threading.Thread):
 				#browseMode.reportPassThrough(treeInterceptor)
 		self.send(eventName="updateNodeManager", treeInterceptor=treeInterceptor)
 
-	def event_checkWebAppManager(self):
-		# TODO: Should not be triggered anymore 
-		log.error("event_checkWebAppManager")
-		focus = api.getFocusObject()
-		webApp = focus.webAccess.webModule if isinstance(focus, WebAccessObject) else None
-		TRACE("event_checkWebAppManager: webApp={webApp}".format(
-			webApp=id(webApp) if webApp is not None else None
-			))
-		if webApp:
-			treeInterceptor = focus.treeInterceptor
-			if treeInterceptor:
-				#webApp.treeInterceptor = treeInterceptor
-				nodeManager = getattr(treeInterceptor, "nodeManager", None)
-				TRACE(
-					"event_checkWebAppManager: "
-					"nodeManager={nodeManager}".format(
-						nodeManager=id(nodeManager)
-							if nodeManager is not None else None
-						)
-					)
-				if nodeManager:
-					webApp.markerManager.update(nodeManager)
-		
 	def event_updateNodeManager(self, treeInterceptor):
 		if not (
 			isinstance(treeInterceptor, WebAccessBmdti)
@@ -166,15 +148,14 @@ class WebAppScheduler(threading.Thread):
 			nodeManager
 			and nodeManager.treeInterceptor
 			and isinstance(nodeManager.treeInterceptor, WebAccessBmdti)
-			and nodeManager.treeInterceptor.webAccess.ruleManager
+			and nodeManager.treeInterceptor.webAccess.rootWebModule
 		):
 			return
-		nodeManager.treeInterceptor.webAccess.ruleManager.update(nodeManager)
+		nodeManager.treeInterceptor.webAccess.rootRuleManager.update(nodeManager)
 
-	def event_markerManagerUpdated(self, markerManager):
+	def event_ruleManagerUpdated(self, ruleManager):
 		# Doesn't work outside of the main thread for Google Chrome 83
-		wx.CallAfter(markerManager.checkPageTitle)
-		# markerManager.checkAutoAction()
+		wx.CallAfter(ruleManager.checkPageTitle)
 
 	def event_gainFocus(self, obj):
 		pass
@@ -187,7 +168,7 @@ class WebAppScheduler(threading.Thread):
 	
 		if webModule is not None:
 			scheduler.send(
-				eventName="webApp",
+				eventName="webModule",
 				name='node_gainFocus',
-				obj=node, webApp=webModule
-				)
+				obj=node, webModule=webModule
+			)

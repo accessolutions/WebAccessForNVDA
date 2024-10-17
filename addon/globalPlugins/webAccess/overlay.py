@@ -23,12 +23,19 @@
 WebAccess overlay classes
 """
 
-__author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
+
+__authors__ = (
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
+)
 
 
 import weakref
 import wx
 
+import NVDAObjects
+from NVDAObjects.IAccessible import IAccessible
 import addonHandler
 import baseObject
 import browseMode
@@ -36,23 +43,19 @@ import config
 import controlTypes
 import core
 import cursorManager
+from garbageHandler import TrackedObject
 import gui
 from logHandler import log
 from scriptHandler import script
-import NVDAObjects
-from NVDAObjects.IAccessible import IAccessible
 import speech
 import textInfos
 import treeInterceptorHandler
 import ui
 import virtualBuffers
 
+from .utils import guarded, logException, tryInt
 
 
-from six import iteritems
-from six.moves import xrange
-
-from garbageHandler import TrackedObject
 
 REASON_CARET = controlTypes.OutputReason.CARET
 
@@ -145,22 +148,23 @@ class WebAccessBmdtiHelper(TrackedObject):
 	Utility methods and properties.
 	"""
 	WALK_ALL_TREES = False
-
+	
 	def __init__(self, treeInterceptor):
 		self.caretHitZoneBorder = False
 		self._nodeManager = None
 		self._treeInterceptor = weakref.ref(treeInterceptor)
-		self._webModule = None
-
+		self._rootWebModule = None
+	
 	def terminate(self):
-		if self._webModule is not None:
-			self._webModule.terminate()
-		self._webModule = None
+		if self._rootWebModule is not None:
+			self._rootWebModule.terminate()
+		self._rootWebModule = None
 		if self._nodeManager is not None:
 			self._nodeManager.terminate()
 		self._nodeManager = None
-
+	
 	@property
+	@logException
 	def nodeManager(self):
 		nodeManager = self._nodeManager
 		ti = self.treeInterceptor
@@ -172,14 +176,48 @@ class WebAccessBmdtiHelper(TrackedObject):
 			from .webAppScheduler import scheduler
 			nodeManager = self._nodeManager = NodeManager(ti, scheduler.onNodeMoveto)
 		return nodeManager
-
+	
 	@property
-	def ruleManager(self):
-		if not self.webModule:
+	@logException
+	def rootRuleManager(self):
+		webModule = self.rootWebModule
+		if not webModule:
 			return None
-		return self.webModule.ruleManager
-
+		return webModule.ruleManager.rootRuleManager
+	
 	@property
+	@logException
+	def rootWebModule(self):
+		from . import canHaveWebAccessSupport, webAccessEnabled
+		if not webAccessEnabled:
+			return None
+		ti = self.treeInterceptor
+		if not ti:
+			self._rootWebModule = None
+			return None
+		webModule = self._rootWebModule
+		if not webModule:
+			obj = ti.rootNVDAObject
+			if not canHaveWebAccessSupport(obj):
+				return None
+			from . import webModuleHandler
+			try:
+				webModule = self._rootWebModule = webModuleHandler.getWebModuleForTreeInterceptor(ti)
+			except Exception:
+				log.exception()
+		return webModule
+	
+	@property
+	@logException
+	@logException
+	def ruleManager(self):
+		webModule = self.webModule
+		if not webModule:
+			return None
+		return webModule.ruleManager
+	
+	@property
+	@logException
 	def treeInterceptor(self):
 		if hasattr(self, "_treeInterceptor"):
 			ti = self._treeInterceptor
@@ -189,36 +227,30 @@ class WebAccessBmdtiHelper(TrackedObject):
 				return ti
 			else:
 				return None
-
+	
 	@property
+	@logException
 	def webModule(self):
-		from . import supportWebApp, webAccessEnabled
-		if not webAccessEnabled:
+		root = self.rootWebModule
+		if not root:
 			return None
-		ti = self.treeInterceptor
-		if not ti:
-			self._webModule = None
-			return None
-		webModule = self._webModule
-		if not webModule:
-			obj = ti.rootNVDAObject
-			if not supportWebApp(obj):
-				return None
-			from . import webModuleHandler
-			try:
-				webModule = self._webModule = webModuleHandler.getWebModuleForTreeInterceptor(ti)
-			except Exception:
-				log.exception()
-		return webModule
-
+		try:
+			info = self.treeInterceptor.makeTextInfo(textInfos.POSITION_CARET)
+		except Exception:
+			#log.exception(stack_info=True)
+			return root
+		return root.ruleManager.subModules.atPosition(info._startOffset) or root
+	
 	@property
+	@logException
 	def zone(self):
 		ruleManager = self.ruleManager
 		if not ruleManager:
 			return None
 		return ruleManager.zone
-
+	
 	@zone.setter
+	@logException
 	def zone(self, value):
 		if value is None:
 			# Avoid raising an AttributeError if we only want to ensure
@@ -229,6 +261,13 @@ class WebAccessBmdtiHelper(TrackedObject):
 			return
 		# Properly raise AttributeError if there is no RuleManager.
 		self.ruleManager.zone = value
+	
+	@logException
+	def getWebModuleAtTextInfo(self, info):
+		rootModule = self.webModule
+		if not rootModule:
+			return None
+		return self.ruleManager.subModules.atPosition(info._startOffset) or rootModule
 
 
 class WebAccessBmdtiTextInfo(textInfos.offsets.OffsetsTextInfo):
@@ -301,7 +340,7 @@ class WebAccessBmdtiTextInfo(textInfos.offsets.OffsetsTextInfo):
 			self.obj.webAccess.zone = None
 		super().updateSelection()
 
-	def _getControlFieldAttribs(self, docHandle, controlId):
+	def _getControlFieldAttribs(self, docHandle, id):
 		info = self.copy()
 		info.expand(textInfos.UNIT_CHARACTER)
 		for field in reversed(info.getTextWithFields()):
@@ -312,16 +351,16 @@ class WebAccessBmdtiTextInfo(textInfos.offsets.OffsetsTextInfo):
 				continue
 			attrs = field.field
 			if (
-				int(attrs["controlIdentifier_docHandle"]) == docHandle
-				and int(attrs["controlIdentifier_ID"]) == controlId
+				tryInt(attrs["controlIdentifier_docHandle"]) == docHandle
+				and tryInt(attrs["controlIdentifier_ID"]) == id
 			):
 				break
 		else:
 			raise LookupError
-		mgr = self.obj.webAccess.ruleManager
+		mgr = self.obj.webAccess.rootRuleManager
 		if not mgr:
 			return attrs
-		mutated = mgr.getMutatedControl(controlId)
+		mutated = mgr.getMutatedControl((docHandle, id))
 		if mutated:
 			attrs.update(mutated.attrs)
 		return attrs
@@ -330,7 +369,7 @@ class WebAccessBmdtiTextInfo(textInfos.offsets.OffsetsTextInfo):
 		fields = super()._getFieldsInRange(
 			start, end
 		)
-		mgr = self.obj.webAccess.ruleManager
+		mgr = self.obj.webAccess.rootRuleManager
 		if not mgr or not mgr.isReady:
 			return fields
 		for field in fields:
@@ -340,8 +379,9 @@ class WebAccessBmdtiTextInfo(textInfos.offsets.OffsetsTextInfo):
 			):
 				continue
 			attrs = field.field
-			controlId = int(attrs["controlIdentifier_ID"])
-			mutated = mgr.getMutatedControl(controlId)
+			mutated = mgr.getMutatedControl((
+				tryInt(attrs["controlIdentifier_docHandle"]), tryInt(attrs["controlIdentifier_ID"])
+			))
 			if mutated:
 				attrs.update(mutated.attrs)
 		return fields
@@ -355,16 +395,13 @@ class WebAccessMutatedQuickNavItem(browseMode.TextInfoQuickNavItem):
 		super().__init__(
 			itemType, document, textInfo
 		)
-		self.controlId = controlId
 		# Support for `virtualBuffers.VirtualBufferQuickNavItem.isChild`
 		# so that the Elements List dialog can relate nested headings.
-		self.vbufFieldIdentifier = (document.rootDocHandle, controlId)
+		self.vbufFieldIdentifier = controlId
 
 	@property
 	def obj(self):
-		return self.document.getNVDAObjectFromIdentifier(
-			self.document.rootDocHandle, self.controlId
-		)
+		return self.document.getNVDAObjectFromIdentifier(self.vbufFieldIdentifier)
 
 	def isChild(self, parent):
 		if self.itemType == "heading":
@@ -391,10 +428,7 @@ class WebAccessMutatedQuickNavItem(browseMode.TextInfoQuickNavItem):
 				# that is, in the Elements List dialog.
 				info = self.textInfo.copy()
 				info.expand(textInfos.UNIT_CHARACTER)
-				attrs.update(info._getControlFieldAttribs(
-					self.document.rootDocHandle,
-					self.controlId
-				))
+				attrs.update(info._getControlFieldAttribs(*self.vbufFieldIdentifier))
 			return attrs.get(prop)
 
 		return self._getLabelForProperties(propertyGetter)
@@ -456,7 +490,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		return getDynamicClass((WebAccessBmdtiTextInfo, superCls))
 
 	def _set_selection(self, info, reason=REASON_CARET):
-		webModule = self.webAccess.webModule
+		webModule = self.webAccess.getWebModuleAtTextInfo(info)
 		if webModule and hasattr(webModule, "_set_selection"):
 			webModule._set_selection(self, info, reason=reason)
 			return
@@ -490,7 +524,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 					self.webAccess.caretHitZoneBorder = True
 			elif (
 				posUnit == textInfos.POSITION_LAST
-				and zone.isTextInfoAtEnd(info)
+				and zone.isTextInfoAtOfAfterEnd(info)
 			) or (
 				posUnit == textInfos.POSITION_FIRST
 				and zone.isTextInfoAtStart(info)
@@ -504,10 +538,10 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 					msg += _("Press escape to cancel zone restriction.")
 				ui.message(msg)
 			if posConstant == textInfos.POSITION_FIRST:
-				pos = zone.startOffset
+				pos = zone.result.startOffset
 				posConstant = textInfos.offsets.Offsets(pos, pos)
 			elif posConstant == textInfos.POSITION_LAST:
-				pos = max(zone.endOffset - 1, zone.startOffset)
+				pos = max(zone.result.endOffset - 1, zone.result.startOffset)
 				posConstant = textInfos.offsets.Offsets(pos, pos)
 		super()._caretMovementScriptHelper(
 			gesture,
@@ -532,7 +566,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 				yield next(superIter)
 			except StopIteration:
 				return
-		mgr = self.webAccess.ruleManager
+		mgr = self.webAccess.rootRuleManager
 		if not mgr:
 			for item in superIter:
 				yield item
@@ -556,12 +590,12 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			direction
 		):
 			if zone:
-				if item.textInfo._startOffset < zone.startOffset:
+				if item.textInfo._startOffset < zone.result.startOffset:
 					if direction == "next":
 						continue
 					else:
 						return
-				elif item.textInfo._startOffset >= zone.endOffset:
+				elif item.textInfo._startOffset >= zone.result.endOffset:
 					if direction == "previous":
 						continue
 					else:
@@ -569,11 +603,11 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			if not isinstance(item, WebAccessMutatedQuickNavItem):
 				controlId = None
 				if isinstance(item, virtualBuffers.VirtualBufferQuickNavItem):
-					docHandle, controlId = item.vbufFieldIdentifier
+					controlId = item.vbufFieldIdentifier
 				elif isinstance(item, browseMode.TextInfoQuickNavItem):
 					try:
 						obj = item.textInfo.NVDAObjectAtStart
-						controlId = obj.IA2UniqueID
+						controlId = self.getIdentifierFromNVDAObject(obj)
 					except Exception:
 						log.exception()
 				if controlId is None:
@@ -714,7 +748,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 
 		See `__mutatedControlMatchesCriteria` for details on criteria format.
 		"""
-		mgr = self.webAccess.ruleManager
+		mgr = self.webAccess.rootRuleManager
 		if not mgr:
 			return
 		if not criteria:
@@ -768,13 +802,12 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		if info is None:
 			info = mutated.node.getTextInfo()
 		docHandle = self.rootDocHandle
-		controlId = mutated.controlId
-		controlAttrs = info._getControlFieldAttribs(docHandle, controlId)
+		controlAttrs = info._getControlFieldAttribs(*mutated.controlId)
 		controlNode = mutated.node
 		parentAttrs = None  # Fetch lazily as seldom needed
 		parentNode = mutated.node.parent
 		for alternative in criteria:
-			for key, values in iteritems(alternative):
+			for key, values in alternative.items():
 				if key.endswith("::not"):
 					negate = True
 					key = key[:-len("::not")]
@@ -785,9 +818,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 					if parentAttrs is None:
 						parent = mutated.node.parent
 						parentInfo = parent.getTextInfo()
-						parentAttrs = parentInfo._getControlFieldAttribs(
-							docHandle, int(parent.controlIdentifier)
-						)
+						parentAttrs = parentInfo._getControlFieldAttribs(*parent.controlIdentifier)
 					attrs = parentAttrs
 					node = parentNode
 				else:
@@ -863,6 +894,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			if not willSayAllResume:
 				speech.speakTextInfo(info, reason=REASON_CARET)
 		elif self.webAccess.zone:
+			
 			def ask():
 				if gui.messageBox(
 					"\n".join((
@@ -879,6 +911,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 						reverse=reverse,
 						caseSensitive=caseSensitive
 					)
+			
 			wx.CallAfter(ask)
 		else:
 			wx.CallAfter(
@@ -928,17 +961,10 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 	def getScript(self, gesture):
 		webModule = self.webAccess.webModule
 		if webModule:
-			func = webModule.getScript(gesture)
-			if func:
+			script = webModule.getScript(gesture)
+			if script:
 				return ScriptWrapper(
-					func, ignoreTreeInterceptorPassThrough=True
-				)
-		mgr = self.webAccess.ruleManager
-		if mgr:
-			func = mgr.getScript(gesture)
-			if func:
-				return ScriptWrapper(
-					func, ignoreTreeInterceptorPassThrough=True
+					script, ignoreTreeInterceptorPassThrough=True
 				)
 		return super().getScript(gesture)
 
@@ -955,7 +981,12 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			and self.webAccess.zone
 		):
 			self.webAccess.zone = None
-			ui.message(_("Zone restriction cancelled"))
+			if self.webAccess.zone is None:
+				# Translators: Reported when cancelling zone restriction
+				ui.message(_("Zone restriction cancelled"))
+			else:
+				# Translators: Reported when cancelling zone restriction
+				ui.message(_("Zone restriction enlarged to a wider zone"))
 		else:
 			super().script_disablePassThrough(gesture)
 
@@ -1080,11 +1111,23 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		category=SCRCAT_WEBACCESS,
 		gesture="kb:NVDA+shift+f5"
 	)
+	@guarded
 	def script_refreshResults(self, gesture):
 		# Translators: Notified when manually refreshing results
 		ui.message(_("Refresh results"))
-		self.webAccess.ruleManager.update(force=True)
-
+		try:
+			res = self.webAccess.nodeManager.update(
+				force=True,
+				ruleManager=self.webAccess.rootRuleManager,
+			)
+		except Exception:
+			log.exception()
+			res = False
+		if res:
+			ui.message(_("Updated"))
+		else:
+			ui.message(_("Update failed"))
+	
 	script_refreshResults.ignoreTreeInterceptorPassThrough = True
 	script_refreshResults.passThroughIfNoWebModule = True
 
@@ -1111,10 +1154,21 @@ class WebAccessObjectHelper(TrackedObject):
 	"""
 	Utility methods and properties.
 	"""
-	def __init__(self, obj):
-		self._obj = weakref.ref(obj)
-
+	
+	def __init__(self, obj: NVDAObjects.NVDAObject):
+		self._obj: weakref.ref[NVDAObjects.NVDAObject] = weakref.ref(obj)
+		self._webModule: weakref.ref[WebModule] = None
+		"""Cached to try sustain operations during RuleManager update.
+		"""
+	
 	@property
+	@logException
+	def controlId(self):
+		obj = self.obj
+		return obj.treeInterceptor.getIdentifierFromNVDAObject(obj)
+	
+	@property
+	@logException
 	def nodeManager(self):
 		ti = self.treeInterceptor
 		if not ti:
@@ -1122,17 +1176,28 @@ class WebAccessObjectHelper(TrackedObject):
 		return ti.webAccess.nodeManager
 
 	@property
+	@logException
 	def obj(self):
 		return self._obj()
 
 	@property
+	@logException
 	def ruleManager(self):
-		ti = self.treeInterceptor
-		if not ti:
+		webModule = self.webModule
+		if not webModule:
 			return None
-		return ti.webAccess.ruleManager
-
+		return webModule.ruleManager
+	
 	@property
+	@logException
+	def rootRuleManager(self):
+		ti = self.treeInterceptor
+		if not isinstance(ti, WebAccessBmdti):
+			return None
+		return ti.webAccess.rootRuleManager
+	
+	@property
+	@logException
 	def treeInterceptor(self):
 		obj = self.obj
 		while True:
@@ -1147,21 +1212,50 @@ class WebAccessObjectHelper(TrackedObject):
 				obj = ti.rootNVDAObject.parent
 			except Exception:
 				return None
-
+	
 	@property
+	@logException
 	def webModule(self):
-		ti = self.treeInterceptor
-		if not ti:
+		mgr = self.rootRuleManager
+		if mgr is None:
 			return None
-		return ti.webAccess.webModule
-
+		try:
+			controlId = self.controlId
+		except Exception:
+			log.exception()
+			return None
+		try:
+			webModule = mgr.getWebModuleForControlId(controlId)
+		except LookupError:
+			log.warning(f"Unknown controlId: {controlId}")
+			webModule = None
+		if webModule is None and self._webModule is not None:
+			# The RumeManager is not ready, return the last cached value
+			return self._webModule()
+		if webModule is None:
+			# Lookup by controlId failed and there is no cached value.
+			# Attempt lookup by position.
+			ti = self.treeInterceptor
+			if not ti:
+				return None
+			try:
+				info = ti.makeTextInfo(self.obj)
+			except Exception:
+				log.exception(stack_info=True)
+				# Failback to the WebModule at caret (not cached)
+				return ti.webAccess.webModule
+			webModule = ti.webAccess.getWebModuleAtTextInfo(info)
+		if webModule is not None:
+			self._webModule = weakref.ref(webModule)
+		return webModule
+	
+	@logException
 	def getMutatedControlAttribute(self, attr, default=None):
-		mgr = self.ruleManager
+		mgr = self.rootRuleManager
 		if not mgr:
 			return default
-		obj = self.obj
 		try:
-			controlId = obj.treeInterceptor.getIdentifierFromNVDAObject(obj)[1]
+			controlId = self.controlId
 		except Exception:
 			log.exception()
 			return default

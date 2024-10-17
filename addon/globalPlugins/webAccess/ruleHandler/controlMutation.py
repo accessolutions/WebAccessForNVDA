@@ -20,7 +20,10 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
+__authors__ = (
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+)
 
 
 import addonHandler
@@ -57,7 +60,7 @@ class MutatedControl(object):
 
 	@property
 	def controlId(self):
-		return int(self.node.controlIdentifier)
+		return self.node.controlIdentifier
 
 	@property
 	def start(self):
@@ -69,11 +72,13 @@ class MutatedControl(object):
 
 	def apply(self, result):
 		rule = result.rule
-		mutation = MUTATIONS[result.properties.mutation]
-		if mutation is None:
-			raise ValueError("No mutation defined for this rule: {}".format(
-				rule.name
-			))
+		try:
+			mutation = MUTATIONS[result.properties.mutation]
+		except LookupError as e:
+			if not result.properties.mutation:
+				raise ValueError(f"No mutation defined for this rule: {rule.name}") from e
+			else:
+				raise ValueError(f"Unknown mutation in rule {rule.name!r}: {result.properties.mutation!r}") from e
 		self.attrs.update(mutation.attrs)
 		if mutation.mutateName:
 			self.attrs["name"] = rule.label

@@ -20,10 +20,17 @@
 # See the file COPYING.txt at the root of this distribution for more details.
 
 
-__author__ = "Shirley Noël <shirley.noel@pole-emploi.fr>"
+__authors__ = (
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"Shirley Noël <shirley.noel@pole-emploi.fr>",
+	"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
+)
 
 
 from collections import namedtuple
+import sys
 import wx
 
 import addonHandler
@@ -32,20 +39,20 @@ import gui
 from gui import guiHelper
 import inputCore
 import queueHandler
+import ui
 
-from ...ruleHandler import (
-	Rule,
-	Result,
-	Zone,
-	builtinRuleActions,
-	ruleTypes,
-	showCreator,
-	showEditor,
-)
+from ...ruleHandler import Rule, Result, Zone, ruleTypes
 from ...utils import guarded
 from ...webModuleHandler import getEditableWebModule, save
-from .. import ScalingMixin
-from ..rule.editor import getSummary
+from .. import ContextualDialog, showContextualDialog, stripAccel
+from .editor import getSummary
+
+
+if sys.version_info[1] < 9:
+    from typing import Mapping
+else:
+    from collections.abc import Mapping
+
 
 try:
 	from six import iteritems
@@ -61,13 +68,27 @@ lastGroupBy = "position"
 lastActiveOnly = False
 
 
-def show(context):
-	gui.mainFrame.prePopup()
-	Dialog(gui.mainFrame).ShowModal(context)
-	gui.mainFrame.postPopup()
+def show(context, parent):
+	showContextualDialog(Dialog, context, parent)
 
 
 TreeItemData = namedtuple("TreeItemData", ("label", "obj", "children"))
+
+
+def getCriteriaLabel(criteria):
+	rule = criteria.rule
+	label = rule.name
+	if len(rule.criteria) > 1:
+		if criteria.name:
+			label += f" - {criteria.name}"
+		else:
+			label += f" - #{rule.criteria.index(criteria) + 1}"
+	if rule._gestureMap:
+		label += " ({gestures})".format(gestures=", ".join(
+			inputCore.getDisplayTextForGestureIdentifier(identifier)[1]
+			for identifier in list(rule._gestureMap.keys())
+		))
+	return label
 
 
 def getGestureLabel(gesture):
@@ -92,7 +113,7 @@ def getRuleLabel(rule):
 def getRules(ruleManager):
 	webModule = ruleManager.webModule
 	if not webModule.isReadOnly():
-		layer = webModule._getWritableLayer().name
+		layer = webModule.getWritableLayer().name
 	elif config.conf["webAccess"]["devMode"]:
 		layer = None
 	else:
@@ -107,10 +128,10 @@ def rule_getResults_safe(rule):
 		return []
 
 
-def getRulesByGesture(ruleManager, filter=None, active=False):
+def iterRulesByGesture(ruleManager, filter=None, active=False):
 	gestures = {}
 	noGesture = []
-
+	
 	for rule in getRules(ruleManager):
 		if filter and filter not in rule.name:
 			continue
@@ -122,7 +143,7 @@ def getRulesByGesture(ruleManager, filter=None, active=False):
 				label=(
 					"{rule} - {action}".format(
 						rule=rule.name,
-						action=builtinRuleActions.get(action, action)
+						action=rule.ruleManager.getActions().get(action, f"*{action}")
 					)
 					if action != "moveto"
 					else rule.name
@@ -152,6 +173,54 @@ def getRulesByGesture(ruleManager, filter=None, active=False):
 		)
 
 
+def getRulesByContext(ruleManager, filter=None, active=False):
+	contexts: Mapping[tuple[str, str, str], Rule] = {}
+	for rule in getRules(ruleManager):
+		if filter and filter not in rule.name.casefold():
+			continue
+		if active:
+			results = rule_getResults_safe(rule)
+			if not results:
+				continue
+			alternatives = (result.criteria for result in results)
+		else:
+			alternatives = (criteria for criteria in rule.criteria)
+		for criteria in alternatives:
+			contexts.setdefault((
+				criteria.contextPageTitle or "",  # Avoiding None eases later sorting
+				criteria.contextPageType or "",
+				criteria.contextParent or "",
+			), []).append(TreeItemData(
+				label=getCriteriaLabel(criteria),
+				obj=rule,
+				children=[]
+			))
+	for context, tids in sorted(
+		contexts.items(),
+		key=lambda item: (item[0] == ("", "", ""), item[0])  # Move "General" to the end
+	):
+		parts = []
+		if context[0]:
+			# Translators: A part of a context grouping label on the Rules Manager
+			parts.append(_("Page Title: {contextPageTitle}").format(contextPageTitle=context[0]))
+		if context[1]:
+			# Translators: A part of a context grouping label on the Rules Manager
+			parts.append(_("Page Type: {contextPageTitle}").format(contextPageTitle=context[1]))
+		if context[2]:
+			# Translators: A part of a context grouping label on the Rules Manager
+			parts.append(_("Parent: {contextPageTitle}").format(contextPageTitle=context[2]))
+		if parts:
+			label = ", ".join(parts)
+		else:
+			# Translators: A context grouping label on the Rules Manager
+			label = "General"
+		yield TreeItemData(
+			label=label,
+			obj=None,
+			children=sorted(tids, key=lambda tid: tid.label)
+		)
+
+
 def getRulesByName(ruleManager, filter=None, active=False):
 	return sorted(
 		(
@@ -162,11 +231,11 @@ def getRulesByName(ruleManager, filter=None, active=False):
 			)
 			for rule in getRules(ruleManager)
 			if (
-				(not filter or filter.lower() in rule.name.lower())
+				(not filter or filter in rule.name.casefold())
 				and (not active or rule_getResults_safe(rule))
 			)
 		),
-		key=lambda tid: tid.label.lower()
+		key=lambda tid: tid.label.casefold()
 	)
 
 
@@ -174,70 +243,52 @@ def getRulesByPosition(ruleManager, filter=None, active=True):
 	"""
 	Yield rules by position.
 
+	Includes results from all active WebModules on the document.
 	As position depends on result, the `active` criteria is ignored.
 	"""
-	Parent = namedtuple("Parent", ("parent", "tid", "zone"))
-
-	def filterChildlessParent(parent):
-		if (
-			not filter
-			or parent.tid.children
-			or filter.lower() in parent.tid.obj.name.lower()
-		):
-			return False
-		if parent.parent:
-			parent.parent.tid.children.remove(parent)
-		return True
-
 	webModule = ruleManager.webModule
 	if not webModule.isReadOnly():
-		layer = webModule._getWritableLayer()
+		layer = webModule.getWritableLayer().name
 	elif config.conf["webAccess"]["devMode"]:
 		layer = None
 	else:
-		return
-
-	parent = None
-	for result in ruleManager.getResults():
+		return []
+	roots: list[TreeItemData] = []
+	ancestors: list[TreeItemData] = []
+	for result in ruleManager.rootRuleManager.getAllResults():
 		rule = result.rule
-		if layer is not None and rule.layer != layer.name:
+		if layer and rule.layer != layer:
 			continue
 		tid = TreeItemData(
-			label=getRuleLabel(rule),
+			label=getCriteriaLabel(result.criteria),
 			obj=result,
 			children=[]
 		)
-		zone = None
-		if rule.type in (ruleTypes.PARENT, ruleTypes.ZONE):
-			zone = Zone(result)
-		elif filter and filter.lower() not in rule.name.lower():
-			continue
-		while parent:
-			if parent.zone.containsResult(result):
-				parent.tid.children.append(tid)
-				if zone:
-					parent = Parent(parent, tid, zone)
+		while ancestors:
+			candidate = ancestors[-1]
+			if candidate.obj.containsResult(result):
+				candidate.children.append(tid)
 				break
-			elif not filterChildlessParent(parent):
-				yield parent.tid
-			parent = parent.parent
-		else:  # no parent
-			assert parent is None
-			if zone:
-				parent = Parent(None, tid, zone)
-			else:
-				yield tid
-	while parent:
-		if not filterChildlessParent(parent):
-			yield parent.tid
-		parent = parent.parent
+			ancestors.pop()
+		else:
+			roots.append(tid)
+		if result.rule.type in (ruleTypes.PARENT, ruleTypes.ZONE):
+			ancestors.append(tid)
+	
+	def passesFilter(tid) -> bool:
+		for index, child in enumerate(tid.children.copy()):
+			if not passesFilter(child) :
+				del tid.children[index]
+		return tid.children or filter in tid.obj.name.casefold()
+	
+	return tuple(tid for tid in roots if passesFilter(tid))
 
 
 def getRulesByType(ruleManager, filter=None, active=False):
 	types = {}
 	for rule in getRules(ruleManager):
 		if (
-			(filter and filter.lower() not in rule.name.lower())
+			(filter and filter not in rule.name.casefold())
 			or (active and not rule_getResults_safe(rule))
 		):
 			continue
@@ -273,10 +324,16 @@ GROUP_BY = (
 		func=getRulesByType
 	),
 	GroupBy(
+		id="type",
+		# Translator: Grouping option on the RulesManager dialog.
+		label=pgettext("webAccess.rulesGroupBy", "&Context"),
+		func=getRulesByContext
+	),
+	GroupBy(
 		id="gestures",
 		# Translator: Grouping option on the RulesManager dialog.
 		label=pgettext("webAccess.rulesGroupBy", "&Gestures"),
-		func=getRulesByGesture
+		func=iterRulesByGesture
 	),
 	GroupBy(
 		id="name",
@@ -287,54 +344,61 @@ GROUP_BY = (
 )
 
 
-class Dialog(wx.Dialog, ScalingMixin):
-
+class Dialog(ContextualDialog):
+	
 	def __init__(self, parent):
-		scale = self.scale
 		super().__init__(
-			parent=gui.mainFrame,
-			id=wx.ID_ANY,
+			parent,
 			style=wx.DEFAULT_DIALOG_STYLE | wx.MAXIMIZE_BOX
 		)
-
+		
+		scale = self.scale
+		self.Bind(wx.EVT_CHAR_HOOK, self.onCharHook)
 		mainSizer = wx.BoxSizer(wx.VERTICAL)
 		contentsSizer = wx.BoxSizer(wx.VERTICAL)
-
+		
 		item = self.groupByRadio = wx.RadioBox(
 			self,
 			# Translator: A label on the RulesManager dialog.
 			label=_("Group by: "),
 			choices=tuple((groupBy.label for groupBy in GROUP_BY)),
-			majorDimension=len(GROUP_BY) + 3  # +1 for the label
 		)
 		item.Bind(wx.EVT_RADIOBOX, self.onGroupByRadio)
 		contentsSizer.Add(item, flag=wx.EXPAND)
 		contentsSizer.AddSpacer(scale(guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS))
-
-		filtersSizer = wx.GridSizer(1, 2, 10, 10)
-
-		labeledCtrlHelper = guiHelper.LabeledControlHelper(
-			self,
-			# Translator: A label on the RulesManager dialog.
-			_("&Filter: "),
-			wx.TextCtrl, size=scale(250, -1), style=wx.TE_PROCESS_ENTER
-		)
-		item = self.filterEdit = labeledCtrlHelper.control
+		
+		filtersSizer = wx.GridBagSizer()
+		filtersSizer.SetEmptyCellSize((0, 0))
+		
+		row = 0
+		col = 0
+		# Translator: A label on the RulesManager dialog.
+		item = wx.StaticText(self, label=_("&Filter: "))
+		filtersSizer.Add(item, (row, col))
+		col += 1
+		filtersSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), (row, col))
+		col += 1
+		item = self.filterEdit = wx.TextCtrl(self, style=wx.TE_PROCESS_ENTER)
 		item.Bind(wx.EVT_TEXT, lambda evt: self.refreshRuleList())
 		item.Bind(wx.EVT_TEXT_ENTER, lambda evt: self.tree.SetFocus())
-		filtersSizer.Add(labeledCtrlHelper.sizer, flag=wx.EXPAND)
-
-		self.activeOnlyCheckBox = wx.CheckBox(
+		filtersSizer.Add(item, (row, col), flag=wx.EXPAND)
+		filtersSizer.AddGrowableCol(col)
+		
+		col += 1
+		filtersSizer.Add(scale(20, 0), (row, col))
+		
+		col += 1
+		item = self.activeOnlyCheckBox = wx.CheckBox(
 			self,
 			# Translator: A label on the RulesManager dialog.
 			label=_("Include only rules &active on the current page")
 		)
-		self.activeOnlyCheckBox.Bind(wx.EVT_CHECKBOX, self.onActiveOnlyCheckBox)
-		filtersSizer.Add(self.activeOnlyCheckBox)
-
+		item.Bind(wx.EVT_CHECKBOX, self.onActiveOnlyCheckBox)
+		filtersSizer.Add(item, (row, col))
+		
 		contentsSizer.Add(filtersSizer, flag=wx.EXPAND)
 		contentsSizer.AddSpacer(scale(guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS))
-
+		
 		item = self.tree = wx.TreeCtrl(
 			self,
 			size=scale(700, 300),
@@ -346,12 +410,12 @@ class Dialog(wx.Dialog, ScalingMixin):
 		self.treeRoot = item.AddRoot("root")
 		contentsSizer.Add(item, flag=wx.EXPAND, proportion=2)
 		contentsSizer.AddSpacer(scale(guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS))
-
+		
 		descSizer = wx.GridBagSizer()
 		descSizer.EmptyCellSize = (0, 0)
 		contentsSizer.Add(descSizer, flag=wx.EXPAND, proportion=1)
 		#contentsSizer.Add(descSizer, flag=wx.EXPAND)
-
+		
 		# Translator: The label for a field on the Rules manager
 		item = wx.StaticText(self, label=_("Summary"))
 		descSizer.Add(item, pos=(0, 0), flag=wx.EXPAND)
@@ -360,22 +424,22 @@ class Dialog(wx.Dialog, ScalingMixin):
 			self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_DONTWRAP | wx.TE_RICH
 		)
 		descSizer.Add(item, pos=(2, 0), flag=wx.EXPAND)
-
+		
 		descSizer.Add(scale(guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL, 0), pos=(0, 1))
-
+		
 		# Translator: The label for a field on the Rules manager
 		item = wx.StaticText(self, label=_("Technical notes"))
 		descSizer.Add(item, pos=(0, 2), flag=wx.EXPAND)
 		descSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(1, 2))
 		item = self.ruleComment = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY)
 		descSizer.Add(item, pos=(2, 2), flag=wx.EXPAND)
-
+		
 		descSizer.AddGrowableCol(0)
 		descSizer.AddGrowableCol(2)
 		descSizer.AddGrowableRow(2)
-
+		
 		contentsSizer.AddSpacer(scale(guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS))
-
+		
 		btnHelper = guiHelper.ButtonHelper(wx.HORIZONTAL)
 		item = self.resultMoveToButton = btnHelper.addButton(
 			self,
@@ -385,14 +449,14 @@ class Dialog(wx.Dialog, ScalingMixin):
 		item.Bind(wx.EVT_BUTTON, self.onResultMoveTo)
 		self.AffirmativeId = item.Id
 		item.SetDefault()
-
+		
 		item = btnHelper.addButton(
 			self,
 			# Translator: The label for a button on the RulesManager dialog.
 			label=_("&New rule...")
 		)
 		item.Bind(wx.EVT_BUTTON, self.onRuleNew)
-
+		
 		item = self.ruleEditButton = btnHelper.addButton(
 			self,
 			# Translator: The label for a button on the RulesManager dialog.
@@ -400,7 +464,7 @@ class Dialog(wx.Dialog, ScalingMixin):
 		)
 		item.Bind(wx.EVT_BUTTON, self.onRuleEdit)
 		item.Enabled = False
-
+		
 		item = self.ruleDeleteButton = btnHelper.addButton(
 			self,
 			# Translator: The label for a button on the RulesManager dialog.
@@ -408,7 +472,7 @@ class Dialog(wx.Dialog, ScalingMixin):
 		)
 		item.Bind(wx.EVT_BUTTON, self.onRuleDelete)
 		item.Enabled = False
-
+		
 		contentsSizer.Add(btnHelper.sizer, flag=wx.ALIGN_RIGHT)
 		mainSizer.Add(
 			contentsSizer,
@@ -424,31 +488,23 @@ class Dialog(wx.Dialog, ScalingMixin):
 		mainSizer.Fit(self)
 		self.Sizer = mainSizer
 		self.CentreOnScreen()
-
+		self.tree.SetFocus()
+	
 	def initData(self, context):
 		global lastGroupBy, lastActiveOnly
-		self.context = context
-		ruleManager = self.ruleManager = context["webModule"].ruleManager
-		webModule = ruleManager.webModule
-		title = "Web Module - {}".format(webModule.name)
-		if config.conf["webAccess"]["devMode"]:
-			title += " ({})".format("/".join((layer.name for layer in webModule.layers)))
-		self.Title = title
+		super().initData(context)
+		context["initialSelectedResult"] = context.get("result")
 		self.activeOnlyCheckBox.Value = lastActiveOnly
-		self.groupByRadio.Selection = next((
-			index
-			for index, groupBy in enumerate(GROUP_BY)
-			if groupBy.id == lastGroupBy
-		))
-		self.onGroupByRadio(None, refresh=True)
-		self.refreshRuleList(selectObj=context.get("result"))
-
+		mgr = context["webModule"].ruleManager
+		# disableGroupByPosition returns True if it triggered refresh
+		not mgr.isReady and self.disableGroupByPosition() or self.onGroupByRadio(None)
+	
 	def getSelectedObject(self):
 		selection = self.tree.Selection
 		if not selection.IsOk():
 			return None
 		return self.tree.GetItemData(self.tree.Selection).obj
-
+	
 	def getSelectedRule(self):
 		obj = self.getSelectedObject()
 		if not obj:
@@ -458,64 +514,109 @@ class Dialog(wx.Dialog, ScalingMixin):
 		elif isinstance(obj, Result):
 			return obj.rule
 		return None
-
-	def refreshRuleList(self, selectName=None, selectObj=None):
+	
+	def cycleGroupBy(self, previous: bool = False, report: bool = True):
+		radioBox = self.groupByRadio
+		index = radioBox.Selection
+		for safeGuard in range(radioBox.Count):
+			index = (index + (-1 if previous else 1)) % radioBox.Count
+			if radioBox.IsItemEnabled(index):
+				break
+			safeGuard += 1
+		radioBox.SetSelection(index)
+		if report:
+			# Translators: Reported when cycling through rules grouping on the Rules Manager dialog
+			ui.message(_("Group by: {}").format(
+				stripAccel(GROUP_BY[self.groupByRadio.GetSelection()].label).lower())
+			)
+		self.onGroupByRadio(None)
+	
+	def disableGroupByPosition(self) -> bool:
+		"""Returns `True` if the tree was refreshed as of this call.
+		"""
+		radioBox = self.groupByRadio
+		index = next(i for i, g in enumerate(GROUP_BY) if g.id == "position")
+		if radioBox.IsItemEnabled(index):
+			radioBox.EnableItem(index, False)
+			if radioBox.Selection == index:
+				self.cycleGroupBy(previous=True, report=False)  # Selects groupBy name
+				return True
+		return False
+	
+	def refreshRuleList(self):
+		context = self.context
+		result = context.pop("initialSelectedResult", None)
 		groupBy = GROUP_BY[self.groupByRadio.GetSelection()]
-		filter = self.filterEdit.GetValue()
+		if groupBy.id == "position":
+			selectObj = result
+		else:
+			# Pop the just created or edited rule in order to avoid keeping it selected
+			# when later cycling through groupBy
+			selectObj = context.pop("rule", result.rule if result else None)
+		filter = self.filterEdit.Value.casefold()
 		active = self.activeOnlyCheckBox.Value
-		self.tree.DeleteChildren(self.treeRoot)
-
+		tree = self.tree
+		root = self.treeRoot
+		tree.DeleteChildren(root)
+		
 		tids = groupBy.func(
-			self.ruleManager,
+			self.context["webModule"].ruleManager,
 			filter,
 			active
 		) if groupBy.func else []
-
-		# Would be replaced by use of nonlocal in Python 3
-		class SharedScope(object):
-			__slots__ = ("selectTreeItem",)
-
-		shared = SharedScope()
-		shared.selectTreeItem = None
-		selectRule = None
-		if selectObj and isinstance(selectObj, Result):
-			selectRule = selectObj.rule
-
+		
+		selectTreeItem = None
+		
 		def addToTree(parent, tids):
+			nonlocal selectTreeItem
 			for tid in tids:
-				tii = self.tree.AppendItem(parent, tid.label)
-				self.tree.SetItemData(tii, tid)
-				if shared.selectTreeItem is None:
-					if selectName:
-						if tid.label == selectName:
-							shared.selectTreeItem = tii
-					elif selectObj is not None:
-						if tid.obj is selectObj:
-							shared.selectTreeItem = tii
-						elif selectRule is not None and tid.obj is selectRule:
-							shared.selectTreeItem = tii
+				tii = tree.AppendItem(parent, tid.label)
+				tree.SetItemData(tii, tid)
+				if selectTreeItem is None:
+					if tid.obj is selectObj:
+						selectTreeItem = tii
 				if tid.children:
 					addToTree(tii, tid.children)
-
-		addToTree(self.treeRoot, tids)
-
+		
+		addToTree(root, tids)
+		
 		if filter or groupBy.id == "position":
-			self.tree.ExpandAllChildren(self.treeRoot)
-
-		if shared.selectTreeItem is not None:
-			# Async call ensures the selection won't get lost.
-			wx.CallAfter(self.tree.SelectItem, shared.selectTreeItem)
-			# Sync call ensures NVDA won't announce the first item of
-			# the tree before reporting the selection.
-			#self.tree.SelectItem(shared.selectTreeItem)
-			return
-
-		def unselect():
-			self.tree.Unselect()
-			self.onTreeSelChanged(None)
-
-		wx.CallAfter(unselect)
-
+			tree.ExpandAllChildren(root)
+		
+		if selectTreeItem is None and groupBy.id != "position":
+			firstChild, cookie = tree.GetFirstChild(root)
+			if firstChild.IsOk():
+				selectTreeItem = firstChild
+		
+		if selectTreeItem:
+			tree.SelectItem(selectTreeItem)
+			tree.EnsureVisible(selectTreeItem)
+	
+	def refreshTitle(self):
+		context = self.context
+		webModule = context["webModule"]
+		groupBy = GROUP_BY[self.groupByRadio.GetSelection()]
+		if self.filterEdit.Value:
+			if groupBy.id != "position" and lastActiveOnly:
+				# Translators: A possible title of the Rules Manager dialog
+				title = "Web Module {} - Filtered active rules by {}"
+			else:
+				# Translators: A possible title of the Rules Manager dialog
+				title = "Web Module {} - Filtered rules by {}"
+		else:
+			if groupBy.id != "position" and lastActiveOnly:
+				# Translators: A possible title of the Rules Manager dialog
+				title = "Web Module {} - Active rules by {}"
+			else:
+				# Translators: A possible title of the Rules Manager dialog
+				title = "Web Module {} - Rules by {}"
+		title = title.format(webModule.name, stripAccel(groupBy.label).lower())
+		if groupBy.id == "position" and webModule.ruleManager.rootRuleManager.subModules.all():
+			title += " for all active WebModules on this page"
+		if config.conf["webAccess"]["devMode"]:
+			title += " ({})".format("/".join((layer.name for layer in webModule.layers)))
+		self.Title = title
+	
 	@guarded
 	def onActiveOnlyCheckBox(self, evt):
 		global lastActiveOnly
@@ -523,10 +624,52 @@ class Dialog(wx.Dialog, ScalingMixin):
 			return
 		lastActiveOnly = self.activeOnlyCheckBox.Value
 		self.refreshRuleList()
-
+	
 	@guarded
-	def onGroupByRadio(self, evt, refresh=True):
+	def onCharHook(self, evt: wx.KeyEvent):
+		keycode = evt.KeyCode
+		if keycode == wx.WXK_ESCAPE:
+			# Try to limit the difficulty of closing the dialog using the keyboard
+			# in the event of an error later in this function
+			evt.Skip()
+			return
+		elif keycode == wx.WXK_F6 and not evt.GetModifiers():
+			if self.tree.HasFocus():
+				getattr(self, "_lastDetails", self.ruleSummary).SetFocus()
+				return
+			else:
+				for ctrl in (self.ruleSummary, self.ruleComment):
+					if ctrl.HasFocus():
+						self._lastDetails = ctrl
+						self.tree.SetFocus()
+						return
+		elif keycode == wx.WXK_RETURN and not evt.GetModifiers():
+			# filterEdit is handled separately (TE_PROCESS_ENTER) 
+			for ctrl in (self.groupByRadio, self.activeOnlyCheckBox):
+			 	if ctrl.HasFocus():
+			 		self.tree.SetFocus()
+			 		return
+		elif keycode == wx.WXK_TAB and evt.ControlDown():
+			self.cycleGroupBy(previous=evt.ShiftDown())
+			return
+		elif self.tree.HasFocus():
+			# Collapse/Expand all instead of current node as there are only two levels.
+			# To also handle "*" and "/" from alphanum section of the keyboard with respect to the
+			# currently active keyboard layout would require calling GetKeyboardLayout and ToUnicodeEx
+			# (passing 0 as vkState) from user32.dll. An example can be found in NVDA's keyboardHandler.
+			# Probably overkill, though.
+			if keycode == wx.WXK_NUMPAD_MULTIPLY:
+				self.tree.ExpandAll()
+				return
+			elif keycode == wx.WXK_NUMPAD_DIVIDE:
+				self.tree.CollapseAll()
+				return
+		evt.Skip()
+	
+	@guarded
+	def onGroupByRadio(self, evt=None, report=False):
 		global lastGroupBy, lastActiveOnly
+		self.refreshTitle()
 		groupBy = GROUP_BY[self.groupByRadio.GetSelection()]
 		lastGroupBy = groupBy.id
 		if groupBy.id == "position":
@@ -536,9 +679,8 @@ class Dialog(wx.Dialog, ScalingMixin):
 		else:
 			self.activeOnlyCheckBox.Value = lastActiveOnly
 			self.activeOnlyCheckBox.Enabled = True
-		if refresh:
-			self.refreshRuleList()
-
+		self.refreshRuleList()
+	
 	@guarded
 	def onResultMoveTo(self, evt):
 		obj = self.getSelectedObject()
@@ -559,7 +701,7 @@ class Dialog(wx.Dialog, ScalingMixin):
 			None
 		)
 		self.Close()
-
+	
 	@guarded
 	def onRuleDelete(self, evt):
 		rule = self.getSelectedRule()
@@ -576,60 +718,63 @@ class Dialog(wx.Dialog, ScalingMixin):
 			# Translator: The title for a confirmation prompt on the
 			# RulesManager dialog.
 			_("Confirm Deletion"),
-			wx.YES | wx.NO | wx.CANCEL | wx.ICON_QUESTION, self
+			wx.YES_NO | wx.CANCEL | wx.ICON_QUESTION, self
 		) == wx.YES:
-			webModule = getEditableWebModule(self.ruleManager.webModule, layerName=rule.layer)
+			webModule = getEditableWebModule(self.context["webModule"], layerName=rule.layer)
 			if not webModule:
 				return
-			self.ruleManager.removeRule(rule)
+			rule.ruleManager.removeRule(rule)
 			save(
 				webModule=self.context["webModule"],
 				layerName=rule.layer,
 			)
 			self.refreshRuleList()
 		wx.CallAfter(self.tree.SetFocus)
-
+	
 	@guarded
 	def onRuleEdit(self, evt):
 		rule = self.getSelectedRule()
 		if not rule:
 			wx.Bell()
 			return
-		context = self.context.copy()  # Shallow copy
+		context = self.context.copy()
+		context["new"] = False
 		context["rule"] = rule
-		if showEditor(context, parent=self):
-			# Pass the eventually changed rule name
-			self.refreshRuleList(context["data"]["rule"]["name"])
+		context["webModule"] = rule.ruleManager.webModule
+		from .editor import show
+		if show(context, parent=self):
+			rule = self.context["rule"] = context["rule"]
+			# As the rule changed, all results are to be considered obsolete
+			if not self.disableGroupByPosition():
+				self.refreshRuleList()
 		wx.CallAfter(self.tree.SetFocus)
-
+	
 	@guarded
 	def onRuleNew(self, evt):
-		context = self.context.copy()  # Shallow copy
-		if showCreator(context, parent=self):
-			self.Close()
-			return
-# 			self.groupByRadio.SetSelection(next(iter((
-# 				index
-# 				for index, groupBy in enumerate(GROUP_BY)
-# 				if groupBy.id == "name"
-# 			))))
-# 			self.refreshRuleList(context["data"]["rule"]["name"])
+		context = self.context.copy()
+		context["new"] = True
+		from .editor import show
+		if show(context, self.Parent):
+			rule = self.context["rule"] = context["rule"]
+			# As a new rule was created, all results are to be considered obsolete
+			if not self.disableGroupByPosition():
+				self.refreshRuleList()
 		wx.CallAfter(self.tree.SetFocus)
-
+	
 	@guarded
 	def onTreeItemActivated(self, evt):
 		self.onResultMoveTo(evt)
-
+	
 	@guarded
 	def onTreeKeyDown(self, evt):
-		if evt.KeyCode == wx.WXK_F2:
-			self.onRuleEdit(evt)
-		elif evt.KeyCode == wx.WXK_DELETE:
-			self.onRuleDelete(evt)
+		keycode = evt.KeyCode
+		if keycode == wx.WXK_DELETE:
+			self.onRuleDelete(None)
+		elif keycode == wx.WXK_F2:
+			self.onRuleEdit(None)
 		else:
-			return
-		evt.Skip()
-
+			evt.Skip()
+	
 	@guarded
 	def onTreeSelChanged(self, evt):
 		if (
@@ -653,10 +798,3 @@ class Dialog(wx.Dialog, ScalingMixin):
 			context["rule"] = rule
 			self.ruleSummary.Value = getSummary(context, rule.dump())
 			self.ruleComment.Value = rule.comment or ""
-
-	def ShowModal(self, context):
-		self.initData(context)
-		self.Fit()
-		self.CentreOnScreen()
-		self.tree.SetFocus()
-		return super().ShowModal()

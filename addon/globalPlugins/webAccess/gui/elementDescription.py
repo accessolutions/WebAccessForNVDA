@@ -23,7 +23,12 @@
 # Get ready for Python 3
 
 
-__author__ = "Frédéric Brugnot <f.brugnot@accessolutions.fr>"
+__authors__ = (
+	"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
+)
 __license__ = "GPL"
 
 
@@ -98,17 +103,18 @@ def formatAttributes(dic):
 def getNodeDescription():
 	import api
 	from ..overlay import WebAccessObject
-	focus = api.getFocusObject()
-	if not (
-		isinstance(focus, WebAccessObject)
-		and focus.webAccess.nodeManager
-	):
+	for focus in (api.getFocusObject(), gui.mainFrame.prevFocus):
+		if (
+			isinstance(focus, WebAccessObject)
+			and focus.webAccess.nodeManager
+		):
+			break
+	else:
 		return _("No NodeManager")
 	ruleManager = focus.webAccess.ruleManager
 	results = ruleManager.getResults() if ruleManager else []
 	node = focus.webAccess.nodeManager.getCaretNode()
 	node = node.parent
-	obj = node.getNVDAObject()
 	branch = []
 	while node is not None:
 		parts = []
@@ -131,10 +137,11 @@ def getNodeDescription():
 			)))))
 		if node.src:
 			parts.append("    src %s" % node.src)
+		if node.url:
+			parts.append("    url %s" % node.url)
 		parts.append("    text %s" % truncText(node))
 		branch.append("\n".join(parts))
 		node = node.parent
-		obj = obj.parent
 	return "\n\n".join(branch)
 		
 	
