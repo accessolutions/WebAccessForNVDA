@@ -156,11 +156,15 @@ class GesturesPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
 	
 	@guarded
 	def onAddGesture(self, evt):
-		context = self.context.copy()
-		context["data"]["gestures"] = self.gesturesMap
+		context = self.context
+		data = context["data"]
+		data["gestureBinding"] = {}
+		data["gestures"] = self.gesturesMap
 		if gestureBinding.show(context, self):
-			id = context["data"]["gestureBinding"]["gestureIdentifier"]
+			id = data["gestureBinding"]["gestureIdentifier"]
 			self.onGestureChange(Change.CREATION, id)
+		del data["gestureBinding"]
+		del data["gestures"]
 	
 	@guarded
 	def onDeleteGesture(self, evt):
@@ -171,13 +175,18 @@ class GesturesPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
 
 	@guarded
 	def onEditGesture(self, evt):
-		context = self.context.copy()
-		gestures = context["data"]["gestures"] = self.gesturesMap
+		context = self.context
 		id = self.getSelectedGesture()
-		context["data"]["gestureBinding"] = {"gestureIdentifier": id, "action":  gestures[id]}
+		data = context["data"]
+		data["gestureBinding"] = {
+			"gestureIdentifier": id, "action":  self.gesturesMap[id]
+		}
+		data["gestures"] = self.gesturesMap
 		if gestureBinding.show(context=context, parent=self):
-			id = context["data"]["gestureBinding"]["gestureIdentifier"]
+			id = data["gestureBinding"]["gestureIdentifier"]
 			self.onGestureChange(Change.UPDATE, id)
+		del data["gestureBinding"]
+		del data["gestures"]
 	
 	def onGestureChange(self, change: Change, id: str):
 		if change is Change.DELETION:
