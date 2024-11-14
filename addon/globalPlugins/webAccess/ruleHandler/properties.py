@@ -94,7 +94,7 @@ class PropertySpec(Enum):
 		hasSuggestions=False,
 	)
 	multiple = PropertySpecValue(
-		ruleTypes=(ruleTypes.GLOBAL_MARKER, ruleTypes.MARKER, ruleTypes.PARENT, ruleTypes.ZONE),
+		ruleTypes=(ruleTypes.MARKER, ruleTypes.PARENT, ruleTypes.ZONE),
 		valueType=bool,
 		default=False,
 		# Translators: The display name for a rule property
@@ -104,7 +104,7 @@ class PropertySpec(Enum):
 		hasSuggestions=False,
 	)
 	formMode = PropertySpecValue(
-		ruleTypes=(ruleTypes.GLOBAL_MARKER, ruleTypes.MARKER, ruleTypes.ZONE),
+		ruleTypes=(ruleTypes.MARKER, ruleTypes.ZONE),
 		valueType=bool,
 		default=False,
 		# Translators: The display name for a rule property
@@ -114,7 +114,7 @@ class PropertySpec(Enum):
 		hasSuggestions=False,
 	)
 	skip = PropertySpecValue(
-		ruleTypes=(ruleTypes.GLOBAL_MARKER, ruleTypes.MARKER, ruleTypes.ZONE),
+		ruleTypes=(ruleTypes.MARKER, ruleTypes.ZONE),
 		valueType=bool,
 		default=False,
 		# Translators: The display name for a rule property
@@ -124,7 +124,7 @@ class PropertySpec(Enum):
 		hasSuggestions=False,
 	)
 	sayName = PropertySpecValue(
-		ruleTypes=(ruleTypes.GLOBAL_MARKER, ruleTypes.MARKER, ruleTypes.ZONE),
+		ruleTypes=(ruleTypes.MARKER, ruleTypes.ZONE),
 		valueType=bool,
 		default=False,
 		# Translators: The display name for a rule property
@@ -134,7 +134,7 @@ class PropertySpec(Enum):
 		hasSuggestions=False,
 	)
 	customName = PropertySpecValue(
-		ruleTypes=(ruleTypes.GLOBAL_MARKER, ruleTypes.MARKER, ruleTypes.ZONE),
+		ruleTypes=(ruleTypes.MARKER, ruleTypes.ZONE),
 		valueType=str,
 		default="",
 		# Translators: The display name for a rule property
@@ -146,7 +146,6 @@ class PropertySpec(Enum):
 	)
 	customValue = PropertySpecValue(
 		ruleTypes=(
-			ruleTypes.GLOBAL_MARKER,
 			ruleTypes.MARKER,
 			ruleTypes.PAGE_TITLE_1,
 			ruleTypes.PAGE_TITLE_2,
@@ -155,7 +154,7 @@ class PropertySpec(Enum):
 		valueType=str,
 		default="",
 		displayName={
-			(ruleTypes.GLOBAL_MARKER, ruleTypes.MARKER, ruleTypes.ZONE):
+			(ruleTypes.MARKER, ruleTypes.ZONE):
 				# Translators: The display name for a rule property
 				pgettext("webAccess.ruleProperty", "Custom message"),
 			("pageTitle1", "pageTitle2"):
@@ -168,7 +167,7 @@ class PropertySpec(Enum):
 		hasSuggestions=False,
 	)
 	mutation = PropertySpecValue(
-		ruleTypes=(ruleTypes.GLOBAL_MARKER, ruleTypes.MARKER, ruleTypes.ZONE),
+		ruleTypes=(ruleTypes.MARKER, ruleTypes.ZONE),
 		valueType=str,
 		default=None,
 		# Translators: The display name for a rule property

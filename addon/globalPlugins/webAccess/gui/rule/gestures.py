@@ -38,8 +38,8 @@ import inputCore
 import gui
 from gui import guiHelper
 
-from ...ruleHandler import ruleTypes
-from ...utils import guarded
+from ...ruleHandler import GestureScope, ruleTypes
+from ...utils import guarded, translate
 from .. import ContextualSettingsPanel, Change
 from . import gestureBinding
 from .abc import RuleAwarePanelBase
@@ -54,6 +54,13 @@ else:
 addonHandler.initTranslation()
 
 
+SCOPE_LABELS = {
+	# Translators: The label for a gesture binding scope
+	GestureScope.GLOBAL.value: _("Global scope"),
+	# Translators: The label for a gesture binding scope
+	GestureScope.LOCAL.value: _("Local scope"),
+}
+
 class GesturesPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
 	"""ABC for Gestures panels
 	
@@ -65,8 +72,8 @@ class GesturesPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
 	 - `ruleEditor.GesturesPanel`
 	"""
 
-	# Translators: The label for a category in the Rule and Criteria editors
-	title = _("Input Gestures")
+	# Use translation from NVDA core
+	title = translate("Input Gestures")
 	
 	# Translators: Displayed when the selected rule type doesn't support input gestures
 	descriptionIfNoneSupported = _("The selected Rule Type does not support Input Gestures.")
@@ -178,10 +185,11 @@ class GesturesPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
 		context = self.context
 		id = self.getSelectedGesture()
 		data = context["data"]
+		gestures = data["gestures"] = self.gesturesMap
+		scope, action = gestures[id]
 		data["gestureBinding"] = {
-			"gestureIdentifier": id, "action":  self.gesturesMap[id]
+			"gestureIdentifier": id, "action": action, "scope": scope
 		}
-		data["gestures"] = self.gesturesMap
 		if gestureBinding.show(context=context, parent=self):
 			id = data["gestureBinding"]["gestureIdentifier"]
 			self.onGestureChange(Change.UPDATE, id)
@@ -201,14 +209,14 @@ class GesturesPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
 		listBox = self.gesturesListBox
 		listBox.Clear()
 		selectIndex = 0
-		for index, (gestureIdentifier, action) in enumerate(map.items()):
+		for index, (gestureIdentifier, (scope, action)) in enumerate(map.items()):
 			source, main = inputCore.getDisplayTextForGestureIdentifier(gestureIdentifier)
 			actionDName = mgr.getActions().get(action, f"*{action}")
-			listBox.Append(
 				# Translators: A gesture binding on the editor dialogs
-				"{gesture}: {action}".format(gesture=main, action=actionDName),
-				gestureIdentifier
-			)
+			label = "{gesture}: {action}".format(gesture=main, action=actionDName)
+			if scope != GestureScope.NORMAL.value:
+				label += f" - {SCOPE_LABELS[scope]}"
+			listBox.Append(label, gestureIdentifier)
 			if gestureIdentifier == selectId:
 				selectIndex = index
 		if self.gesturesMap:

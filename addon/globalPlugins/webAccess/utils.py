@@ -108,6 +108,20 @@ def logException(func):
 	return wrapper
 
 
+def translate(text):
+	"""
+	Use translation from NVDA core.
+	
+	When this function is used instead of the usual `_` gettext function,
+	SCons ignores it and does not create a new entry in the generated `.pot`
+	file.
+	"""
+	# `addonHandler.initTranslation` stores `_` as a module attribute.
+	# `builtins` contains the one used by NVDA itself.
+	import builtins
+	return builtins._(text)
+
+
 def tryInt(value):
 	"""Try to convert the given value to `int`
 	

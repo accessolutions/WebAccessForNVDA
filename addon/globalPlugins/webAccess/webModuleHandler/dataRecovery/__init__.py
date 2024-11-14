@@ -82,6 +82,9 @@ def recover(data):
 	if formatVersion < version.parse("0.9-dev"):
 		recoverFrom_0_8_to_0_9(data)
 		formatVersion = version.parse(data["formatVersion"])
+	if formatVersion < version.parse("0.11-dev"):
+		recoverFrom_0_10_to_0_11(data)
+		formatVersion = version.parse(data["formatVersion"])
 	
 	from ..webModule import WebModule
 	if formatVersion > WebModule.FORMAT_VERSION:
@@ -539,3 +542,26 @@ def recoverFrom_0_8_to_0_9(data):
 			process(crit, ruleMap.new_child(crit.get("properties", {})))
 	
 	data["formatVersion"] = "0.9-dev"
+
+
+def recoverFrom_0_10_to_0_11(data):
+	
+	def process(scope, data):
+		gestures = data.get("gestures")
+		if gestures:
+			data["gestures"] = {
+				gestureId: (scope, action)
+				for gestureId, action in gestures.items()
+			}
+		
+	for rule in data.get("Rules", {}).values():
+		if rule["type"] == "globalMarker":
+			scope = "global"
+			rule["type"] = "marker"
+		else:
+			scope = "normal"
+		process(scope, rule)
+		for crit in rule.get("criteria", []):
+			process(scope, crit)
+	
+	data["formatVersion"] = "0.11-dev"
