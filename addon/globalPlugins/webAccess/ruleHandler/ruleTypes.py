@@ -30,7 +30,6 @@ import addonHandler
 addonHandler.initTranslation()
 
 
-GLOBAL_MARKER = "globalMarker"
 MARKER = "marker"
 ZONE = "zone"
 PAGE_TYPE = "pageType"
@@ -38,11 +37,9 @@ PARENT = "parent"
 PAGE_TITLE_1 = "pageTitle1"
 PAGE_TITLE_2 = "pageTitle2"
 
-ACTION_TYPES = (GLOBAL_MARKER, MARKER, ZONE)
+ACTION_TYPES = (MARKER, ZONE)
 
 ruleTypeLabels = {
-	# Translators: The label for a rule type.
-	GLOBAL_MARKER: _("Global Marker"),
 	# Translators: The label for a rule type.
 	MARKER: _("Marker"),
 	# Translators: The label for a rule type.

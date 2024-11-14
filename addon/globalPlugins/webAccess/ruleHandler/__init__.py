@@ -29,6 +29,8 @@ __authors__ = (
 )
 
 
+from collections import ChainMap
+from enum import Enum
 from functools import partial
 from itertools import chain
 from pprint import pformat
@@ -91,6 +93,12 @@ builtinActions = {
 	# Translators: Action name
 	"mouseMove": pgettext("webAccess.action", "Mouse move"),
 }
+
+
+class GestureScope(Enum):
+	GLOBAL = "global"
+	NORMAL = "normal"
+	LOCAL = "local"
 
 
 class DefaultScripts(ScriptableObject):
@@ -346,8 +354,7 @@ class RuleManager(ScriptableObject):
 				if subMod is not caret:
 					yield partial(subMod.ruleManager.getGlobalScript, caret=caret, fromParent=True)
 			for result in self.getResults():
-				if result.rule.type == ruleTypes.GLOBAL_MARKER:
-					yield result.getScript
+				yield partial(result.getSpecialScript, scope=GestureScope.GLOBAL)
 			if not fromParent and self.parentZone:
 				parent = self.parentRuleManager
 				if parent.webModule is not caret:
@@ -357,21 +364,38 @@ class RuleManager(ScriptableObject):
 			script = func(gesture)
 			if script:
 				return script		
-
+	
+	def getLocalScript(self, gesture):
+		caret = self.nodeManager.treeInterceptor.selection
+		
+		scripts = []
+		for result in self.getResults():
+			script = result.getSpecialScript(gesture, GestureScope.LOCAL, caret=caret)
+			if script:
+				scripts.append((result.context, script))
+		
+		if scripts:
+			
+			def sortKey(pair):
+				ctx, script = pair
+				return ctx.endOffset - ctx.startOffset, ctx.startOffset
+			scripts.sort(key=sortKey)
+			return scripts[0][1]
+	
 	def getScript(self, gesture):
 		script = super().getScript(gesture)
 		if script:
 			return script
+		script = self.getLocalScript(gesture)
+		if script:
+			return script
+		for result in self.getResults():
+			script = result.getScript(gesture)
+			if script is not None:
+				return script
 		script = self.getGlobalScript(gesture)
 		if script:
 			return script
-		for layer in reversed(list(self._layers.keys())):
-			for result in self.getResults():
-				if result.rule.type is ruleTypes.GLOBAL_MARKER or result.rule.layer != layer:
-					continue
-				script = result.getScript(gesture)
-				if script:
-					return script
 		# Handle script_notFound fallback 
 		for rules in reversed(list(self._layers.values())):
 			for rule in list(rules.values()):
@@ -1017,6 +1041,7 @@ class Result(ScriptableObject):
 		rule = criteria.rule
 		self._rule = weakref.ref(rule)
 		self.zone = Zone(self) if rule.type == ruleTypes.ZONE else None
+		self._specialGestureMap = {}
 		webModule = rule.ruleManager.webModule
 		prefix = "action_"
 		for key in dir(webModule):
@@ -1031,13 +1056,15 @@ class Result(ScriptableObject):
 				dispatcher.webModules.add(webModule)
 				setattr(self.__class__, scriptAttrName, dispatcher)
 				setattr(self, scriptAttrName, dispatcher.__get__(self))
-		self.bindGestures({
-			gestureId: action
-			for gestureId, action in rule.gestures.items()
-			if gestureId not in criteria.gestures
-		})
-		self.bindGestures(criteria.gestures)
-
+		
+		for gestureId, (scope, action) in ChainMap(
+			criteria.gestures, rule.gestures
+		).items():
+			if scope is GestureScope.NORMAL:
+				self.bindGesture(gestureId, action)
+			else:
+				self.bindSpecialGesture(gestureId, scope, action)
+	
 	def __repr__(self):
 		try:
 			return f"<{type(self).__name__} of {self.rule.name!r} at {self.startOffset, self.endOffset}>"
@@ -1100,7 +1127,37 @@ class Result(ScriptableObject):
 			return self.startOffset < other.startOffset
 		except AttributeError as e:
 			raise TypeError(f"'<' not supported between instances of '{type(self)}' and '{type(other)}'") from e
-
+	
+	def bindSpecialGesture(self, gestureId, scope, action):
+		try:
+			attrName = f"script_{action}"
+			func = getattr(self.__class__, attrName)
+			normalizedId = inputCore.normalizeGestureIdentifier(gestureId)
+			self._specialGestureMap.setdefault(scope, {})[normalizedId] = func
+		except Exception:
+			log.exception("Could not bind to action {action} for {webModule} / {rule}".format(
+				action=action,
+				webModule=self.rule.ruleManager.webModule.name,
+				rule=self.rule.name,
+			))
+	
+	def getSpecialScript(self, gesture, scope, caret: textInfos.offsets.Offsets = None):
+		gestureMap = self._specialGestureMap.get(scope)
+		if not gestureMap:
+			return None
+		if scope is GestureScope.LOCAL:
+			if caret is None:
+				raise ValueError(f"caret is mandatory for {scope}")
+			ctx = self.context
+			if ctx is None or not(ctx.startOffset <= caret._startOffset < ctx.endOffset):
+				return None
+		for identifier in gesture.normalizedIdentifiers:
+			try:
+				# Convert to instance method.
+				return gestureMap[identifier].__get__(self, self.__class__)
+			except KeyError:
+				continue
+	
 	def containsNode(self, node):
 		offset = node.offset
 		return self.startOffset <= offset and self.endOffset >= offset + node.size
@@ -1291,13 +1348,12 @@ class Criteria(ScriptableObject):
 		self.url = data.pop("url", None)
 		self.relativePath = data.pop("relativePath", None)
 		self.index = data.pop("index", None)
-		self.gestures = data.pop("gestures", {})
-		if self.text:
-			self.text = self.text.strip()
+		self.gestures = {
+			gestureId: (GestureScope(scopeName), action)
+			for gestureId, (scopeName, action)
+			in data.pop("gestures", {}).items()
+		}
 		gesturesMap = {}
-		for gestureIdentifier in list(self.gestures.keys()):
-			gesturesMap[gestureIdentifier] = "notFound"
-		# self.bindGestures(gesturesMap)
 		self.properties.load(data.pop("properties", {}))
 		if data:
 			raise ValueError(
@@ -1333,7 +1389,11 @@ class Criteria(ScriptableObject):
 		setIfNotNoneOrEmptyString("url", self.url)
 		setIfNotNoneOrEmptyString("relativePath", self.relativePath)
 		setIfNotDefault("index", self.index)
-		setIfNotDefault("gestures", self.gestures, {})
+		gestures = {
+			grestureId: (scope.value, actionId)
+			for gestureId, (scope, actionId) in self.gestures
+		}
+		setIfNotDefault("gestures", gestures, {})
 		setIfNotDefault("properties", self.properties.dump(), {})
 
 		return data
@@ -1546,7 +1606,11 @@ class Rule(ScriptableObject):
 		data["name"] = self.name
 		data["type"] = self.type
 		setIfNotNoneOrEmptyString("comment", self.comment)
-		setIfNotDefault("gestures", self.gestures, {})
+		gestures = {
+			gestureId: (scope.value, actionId)
+			for gestureId, (scope, actionId) in self.gestures.items()
+		}
+		setIfNotDefault("gestures", gestures, {})
 		if self.criteria:
 			items = data["criteria"] = []
 			for criteria in self.criteria:
@@ -1561,11 +1625,11 @@ class Rule(ScriptableObject):
 		self.type = data.pop("type")
 		self.comment = data.pop("comment", None)
 		self.criteria = [Criteria(self, criteria) for criteria in data.pop("criteria", [])]
-		self.gestures = data.pop("gestures", {})
-		gesturesMap = {}
-		for gestureIdentifier in list(self.gestures.keys()):
-			gesturesMap[gestureIdentifier] = "notFound"
-		self.bindGestures(gesturesMap)
+		self.gestures = {
+			gestureId: (GestureScope(scopeName), action)
+			for gestureId, (scopeName, action)
+			in data.pop("gestures", {}).items()
+		}
 		self.properties.load(data.pop("properties", {}))
 		if data:
 			raise ValueError(
@@ -1574,6 +1638,12 @@ class Rule(ScriptableObject):
 				+ ": "
 				+ ", ".join(list(data.keys()))
 			)
+		self.bindGestures({
+			gestureId: ("notFoundLocally" if scope is GestureScope.LOCAL else "notFound")
+			for gestureId, (scope, action) in ChainMap(
+				self.gestures, *(crit.gestures for crit in self.criteria)
+			).items()
+		})
 
 	def createResult(self, criteria, node, context, index):
 		return SingleNodeResult(criteria, node, context, index)
@@ -1592,6 +1662,11 @@ class Rule(ScriptableObject):
 
 	def script_notFound(self, gesture):
 		speech.speakMessage(_("{ruleName} not found").format(
+			ruleName=self.label)
+		)
+
+	def script_notFoundLocally(self, gesture):
+		speech.speakMessage(_("{ruleName} not found locally").format(
 			ruleName=self.label)
 		)
 
