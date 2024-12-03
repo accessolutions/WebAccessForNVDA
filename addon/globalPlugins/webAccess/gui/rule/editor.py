@@ -140,10 +140,10 @@ def getSummary(context, data):
 				name = alternative.get("name")
 				if name:
 					# Translators: The label for a section on the Rule Summary report
-					altHeader = _('Alternative #{index} "{name}":').format(index=index, name=name)
+					altHeader = _('Alternative #{index} "{name}":').format(index=index + 1, name=name)
 				else:
 					# Translators: The label for a section on the Rule Summary report
-					altHeader = _("Alternative #{index}:").format(index=index)
+					altHeader = _("Alternative #{index}:").format(index=index + 1)
 				subParts.append("  " + altHeader)
 				subParts.append(criteriaEditor.getSummary(context, alternative, indent="    "))
 		parts.extend(subParts)
