@@ -43,7 +43,7 @@ import ui
 
 from ...ruleHandler.controlMutation import MUTATIONS_BY_RULE_TYPE, mutationLabels
 from ...ruleHandler.properties import PropertiesBase, PropertySpec, PropertySpecValue, PropertyValue
-from ...utils import guarded, logException
+from ...utils import guarded, logException, updateOrDrop
 from .. import ContextualSettingsPanel, EditorType, ListCtrlAutoWidth, SingleFieldEditorMixin
 
 
@@ -303,11 +303,6 @@ class SinglePropertyEditorPanelBase(SingleFieldEditorMixin, ContextualSettingsPa
 	def setFieldValue(self, value):
 		# @@@
 		self.prop.value = value
-	
-	def onSave(self):
-		super().onSave()
-		if not self.getData():
-			del super().getData()["properties"]
 	
 	def prop_reset(self):
 		self.prop.reset()

@@ -231,12 +231,3 @@ class GesturesPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
 			item.Show(not supported)
 		self.Thaw()
 		self._sendLayoutUpdatedEvent()
-	
-	def onSave(self):
-		super().onSave()
-		data = self.getData()
-		if self.getRuleType() not in ruleTypes.ACTION_TYPES:
-			data.pop("gestures", None)
-		elif not data.get("gestures"):
-			data.pop("gestures", None)
-

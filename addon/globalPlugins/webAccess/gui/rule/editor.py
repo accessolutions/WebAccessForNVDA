@@ -538,12 +538,6 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 			self.editButton.Disable()
 			self.deleteButton.Disable()
 
-	def onSave(self):
-		super().onSave()
-		data = super().getData()
-		if not data.get("gestures"):
-			data.pop("gestures", None)
-
 
 class GesturesPanel(GesturesPanelBase, RuleEditorTreeContextualPanel):
 	
@@ -958,6 +952,24 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 		super()._saveAllPanels()
 		context = self.context
 		data = self.getData()
+		
+		# Remove gesture bindings and properties not supported for the selected Rule Type.
+		# This needs to be done here rather than
+		#  - upon changing the Rule Type for easier non-destructive cycle-through
+		#    the different types,
+		#  - in the panel's doSave because the Rule Type might have been changed
+		#    without even instantiating any other panel.
+		cnts = [data] + [crit for crit in data.get("criteria", tuple())]
+		for cnt in cnts:
+			if data["type"] not in ruleTypes.ACTION_TYPES or not cnt.get("gestures"):
+				cnt.pop("gestures", None)
+			updateOrDrop(
+				cnt,
+				"properties",
+				Properties(context, cnt.get("properties", {}), iterOnlyFirstMap=True).dump(),
+				{}
+			)
+		
 		mgr = context["webModule"].ruleManager
 		if context.get("new"):
 			layerName = None
