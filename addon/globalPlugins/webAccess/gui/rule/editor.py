@@ -524,7 +524,18 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 		data = self.getData()
 		ctrl = self.criteriaList
 		if index is None:
-			index = max(ctrl.Selection, 0)
+			index = ctrl.Selection
+			if index < 0:
+				# When first displaying the list, attempt to select the
+				# alternative corresponding to the result at caret, if any.
+				try:
+					result = self.context["result"]
+					if self.getRuleData()["name"] == result.rule.name:
+						index = self.getData().index(result.criteria.dump())
+				except Exception:
+					pass
+			if index < 0:
+				index = 0
 		ctrl.Clear()
 		for criteria in data:
 			ctrl.Append(self.getCriteriaName(criteria))
