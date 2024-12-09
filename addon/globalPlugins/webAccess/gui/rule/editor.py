@@ -220,7 +220,7 @@ class GeneralPanel(RuleEditorTreeContextualPanel):
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
 
 		row += 1
-		# Translator: The label for a field on the Rule editor
+		# Translators: The label for a field on the Rule editor
 		item = wx.StaticText(self, label=_("Technical n&otes:"))
 		gbSizer.Add(item, pos=(row, 0))
 		item = self.commentText = wx.TextCtrl(self, style=wx.TE_MULTILINE | wx.TE_RICH)
@@ -318,6 +318,7 @@ class GeneralPanel(RuleEditorTreeContextualPanel):
 			gui.messageBox(
 				# Translators: Error message when no type is chosen before saving the rule
 				message=_("You must choose a type for this rule"),
+				# Translators: The title of a message dialog
 				caption=_("Error"),
 				style=wx.OK | wx.ICON_ERROR,
 				parent=self
@@ -973,6 +974,27 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 		super()._saveAllPanels()
 		context = self.context
 		data = self.getData()
+		
+		if any(
+			set(critData.get("selector", {}).keys()) == {"start", "end"}
+			for critData in data.get("criteria", [])
+		) and any(
+			key == "mutation" and value
+			for key, value in data.get("properties", {}).items()
+		):
+			if gui.messageBox(
+				# Translators: A warning message on the Rule editor
+				_(
+					'''The "Transform" property is not supported with free zones (two sets of criteria).
+
+Do you want to proceed anyway?
+'''
+				),
+				# Translators: The title of a message dialog
+				caption=_("Warning"),
+				style=wx.ICON_WARNING | wx.YES_NO | wx.CANCEL | wx.NO_DEFAULT
+			) != wx.YES:
+				raise ValidationError()  # Cancels closing of the dialog
 		
 		# Remove gesture bindings and properties not supported for the selected Rule Type.
 		# This needs to be done here rather than

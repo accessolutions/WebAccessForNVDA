@@ -179,14 +179,56 @@ def getSummary_context(data) -> Sequence[str]:
 	return parts
 
 
-def getSummary(context, data, indent="", condensed=False) -> str:
-	parts = []
-	subParts = getSummary_context(data)
-	if condensed:
-		parts.append(", ".join(subParts))
+def getSummary_selector_full(data, condensed=False) -> Sequence[str]:
+	if len(data) == 2 and "start" in data and "end" in data:
+		parts = []
+		sections = {
+			"start": _("Start:"),
+			"end": _("End:"),
+		}
+		contexts = {
+			key: getSummary_context(data[key])
+			for key in ("start", "end")
+		}
+		sameContext = contexts["start"] == contexts["end"]
+		if sameContext:
+			subParts = next(iter(contexts.values()))
+			if condensed:
+				parts.append(", ".join(subParts))
+			else:
+				parts.extend(subParts)
+		indent = "    "
+		for key in ("start", "end"):
+			if not (condensed and sameContext):
+				parts.append(sections[key])
+			if not sameContext:
+				subParts = contexts[key]
+				if condensed:
+					parts.append(indent + ", ".join(subParts))
+				else:
+					parts.extend((indent + subPart for subPart in subParts))
+			subParts = getSummary_selector_unit(data[key])
+			if condensed:
+				if sameContext:
+					parts.append(f'{sections[key]} {" ".join(subParts)}')
+				else:
+					parts.append(indent + ", ".join(subParts))
+			else:
+				parts.extend((indent + subPart for subPart in subParts))
+		return parts
 	else:
-		parts.extend(subParts)
-	subParts = []
+		parts = []
+		parts.extend(getSummary_context(data))
+		subParts = getSummary_selector_unit(data)
+		if condensed:
+			parts.append(", ".join(subParts))
+		else:
+			parts.extend(subParts)
+		return parts
+
+
+def getSummary_selector_unit(data) -> Sequence[str]:
+	parts = []
 	for key, label in list(CriteriaPanel.FIELDS.items()):
 		if key in CriteriaPanel.CONTEXT_FIELDS or key not in data:
 			continue
@@ -196,15 +238,22 @@ def getSummary(context, data, indent="", condensed=False) -> str:
 				value = translateRoleIdToLbl(value)
 			elif key == "states":
 				value = translateStatesIdToLbl(value)
-		subParts.append("{} {}".format(
+		parts.append("{} {}".format(
 			stripAccel(label),
 			value
 		))
-	if subParts:
-		if condensed:
-			parts.append(", ".join(subParts))
-		else:
-			parts.extend(subParts)
+	if parts:
+		return parts
+	# Translators: A mention on the Criteria Summary report
+	return [_("No criteria")]
+
+
+def getSummary(context, data, indent="", condensed=False) -> str:
+	parts = []
+	
+	parts.extend(getSummary_selector_full(
+		data.get("selector", {}), condensed=condensed
+	))
 	
 	# Properties
 	subParts = []
@@ -228,15 +277,32 @@ def getSummary(context, data, indent="", condensed=False) -> str:
 
 	if parts:
 		return "{}{}".format(indent, "\n{}".format(indent).join(parts))
-	# Translators: A mention on the Criteria Summary report
-	return "{}{}".format(indent, _("No criteria"))
 
 
 @guarded
-def testCriteria(context):
+def testCriteria(context, restrictDualNodeTo=None):
 	ruleData = deepcopy(context["data"]["rule"])
 	ruleData["name"] = "__tmp__"
-	critData = context["data"]["criteria"].copy()
+	if restrictDualNodeTo:
+		critData = {
+			"selector": context["data"]["criteria"]["selector"][
+				restrictDualNodeTo
+			],
+		}
+		caption = {
+			# Translators: The title of a dialog in the Criteria Set editor
+			"start": _("Start Criteria test"),
+			# Translators: The title of a dialog in the Criteria Set editor
+			"end": _("End Criteria test"),
+		}[restrictDualNodeTo]
+	else:
+		critData = context["data"]["criteria"].copy()
+		if isDualNode(context):
+			# Translators: The title of a dialog in the Criteria Set editor
+			caption = _("Combined Criteria test")
+		else:
+			# Translators: The title of a dialog in the Criteria Set editor
+			caption = _("Criteria test")
 	critData.pop("new", None)
 	critData.pop("criteriaIndex", None)
 	ruleData["criteria"] = [critData]
@@ -261,7 +327,30 @@ def testCriteria(context):
 		message = _("Found {} results in {:.3f} seconds.".format(len(results), duration))
 	else:
 		message = _("No result found on the current page.")
-	gui.messageBox(message, caption=_("Criteria test"))
+	gui.messageBox(message, caption=caption)
+
+
+def isDualNode(context):
+	data = context.get("data", {}).get("criteria", {}).get("selector", {})
+	return set(data.keys()) == {"start", "end"}
+
+
+def convertToDualNode(context):
+	if isDualNode(context):
+		raise ValueError("This selector is already dual node")
+	data = context.get("data", {}).get("criteria", {}).get("selector", {})
+	selector = {"start": data.copy(), "end": data.copy()}
+	context["data"].setdefault("criteria", {})["selector"] = selector
+
+
+def convertToSingleNode(context):
+	if not isDualNode(context):
+		raise ValueError("This selector is not dual node")
+	data = context.get("data", {}).get("criteria", {}).get("selector", {})
+	selector = data.pop("start")
+	del data["end"]
+	context["data"].setdefault("criteria", {})["selector"] = selector
+
 
 
 class CriteriaEditorPanel(RuleAwarePanelBase):
@@ -277,7 +366,7 @@ class GeneralPanel(CriteriaEditorPanel):
 	title = _("General")
 	
 	def __init__(self, parent):
-		self.hideable: Sequence[wx.Window] = []
+		self.hideable: Mapping[Sequence[wx.Window]] = {}
 		super().__init__(parent)
 	
 	def makeSettings(self, settingsSizer):
@@ -294,10 +383,11 @@ class GeneralPanel(CriteriaEditorPanel):
 		item = self.criteriaName = wx.TextCtrl(self)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 
+		items = self.hideable["order"] = []
 		row += 1
 		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+		items.append(item)
 
-		items = self.hideable
 		row += 1
 		# Translator: The label for a field on the Criteria editor
 		item = wx.StaticText(self, label=_("&Sequence order:"))
@@ -333,6 +423,36 @@ class GeneralPanel(CriteriaEditorPanel):
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 		gbSizer.AddGrowableRow(row)
 
+		items = self.hideable["convert.dual"] = []
+		row += 1
+		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+		items.append(item)
+
+		row += 1
+		# Translators: The label for a button in the Criteria Editor dialog
+		item = wx.Button(self, label=_("Convert to free zone (two sets of criteria)"))
+		item.Bind(wx.EVT_BUTTON, self.Parent.Parent.onConvertToDual)
+		items.append(item)
+		item = gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
+		items.append(item)
+		for item in items:
+			item.Show(False)
+
+		items = self.hideable["convert.single"] = []
+		row += 1
+		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+		items.append(item)
+
+		row += 1
+		# Translators: The label for a button in the Criteria Editor dialog
+		item = wx.Button(self, label=_("Convert to simple zone (one set of criteria)"))
+		item.Bind(wx.EVT_BUTTON, self.Parent.Parent.onConvertToSingle)
+		items.append(item)
+		item = gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
+		items.append(item)
+		for item in items:
+			item.Show(False)
+
 		gbSizer.AddGrowableCol(2)
 	
 	def initData(self, context):
@@ -343,13 +463,17 @@ class GeneralPanel(CriteriaEditorPanel):
 			nbAlternatives += 1
 		data = self.getData()
 		if nbAlternatives == 1:
-			for item in self.hideable:
+			for item in self.hideable["order"]:
 				item.Show(False)
 		else:
 			for index in range(nbAlternatives):
 				self.sequenceOrderChoice.Append(str(index + 1))
 			index = data.get("criteriaIndex", nbAlternatives + 1)
 			self.sequenceOrderChoice.SetSelection(index)
+		if self.getRuleType() == ruleTypes.ZONE:
+			key = "convert.single" if isDualNode(context) else "convert.dual"
+			for item in self.hideable[key]:
+				item.Show(True)
 		self.criteriaName.Value = data.get("name", "")
 		self.commentText.Value = data.get("comment", "")
 		self.refreshSummary()
@@ -609,11 +733,14 @@ class CriteriaPanel(CriteriaEditorPanel):
 		row += 1
 		# Translators: The label for a button in the Criteria Editor dialog
 		item = wx.Button(self, label=_("Test these criteria (F5)"))
-		item.Bind(wx.EVT_BUTTON, self.Parent.Parent.onTestCriteria)
+		item.Bind(wx.EVT_BUTTON, self.onTestCriteria)
 		gbSizer.Add(item, pos=(row, 0), span=(1, 3))
 
 		gbSizer.AddGrowableCol(2)
-	
+
+	def getData(self):
+		return super().getData().setdefault("selector", {})
+
 	def initData(self, context):
 		super().initData(context)
 		data = self.getData()
@@ -742,7 +869,7 @@ class CriteriaPanel(CriteriaEditorPanel):
 				default="advanced"
 			)
 			if initial:
-				data = context["data"]["criteria"]
+				data = self.getData()
 				filled = [
 					field
 					for field in ("contextPageTitle", "contextPageType", "contextParent")
@@ -779,12 +906,13 @@ class CriteriaPanel(CriteriaEditorPanel):
 		self.refreshContextMacroChoices()
 		# self.onContextMacroChoice(None)
 		super().onPanelActivated()
-
-	def spaceIsPressedOnTreeNode(self):
-		self.contextMacroDropDown.SetFocus()
-
+	
+	def onTestCriteria(self, evt):
+		self.updateData()
+		testCriteria(self.context)
+	
 	def isValid(self):
-		data = self.context["data"]["criteria"]
+		data = self.getData()
 		roleLblExpr = self.roleCombo.Value
 		if roleLblExpr.strip():
 			if not EXPR.match(roleLblExpr):
@@ -861,6 +989,30 @@ class CriteriaPanel(CriteriaEditorPanel):
 				return False
 
 		return True
+
+
+class StartCriteriaPanel(CriteriaPanel):
+	# Translators: The label for a Criteria editor category.
+	title = _("Start Criteria")
+	
+	def getData(self):
+		return super().getData()["start"]
+	
+	def onTestCriteria(self, evt):
+		self.updateData()
+		testCriteria(self.context, restrictDualNodeTo=="start")
+
+
+class EndCriteriaPanel(CriteriaPanel):
+	# Translators: The label for a Criteria editor category.
+	title = _("End Criteria")
+	
+	def getData(self):
+		return super().getData()["end"]
+	
+	def onTestCriteria(self, evt):
+		self.updateData()
+		testCriteria(self.context, restrictDualNodeTo="end")
 
 
 class GesturesPanel(GesturesPanelBase, CriteriaEditorPanel):
@@ -993,6 +1145,17 @@ class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
 	categoryClasses = [GeneralPanel, CriteriaPanel, GesturesPanel, PropertiesPanel]
 	INITIAL_SIZE = (900, 580)
 	
+	def __init__(self, parent, *args, dualNode=False, **kwargs):
+		if dualNode:
+			self.categoryClasses = [
+				GeneralPanel,
+				StartCriteriaPanel,
+				EndCriteriaPanel,
+				GesturesPanel,
+				PropertiesPanel
+			]
+		super().__init__(parent, *args, **kwargs)
+	
 	def getData(self):
 		# Should always be initialized, as the Rule Editor populates it with at least
 		# the index of this Alternative Criteria Set ("criteriaIndex").
@@ -1000,22 +1163,86 @@ class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
 	
 	def makeSettings(self, settingsSizer):
 		super().makeSettings(settingsSizer)
-		idTestCriteria = wx.NewId()
-		self.Bind(wx.EVT_MENU, self.onTestCriteria, id=idTestCriteria)
-		self.SetAcceleratorTable(wx.AcceleratorTable([
-			(wx.ACCEL_NORMAL, wx.WXK_F5, idTestCriteria)
-		]))
+	
+	def onCharHook(self, evt):
+		# Bound by MultiCategorySettingsDialog.makeSettings
+		keycode = evt.GetKeyCode()
+		mods = evt.GetModifiers()
+		if keycode == wx.WXK_F5 and mods in (wx.MOD_NONE, wx.MOD_CONTROL):
+			currCat = self.currentCategory
+			restrictDualNodeTo = None
+			if mods == wx.MOD_NONE:
+				if isinstance(currCat, StartCriteriaPanel):
+					restrictDualNodeTo = "start"
+				elif isinstance(currCat, EndCriteriaPanel):
+					restrictDualNodeTo = "end"
+			currCat.updateData()
+			testCriteria(self.context, restrictDualNodeTo=restrictDualNodeTo)
+			return
+		super().onCharHook(evt)
+	
+	def onConvertToDual(self, evt):
+		convertToDualNode(self.context)
+		self.EndModal(wx.ID_CONVERT)
+	
+	def onConvertToSingle(self, evt):
+		if gui.messageBox(
+			_(
+				#Translators: A confirmation prompt on the Criteria Set editor
+				"""This will delete your End Criteria choices.
 
-	def onTestCriteria(self, evt):
-		self.currentCategory.updateData()
-		testCriteria(self.context)
+Do you want to proceed?"""
+			),
+			# Translators: The title of a dialog on the Criteria Set editor
+			caption=_("Convert to simple zone (one set of criteria)"),
+			style=wx.ICON_WARNING | wx.YES_NO | wx.NO_DEFAULT
+		) != wx.YES:
+			return
+		convertToSingleNode(self.context)
+		self.EndModal(wx.ID_CONVERT)
 	
 	def _saveAllPanels(self):
 		super()._saveAllPanels()
+		
+		critData = self.getData()
+		ruleData = self.context["data"]["rule"]
+		
+		if set(critData.get("selector", {}).keys()) == {"start", "end"} and (
+			any(
+				key == "mutation" and value
+				for key, value in critData.get("properties", {}).items()
+			) or any(
+				key == "mutation" and value
+				for key, value in ruleData.get("properties", {}).items()
+			)
+		):
+			if gui.messageBox(
+				# Translators: A warning message on the Criteria editor
+				_(
+					'''The "Transform" property is not supported with free zones (two sets of criteria).
+
+Do you want to proceed anyway?
+'''
+				),
+				# Translators: The title of a message dialog
+				caption=_("Warning"),
+				style=wx.ICON_WARNING | wx.YES_NO | wx.CANCEL | wx.NO_DEFAULT
+			) != wx.YES:
+				raise ValidationError()  # Cancels closing of the dialog
+		
 		if createMissingSubModule(self.context, self.getData(), self) is False:
 			raise ValidationError()  # Cancels closing of the dialog
 
 
 def show(context, parent=None):
 	from .. import showContextualDialog
-	return showContextualDialog(CriteriaEditorDialog, context, parent)
+	while True:
+		res = showContextualDialog(
+			CriteriaEditorDialog,
+			context,
+			parent,
+			dualNode=isDualNode(context),
+		)
+		if res != wx.ID_CONVERT:
+			break
+	return res == wx.ID_OK

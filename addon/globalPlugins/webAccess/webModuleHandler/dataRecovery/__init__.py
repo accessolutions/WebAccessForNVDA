@@ -85,6 +85,9 @@ def recover(data):
 	if formatVersion < version.parse("0.11-dev"):
 		recoverFrom_0_10_to_0_11(data)
 		formatVersion = version.parse(data["formatVersion"])
+	if formatVersion < version.parse("0.12-dev"):
+		recoverFrom_0_11_to_0_12(data)
+		formatVersion = version.parse(data["formatVersion"])
 	
 	from ..webModule import WebModule
 	if formatVersion > WebModule.FORMAT_VERSION:
@@ -565,3 +568,21 @@ def recoverFrom_0_10_to_0_11(data):
 			process(scope, crit)
 	
 	data["formatVersion"] = "0.11-dev"
+
+
+def recoverFrom_0_11_to_0_12(data):
+	
+	for rule in data.get("Rules", {}).values():
+		alternatives = []
+		for crit in rule.get("criteria", []):
+			orig = crit.copy()
+			new = {}
+			for key in ("name", "comment", "gestures", "properties"):
+				if key in orig:
+					new[key] = orig.pop(key)
+			new["selector"] = orig
+			alternatives.append(new)
+		if alternatives:
+			rule["criteria"] = alternatives
+	
+	data["formatVersion"] = "0.12-dev"

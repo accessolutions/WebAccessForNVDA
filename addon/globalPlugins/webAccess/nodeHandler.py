@@ -286,7 +286,6 @@ class NodeManager(baseObject.AutoPropertyObject):
 			self.updating = False
 			self._ready = False
 			if debug:
-				# @@@
 				log.info("NodeManager.update: ")
 			return False
 		self.identifier = time.time()
@@ -390,7 +389,7 @@ class NodeManager(baseObject.AutoPropertyObject):
 						span = (prev[0], span[1]) 
 					elif not(prev[0] <= span[0] and span[1] <= prev[1]):
 						# Neither consecutive nor nested
-						log.warning(f"ControlId double: {controlId} at {prev} and {span}")
+						log.warning(f"ControlId double: {controlId} at {prev} and {span} (role: {node.role})")
 				map[controlId] = span
 			for child in node.children:
 				walk(child)
@@ -892,7 +891,8 @@ class NodeField(TrackedObject):
 		try:
 			(left, top, width, height) = obj.location
 		except Exception:
-			ui.message("Impossible de déplacer la souris à cet emplacement")
+			# Translators: Announced when failing to move the mouse to the Result
+			ui.message(_("Unable to determine mouse target location"))
 			return False
 		x = left + (width // 2)
 		y = top + (height // 2)
@@ -948,6 +948,7 @@ class NodeField(TrackedObject):
 	def __len__(self):
 		return self.size
 
+	# FIXME: Deprecated in favor of getTreeInterceptorText?
 	@property
 	def innerText(self):
 		txt = ""
@@ -981,3 +982,54 @@ class NodeField(TrackedObject):
 			return info.text
 		else:
 			return ""
+
+	def getNodeSpan(self, other):
+		"""Shortest sequence of nodes covering exactly the given range
+		
+		This is used to compute root nodes and excluded nodes when
+		contextParent mentions a free zone.
+		"""
+		start = self.offset
+		end = other.offset + other.size
+		assert start < end
+		
+		seq = []
+		parent = self.parent
+		while True:
+			parentStart = parent.offset
+			parentEnd = parentStart + parent.size
+			if parentStart <= start and end <= parentEnd:
+				break
+			else:
+				parent = parent.parent
+		
+		head, tail = parent._addContainedNodes(seq, start, end)
+		while head is not None:
+			headEnd = head.offset + head.size
+			head, none = head._addContainedNodes(seq, start, headEnd)
+			assert none is None
+		while tail is not None:
+			tailStart = tail.offset
+			none, tail = tail._addContainedNodes(seq, tailStart, end)
+			assert none is None
+		return seq
+
+	def _addContainedNodes(self, seq, start: int, end: int):
+		"""Helper for getNodeSpan
+		
+		Returns the first and last children partially covering the
+		specified range, and add all children in between to seq.
+		"""
+		head = tail = None
+		for child in self.children:
+			childStart = child.offset
+			childEnd = childStart + child.size
+			atLeastHead = start <= childStart <= end
+			atLeastTail = start <= childEnd <= end
+			if atLeastHead and atLeastTail:
+				seq.append(child)
+			elif atLeastHead:
+				head = child
+			elif atLeastTail:
+				tail = child
+		return head, tail
