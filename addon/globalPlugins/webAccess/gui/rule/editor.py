@@ -145,7 +145,9 @@ def getSummary(context, data):
 					# Translators: The label for a section on the Rule Summary report
 					altHeader = _("Alternative #{index}:").format(index=index + 1)
 				subParts.append("  " + altHeader)
-				subParts.append(criteriaEditor.getSummary(context, alternative, indent="    "))
+				subParts.append(criteriaEditor.getSummary(
+					context, alternative, indent="    ", condensed=True
+				))
 		parts.extend(subParts)
 	return "\n".join(parts)
 
