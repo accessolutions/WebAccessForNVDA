@@ -1783,12 +1783,12 @@ class Rule(ScriptableObject):
 		return self._results
 
 	def _getResults(self):
-		t = logTimeStart()
+		results = []
 		for criteria in self.criteria:
-			results = list(criteria.iterResults())
-			if results:
-				return results
-		return []
+			results.extend(criteria.iterResults())
+			if results and not self.properties.multiple:
+				break
+		return results
 
 
 def getSimpleSearchKwargs(criteria, raiseOnUnsupported=False):
