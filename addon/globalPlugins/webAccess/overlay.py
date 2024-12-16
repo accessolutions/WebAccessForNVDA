@@ -847,6 +847,17 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 				return True
 		return False
 
+	def _handleUpdate(self):
+		super()._handleUpdate()
+		try:
+			ruleMgr = self.webAccess.rootRuleManager
+			if ruleMgr is not None and getattr(ruleMgr.webModule, "syncUpdate", False):
+				nodeMgr = ruleMgr.nodeManager
+				if nodeMgr is not None:
+					nodeMgr.update(force=True, ruleManager=ruleMgr)
+		except Exception:
+			log.exception()
+
 	def _quickNavScript(
 		self, gesture, itemType, direction, errorMessage, readUnit
 	):
