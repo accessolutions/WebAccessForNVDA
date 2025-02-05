@@ -147,7 +147,9 @@ class CustomTreeCtrl(wx.TreeCtrl):
 		self.Delete(treeItem)
 
 	def updateNodeText(self, nodeId, text):
+		self.Freeze()
 		self.SetItemText(nodeId, text)
+		self.Thaw()
 
 	def addToListCtrl(self, categoryClasses, parent=None):
 		for categoryClassInfo in categoryClasses:
@@ -509,14 +511,17 @@ class TreeContextualPanel(ContextualSettingsPanel):
 
 	def hardRefreshChildren(self, parentNodeId):
 		prm = self.categoryParams
+		prm.tree.Freeze()
 		parentTreeNodeInfo = prm.tree.getTreeNodeInfo(parentNodeId)
 		prm.tree.DeleteChildren(parentNodeId)
 		if parentTreeNodeInfo.children:
 			prm.tree.addToListCtrl(parentTreeNodeInfo.children, parentNodeId)
 			prm.tree.Expand(parentNodeId)
+		prm.tree.Thaw()
 
 	def softRefreshChildren(self, parentNodeId):
 		prm = self.categoryParams
+		prm.tree.Freeze()
 		parentTreeNodeInfo = prm.tree.getTreeNodeInfo(parentNodeId)
 		parent = self.Parent.Parent
 		newChildren = parentTreeNodeInfo.children
@@ -526,6 +531,7 @@ class TreeContextualPanel(ContextualSettingsPanel):
 			prm.tree.SetItemText(oldItem, newChildInfo.title)
 			prm.tree.setTreeNodeInfo(oldItem, newChildInfo)
 			parent.refreshNodePanelData(oldItem)
+		prm.tree.Thaw()
 
 
 class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
@@ -949,6 +955,8 @@ class SingleFieldEditorMixin(metaclass=guiHelper.SIPABCMeta):
 			else:
 				# Translators: The displayed value of a yes/no field
 				return _("No")
+		if value is None:
+			return ""
 		return str(value)
 	
 	@property
@@ -1178,7 +1186,7 @@ class SingleFieldEditorPanelBase(SingleFieldEditorMixin, TreeContextualPanel):
 	def onEditor_change(self):
 		super().onEditor_change()
 		prm = self.categoryParams
-		prm.tree.SetItemText(prm.treeNode, self.getTreeNodeLabel(
+		prm.tree.updateNodeText(prm.treeNode, self.getTreeNodeLabel(
 			self.fieldDisplayName, self.getFieldValue(), self.editorChoices
 		))
 		if prm.onEditor_change:
