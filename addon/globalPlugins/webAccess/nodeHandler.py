@@ -19,15 +19,18 @@
 #
 # See the file COPYING.txt at the root of this distribution for more details.
 
+
 __authors__ = (
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>",
 	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"Yannick Plassiard <yan@mistigri.org>",
 	"André-Abush Clause <a.clause@accessolutions.fr>",
 )
 
 
 import gc
 import re
+import sys
 import time
 import weakref
 from ast import literal_eval
@@ -44,7 +47,14 @@ import ui
 import winUser
 from garbageHandler import TrackedObject
 
+from .utils import tryInt
 from .webAppLib import *
+
+
+if sys.version_info[1] < 9:
+    from typing import Mapping
+else:
+    from collections.abc import Mapping
 
 
 TRACE = lambda *args, **kwargs: None  # noqa: E731
@@ -61,7 +71,7 @@ countNode = 0
 nodeManagerIndex = 0
 
 
-class NodeManager(baseObject.ScriptableObject):
+class NodeManager(baseObject.AutoPropertyObject):
 
 	def __init__(self, treeInterceptor, callbackNodeMoveto=None):
 		super().__init__()
@@ -122,7 +132,6 @@ class NodeManager(baseObject.ScriptableObject):
 		self.devNode = None
 		self.callbackNodeMoveto = None
 		self.updating = False
-		self._curNode = self.caretNode = None
 
 	def formatAttributes(self, attrs):
 		s = ""
@@ -223,67 +232,85 @@ class NodeManager(baseObject.ScriptableObject):
 			s += self.afficheNode(child, level + 1)
 		return s
 
-	def update(self):
+	def update(self, force=False, ruleManager=None, debug=False):
+		"""Analyze the VirtualBuffer
+		
+		If a RuleManager is specified, it is immediately updated and no
+		event is sent to the scheduler.
+		"""
 		# t = logTimeStart()
 		if self.treeInterceptor is None or not self.treeInterceptor.isReady:
 			self._ready = False
+			if debug:
+				log.info(f"No TreeInterceptor")
 			return False
 		try:
 			info = self.treeInterceptor.makeTextInfo(textInfos.POSITION_LAST)
 		except Exception:
 			self._ready = False
+			if debug:
+				log.exception()
 			return False
 		try:
 			size = info._endOffset + 1
 		except Exception:
 			self._ready = False
+			if debug:
+				log.exception()
 			return False
-		if size == self.treeInterceptorSize:
+		if not force and size == self.treeInterceptorSize:
 			# probably not changed
+			if debug:
+				log.info(f"Size unchanged: {size}")
 			return False
 		self.treeInterceptorSize = size
-		if True:
-			self.updating = True
-			info = self.treeInterceptor.makeTextInfo(textInfos.POSITION_ALL)
-			self.info = info
-			start = info._startOffset
-			end = info._endOffset
-			if start == end:
-				self._ready = False
-				return False
-			text = NVDAHelper.VBuf_getTextInRange(
-				info.obj.VBufHandle, start, end, True)
-			if self.mainNode is not None:
-				self.mainNode.recursiveDelete()
-			self.parseXML(text)
-			# logTime("Update node manager %d, text=%d" % (self.index, len(text)), t)
-			self.info = None
-			gc.collect()
-		else:
-			self.updating = False
+		self.updating = True
+		info = self.treeInterceptor.makeTextInfo(textInfos.POSITION_ALL)
+		self.info = info
+		start = info._startOffset
+		end = info._endOffset
+		if start == end:
 			self._ready = False
-			log.info("reading vBuff error")
+			if debug:
+				log.info("The VirtualBuffer is empty")
 			return False
-		# self.info = info
+		text = NVDAHelper.VBuf_getTextInRange(
+			info.obj.VBufHandle, start, end, True)
+		if self.mainNode is not None:
+			self.mainNode.recursiveDelete()
+		self.parseXML(text)
+		# logTime("Update node manager %d, text=%d" % (self.index, len(text)), t)
+		self.info = None
+		gc.collect()
 		if self.mainNode is None:
 			self.updating = False
 			self._ready = False
+			if debug:
+				# @@@
+				log.info("NodeManager.update: ")
 			return False
 		self.identifier = time.time()
 		# logTime ("Update node manager %d nodes" % len(fields), t)
 		self.updating = False
-		# playWebAppSound ("tick")
-		self._curNode = self.caretNode = self.getCaretNode()
+		# playWebAccessSound("tick")
+		if ruleManager:
+			# Synchronous update, eg. from WebAccessBmdti.script_refreshResults
+			self._ready = True
+			return ruleManager.update(nodeManager=self, force=force)
 		try:
 			info = self.treeInterceptor.makeTextInfo(textInfos.POSITION_LAST)
 		except Exception:
 			self._ready = False
+			if debug:
+				log.exception()
 			return False
 		size = info._endOffset + 1
 		from . import webAppScheduler
 		if size != self.treeInterceptorSize:
 			# treeInterceptor has changed during analyze
 			self._ready = False
+			if debug:
+				log.info("VirtualBuffer has changed during analysis")
 			webAppScheduler.scheduler.send(
 				eventName="updateNodeManager",
 				treeInterceptor=self.treeInterceptor
@@ -346,79 +373,30 @@ class NodeManager(baseObject.ScriptableObject):
 			return self.searchOffset(info._startOffset)
 		except Exception:
 			return None
-
-	def getCurrentNode(self):
+	
+	def getControlIdToPosition(self):
 		if not self.isReady:
-			return None
-		if self._curNode is None:
-			self._curNode = self.getCaretNode()
-		return self._curNode
-
-	def setCurrentNode(self, node):
-		if hasattr(node, 'control') is False:
-			self._curNode = node.parent
-		else:
-			self._curNode = node
-
-	def event_caret(self, obj, nextHandler):  # @UnusedVariable
-		if not self.isReady:
-			return
-		self.display(self._curNode)
-		nextHandler()
-
-	def script_nextItem(self, gesture):
-		if not self.isReady:
-			return
-		if self.treeInterceptor.passThrough is True:
-			gesture.send()
-			return
-		c = self.searchOffset(self._curNode.offset + self._curNode.size + 0)
-		if c == self._curNode or c is None:
-			ui.message("Bas du document")
-			self._curNode.moveto()
-			return
-		if c.parent.role not in (
-			controlTypes.ROLE_SECTION, controlTypes.ROLE_PARAGRAPH
-		):
-			c = c.parent
-		# log.info("C set to %s" % c)
-		self._curNode = c
-		c.moveto()
-
-	def script_previousItem(self, gesture):
-		if not self.isReady:
-			return
-		if self.treeInterceptor.passThrough is True:
-			gesture.send()
-			return
-		c = self.searchOffset(self._curNode.offset - 1)
-		# log.info("C is %s" % c)
-		if c is None:
-			ui.message("Début du document")
-			self._curNode.moveto()
-			return
-		if c.parent.role not in (
-			controlTypes.ROLE_SECTION, controlTypes.ROLE_PARAGRAPH
-		):
-			c = c.parent
-		# log.info("C set to %s" % c)
-		self._curNode = c
-		c.moveto()
-
-	def script_enter(self, gesture):
-		if not self.isReady:
-			return
-		if self.treeInterceptor.passThrough is True:
-			gesture.send()
-			return
-		self._curNode.moveto()
-		self._curNode.activate()
-
-	__gestures = {
-		"kb:downarrow": "nextItem",
-		"kb:uparrow": "previousItem",
-		"kb:enter": "enter",
-	}
+			return {}
+		map: Mapping[tuple[int, int], tuple[int, int]] = {}
+		
+		def walk(node):
+			controlId = node.controlIdentifier
+			span = (node.offset, node.offset + node.size)
+			if controlId:
+				if controlId in map:
+					prev = map[controlId]
+					if prev[1] == span[0]:
+						# Consecutive spans for the same control. Expand the recorded span.
+						span = (prev[0], span[1]) 
+					elif not(prev[0] <= span[0] and span[1] <= prev[1]):
+						# Neither consecutive nor nested
+						log.warning(f"ControlId double: {controlId} at {prev} and {span}")
+				map[controlId] = span
+			for child in node.children:
+				walk(child)
+		
+		walk(self.mainNode)
+		return {key: startOffset for key, (startOffset, endOffset) in map.items()}
 
 
 class NodeField(TrackedObject):
@@ -462,7 +440,10 @@ class NodeField(TrackedObject):
 			self.name = attrs.get("name", "")
 			self.role = attrs["role"]
 			self.states = attrs["states"]
-			self.controlIdentifier = attrs.get("controlIdentifier_ID", 0)
+			self.controlIdentifier = (
+				tryInt(attrs.get("controlIdentifier_docHandle", 0)),
+				tryInt(attrs.get("controlIdentifier_ID", 0)),
+			)
 			self.tag = attrs.get("IAccessible2::attribute_tag")
 			if not self.tag:
 				self.tag = attrs.get("IHTMLDOMNode::nodeName")
@@ -524,13 +505,31 @@ class NodeField(TrackedObject):
 	@property
 	def previousTextNode(self):
 		return self._previousTextNode and self._previousTextNode()
-
+	
+	@property
+	def url(self):
+		if hasattr(self, "_url"):
+			return self._url
+		if self.role != controlTypes.ROLE_DOCUMENT:
+			return None
+		url = None
+		obj = self.getNVDAObject()
+		while obj.role != self.role:
+			try:
+				obj = obj.parent
+			except Exception:
+				break
+		else:
+			url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
+		self._url = url
+		return url
+	
 	def isReady(self):
 		return self.nodeManager and self.nodeManager.isReady
 
 	def checkNodeManager(self):
 		if self.nodeManager is None or not self.nodeManager.isReady:
-			playWebAppSound("keyError")
+			playWebAccessSound("keyError")
 			return False
 		else:
 			return True
@@ -589,24 +588,6 @@ class NodeField(TrackedObject):
 			return result
 		return []
 
-	def search_eq(self, itemList, value):
-		if not isinstance(itemList, list):
-			itemList = [itemList]
-		for item in itemList:
-			if item == value:
-				return True
-		return False
-
-	def search_in(self, itemList, value):
-		if value is None or value == "":
-			return False
-		if not isinstance(itemList, list):
-			itemList = [itemList]
-		for item in itemList:
-			if item.replace("*", "") in value:
-				return True
-		return False
-
 	def searchNode(
 		self,
 		exclude=None,
@@ -631,13 +612,15 @@ class NodeField(TrackedObject):
 		Additional keyword arguments names are of the form:
 		  `test_property[#index]`
 
-		All of the criteria must be matched (logical `and`).
-		Values can be lists, in which case any value in the list can match
-		(logical `or`).
+		All of the keywords must be matched (logical `and`).
+		Values are collections, any element can match (logical `or`).
 		Supported tests are: `eq`, `notEq`, `in` and `notIn`.
 
 		Properties `text` and `prevText` are mutually exclusive, are only valid
 		for the `in` test and do not support multiple values.
+
+		Properties `role` and `states`, being integers, are only valid for
+		the `eq` and `notEq` tests.
 
 		Returns a list of the matching nodes.
 		"""  # noqa
@@ -646,7 +629,7 @@ class NodeField(TrackedObject):
 		_count += 1
 		found = True
 		# Copy kwargs dict to get ready for Python 3:
-		for key, allowedValues in list(kwargs.copy().items()):
+		for key, searchedValues in list(kwargs.copy().items()):
 			if "_" not in key:
 				log.warning("Unexpected argument: {arg}".format(arg=key))
 				continue
@@ -662,30 +645,32 @@ class NodeField(TrackedObject):
 			candidateValues = (candidateValue,)
 			if prop == "className":
 				if candidateValue is not None:
-					candidateValues = candidateValue.split(" ")
-			elif prop in ("role", "states"):
-				try:
-					allowedValues = [int(value) for value in allowedValues]
-				except ValueError:
-					log.error((
-						"Invalid search criterion: {key}={allowedValues!r}"
-					).format(**locals()))
-				if prop == "states":
-					candidateValues = candidateValue
+					candidateValue = candidateValue.strip()
+					if candidateValue:
+						candidateValues = candidateValue.split(" ")
+			elif prop == "states":
+				# states is a set
+				candidateValues = candidateValue
+			else:
+				candidateValues = (candidateValue,)
 			for candidateValue in candidateValues:
 				if test == "eq":
-					if self.search_eq(allowedValues, candidateValue):
+					if candidateValue in searchedValues:
 						del kwargs[key]
 						break
 				elif test == "in":
-					if self.search_in(allowedValues, candidateValue):
+					if candidateValue and any(
+						True for searchedValue in searchedValues if searchedValue in candidateValue
+					):
 						del kwargs[key]
 						break
 				elif test == "notEq":
-					if self.search_eq(allowedValues, candidateValue):
+					if candidateValue in searchedValues:
 						return []
 				elif test == "notIn":
-					if self.search_in(allowedValues, candidateValue):
+					if candidateValue and any(
+						True for searchedValue in searchedValues if searchedValue in candidateValue
+					):
 						return []
 			else:  # no break
 				if test in ("eq", "in"):
@@ -914,32 +899,6 @@ class NodeField(TrackedObject):
 		winUser.setCursorPos(x, y)
 		mouseHandler.executeMouseMoveEvent(x, y)
 
-	def getPresentationString(self):
-		"""Returns the current node text and role for speech and Braille.
-		@param None
-		@returns a presentation string
-		@rtype str
-		"""
-		if hasattr(self, 'text'):
-			return self.text
-		elif self.role is controlTypes.ROLE_EDITABLETEXT:
-			return "_name_ _role_"
-		elif self.role is controlTypes.ROLE_HEADING:
-			return "_innerText_ _role_ de niveau %s" % self.control["level"]
-		return "_innerText_ _role_"
-
-	def getBraillePresentationString(self):
-		return False
-
-	# TODO: Thoroughly check this wasn't used anywhere
-	# In Python 3, all classes defining __eq__ must also define __hash__
-# 	def __eq__(self, node):
-# 		if node is None:
-# 			return False
-# 		if self.offset == node.offset:
-# 			return True
-# 		return False
-
 	def __lt__(self, node):
 		"""
 		Compare nodes based on their offset.
@@ -977,7 +936,7 @@ class NodeField(TrackedObject):
 		Check whether the given node belongs to the subtree of this node, based
 		on their offset.
 		"""
-		if self <= node:
+		if self > node:
 			return False
 		if not self.children:
 			return False

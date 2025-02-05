@@ -1,4 +1,4 @@
-# globalPlugins/webAccess/gui/criteriaEditor.py
+# globalPlugins/webAccess/gui/rule/criteria.py
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
@@ -21,7 +21,13 @@
 
 
 
-__author__ = "Shirley Noël <shirley.noel@pole-emploi.fr>"
+__authors__ = (
+	"Shirley Noël <shirley.noel@pole-emploi.fr>",
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+	"Sendhil Randon <sendhil.randon-ext@francetravail.fr>",
+	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
+)
 
 
 from collections import OrderedDict
@@ -41,9 +47,9 @@ import speech
 import ui
 
 import addonHandler
-from ..ruleHandler import builtinRuleActions, ruleTypes
-from ..utils import guarded, notifyError, updateOrDrop
-from . import (
+from ...ruleHandler import ruleTypes
+from ...utils import guarded, notifyError, updateOrDrop
+from .. import (
 	ContextualMultiCategorySettingsDialog,
 	ContextualSettingsPanel,
 	DropDownWithHideableChoices,
@@ -54,8 +60,9 @@ from . import (
 	stripAccel,
 	stripAccelAndColon,
 )
-from .actions import ActionsPanelBase
-from .rule.abc import RuleAwarePanelBase
+from . import createMissingSubModule
+from .abc import RuleAwarePanelBase
+from .gestures import GesturesPanelBase
 from .properties import Properties, PropertiesPanelBase, Property
 
 
@@ -168,7 +175,7 @@ def getSummary_context(data) -> Sequence[str]:
 		parts.append("{} {}".format(stripAccel(label), value))
 	if not parts:
 		# Translators: A mention on the Criteria summary report
-		parts.append(_("Global - Applies to the whole web module"))
+		parts.append(_("General - Applies to the whole web module"))
 	return parts
 
 
@@ -229,16 +236,20 @@ def getSummary(context, data, indent="", condensed=False) -> str:
 def testCriteria(context):
 	ruleData = deepcopy(context["data"]["rule"])
 	ruleData["name"] = "__tmp__"
-	ruleData.pop("new", None)
-	ruleData["type"] = ruleTypes.MARKER
 	critData = context["data"]["criteria"].copy()
 	critData.pop("new", None)
 	critData.pop("criteriaIndex", None)
 	ruleData["criteria"] = [critData]
-	ruleData.setdefault("properties", {})['multiple'] = True
-	critData.setdefault("properties", {}).pop("multiple", True)
+	# Ensure the user is informed about all the match occurrences, even if only
+	# the first is retained by a disabled "multiple" property.
+	# All rule types do not support this property, hence force the rule type "marker".
+	# Rather than filtering out properties not supported for this type, simply drop them all
+	# as they have no impact on the actual search.
+	ruleData["type"] = ruleTypes.MARKER
+	ruleData["properties"] = {"multiple": True}
+	critData["properties"] = {"multiple": True}
 	mgr = context["webModule"].ruleManager
-	from ..ruleHandler import Rule
+	from ...ruleHandler import Rule
 	rule = Rule(mgr, ruleData)
 	import time
 	start = time.time()
@@ -256,7 +267,9 @@ def testCriteria(context):
 class CriteriaEditorPanel(RuleAwarePanelBase):
 	
 	def getData(self):
-		return self.context["data"].setdefault("criteria", {})
+		# Should always be initialized, as the Rule Editor populates it with at least
+		# the index of this Alternative Criteria Set ("criteriaIndex").
+		return self.context["data"]["criteria"]
 
 
 class GeneralPanel(CriteriaEditorPanel):
@@ -324,17 +337,18 @@ class GeneralPanel(CriteriaEditorPanel):
 	
 	def initData(self, context):
 		super().initData(context)
-		data = self.getData()
-		new = data.get("new", False)
 		self.sequenceOrderChoice.Clear()
-		nbCriteria = len(context["data"]["rule"]["criteria"]) + (1 if new else 0)
-		if nbCriteria == 1:
+		nbAlternatives = len(context["data"]["rule"]["criteria"])
+		if context.get("new"):
+			nbAlternatives += 1
+		data = self.getData()
+		if nbAlternatives == 1:
 			for item in self.hideable:
 				item.Show(False)
 		else:
-			for index in range(nbCriteria):
+			for index in range(nbAlternatives):
 				self.sequenceOrderChoice.Append(str(index + 1))
-			index = data.get("criteriaIndex", nbCriteria + 1)
+			index = data.get("criteriaIndex", nbAlternatives + 1)
 			self.sequenceOrderChoice.SetSelection(index)
 		self.criteriaName.Value = data.get("name", "")
 		self.commentText.Value = data.get("comment", "")
@@ -396,6 +410,8 @@ class CriteriaPanel(CriteriaEditorPanel):
 		# Translator: The label for a Rule Criteria field
 		("src", pgettext("webAccess.ruleCriteria", "Ima&ge source:")),
 		# Translator: The label for a Rule Criteria field
+		("url", pgettext("webAccess.ruleCriteria", "Document &URL:")),
+		# Translator: The label for a Rule Criteria field
 		("relativePath", pgettext("webAccess.ruleCriteria", "R&elative path:")),
 		# Translator: The label for a Rule Criteria field
 		("index", pgettext("webAccess.ruleCriteria", "Inde&x:")),
@@ -417,7 +433,7 @@ class CriteriaPanel(CriteriaEditorPanel):
 		item = self.contextMacroDropDown = DropDownWithHideableChoices(self)
 		item.setChoices((
 			# Translator: A selection value for the Context field on the Criteria editor
-			("global", _("Global - Applies to the whole web module")),
+			("general", _("General - Applies to the whole web module")),
 			# Translator: A selection value for the Context field on the Criteria editor
 			("contextPageTitle", _("Page title - Applies only to pages with the given title")),
 			# Translator: A selection value for the Context field on the Criteria editor
@@ -561,6 +577,16 @@ class CriteriaPanel(CriteriaEditorPanel):
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
 
 		row += 1
+		item = wx.StaticText(self, label=self.FIELDS["url"])
+		gbSizer.Add(item, pos=(row, 0))
+		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
+		item = self.urlCombo = SizeFrugalComboBox(self)
+		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
+
+		row += 1
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+
+		row += 1
 		item = wx.StaticText(self, label=self.FIELDS["relativePath"])
 		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
@@ -603,7 +629,7 @@ class CriteriaPanel(CriteriaEditorPanel):
 				rule = result.rule
 				if (
 					rule.type in (ruleTypes.PARENT, ruleTypes.ZONE)
-					and node in result.node
+					and result.containsNode(node)
 				):
 					parents.insert(0, rule.name)
 			self.contextParentCombo.Set(parents)
@@ -623,6 +649,7 @@ class CriteriaPanel(CriteriaEditorPanel):
 			classChoices = []
 			statesChoices = []
 			srcChoices = []
+			urlChoices = []
 			# todo: actually there are empty choices created
 			while node is not None:
 				roleChoices.append(controlTypes.roleLabels.get(node.role, "") or "")
@@ -631,6 +658,7 @@ class CriteriaPanel(CriteriaEditorPanel):
 				classChoices.append(node.className or "")
 				statesChoices.append(getStatesLblExprForSet(node.states) or "")
 				srcChoices.append(node.src or "")
+				urlChoices.append(node.url or "")
 				node = node.parent
 			
 			self.textCombo.Set(textChoices)
@@ -640,6 +668,7 @@ class CriteriaPanel(CriteriaEditorPanel):
 			self.classNameCombo.Set(classChoices)
 			self.statesCombo.Set(statesChoices)
 			self.srcCombo.Set(srcChoices)
+			self.urlCombo.Set(urlChoices)
 
 		self.refreshContextMacroChoices(initial=True)
 		self.onContextMacroChoice(None)
@@ -662,6 +691,7 @@ class CriteriaPanel(CriteriaEditorPanel):
 		else:
 			self.statesCombo.Value = translateStatesIdToLbl(value)
 		self.srcCombo.Value = data.get("src", "")
+		self.urlCombo.Value = data.get("url", "")
 		self.relativePathCombo.Value = str(data.get("relativePath", ""))
 		value = data.get("index", "")
 		if isinstance(value, InvalidValue):
@@ -689,6 +719,7 @@ class CriteriaPanel(CriteriaEditorPanel):
 		except ValidationError:
 			data["states"] = InvalidValue(value)
 		updateOrDrop(data, "src", self.srcCombo.Value)
+		updateOrDrop(data, "url", self.urlCombo.Value)
 		updateOrDrop(data, "relativePath", self.relativePathCombo.Value)
 		value = self.indexText.Value
 		try:
@@ -718,11 +749,11 @@ class CriteriaPanel(CriteriaEditorPanel):
 					if data.get(field)
 				]
 				if not filled:
-					dropDown.setSelectedChoiceKey("global")
+					dropDown.setSelectedChoiceKey("general")
 				elif len(filled) > 1:
 					dropDown.setSelectedChoiceKey("advanced")
 				else:
-					dropDown.setSelectedChoiceKey(filled[0], default="global")
+					dropDown.setSelectedChoiceKey(filled[0], default="general")
 		self.onContextMacroChoice(None)
 
 	def onContextMacroChoice(self, evt):
@@ -832,44 +863,8 @@ class CriteriaPanel(CriteriaEditorPanel):
 		return True
 
 
-class ActionsPanel(ActionsPanelBase, CriteriaEditorPanel):
-	
-	def makeSettings(self, settingsSizer):
-		super().makeSettings(settingsSizer)
-		self.autoActionChoice.Bind(wx.EVT_CHAR_HOOK, self.onAutoActionChoice_charHook)
-	
-	def getAutoAction(self):
-		return self.getData().get("properties", {}).get(
-			"autoAction", self.getRuleAutoAction()
-		)
-	
-	def getRuleAutoAction(self):
-		return self.getRuleData().get("properties", {}).get("autoAction")
-	
-	def getAutoActionChoices(self):
-		choices = super().getAutoActionChoices()
-		ruleValue = self.getRuleAutoAction()
-		# Translators: An entry in the Automatic Action list on the Criteria Editor denoting the rule value
-		choices[ruleValue] = "{action} (default)".format(
-			action=choices.get(ruleValue, f"*{ruleValue}")
-		)
-		return choices
-	
-	@guarded
-	def onAutoActionChoice_charHook(self, evt):
-		keycode = evt.GetKeyCode()
-		mods = evt.GetModifiers()
-		if keycode == wx.WXK_DELETE and not mods:
-			self.resetAutoAction()
-			return
-		evt.Skip()
-	
-	def resetAutoAction(self):
-		data = self.getData().setdefault("properties", {})
-		data["autoAction"] = self.getRuleAutoAction()
-		self.updateAutoActionChoice(refreshChoices=False) 
-		# Translators: Announced when resetting a property to its default value in the editor
-		ui.message(_("Reset to {value}").format(value=self.autoActionChoice.StringSelection))
+class GesturesPanel(GesturesPanelBase, CriteriaEditorPanel):
+	pass
 
 
 class PropertyOverrideSelectMenu(wx.Menu):
@@ -965,9 +960,9 @@ class PropertiesPanel(PropertiesPanelBase, CriteriaEditorPanel):
 		if not prop:
 			return
 		prop.value = prop.default  # Setting any value actually adds to the ChainMap based container
-		self.listCtrl_update_all()
 		self.prop = prop
-		if prop.editorType is EditorType.TEXT:
+		self.listCtrl_update_all()
+		if prop.editorType in (EditorType.COMBO, EditorType.TEXT):
 			self.editor.SetFocus()
 		else:
 			self.listCtrl.SetFocus()
@@ -995,8 +990,13 @@ class PropertiesPanel(PropertiesPanelBase, CriteriaEditorPanel):
 class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
 	# Translators: The title of the Criteria Editor dialog.
 	title = _("WebAccess Criteria Set editor")
-	categoryClasses = [GeneralPanel, CriteriaPanel, ActionsPanel, PropertiesPanel]
+	categoryClasses = [GeneralPanel, CriteriaPanel, GesturesPanel, PropertiesPanel]
 	INITIAL_SIZE = (900, 580)
+	
+	def getData(self):
+		# Should always be initialized, as the Rule Editor populates it with at least
+		# the index of this Alternative Criteria Set ("criteriaIndex").
+		return self.context["data"]["criteria"]
 	
 	def makeSettings(self, settingsSizer):
 		super().makeSettings(settingsSizer)
@@ -1009,8 +1009,13 @@ class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
 	def onTestCriteria(self, evt):
 		self.currentCategory.updateData()
 		testCriteria(self.context)
+	
+	def _saveAllPanels(self):
+		super()._saveAllPanels()
+		if createMissingSubModule(self.context, self.getData(), self) is False:
+			raise ValidationError()  # Cancels closing of the dialog
 
 
 def show(context, parent=None):
-	from . import showContextualDialog
+	from .. import showContextualDialog
 	return showContextualDialog(CriteriaEditorDialog, context, parent)

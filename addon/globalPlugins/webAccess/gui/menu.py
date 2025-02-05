@@ -22,19 +22,22 @@
 """Web Access GUI."""
 
 
-__author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
+__authors__ = (
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
+)
 
  
 import wx
 
 import addonHandler
+import config
 import gui
 
 from ... import webAccess
 from .. import ruleHandler
-from .. import webModuleHandler  
 from ..utils import guarded
-from . import webModulesManager
 
 
 addonHandler.initTranslation()
@@ -52,17 +55,15 @@ class Menu(wx.Menu):
 		self.context = context
 		
 		if webAccess.webAccessEnabled:
-			webModule = context["webModule"] if "webModule" in context else None
+			webModule = context.get("webModule")
 			
-			if webModule is not None:
+			if webModule:
 				item = self.Append(
 					wx.ID_ANY,
 					# Translators: Web Access menu item label.
 					_("&New rule...")
 				)
 				self.Bind(wx.EVT_MENU, self.onRuleCreate, item)
-			
-			if webModule is not None:
 				item = self.Append(
 					wx.ID_ANY,
 					# Translators: Web Access menu item label.
@@ -71,13 +72,27 @@ class Menu(wx.Menu):
 				self.Bind(wx.EVT_MENU, self.onRulesManager, item)
 				self.AppendSeparator()
 			
-			if webModule is None:
+			if not webModule:
 				item = self.Append(
 					wx.ID_ANY,
 					# Translators: Web Access menu item label.
 					_("&New web module..."))
 				self.Bind(wx.EVT_MENU, self.onWebModuleCreate, item)
-			else:
+			
+			stack = context.get("webModuleStackAtCaret", []).copy()
+			if stack:
+				subMenu = wx.Menu()
+				while stack:
+					mod = stack.pop(0)
+					handler = lambda evt, webModule=mod: self.onWebModuleEdit(evt, webModule=webModule)
+					item = subMenu.Append(wx.ID_ANY, mod.name)
+					subMenu.Bind(wx.EVT_MENU, handler, item)
+				self.AppendSubMenu(
+					subMenu,
+					# Translators: Web Access menu item label.
+					_("Edit &web module")
+				)
+			elif webModule:
 				item = self.Append(
 					wx.ID_ANY,
 					# Translators: Web Access menu item label.
@@ -91,6 +106,16 @@ class Menu(wx.Menu):
 				_("Manage web &modules...")
 			)
 			self.Bind(wx.EVT_MENU, self.onWebModulesManager, item)
+			
+			self.AppendSeparator()
+		
+		if config.conf["webAccess"]["devMode"]:
+			item = self.Append(
+				wx.ID_ANY,
+				# Translators: Web Access menu item label.
+				_("&Element description...")
+			)
+			self.Bind(wx.EVT_MENU, self.onElementDescription, item)
 			
 			self.AppendSeparator()
 		
@@ -108,24 +133,38 @@ class Menu(wx.Menu):
 		gui.mainFrame.postPopup()
 	
 	@guarded
+	def onElementDescription(self, evt):
+		from .elementDescription import showElementDescriptionDialog
+		showElementDescriptionDialog()
+	
+	@guarded
 	def onRuleCreate(self, evt):
-		ruleHandler.showCreator(self.context)
+		self.context["new"] = True
+		from .rule.editor import show
+		show(self.context, gui.mainFrame)
 	
 	@guarded
 	def onRulesManager(self, evt):
-		ruleHandler.showManager(self.context)
+		from .rule.manager import show
+		show(self.context, gui.mainFrame)
 	
 	@guarded
-	def onWebModuleCreate(self, evt):
-		webModuleHandler.showCreator(self.context)
+	def onWebModuleCreate(self, evt, webModule=None):
+		self.context["new"] = True
+		from .webModule.editor import show
+		show(self.context)
 	
 	@guarded
-	def onWebModuleEdit(self, evt):
-		webModuleHandler.showEditor(self.context)
+	def onWebModuleEdit(self, evt, webModule=None):
+		if webModule is not None:
+			self.context["webModule"] = webModule
+		from .webModule.editor import show
+		show(self.context)
 	
 	@guarded
 	def onWebModulesManager(self, evt):
-		webModuleHandler.showManager(self.context)
+		from .webModule.manager import show
+		show(self.context)
 	
 	@guarded
 	def onWebAccessToggle(self, evt):

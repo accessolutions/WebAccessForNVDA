@@ -1,4 +1,4 @@
-# globalPlugins/webAccess/gui/webModuleEditor.py
+# globalPlugins/webAccess/gui/webModule/editor.py
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
@@ -23,12 +23,16 @@
 __author__ = (
 	"Yannick Plassiard <yan@mistigri.org>"
 	"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
-	"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
+	"Julien Cochuyt <j.cochuyt@accessolutions.fr>",
+	"André-Abush Clause <a.clause@accessolutions.fr>",
+	"Gatien Bouyssou <gatien.bouyssou@francetravail.fr>",
 )
 
 
 import itertools
 import os
+import sys
+from typing import Any
 import wx
 
 from NVDAObjects import NVDAObject, IAccessible
@@ -41,8 +45,15 @@ from gui import guiHelper
 from logHandler import log
 import ui
 
-from ..webModuleHandler import WebModule, getEditableWebModule, getUrl, getWindowTitle, save
-from . import ScalingMixin
+from ...utils import guarded
+from ...webModuleHandler import WebModule, getEditableWebModule, getUrl, getWindowTitle, save, store
+from .. import ContextualDialog, showContextualDialog
+
+
+if sys.version_info[1] < 9:
+    from typing import Mapping
+else:
+    from collections.abc import Mapping
 
 
 addonHandler.initTranslation()
@@ -69,26 +80,14 @@ def show(context):
 	return result == wx.ID_OK
 
 
-class Dialog(wx.Dialog, ScalingMixin):
-
-	# Singleton
-	_instance = None
-	def __new__(cls, *args, **kwargs):
-		if Dialog._instance is None:
-			return super().__new__(cls, *args, **kwargs)
-		return Dialog._instance
+class Dialog(ContextualDialog):
 
 	def __init__(self, parent):
-		scale = self.scale
-		if Dialog._instance is not None:
-			return
-		Dialog._instance = self
-
 		super().__init__(
 			parent,
 			style=wx.DEFAULT_DIALOG_STYLE | wx.MAXIMIZE_BOX | wx.RESIZE_BORDER,
 		)
-
+		scale = self.scale
 		mainSizer = wx.BoxSizer(wx.VERTICAL)
 		gbSizer = wx.GridBagSizer()
 		mainSizer.Add(
@@ -145,55 +144,57 @@ class Dialog(wx.Dialog, ScalingMixin):
 		mainSizer.Add(
 			self.CreateSeparatedButtonSizer(wx.OK | wx.CANCEL),
 			flag=wx.EXPAND | wx.TOP | wx.DOWN,
-			border=4
+			border=scale(guiHelper.BORDER_FOR_DIALOGS),
 		)
 		self.Bind(wx.EVT_BUTTON, self.onOk, id=wx.ID_OK)
-		self.Bind(wx.EVT_BUTTON, self.onCancel, id=wx.ID_CANCEL)
-		#self.Sizer = mainSizer
-		self.SetSizerAndFit(mainSizer)
-
+		self.SetSize(scale(790, 400))
+		self.SetSizer(mainSizer)
+		self.CentreOnScreen()
+		self.webModuleName.SetFocus()
+	
+	def getData(self) -> Mapping[str, Any]:
+		return self.context["data"]["webModule"]
+	
 	def initData(self, context):
-		self.context = context
-		webModule = context.get("webModule")
-		if webModule is None:
-			new = True
-		else:
-			if any(layer.dirty and layer.storeRef is None for layer in webModule.layers):
-				new = True
-			elif any(layer.storeRef is not None for layer in webModule.layers):
-				new = False
-			else:
-				new = True
-		if new:
-			# Translators: Web module creation dialog title
-			title = _("New Web Module")
-			if config.conf["webAccess"]["devMode"]:
-				from .. import webModuleHandler
-				try:
-					guineaPig = getEditableWebModule(WebModule(), prompt=False)
-					store = next(iter(webModuleHandler.store.getSupportingStores(
-						"create",
-						item=guineaPig
-					))) if guineaPig is not None else None
-					title += " ({})".format(
-						store and ("user" if store.name == "userConfig" else store.name)
-					)
-				except Exception:
-					log.exception()
-		else:
+		super().initData(context)
+		data = context.setdefault("data", {}).setdefault("webModule", {})
+		if not context.get("new"):
+			webModule = context.get("webModule")
+			data.update(webModule.dump(webModule.layers[-1].name).data["WebModule"])
+			# Could not have been saved without triggers from this editor unless invoked
+			# from the Rule or Criteria editor.
+			subModule = data["subModule"] = not (data.get("url") or data.get("windowTitle"))
 			# Translators: Web module edition dialog title
 			title = _("Edit Web Module")
 			if config.conf["webAccess"]["devMode"]:
 				title += " ({})".format("/".join((layer.name for layer in webModule.layers)))
+		else:
+			subModule = data.get("subModule", False)
+			# Translators: Web module creation dialog title
+			title = _("New Web Module")
+			if config.conf["webAccess"]["devMode"]:
+				try:
+					guineaPig = getEditableWebModule(WebModule(), prompt=False)
+					supportingStore = next(iter(store.getSupportingStores(
+						"create",
+						item=guineaPig
+					))) if guineaPig is not None else None
+					title += " ({})".format(
+						supportingStore and (
+							"user" if supportingStore.name == "userConfig" else supportingStore.name
+						)
+					)
+				except Exception:
+					log.exception()
 		self.Title = title
 
-		self.webModuleName.Value = (webModule.name or "") if webModule is not None else ""
+		self.webModuleName.Value = data.get("name", "")
 
 		urls = []
 		selectedUrl = None
-		if webModule is not None and webModule.url:
-			url = selectedUrl = ", ".join(webModule.url)
-			for candidate in itertools.chain([url], webModule.url):
+		if data.get("url"):
+			url = selectedUrl = ", ".join(data["url"])
+			for candidate in itertools.chain([url], data["url"]):
 				if candidate not in urls:
 					urls.append(candidate)
 		if "focusObject" in context:
@@ -201,7 +202,7 @@ class Dialog(wx.Dialog, ScalingMixin):
 			if focus and focus.treeInterceptor and focus.treeInterceptor.rootNVDAObject:
 				urlFromObject = getUrl(focus.treeInterceptor.rootNVDAObject)
 				if not urlFromObject:
-					if not webModule:
+					if context.get("new"):
 						ui.message(_("URL not found"))
 				elif urlFromObject not in urls:
 					urls.append(urlFromObject)
@@ -235,16 +236,14 @@ class Dialog(wx.Dialog, ScalingMixin):
 		]
 		self.webModuleUrl.SetItems(urlsChoices)
 		self.webModuleUrl.Selection = (
-			urlsChoices.index(selectedUrl)
-			if selectedUrl
-			else 0
+			urlsChoices.index(selectedUrl) if selectedUrl else 0 if not subModule else -1
 		)
 
 		windowTitleChoices = []
 		windowTitleIsFilled = False
-		if webModule is not None and webModule.windowTitle:
+		if data.get("windowTitle"):
 			windowTitleIsFilled = True
-			windowTitleChoices.append(webModule.windowTitle)
+			windowTitleChoices.append(data["windowTitle"])
 		if "focusObject" in context:
 			obj = context["focusObject"]
 			windowTitle = getWindowTitle(obj)
@@ -257,10 +256,19 @@ class Dialog(wx.Dialog, ScalingMixin):
 		else:
 			item.Value = ""
 
-		self.help.Value = webModule.help if webModule and webModule.help else ""
-
+		self.help.Value = data.get("help", "")
+	
+	def updateData(self):
+		data = self.getData()
+		data["name"] = self.webModuleName.Value.strip()
+		data["url"] = [url.strip() for url in self.webModuleUrl.Value.split(",") if url.strip()]
+		data["windowTitle"] = self.webModuleWindowTitle.Value.strip()
+	
+	@guarded
 	def onOk(self, evt):
-		name = self.webModuleName.Value.strip()
+		self.updateData()
+		data = self.getData()
+		name = data["name"]
 		if len(name) < 1:
 			gui.messageBox(
 				_("You must enter a name for this web module"),
@@ -271,10 +279,11 @@ class Dialog(wx.Dialog, ScalingMixin):
 			self.webModuleName.SetFocus()
 			return
 
-		url = [url.strip() for url in self.webModuleUrl.Value.split(",") if url.strip()]
-		windowTitle = self.webModuleWindowTitle.Value.strip()
+		subModule: bool = data.get("subModule", False)
+		url = data["url"]
+		windowTitle = data["windowTitle"]
 		help = self.help.Value.strip()
-		if not (url or windowTitle):
+		if not (url or windowTitle or subModule):
 			gui.messageBox(
 				_("You must specify at least a URL or a window title."),
 				_("Error"),
@@ -285,9 +294,10 @@ class Dialog(wx.Dialog, ScalingMixin):
 			return
 
 		context = self.context
-		webModule = context.get("webModule")
-		if webModule is None:
-			webModule = context["webModule"] = WebModule()
+		if context.get("new"):
+			webModule = WebModule()
+		else:
+			webModule = context["webModule"]
 		if webModule.isReadOnly():
 			webModule = getEditableWebModule(webModule)
 			if not webModule:
@@ -298,19 +308,12 @@ class Dialog(wx.Dialog, ScalingMixin):
 		webModule.windowTitle = windowTitle
 		webModule.help = help
 
-		if not save(webModule):
+		if not save(webModule, prompt=self.Title):
 			return
+		context["webModule"] = webModule
+		self.DestroyLater()
+		self.SetReturnCode(wx.ID_OK)
 
-		assert self.IsModal()
-		self.EndModal(wx.ID_OK)
 
-	def onCancel(self, evt):
-		self.EndModal(wx.ID_CANCEL)
-
-	def ShowModal(self, context):
-		self.initData(context)
-		self.Fit()
-		self.CentreOnScreen()
-		self.webModuleName.SetFocus()
-		return super().ShowModal()
-
+def show(context, parent=None):
+	return showContextualDialog(Dialog, context, parent or gui.mainFrame) == wx.ID_OK
