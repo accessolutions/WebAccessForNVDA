@@ -47,7 +47,7 @@ from ..store import MalformedRefError
 from ..utils import notifyError
 
 
-PACKAGE_NAME = "webModulesMC"
+PACKAGE_NAME = "webModules"
 
 store = None
 _catalog = None
