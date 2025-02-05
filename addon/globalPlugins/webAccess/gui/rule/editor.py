@@ -160,7 +160,7 @@ class RuleEditorTreeContextualPanel(RuleAwarePanelBase, TreeContextualPanel):
 	def onRuleType_change(self):
 		prm = self.categoryParams
 		categoryClasses = tuple(nodeInfo.categoryClass for nodeInfo in self.Parent.Parent.categoryClasses)
-		for index in (categoryClasses.index(cls) for cls in (GeneralPanel, GesturesPanel, PropertiesPanel)):
+		for index in (categoryClasses.index(cls) for cls in (GesturesPanel, PropertiesPanel)):
 			category = prm.tree.getXChild(prm.tree.GetRootItem(), index)
 			self.refreshParent(category)
 
@@ -266,13 +266,29 @@ class GeneralPanel(RuleEditorTreeContextualPanel):
 		nodeId = prm.tree.getXChild(prm.treeNode, index)
 		nodeInfo = prm.tree.getTreeNodeInfo(nodeId)
 		cls = nodeInfo.categoryClass.func  # This is a partial
-		prm.tree.SetItemText(nodeId, cls.getTreeNodeLabel(childPrm.fieldDisplayName, value))
+		prm.tree.updateNodeText(nodeId, cls.getTreeNodeLabel(childPrm.fieldDisplayName, value))
 
 	@guarded
 	def onRuleType_choice(self, evt):
 		data = self.getData()
-		data["type"] = self.getTypeFieldValue()
+		value = data["type"] = self.getTypeFieldValue()
 		self.refreshSummary()
+		prm = self.categoryParams
+		for index, childPrm in enumerate(
+			child.categoryParams
+			for child in prm.tree.getTreeNodeInfo(prm.treeNode).children
+		):
+			if childPrm.fieldName == "type":
+				break
+		else:
+			raise Exception("Could not find child TreeNode for updating")
+			return
+		nodeId = prm.tree.getXChild(prm.treeNode, index)
+		nodeInfo = prm.tree.getTreeNodeInfo(nodeId)
+		cls = nodeInfo.categoryClass.func  # This is a partial
+		prm.tree.updateNodeText(nodeId, cls.getTreeNodeLabel(
+			childPrm.fieldDisplayName, value, childPrm.editorChoices
+		))
 		self.onRuleType_change()
 
 	def getTypeFieldValue(self):
@@ -577,7 +593,7 @@ class PropertiesPanel(PropertiesPanelBase, RuleEditorTreeContextualPanel):
 		super().onEditor_change()
 		prm = self.categoryParams
 		# Refreshing all child nodes is too slow for quick editing
-		prm.tree.SetItemText(
+		prm.tree.updateNodeText(
 			prm.tree.getXChild(prm.treeNode, tuple(p.name for p in self.props).index(self.prop.name)),
 			ChildPropertyPanel.getTreeNodeLabelForProp(self.prop)
 		)
