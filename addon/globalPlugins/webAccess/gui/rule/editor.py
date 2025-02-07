@@ -847,7 +847,6 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 		(GeneralPanel, 'getGeneralChildren'),
 		(AlternativesPanel, 'getAlternativeChildren'),
 		(GesturesPanel, 'getGesturesChildren'),
-		#FIXME PropertiesPanel, 'getPropertiesChildren'),
 		(PropertiesPanel, 'getPropertiesChildren'),
 	]
 	categoryClasses = [
