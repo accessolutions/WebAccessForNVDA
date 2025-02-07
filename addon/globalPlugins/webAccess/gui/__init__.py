@@ -1157,6 +1157,7 @@ class SingleFieldEditorPanelBase(SingleFieldEditorMixin, TreeContextualPanel):
 		gbSizer.Add(item, pos=(0, col), flag=wx.EXPAND)
 		item.Bind(typeParams.eventType, getattr(self, typeParams.eventHandlerAttrName))
 		gbSizer.AddGrowableCol(col)
+		self.Bind(wx.EVT_CHAR_HOOK, self.onCharHook)
 	
 	def initData(self, context):
 		super().initData(context)
@@ -1182,6 +1183,19 @@ class SingleFieldEditorPanelBase(SingleFieldEditorMixin, TreeContextualPanel):
 	# called by TreeMultiCategorySettingsDialog.onCatListCtrl_KeyDown
 	def delete(self):
 		wx.Bell()
+	
+	def onCharHook(self, evt):
+		keycode = evt.GetKeyCode()
+		mods = evt.GetModifiers()
+		if keycode in (
+			wx.WXK_ESCAPE,
+			wx.WXK_RETURN,
+			wx.WXK_NUMPAD_ENTER,
+		) and not mods:
+			prm = self.categoryParams
+			prm.tree.SetFocus()
+			return
+		evt.Skip()
 	
 	def onEditor_change(self):
 		super().onEditor_change()
