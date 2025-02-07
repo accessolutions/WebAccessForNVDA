@@ -854,15 +854,8 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 		GeneralPanel,
 		AlternativesPanel,
 		GesturesPanel,
-		#FIXME PropertiesPanel,
 		PropertiesPanel,
 	]
-
-	def __init__(self, *args, **kwargs):
-		# Uncomment the below to focus the first field upon dialog appearance
-		# kwargs["initialCategory"] = GeneralPanel
-		super().__init__(*args, **kwargs)
-		self.isCreation = False
 
 	def getGeneralChildren(self):
 		cls = RuleEditorSingleFieldChildPanel
