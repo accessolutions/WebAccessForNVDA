@@ -434,8 +434,10 @@ class ContextualMultiCategorySettingsDialog(
 			if not getattr(panel.initData, "onPanelActivated", False):
 				panel.initData(context)
 	
-	# Changed from NVDA's MultiCategorySettingsDialog: Use ValidationError instead of ValueError,
-	# in order to not misinterpret a real unintentional ValueError.
+	# Changed from NVDA's MultiCategorySettingsDialog:
+	#  - Use ValidationError instead of ValueError, in order to not
+	#    misinterpret a real unintentional ValueError.
+	#  - Check if the dialog is modal
 	@guarded
 	def onOk(self, evt):
 		try:
@@ -447,8 +449,11 @@ class ContextualMultiCategorySettingsDialog(
 		except Exception:
 			notifyError()
 		else:
-			self.DestroyLater()
-			self.SetReturnCode(wx.ID_OK)
+			if self.IsModal():
+				self.EndModal(wx.ID_OK)
+			else:
+				self.DestroyLater()
+				self.SetReturnCode(wx.ID_OK)
 	
 	def selectPanel(self, panel: ContextualSettingsPanel):
 		index = self.categoryClasses.index(type(panel))
@@ -462,7 +467,7 @@ class ContextualMultiCategorySettingsDialog(
 			and isinstance(panel, ContextualSettingsPanel)
 			and (
 				getattr(panel, "context", None) is not self.context
-				or getattr(panel.initData, "onPanelActivated", False)
+				and not getattr(panel.initData, "onPanelActivated", False)
 			)
 		):
 			panel.initData(self.context)
@@ -470,7 +475,8 @@ class ContextualMultiCategorySettingsDialog(
 	
 	# Changed from NVDA's MultiCategorySettingsDialog: Use ValidationError instead of ValueError,
 	# in order to not misinterpret a real unintentional ValueError.
-	# Additionnaly, this implementation selects the category for the invalid panel.
+	# Additionnaly, this implementation selects the category for the invalid panel, which still needs
+	# to set focus on the relevant control.
 	def _validateAllPanels(self):
 		"""Check if all panels are valid, and can be saved
 		@note: raises ValidationError if a panel is not valid. See c{SettingsPanel.isValid}
@@ -625,7 +631,7 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 				TreeNodeInfo(categoryClass, childrenGetter=childrenGetter, title=categoryClass.title))
 		return categoryClasses
 
-	def _changeCategoryPanel(self, newCatInfos):
+	def _getCategoryPanel(self, newCatInfos):
 		panel = self.catIdToInstanceMap.get(newCatInfos.title, None)
 		if panel:
 			self.context[panel.CATEGORY_PARAMS_CONTEXT_KEY] = newCatInfos.categoryParams
@@ -663,7 +669,7 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 		if oldCat:
 			oldCat.onPanelDeactivated()
 		try:
-			newPanel = self._changeCategoryPanel(newCatInfos)
+			newPanel = self._getCategoryPanel(newCatInfos)
 		except ValueError as e:
 			log.error("Unable to change to category: {}".format(newCatInfos.title), exc_info=e)
 			return
@@ -833,7 +839,7 @@ class HideableChoice:
 		self.enabled = enabled
 
 
-class DropDownWithHideableChoices(wx.ComboBox):
+class DropDownWithHideableChoices(SizeFrugalComboBox):
 
 	def __init__(self, *args, **kwargs):
 		style = kwargs.get("style", 0)

@@ -31,7 +31,7 @@ __authors__ = (
 
 from abc import abstractmethod
 from collections import OrderedDict
-import config
+from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum
 from functools import partial
@@ -41,6 +41,7 @@ import wx
 from wx.lib.expando import EVT_ETC_LAYOUT_NEEDED, ExpandoTextCtrl
 
 import addonHandler
+import config
 import controlTypes
 import gui
 from gui import guiHelper
@@ -152,6 +153,15 @@ def getSummary(context, data):
 	return "\n".join(parts)
 
 
+def supportsSimpleMode(context):
+	alternatives = context.get("data", {}).get("rule", {}).get("criteria", [])
+	if not alternatives:
+		return True
+	if len(alternatives) > 1:
+		return False
+	return True
+
+
 class RuleEditorTreeContextualPanel(RuleAwarePanelBase, TreeContextualPanel):
 	
 	def getData(self):
@@ -161,7 +171,7 @@ class RuleEditorTreeContextualPanel(RuleAwarePanelBase, TreeContextualPanel):
 		prm = self.categoryParams
 		categoryClasses = tuple(nodeInfo.categoryClass for nodeInfo in self.Parent.Parent.categoryClasses)
 		for index in (categoryClasses.index(cls) for cls in (GesturesPanel, PropertiesPanel)):
-			category = prm.tree.getXChild(prm.tree.GetRootItem(), index)
+			category = prm.tree.getXChild(prm.tree.RootItem, index)
 			self.refreshParent(category)
 
 
@@ -374,7 +384,7 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
-		self.indexCriteria = None
+		self.criteriaIndex = None
 
 	def makeSettings(self, settingsSizer):
 		scale = self.scale
@@ -481,6 +491,24 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 	def getIndex(self):
 		return self.criteriaList.Selection
 
+	def isValid(self):
+		self.updateData()
+		data = self.getData()
+		if not data or any(
+			not crit.get("selector")
+			for crit in data
+		):
+			gui.messageBox(
+				# Translators: An error message on the Rule Editor
+				message=_("You must choose at least one criteria."),
+				caption=_("Error"),
+				style=wx.OK | wx.ICON_ERROR,
+				parent=self
+			)
+			return False
+		return True
+
+
 	def onCriteriaChange(self, change: Change, index: int):
 		self.updateCriteriaList(index)
 		self.refreshParent(self.categoryParams.treeNode)
@@ -500,12 +528,14 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 			self.onCriteriaChange(Change.CREATION, index)
 
 	@guarded
-	def onEditCriteria(self, evt):
+	def onEditCriteria(self, evt, convertToDualNode=False):
 		context = self.context.copy()
 		context["new"] = False
 		listData = self.getData()
 		index = self.getIndex()
-		itemData = context["data"]["criteria"] = listData[index].copy()
+		itemData = context["data"]["criteria"] = deepcopy(listData[index])
+		if convertToDualNode:
+			criteriaEditor.convertToDualNode(itemData)
 		itemData["criteriaIndex"] = index
 		if criteriaEditor.show(context, self):
 			del listData[index]
@@ -637,8 +667,14 @@ class ChildAlternativePanel(AlternativesPanel):
 		gbSizer.Add(item, pos=(row, 0), flag=wx.EXPAND)
 		gbSizer.AddGrowableRow(row)
 		
-		row = summaryStartRow
-		col = 1
+		self.makeSettings_buttons(gbSizer, summaryStartRow, 1)
+		
+		gbSizer.AddGrowableCol(0)
+	
+	def makeSettings_buttons(self, gbSizer, row, col, full=True):
+		scale = self.scale
+		startRow = row
+		
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL, 0), pos=(row, col))
 		
 		col += 1
@@ -648,40 +684,42 @@ class ChildAlternativePanel(AlternativesPanel):
 		item.Bind(wx.EVT_BUTTON, self.onEditCriteria)
 		gbSizer.Add(item, pos=(row, col))
 		
-		row += 1
-		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, col))
-		
-		row += 1
-		# Translators: Delete criteria button label
-		item = self.deleteButton = wx.Button(self, label=_("&Delete"))
-		item.Bind(wx.EVT_BUTTON, self.onDeleteCriteria)
-		gbSizer.Add(item, pos=(row, col))
+		if full:
+			row += 1
+			gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, col))
+			
+			row += 1
+			# Translators: Delete criteria button label
+			item = self.deleteButton = wx.Button(self, label=_("&Delete"))
+			item.Bind(wx.EVT_BUTTON, self.onDeleteCriteria)
+			gbSizer.Add(item, pos=(row, col))
 		
 		# Keep natural visual ordering but set last in tab order
-		row = summaryStartRow
+		row = startRow
 		# Translators: New criteria button label
 		item = self.newButton = wx.Button(self, label=_("&New..."))
-		item.Bind(wx.EVT_BUTTON, self.onNewCriteria)
+		item.Bind(
+			wx.EVT_BUTTON,
+			self.onNewCriteria if full else self.Parent.onAddAlternative,
+		)
 		gbSizer.Add(item, pos=(row, col))
 		
 		row += 1
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, col))
 		
-		gbSizer.AddGrowableCol(0)
-
+	
 	def spaceIsPressedOnTreeNode(self, withShift=False):
 		self.editButton.SetFocus()
 	
 	def initData(self, context: Mapping[str, Any]) -> None:
 		super().initData(context)
-		prm = self.categoryParams
-		self.indexCriteria = prm.tree.getSelectionIndex()
-		data = self.getData()[self.indexCriteria]
+		data = self.getData()[self.getIndex()]
 		self.summaryText.Value = criteriaEditor.getSummary(self.context, data)
 		self.commentText.Value = data.get("comment", "")
 
 	def initData_alternatives(self) -> None:
-		pass
+		prm = self.categoryParams
+		self.criteriaIndex = prm.tree.getSelectionIndex()
 	
 	def updateData(self):
 		pass
@@ -690,7 +728,7 @@ class ChildAlternativePanel(AlternativesPanel):
 		self.onDeleteCriteria(None)
 
 	def getIndex(self):
-		return self.indexCriteria
+		return self.criteriaIndex
 
 	def onCriteriaChange(self, change: Change, index: int):
 		prm = self.categoryParams
@@ -841,6 +879,176 @@ class ChildPropertyPanel(
 		self.prop_reset()
 
 
+class SimpleSingleNodeCriteriaPanel(criteriaEditor.CriteriaPanel):
+	
+	def makeSettings_buttons(self, vBoxSizer):
+		super().makeSettings_buttons(vBoxSizer)
+		scale = self.scale
+		hidable = self.hidable
+		
+		items = hidable["convertToDual"] = []
+		item = vBoxSizer.AddSpacer(scale(guiHelper.SPACE_BETWEEN_BUTTONS_VERTICAL))
+		items.append(item)
+		item.Show(False)
+		# Translators: The label for a button in the Rule Editor dialog
+		item = wx.Button(self, label=_("Convert to free &zone (two sets of criteria)"))
+		item.Bind(wx.EVT_BUTTON, self.Parent.onConvertToDualNode)
+		vBoxSizer.Add(item, flag=wx.EXPAND)
+		items.append(item)
+		item.Hide()
+		
+		vBoxSizer.AddSpacer(scale(guiHelper.SPACE_BETWEEN_BUTTONS_VERTICAL))
+		# Translators: The label for a button in the Rule Editor dialog
+		item = wx.Button(self, label=_("Add alternati&ves"))
+		item.Bind(wx.EVT_BUTTON, self.Parent.onAddAlternative)
+		vBoxSizer.Add(item, flag=wx.EXPAND)
+		
+		self.Bind(wx.EVT_CHAR_HOOK, self.onCharHook)
+	
+	def getData(self):
+		return self.getRuleData().setdefault(
+			"criteria", [{}]
+		)[0].setdefault("selector", {})
+	
+	def initData(self, context):
+		super().initData(context)
+		self.Freeze()
+		show = self.getRuleType() == ruleTypes.ZONE
+		for item in self.hidable["convertToDual"]:
+			item.Show(show)
+			if isinstance(item, wx.Window):
+				# Enabled buttons can still be activated using their accelerator,
+				# even when hidden.
+				item.Enable(show)
+		self.Thaw()
+	
+	def onCharHook(self, evt):
+		keycode = evt.GetKeyCode()
+		mods = evt.GetModifiers()
+		if keycode == wx.WXK_F5 and mods == wx.MOD_NONE:
+			self.testCriteria()
+			return
+		evt.Skip()
+	
+	def onTestCriteria(self, evt):
+		# Bound to the test button by CriteriaPanel.makeSettings
+		self.testCriteria()
+	
+	def testCriteria(self):
+		self.updateData()
+		context = self.context
+		context["data"]["criteria"] = {"selector": self.getData()}
+		criteriaEditor.testCriteria(context)
+		del context["data"]["criteria"]
+	
+	def spaceIsPressedOnTreeNode(self):
+		self.contextMacroDropDown.SetFocus()
+
+
+class SimpleSummaryCriteriaPanel(ChildAlternativePanel):
+	
+	def makeSettings_buttons(self, gbSizer, row, col):
+		super().makeSettings_buttons(gbSizer, row, col, full=False)
+	
+	def initData_alternatives(self) -> None:
+		self.criteriaIndex = 0
+	
+	def onCriteriaChange(self, change: Change, index: int):
+		parent = self.Parent
+		dlg = parent.Parent.Parent
+		if change is Change.CREATION:
+			dlg.switchToFullEditor()
+		parent.switchToAppropriatePanel()
+		parent.shownPanel.initData(self.context)
+
+
+class SimpleCriteriaPanel(RuleEditorTreeContextualPanel):
+	
+	# Translators: The label for a category in the rule editor
+	title = _("Criteria")
+	
+	def makeSettings(self, settingsSizer):
+		item = self.singleNodePanel = SimpleSingleNodeCriteriaPanel(self)
+		settingsSizer.Add(item, flag=wx.EXPAND, proportion=1)
+		item.Hide()
+		
+		item = self.summaryPanel = SimpleSummaryCriteriaPanel(self)
+		settingsSizer.Add(item, flag=wx.EXPAND, proportion=1)
+		item.Hide()
+		
+		self.shownPanel = None
+	
+	def getData(self):
+		return self.getRuleData().get("criteria", [{}])[0]
+	
+	def initData(self, context):
+		super().initData(context)
+		for panel in (self.singleNodePanel, self.summaryPanel):
+			panel.initData(context)
+		self.switchToAppropriatePanel()
+	
+	def updateData(self):
+		self.shownPanel.updateData()
+	
+	def onAddAlternative(self, evt):
+		data = self.getData()
+		if not data.get("name"):
+			with wx.TextEntryDialog(
+				self,
+				# Translators: A prompt on the Rule editor
+				_("You may first provide a name for the current criteria set:"),
+				# Translators: The title of an input dialog in the Rule Editor dialog
+				_("Add alternatives"),
+			) as dlg:
+				if dlg.ShowModal() != wx.ID_OK:
+					return
+				name = dlg.Value
+				if name:
+					data["name"] = name
+		self.summaryPanel.onNewCriteria(evt)
+	
+	def onConvertToDualNode(self, evt):
+		self.summaryPanel.onEditCriteria(evt, convertToDualNode=True)
+	
+	def onPanelActivated(self):
+		super().onPanelActivated()
+		self.shownPanel.onPanelActivated()
+	
+	def isValid(self):
+		return self.shownPanel.isValid()
+	
+	def delete(self):
+		wx.Bell()
+	
+	def spaceIsPressedOnTreeNode(self):
+		self.shownPanel.spaceIsPressedOnTreeNode()
+	
+	def switchToAppropriatePanel(self):
+		data = self.getData()
+		showSummary = (
+			data.get("gestures")
+			or data.get("properties")
+			or set(data.get("selector", {}).keys()) == {"start", "end"}
+		)
+		singleNode = self.singleNodePanel
+		summary = self.summaryPanel
+		shown, hidden = (summary, singleNode) if showSummary else (singleNode, summary)
+		if shown is self.shownPanel:
+			return
+		self.shownPanel = shown
+		self.Freeze()
+		shown.Show()
+		hidden.Hide()
+		self.Thaw()
+		for child in hidden.Children:
+			if child.HasFocus():
+				if showSummary:
+					shown.SetFocus()
+				else:
+					self.Parent.tree.SetFocus()
+				break
+
+
 class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 	
 	INITIAL_SIZE = (750, 520)
@@ -856,6 +1064,27 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 		GesturesPanel,
 		PropertiesPanel,
 	]
+
+	def __init__(self, parent, *args, simpleMode=False, **kwargs):
+		self.simpleMode = simpleMode
+		if simpleMode:
+			self.categoryInitList = [
+				(GeneralPanel, 'getGeneralChildren'),
+				(SimpleCriteriaPanel, 'getSimpleCriteriaChildren'),
+				(GesturesPanel, 'getGesturesChildren'),
+				(PropertiesPanel, 'getPropertiesChildren'),
+			]
+			self.categoryClasses = [
+				GeneralPanel,
+				SimpleCriteriaPanel,
+				GesturesPanel,
+				PropertiesPanel,
+			]
+		super().__init__(parent, *args, **kwargs)
+
+	def makeSettings(self, settingsSizer):
+		super().makeSettings(settingsSizer)
+		self.Bind(wx.EVT_CHAR_HOOK, self.onCharHook)
 
 	def getGeneralChildren(self):
 		cls = RuleEditorSingleFieldChildPanel
@@ -892,6 +1121,9 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 			for data in self.getData().get("criteria", [])
 		)
 
+	def getSimpleCriteriaChildren(self):
+		return tuple()
+
 	def getGesturesChildren(self):
 		data = self.getData()
 		if data["type"] not in [ruleTypes.ACTION_TYPES]:
@@ -922,11 +1154,12 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 		return self.context["data"]["rule"]
 	
 	def initData(self, context: Mapping[str, Any]) -> None:
-		context.setdefault("data", {})
+		self.context = context
+		data = self.getData()
 		webModule = context["webModule"]
 		ruleManager = webModule.ruleManager
+		reload = context.pop("RuleEditorFocusOnReload", None)
 		if context.get("new"):
-			data = context["data"]["rule"] = {"type": ruleTypes.MARKER}
 			if ruleManager.parentZone is not None:
 				# Translators: A title of the rule editor
 				title = (_("Sub Module {} - New Rule").format(webModule.name))
@@ -936,8 +1169,15 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 			else:
 				# Translators: A title of the rule editor
 				title = (_("Web Module {} - New Rule").format(webModule.name))
+			nodeManager = ruleManager.nodeManager
+			if nodeManager:
+				node = nodeManager.getCaretNode()
+				while node is not None:
+					if node.role in formModeRoles:
+						data.setdefault("properties", {})["formMode"] = True
+						break
+					node = node.parent
 		else:
-			data = context["data"]["rule"] = context["rule"].dump()
 			if ruleManager.parentZone is not None:
 				# Translators: A title of the rule editor
 				title = (_("Sub Module {} - Edit Rule {}").format(webModule.name, data.get("name")))
@@ -960,15 +1200,60 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 				layerName = context["rule"].layer
 			title += f" ({layerName})"
 		self.SetTitle(title)
-		nodeManager = ruleManager.nodeManager
-		if nodeManager:
-			node = nodeManager.getCaretNode()
-			while node is not None:
-				if node.role in formModeRoles:
-					data.setdefault("properties", {})["formMode"] = True
-					break
-				node = node.parent
+		if reload and data.get("criteria") == [{"selector": {}}]:
+			del data["criteria"]
 		super().initData(context)
+		if reload is not None:
+			tree = self.catListCtrl
+			node = tree.RootItem
+			for index in reload["tree.path"]:
+				children = tree.getChildren(node)
+				node = children[index]
+			tree.SelectItem(node)
+			catInfos = tree.getTreeNodeInfo(node)
+			self._doCategoryChange(catInfos)
+			if reload["tree.focus"]:
+				tree.SetFocus()
+			else:
+				self.currentCategory.SetFocus()
+	
+	def onCharHook(self, evt):
+		# Bound by TreeMultiCategorySettingsDialog.makeSettings
+		keycode = evt.GetKeyCode()
+		mods = evt.GetModifiers()
+		if keycode == wx.WXK_F12 and mods == wx.MOD_NONE:
+			self.switchToFullEditor()
+			return
+		super().onCharHook(evt)
+	
+	def switchToFullEditor(self):
+		if not self.simpleMode:
+			wx.Bell()
+			return
+		self.currentCategory.updateData()
+		tree = self.catListCtrl
+		treePath = []
+		child = tree.GetSelection()
+		while child != tree.RootItem:
+			parent = tree.GetItemParent(child)
+			children = tree.getChildren(parent)
+			index = children.index(child)
+			treePath.append(index)
+			child = parent
+		treePath.reverse()
+		self.context["RuleEditorFocusOnReload"] = {
+			"tree.path": treePath,
+			"tree.focus": tree.HasFocus(),
+		}
+		self.EndModal(wx.ID_MORE)
+	
+	def _validateAllPanels(self):
+		# Ensure all first level panels are loaded, hence validated
+		tree = self.catListCtrl
+		for node in tree.getChildren(tree.RootItem):
+			info = tree.getTreeNodeInfo(node)
+			panel = self._getCategoryPanel(info)
+		super()._validateAllPanels()
 	
 	def _saveAllPanels(self):
 		super()._saveAllPanels()
@@ -1035,4 +1320,24 @@ Do you want to proceed anyway?
 
 
 def show(context, parent=None):
-	return showContextualDialog(RuleEditorDialog, context, parent) == wx.ID_OK
+	if parent is None:
+		parent = gui.mainFrame
+	data = context.setdefault("data", {})
+	if context.get("new"):
+		data["rule"] = {"type": ruleTypes.MARKER}
+	else:
+		rule = context["rule"]
+		data["rule"] = rule.dump()
+	
+	def show(simpleMode):
+		return showContextualDialog(
+			RuleEditorDialog,
+			context,
+			parent,
+			simpleMode=simpleMode,
+		)
+	
+	res = show(simpleMode=supportsSimpleMode(context))
+	if res == wx.ID_MORE:
+		res = show(simpleMode=False)
+	return res == wx.ID_OK

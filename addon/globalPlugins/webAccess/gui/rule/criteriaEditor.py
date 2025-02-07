@@ -1,4 +1,4 @@
-# globalPlugins/webAccess/gui/rule/criteria.py
+# globalPlugins/webAccess/gui/rule/criteriaEditor.py
 # -*- coding: utf-8 -*-
 
 # This file is part of Web Access for NVDA.
@@ -58,6 +58,7 @@ from .. import (
 	SizeFrugalComboBox,
 	ValidationError,
 	stripAccel,
+	showContextualDialog,
 	stripAccelAndColon,
 )
 from . import createMissingSubModule
@@ -297,7 +298,7 @@ def testCriteria(context, restrictDualNodeTo=None):
 		}[restrictDualNodeTo]
 	else:
 		critData = context["data"]["criteria"].copy()
-		if isDualNode(context):
+		if isDualNode(critData):
 			# Translators: The title of a dialog in the Criteria Set editor
 			caption = _("Combined Criteria test")
 		else:
@@ -330,27 +331,30 @@ def testCriteria(context, restrictDualNodeTo=None):
 	gui.messageBox(message, caption=caption)
 
 
-def isDualNode(context):
-	data = context.get("data", {}).get("criteria", {}).get("selector", {})
-	return set(data.keys()) == {"start", "end"}
+def isDualNode(data):
+	return set(data.get("selector", {}).keys()) == {"start", "end"}
 
 
-def convertToDualNode(context):
-	if isDualNode(context):
+def supportsSimpleMode(data):
+	if any(
+		k in ("gestures", "properties")
+		for k in data.keys()
+	):
+		return False
+	return True
+
+
+def convertToDualNode(data):
+	if isDualNode(data):
 		raise ValueError("This selector is already dual node")
-	data = context.get("data", {}).get("criteria", {}).get("selector", {})
-	selector = {"start": data.copy(), "end": data.copy()}
-	context["data"].setdefault("criteria", {})["selector"] = selector
+	selector = data.get("selector", {})
+	data["selector"] = {"start": selector.copy(), "end": selector.copy()}
 
 
-def convertToSingleNode(context):
-	if not isDualNode(context):
+def convertToSingleNode(data):
+	if not isDualNode(data):
 		raise ValueError("This selector is not dual node")
-	data = context.get("data", {}).get("criteria", {}).get("selector", {})
-	selector = data.pop("start")
-	del data["end"]
-	context["data"].setdefault("criteria", {})["selector"] = selector
-
+	data["selector"] = data["selector"]["start"]
 
 
 class CriteriaEditorPanel(RuleAwarePanelBase):
@@ -430,7 +434,7 @@ class GeneralPanel(CriteriaEditorPanel):
 
 		row += 1
 		# Translators: The label for a button in the Criteria Editor dialog
-		item = wx.Button(self, label=_("Convert to free zone (two sets of criteria)"))
+		item = wx.Button(self, label=_("Convert to free &zone (two sets of criteria)"))
 		item.Bind(wx.EVT_BUTTON, self.Parent.Parent.onConvertToDual)
 		items.append(item)
 		item = gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
@@ -471,7 +475,7 @@ class GeneralPanel(CriteriaEditorPanel):
 			index = data.get("criteriaIndex", nbAlternatives + 1)
 			self.sequenceOrderChoice.SetSelection(index)
 		if self.getRuleType() == ruleTypes.ZONE:
-			key = "convert.single" if isDualNode(context) else "convert.dual"
+			key = "convert.single" if isDualNode(data) else "convert.dual"
 			for item in self.hideable[key]:
 				item.Show(True)
 		self.criteriaName.Value = data.get("name", "")
@@ -553,6 +557,7 @@ class CriteriaPanel(CriteriaEditorPanel):
 
 		row = 0
 		item = wx.StaticText(self, label=_("Context:"))
+		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item = self.contextMacroDropDown = DropDownWithHideableChoices(self)
 		item.setChoices((
@@ -731,12 +736,21 @@ class CriteriaPanel(CriteriaEditorPanel):
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
 
 		row += 1
+		## Translators: The label for a button in the Criteria Editor dialog
+		#item = wx.Button(self, label=_("Test these criteria (F5)"))
+		#item.Bind(wx.EVT_BUTTON, self.onTestCriteria)
+		#gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
+		vBoxSizer = wx.BoxSizer(wx.VERTICAL)
+		self.makeSettings_buttons(vBoxSizer)
+		gbSizer.Add(vBoxSizer, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
+
+		gbSizer.AddGrowableCol(2)
+
+	def makeSettings_buttons(self, vBoxSizer):
 		# Translators: The label for a button in the Criteria Editor dialog
 		item = wx.Button(self, label=_("Test these criteria (F5)"))
 		item.Bind(wx.EVT_BUTTON, self.onTestCriteria)
-		gbSizer.Add(item, pos=(row, 0), span=(1, 3))
-
-		gbSizer.AddGrowableCol(2)
+		vBoxSizer.Add(item, flag=wx.EXPAND)
 
 	def getData(self):
 		return super().getData().setdefault("selector", {})
@@ -904,7 +918,6 @@ class CriteriaPanel(CriteriaEditorPanel):
 
 	def onPanelActivated(self):
 		self.refreshContextMacroChoices()
-		# self.onContextMacroChoice(None)
 		super().onPanelActivated()
 	
 	def onTestCriteria(self, evt):
@@ -912,7 +925,20 @@ class CriteriaPanel(CriteriaEditorPanel):
 		testCriteria(self.context)
 	
 	def isValid(self):
+		self.updateData()
 		data = self.getData()
+		
+		if not data:
+			gui.messageBox(
+				# Translators: An error message on the Criteria Editor
+				message=_("You must choose at least one criteria."),
+				caption=_("Error"),
+				style=wx.OK | wx.ICON_ERROR,
+				parent=self
+			)
+			self.SetFocus()
+			return False
+		
 		roleLblExpr = self.roleCombo.Value
 		if roleLblExpr.strip():
 			if not EXPR.match(roleLblExpr):
@@ -1145,21 +1171,45 @@ class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
 	categoryClasses = [GeneralPanel, CriteriaPanel, GesturesPanel, PropertiesPanel]
 	INITIAL_SIZE = (900, 580)
 	
-	def __init__(self, parent, *args, dualNode=False, **kwargs):
+	def __init__(
+		self,
+		parent,
+		*args,
+		dualNode=False,
+		simpleMode=True,
+		**kwargs
+	):
+		catList = self.categoryClasses = [GeneralPanel]
 		if dualNode:
-			self.categoryClasses = [
-				GeneralPanel,
-				StartCriteriaPanel,
-				EndCriteriaPanel,
-				GesturesPanel,
-				PropertiesPanel
-			]
+			catList.append(StartCriteriaPanel)
+			catList.append(EndCriteriaPanel)
+		else:
+			catList.append(CriteriaPanel)
+		self.simpleMode = simpleMode
+		if not simpleMode:
+			catList.append(GesturesPanel)
+			catList.append(PropertiesPanel)
 		super().__init__(parent, *args, **kwargs)
 	
 	def getData(self):
 		# Should always be initialized, as the Rule Editor populates it with at least
 		# the index of this Alternative Criteria Set ("criteriaIndex").
 		return self.context["data"]["criteria"]
+	
+	def initData(self, context):
+		super().initData(context)
+		reload = context.pop("CriteriaEditorFocusOnReload", None)
+		if reload is not None:
+			catList = self.catListCtrl
+			catType = reload.pop("catType")
+			if not isinstance(self.currentCategory, catType):
+				index = self.categoryClasses.index(catType)
+				catList.Select(index)
+				catList.Focus(index)  # Triggers category change
+			if reload["catList.focus"]:
+				catList.SetFocus()
+			else:
+				self.currentCategory.SetFocus()
 	
 	def makeSettings(self, settingsSizer):
 		super().makeSettings(settingsSizer)
@@ -1178,11 +1228,13 @@ class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
 					restrictDualNodeTo = "end"
 			currCat.updateData()
 			testCriteria(self.context, restrictDualNodeTo=restrictDualNodeTo)
+		elif keycode == wx.WXK_F12 and mods == wx.MOD_NONE:
+			self.switchToFullEditor()
 			return
 		super().onCharHook(evt)
 	
 	def onConvertToDual(self, evt):
-		convertToDualNode(self.context)
+		convertToDualNode(self.getData())
 		self.EndModal(wx.ID_CONVERT)
 	
 	def onConvertToSingle(self, evt):
@@ -1194,13 +1246,31 @@ class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
 Do you want to proceed?"""
 			),
 			# Translators: The title of a dialog on the Criteria Set editor
-			caption=_("Convert to simple zone (one set of criteria)"),
+			caption=_("Convert to simple &zone (one set of criteria)"),
 			style=wx.ICON_WARNING | wx.YES_NO | wx.NO_DEFAULT
 		) != wx.YES:
 			return
-		convertToSingleNode(self.context)
+		convertToSingleNode(self.getData())
 		self.EndModal(wx.ID_CONVERT)
 	
+	def switchToFullEditor(self):
+		if not self.simpleMode:
+			wx.Bell()
+			return
+		currCat = self.currentCategory
+		currCat.updateData()
+		self.context["CriteriaEditorFocusOnReload"] = {
+			"catType": type(currCat),
+			"catList.focus": self.catListCtrl.HasFocus(),
+		}
+		self.EndModal(wx.ID_MORE)
+	
+	def _validateAllPanels(self):
+		# Ensure all panels are loaded, hence validated
+		for catId in range(len(self.categoryClasses)):
+			self._getCategoryPanel(catId)
+		super()._validateAllPanels()
+		
 	def _saveAllPanels(self):
 		super()._saveAllPanels()
 		
@@ -1235,14 +1305,20 @@ Do you want to proceed anyway?
 
 
 def show(context, parent=None):
-	from .. import showContextualDialog
+	if parent is None:
+		parent = gui.mainFrame
+	data = context.get("data", {}).get("criteria", {})
+	simpleMode = supportsSimpleMode(data)
 	while True:
 		res = showContextualDialog(
 			CriteriaEditorDialog,
 			context,
 			parent,
-			dualNode=isDualNode(context),
+			dualNode=isDualNode(data),
+			simpleMode=simpleMode
 		)
-		if res != wx.ID_CONVERT:
+		if res == wx.ID_MORE:
+			simpleMode = False
+		elif res != wx.ID_CONVERT:
 			break
 	return res == wx.ID_OK
