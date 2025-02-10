@@ -21,8 +21,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
-"POT-Creation-Date: 2024-12-10 15:36+0100\n"
-"PO-Revision-Date: 2024-12-10 16:00+0100\n"
+"POT-Creation-Date: 2025-02-10 09:54+0100\n"
+"PO-Revision-Date: 2025-02-10 09:58+0100\n"
 "Last-Translator: Julien Cochuyt <JulienCochuyt@users.noreply.github.com>\n"
 "Language-Team: \n"
 "Language: fr_FR\n"
@@ -45,13 +45,13 @@ msgstr "Bordure de zone"
 #: addon\globalPlugins\webAccess\overlay.py:538
 #: addon\globalPlugins\webAccess\overlay.py:859
 #: addon\globalPlugins\webAccess\overlay.py:880
-#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:817
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:841
 msgid "Press escape to cancel zone restriction."
 msgstr "Appuyez sur échappement pour ne plus être restreint à la zone."
 
 #. Translators: Complement to quickNav error message in zone.
 #: addon\globalPlugins\webAccess\overlay.py:856
-#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:814
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:838
 msgid "in this zone."
 msgstr "dans cette zone."
 
@@ -269,7 +269,7 @@ msgstr "Description de l'élément"
 #. Translators: Web Access menu item label.
 #. Translator: The label for a button on the RulesManager dialog.
 #: addon\globalPlugins\webAccess\gui\menu.py:64
-#: addon\globalPlugins\webAccess\gui\rule\manager.py:456
+#: addon\globalPlugins\webAccess\gui\rule\manager.py:479
 msgid "&New rule..."
 msgstr "&Nouvelle règle..."
 
@@ -343,43 +343,43 @@ msgstr ""
 "recommandé)"
 
 #. Translators: Announced when a list is empty
-#: addon\globalPlugins\webAccess\gui\__init__.py:174
+#: addon\globalPlugins\webAccess\gui\__init__.py:176
 msgid "Empty"
 msgstr "Vide"
 
 #. Translator: The placeholder for an invalid value in summary reports
-#: addon\globalPlugins\webAccess\gui\__init__.py:217
+#: addon\globalPlugins\webAccess\gui\__init__.py:219
 msgid "<Invalid>"
 msgstr "<Invalide>"
 
 #. Translators: The label for the list of categories in a multi category settings dialog.
-#: addon\globalPlugins\webAccess\gui\__init__.py:540
+#: addon\globalPlugins\webAccess\gui\__init__.py:546
 msgid "&Categories:"
 msgstr "&Catégories :"
 
 #. Translators: The display value of a yes/no field
 #. Translators: The displayed value of a yes/no rule property
-#: addon\globalPlugins\webAccess\gui\__init__.py:948
+#: addon\globalPlugins\webAccess\gui\__init__.py:954
 #: addon\globalPlugins\webAccess\gui\rule\properties.py:186
 msgid "Yes"
 msgstr "Oui"
 
 #. Translators: The displayed value of a yes/no field
 #. Translators: The displayed value of a yes/no rule property
-#: addon\globalPlugins\webAccess\gui\__init__.py:951
+#: addon\globalPlugins\webAccess\gui\__init__.py:957
 #: addon\globalPlugins\webAccess\gui\rule\properties.py:189
 msgid "No"
 msgstr "Non"
 
 #. Translators: A field label. French typically adds a space before the colon.
-#: addon\globalPlugins\webAccess\gui\__init__.py:1076
+#: addon\globalPlugins\webAccess\gui\__init__.py:1084
 #, python-brace-format
 msgid "{field}:"
 msgstr "{field} :"
 
 #. Translators: The label for a node in the category tree on a multi-category dialog
 #. Translators: A mention on the Rule Summary report
-#: addon\globalPlugins\webAccess\gui\__init__.py:1113
+#: addon\globalPlugins\webAccess\gui\__init__.py:1121
 #: addon\globalPlugins\webAccess\gui\rule\editor.py:121
 #, python-brace-format
 msgid "{field}: {value}"
@@ -430,7 +430,7 @@ msgstr "Critères d'évaluation"
 #. Translators: The label for a Criteria editor category.
 #. Translators: The label for the General settings panel.
 #: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:277
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:172
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:174
 msgid "General"
 msgstr "Général"
 
@@ -447,8 +447,8 @@ msgstr "Ordre de &séquence :"
 #. Translator: The label for a field on the Criteria editor
 #. Translators: The label for a field on the Rule editor
 #: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:317
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:210
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:386
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:212
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:404
 msgid "Summar&y:"
 msgstr "&Résumé :"
 
@@ -456,15 +456,15 @@ msgstr "&Résumé :"
 #. Translator: The label for a field on the Rule editor
 #. Translators: The label for a field on the Rule editor
 #: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:329
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:222
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:398
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:224
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:416
 msgid "Technical n&otes:"
 msgstr "N&otes techniques :"
 
 #. Translators: The label for a Criteria editor category.
 #. Translators: The label for a category in the rule editor
 #: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:387
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:354
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:372
 msgid "Criteria"
 msgstr "Critères"
 
@@ -590,9 +590,9 @@ msgstr "Erreur de syntaxe dans le champ \"{field}\""
 #: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:825
 #: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:839
 #: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:856
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:303
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:315
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:344
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:321
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:333
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:362
 #: addon\globalPlugins\webAccess\gui\webModule\editor.py:275
 #: addon\globalPlugins\webAccess\gui\webModule\editor.py:289
 #: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:357
@@ -644,11 +644,11 @@ msgstr "&Nouveau"
 #. Translators: The label for a button in the
 #. Web Modules Manager dialog
 #: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:911
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:429
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:637
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:730
-#: addon\globalPlugins\webAccess\gui\rule\gestures.py:138
-#: addon\globalPlugins\webAccess\gui\rule\manager.py:471
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:447
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:655
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:748
+#: addon\globalPlugins\webAccess\gui\rule\gestures.py:145
+#: addon\globalPlugins\webAccess\gui\rule\manager.py:494
 #: addon\globalPlugins\webAccess\gui\webModule\manager.py:126
 msgid "&Delete"
 msgstr "&Supprimer"
@@ -705,27 +705,27 @@ msgstr "Alternative #{index} :"
 
 #. todo: change tooltip's text
 #. Translators: Tooltip for rule type choice list.
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:191
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:193
 msgid "TOOLTIP EXEMPLE"
 msgstr "EXEMPLE DE BULLE D'AIDE"
 
 #. Translators: Error message when no type is chosen before saving the rule
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:302
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:320
 msgid "You must choose a type for this rule"
 msgstr "Vous devez choisir un type pour cette règle"
 
 #. Translators: Error message when no name is entered before saving the rule
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:314
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:332
 msgid "You must choose a name for this rule"
 msgstr "Vous devez choisir un nom pour cette règle"
 
 #. Translators: Error message when another rule with the same name already exists
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:343
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:361
 msgid "There already is another rule with the same name."
 msgstr "Il existe déjà une autre règle portant le même nom."
 
 #. Translators: Label for a control in the Rule Editor
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:368
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:386
 msgid "&Alternatives"
 msgstr "&Alternatives"
 
@@ -733,10 +733,10 @@ msgstr "&Alternatives"
 #. Translators: New criteria button label
 #. Translators: The label for a button on the Rule Editor dialog
 #. Translators: The label for a button in the Rule Editor dialog
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:411
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:644
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:737
-#: addon\globalPlugins\webAccess\gui\rule\gestures.py:116
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:429
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:662
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:755
+#: addon\globalPlugins\webAccess\gui\rule\gestures.py:123
 msgid "&New..."
 msgstr "&Nouveau..."
 
@@ -745,215 +745,250 @@ msgstr "&Nouveau..."
 #. Translators: The label for a button in the Rule Editor dialog
 #. Translator: The label for a button on the RulesManager dialog.
 #. Translators: The label for a button in the Web Modules Manager dialog
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:420
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:628
-#: addon\globalPlugins\webAccess\gui\rule\gestures.py:127
-#: addon\globalPlugins\webAccess\gui\rule\manager.py:463
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:438
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:646
+#: addon\globalPlugins\webAccess\gui\rule\gestures.py:134
+#: addon\globalPlugins\webAccess\gui\rule\manager.py:486
 #: addon\globalPlugins\webAccess\gui\webModule\manager.py:103
 msgid "&Edit..."
 msgstr "&Modifier..."
 
 #. Translator: A confirmation prompt on the Rule editor
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:503
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:521
 msgid "Are you sure you want to delete this alternative?"
 msgstr "Êtes-vous sûr de vouloir supprimer cette alternative ?"
 
 #. Translator: The title for a confirmation prompt on the Rule editor
 #. Translator: The title for a confirmation prompt on the
 #. RulesManager dialog.
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:505
-#: addon\globalPlugins\webAccess\gui\rule\manager.py:720
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:523
+#: addon\globalPlugins\webAccess\gui\rule\manager.py:743
 msgid "Confirm Deletion"
 msgstr "Confirmation d'effacement"
 
 #. Translators: The label for a field on the Rule editor
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:593
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:611
 msgid "Summar&y"
 msgstr "&Résumé"
 
 #. Translators: The label for a field on the Rule editor
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:610
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:628
 msgid "Technical n&otes"
 msgstr "&Notes techniques"
 
 #. Translators: A title of the rule editor
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:921
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:931
 msgid "Sub Module {} - New Rule"
 msgstr "Sous-module {} - Nouvelle règle"
 
 #. Translators: A title of the rule editor
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:924
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:934
 msgid "Root Module {} - New Rule"
 msgstr "Module racine {} - Nouvelle règle"
 
 #. Translators: A title of the rule editor
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:927
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:937
 msgid "Web Module {} - New Rule"
 msgstr "Module web {} - Nouvelle règle"
 
 #. Translators: A title of the rule editor
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:932
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:942
 msgid "Sub Module {} - Edit Rule {}"
 msgstr "Sous-module {} - Modifier la règle {}"
 
 #. Translators: A title of the rule editor
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:935
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:945
 msgid "Root Module {} - Edit Rule {}"
 msgstr "Module racine - Modifier la règle {}"
 
 #. Translators: A title of the rule editor
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:938
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:948
 msgid "Web Module {} - Edit Rule {}"
 msgstr "Module web {} - Modifier la règle {}"
 
+#. Translators: Gesture Scope
+#: addon\globalPlugins\webAccess\gui\rule\gestureBinding.py:60
+msgctxt "webAccess.gestureScope"
+msgid "global"
+msgstr "globale"
+
+#. Translators: Gesture Scope
+#: addon\globalPlugins\webAccess\gui\rule\gestureBinding.py:62
+msgctxt "webAccess.gestureScope"
+msgid "normal"
+msgstr "normale"
+
+#. Translators: Gesture Scope
+#: addon\globalPlugins\webAccess\gui\rule\gestureBinding.py:64
+msgctxt "webAccess.gestureScope"
+msgid "local"
+msgstr "locale"
+
 #. Translators: The title for a dialog
-#: addon\globalPlugins\webAccess\gui\rule\gestureBinding.py:67
+#: addon\globalPlugins\webAccess\gui\rule\gestureBinding.py:78
 msgid "Input Gesture"
 msgstr "Gestes de saisie"
 
-#: addon\globalPlugins\webAccess\gui\rule\gestureBinding.py:82
+#. Translators: The label for a field on the Gesture Binding dialog
+#: addon\globalPlugins\webAccess\gui\rule\gestureBinding.py:94
 msgid "Gesture: "
 msgstr "Geste : "
 
-#: addon\globalPlugins\webAccess\gui\rule\gestureBinding.py:91
+#. Translators: The label for a field on the Gesture Binding dialog
+#: addon\globalPlugins\webAccess\gui\rule\gestureBinding.py:104
 msgid "&Action to execute"
 msgstr "&Action à exécuter"
 
+#. Translators: The label for a field on the Gesture Binding dialog
+#: addon\globalPlugins\webAccess\gui\rule\gestureBinding.py:114
+msgid "&Scope"
+msgstr "&Portée"
+
 #. Translators: A prompt for selection in the action list on the Input Gesture dialog
-#: addon\globalPlugins\webAccess\gui\rule\gestureBinding.py:127
+#: addon\globalPlugins\webAccess\gui\rule\gestureBinding.py:151
 msgid "Select an action"
 msgstr "Sélectionner une action"
 
 #. Translators: The prompt to enter a gesture on the Input Gesture dialog
-#: addon\globalPlugins\webAccess\gui\rule\gestureBinding.py:142
+#: addon\globalPlugins\webAccess\gui\rule\gestureBinding.py:179
 msgid "Type now the desired key combination"
 msgstr "Pressez maintenant la combinaison de touches souhaitée"
 
 #. Translators: A message on the Input Gesture dialog
-#: addon\globalPlugins\webAccess\gui\rule\gestureBinding.py:158
+#: addon\globalPlugins\webAccess\gui\rule\gestureBinding.py:195
 msgid "You must define a shortcut"
 msgstr "Vous devez entrer un geste de commande"
 
 #. Translators: A message on the Input Gesture dialog
-#: addon\globalPlugins\webAccess\gui\rule\gestureBinding.py:168
+#: addon\globalPlugins\webAccess\gui\rule\gestureBinding.py:205
 msgid "You must choose an action"
 msgstr "Vous devez choisir une action"
 
 #. Translators: Displayed when no gesture as been entered on the Input Gesture dialog
-#: addon\globalPlugins\webAccess\gui\rule\gestureBinding.py:201
+#: addon\globalPlugins\webAccess\gui\rule\gestureBinding.py:239
 msgid "None"
 msgstr "Aucune"
 
-#. Translators: The label for a category in the Rule and Criteria editors
-#: addon\globalPlugins\webAccess\gui\rule\gestures.py:69
-msgid "Input Gestures"
-msgstr "Gestes de commande"
+#. Translators: The label for a gesture binding scope
+#: addon\globalPlugins\webAccess\gui\rule\gestures.py:59
+#: addon\globalPlugins\webAccess\gui\rule\manager.py:69
+msgid "Global scope"
+msgstr "Portée globale"
+
+#. Translators: The label for a gesture binding scope
+#: addon\globalPlugins\webAccess\gui\rule\gestures.py:61
+#: addon\globalPlugins\webAccess\gui\rule\manager.py:73
+msgid "Local scope"
+msgstr "Portée locale"
 
 #. Translators: Displayed when the selected rule type doesn't support input gestures
-#: addon\globalPlugins\webAccess\gui\rule\gestures.py:72
+#: addon\globalPlugins\webAccess\gui\rule\gestures.py:79
 msgid "The selected Rule Type does not support Input Gestures."
 msgstr ""
 "Le type de règle sélectionné ne prend pas en charge les gestes de commande."
 
 #. Translators: The label for a list on the Rule Editor dialog
-#: addon\globalPlugins\webAccess\gui\rule\gestures.py:95
+#: addon\globalPlugins\webAccess\gui\rule\gestures.py:102
 msgid "&Gestures"
 msgstr "&Gestes"
 
+#. Translators: The label for a gesture binding scope
+#: addon\globalPlugins\webAccess\gui\rule\manager.py:71
+msgid "Normal scope"
+msgstr "Portée normale"
+
 #. Translator: TreeItem label on the RulesManager dialog.
-#: addon\globalPlugins\webAccess\gui\rule\manager.py:170
+#: addon\globalPlugins\webAccess\gui\rule\manager.py:193
 msgctxt "webAccess.ruleGesture"
 msgid "<None>"
 msgstr "<Aucun>"
 
 #. Translators: A part of a context grouping label on the Rules Manager
-#: addon\globalPlugins\webAccess\gui\rule\manager.py:205
+#: addon\globalPlugins\webAccess\gui\rule\manager.py:228
 #, python-brace-format
 msgid "Page Title: {contextPageTitle}"
 msgstr "Titre de la page : {contextPageTitle}"
 
 #. Translators: A part of a context grouping label on the Rules Manager
-#: addon\globalPlugins\webAccess\gui\rule\manager.py:208
+#: addon\globalPlugins\webAccess\gui\rule\manager.py:231
 #, python-brace-format
 msgid "Page Type: {contextPageTitle}"
 msgstr "Type de page : {contextPageTitle}"
 
 #. Translators: A part of a context grouping label on the Rules Manager
-#: addon\globalPlugins\webAccess\gui\rule\manager.py:211
+#: addon\globalPlugins\webAccess\gui\rule\manager.py:234
 #, python-brace-format
 msgid "Parent: {contextPageTitle}"
 msgstr "Parent : {contextPageTitle}"
 
 #. Translator: Grouping option on the RulesManager dialog.
-#: addon\globalPlugins\webAccess\gui\rule\manager.py:317
+#: addon\globalPlugins\webAccess\gui\rule\manager.py:340
 msgctxt "webAccess.rulesGroupBy"
 msgid "&Position"
 msgstr "&Position"
 
 #. Translator: Grouping option on the RulesManager dialog.
-#: addon\globalPlugins\webAccess\gui\rule\manager.py:323
+#: addon\globalPlugins\webAccess\gui\rule\manager.py:346
 msgctxt "webAccess.rulesGroupBy"
 msgid "&Type"
 msgstr "&Type"
 
 #. Translator: Grouping option on the RulesManager dialog.
-#: addon\globalPlugins\webAccess\gui\rule\manager.py:329
+#: addon\globalPlugins\webAccess\gui\rule\manager.py:352
 msgctxt "webAccess.rulesGroupBy"
 msgid "&Context"
 msgstr "&Contexte :"
 
 #. Translator: Grouping option on the RulesManager dialog.
-#: addon\globalPlugins\webAccess\gui\rule\manager.py:335
+#: addon\globalPlugins\webAccess\gui\rule\manager.py:358
 msgctxt "webAccess.rulesGroupBy"
 msgid "&Gestures"
 msgstr "&Geste de commande"
 
 #. Translator: Grouping option on the RulesManager dialog.
-#: addon\globalPlugins\webAccess\gui\rule\manager.py:341
+#: addon\globalPlugins\webAccess\gui\rule\manager.py:364
 msgctxt "webAccess.rulesGroupBy"
 msgid "Nam&e"
 msgstr "N&om"
 
 #. Translator: A label on the RulesManager dialog.
-#: addon\globalPlugins\webAccess\gui\rule\manager.py:363
+#: addon\globalPlugins\webAccess\gui\rule\manager.py:386
 msgid "Group by: "
 msgstr "Regrouper par : "
 
 #. Translator: A label on the RulesManager dialog.
-#: addon\globalPlugins\webAccess\gui\rule\manager.py:376
+#: addon\globalPlugins\webAccess\gui\rule\manager.py:399
 msgid "&Filter: "
 msgstr "&Filtre : "
 
 #. Translator: A label on the RulesManager dialog.
-#: addon\globalPlugins\webAccess\gui\rule\manager.py:394
+#: addon\globalPlugins\webAccess\gui\rule\manager.py:417
 msgid "Include only rules &active on the current page"
 msgstr "N'inclure que les règles &actives sur la page courante"
 
 #. contentsSizer.Add(descSizer, flag=wx.EXPAND)
 #. Translator: The label for a field on the Rules manager
-#: addon\globalPlugins\webAccess\gui\rule\manager.py:420
+#: addon\globalPlugins\webAccess\gui\rule\manager.py:443
 msgid "Summary"
 msgstr "Résumé"
 
 #. Translator: The label for a field on the Rules manager
-#: addon\globalPlugins\webAccess\gui\rule\manager.py:431
+#: addon\globalPlugins\webAccess\gui\rule\manager.py:454
 msgid "Technical notes"
 msgstr "Notes techniques"
 
 #. Translator: The label for a button on the RulesManager dialog.
-#: addon\globalPlugins\webAccess\gui\rule\manager.py:447
+#: addon\globalPlugins\webAccess\gui\rule\manager.py:470
 msgid "Move to"
 msgstr "Aller à"
 
 #. Translators: Reported when cycling through rules grouping on the Rules Manager dialog
-#: addon\globalPlugins\webAccess\gui\rule\manager.py:529
-#, fuzzy
-#| msgid "Group by: "
+#: addon\globalPlugins\webAccess\gui\rule\manager.py:552
 msgid "Group by: {}"
-msgstr "Regrouper par : "
+msgstr "Regrouper par : {}"
 
 #. Translator: A confirmation prompt on the RulesManager dialog.
-#: addon\globalPlugins\webAccess\gui\rule\manager.py:714
+#: addon\globalPlugins\webAccess\gui\rule\manager.py:737
 msgid "Are you sure you want to delete this rule?"
 msgstr "Êtes-vous sûr de vouloir supprimer cette règle ?"
 
@@ -1230,43 +1265,43 @@ msgstr "Nom personnalisé"
 
 #. Translators: Displayed if no value is set for a given rule property
 #: addon\globalPlugins\webAccess\ruleHandler\properties.py:143
-#: addon\globalPlugins\webAccess\ruleHandler\properties.py:166
+#: addon\globalPlugins\webAccess\ruleHandler\properties.py:165
 msgctxt "webAccess.ruleProperty"
 msgid "<undefined>"
 msgstr "<indéfini>"
 
 #. Translators: The display name for a rule property
-#: addon\globalPlugins\webAccess\ruleHandler\properties.py:160
+#: addon\globalPlugins\webAccess\ruleHandler\properties.py:159
 msgctxt "webAccess.ruleProperty"
 msgid "Custom message"
 msgstr "Message personnalisé"
 
 #. Translators: The display name for a rule property
-#: addon\globalPlugins\webAccess\ruleHandler\properties.py:163
+#: addon\globalPlugins\webAccess\ruleHandler\properties.py:162
 msgctxt "webAccess.ruleProperty"
 msgid "Custom page title"
 msgstr "Titre de page personnalisé"
 
 #. Translators: The display name for a rule property
-#: addon\globalPlugins\webAccess\ruleHandler\properties.py:175
+#: addon\globalPlugins\webAccess\ruleHandler\properties.py:174
 msgctxt "webAccess.ruleProperty"
 msgid "Transform"
 msgstr "Transformation"
 
 #. Translators: Displayed if no value is set for the "Transform" rule property
-#: addon\globalPlugins\webAccess\ruleHandler\properties.py:177
+#: addon\globalPlugins\webAccess\ruleHandler\properties.py:176
 msgctxt "webAccess.ruleProperty.mutation"
 msgid "None"
 msgstr "Aucune"
 
 #. Translators: The display name for a rule property
-#: addon\globalPlugins\webAccess\ruleHandler\properties.py:186
+#: addon\globalPlugins\webAccess\ruleHandler\properties.py:185
 msgctxt "webAccess.ruleProperty"
 msgid "Load sub-module"
 msgstr "Charger le sous-module"
 
 #. Translators: The displayed text if there is no value for the "Load sub-module" property
-#: addon\globalPlugins\webAccess\ruleHandler\properties.py:188
+#: addon\globalPlugins\webAccess\ruleHandler\properties.py:187
 #, fuzzy
 #| msgid "No"
 msgctxt "webAccess.ruleProperty.subModule"
@@ -1274,121 +1309,121 @@ msgid "No"
 msgstr "Non"
 
 #. Translators: The label for a rule type.
-#: addon\globalPlugins\webAccess\ruleHandler\ruleTypes.py:45
-msgid "Global Marker"
-msgstr "Marqueur global"
-
-#. Translators: The label for a rule type.
-#: addon\globalPlugins\webAccess\ruleHandler\ruleTypes.py:47
+#: addon\globalPlugins\webAccess\ruleHandler\ruleTypes.py:44
 msgid "Marker"
 msgstr "Marqueur"
 
 #. Translators: The label for a rule type.
-#: addon\globalPlugins\webAccess\ruleHandler\ruleTypes.py:49
+#: addon\globalPlugins\webAccess\ruleHandler\ruleTypes.py:46
 msgid "Zone"
 msgstr "Zone"
 
 #. Translators: The label for a rule type.
-#: addon\globalPlugins\webAccess\ruleHandler\ruleTypes.py:51
+#: addon\globalPlugins\webAccess\ruleHandler\ruleTypes.py:48
 msgid "Page type"
 msgstr "Type de page"
 
 #. Translators: The label for a rule type.
-#: addon\globalPlugins\webAccess\ruleHandler\ruleTypes.py:53
+#: addon\globalPlugins\webAccess\ruleHandler\ruleTypes.py:50
 msgid "Parent element"
 msgstr "Élément parent"
 
 #. Translators: The label for a rule type.
-#: addon\globalPlugins\webAccess\ruleHandler\ruleTypes.py:55
+#: addon\globalPlugins\webAccess\ruleHandler\ruleTypes.py:52
 msgid "Page main title"
 msgstr "Titre de page - principal"
 
 #. Translators: The label for a rule type.
-#: addon\globalPlugins\webAccess\ruleHandler\ruleTypes.py:57
+#: addon\globalPlugins\webAccess\ruleHandler\ruleTypes.py:54
 msgid "Page secondary title"
 msgstr "Titre de page - secondaire"
 
 #. Translators: Action name
-#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:84
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:86
 msgctxt "webAccess.action"
 msgid "Move to"
 msgstr "Aller à"
 
 #. Translators: Action name
-#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:86
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:88
 msgctxt "webAccess.action"
 msgid "Say all"
 msgstr "Dire tout"
 
 #. Translators: Action name
-#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:88
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:90
 msgctxt "webAccess.action"
 msgid "Speak"
 msgstr "Énoncer"
 
 #. Translators: Action name
-#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:90
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:92
 msgctxt "webAccess.action"
 msgid "Activate"
 msgstr "Activer"
 
 #. Translators: Action name
-#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:92
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:94
 msgctxt "webAccess.action"
 msgid "Mouse move"
 msgstr "Déplacer la souris"
 
 #. Translators: Reported when attempting an action while WebAccess is not ready
-#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:755
-#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:765
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:779
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:789
 msgid "Not ready"
 msgstr "Pas encore prêt"
 
 #. Translator: Error message in quickNav (page up/down)
-#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:794
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:818
 msgid "No previous zone"
 msgstr "Pas de zone précédente"
 
 #. Translator: Error message in quickNav (page up/down)
-#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:797
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:821
 msgid "No next zone"
 msgstr "Pas de zone suivante"
 
 #. Translator: Error message in quickNav (page up/down)
-#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:800
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:824
 msgid "No zone"
 msgstr "Pas de zone"
 
 #. Translator: Error message in quickNav (page up/down)
-#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:804
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:828
 msgid "No marker"
 msgstr "Pas de marqueur"
 
 #. Translator: Error message in quickNav (page up/down)
-#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:807
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:831
 msgid "No previous marker"
 msgstr "Pas de marqueur précédent"
 
 #. Translator: Error message in quickNav (page up/down)
-#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:810
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:834
 msgid "No next marker"
 msgstr "Pas de marqueur suivant"
 
 #. Translators: Speak rule name on "Move to" action
-#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:1149
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:1206
 #, python-brace-format
 msgid "Move to {ruleName}"
 msgstr "Aller à {ruleName}"
 
-#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:1514
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:1574
 #, python-brace-format
 msgid "{criteriaName} not found"
 msgstr "{criteriaName} non trouvé"
 
-#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:1594
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:1664
 #, python-brace-format
 msgid "{ruleName} not found"
 msgstr "{ruleName} introuvable"
+
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:1669
+#, python-brace-format
+msgid "{ruleName} not found locally"
+msgstr "{ruleName} introuvable localement"
 
 #. Translators: Presented when requesting a missing contextual help
 #: addon\globalPlugins\webAccess\webModuleHandler\webModule.py:339
@@ -1458,8 +1493,8 @@ msgstr "ou"
 msgid "You may, in NVDA Preferences:"
 msgstr "Vous pouvez, dans les paramètres de NVDA :"
 
-#: addon\globalPlugins\webAccess\webModuleHandler\dataRecovery\__init__.py:423
-#: addon\globalPlugins\webAccess\webModuleHandler\dataRecovery\__init__.py:434
+#: addon\globalPlugins\webAccess\webModuleHandler\dataRecovery\__init__.py:426
+#: addon\globalPlugins\webAccess\webModuleHandler\dataRecovery\__init__.py:437
 msgid "Recovered from format version {}"
 msgstr "Récupéré depuis le format de version {}"
 
@@ -1477,6 +1512,9 @@ msgid "Web application modules support for modern or complex web sites."
 msgstr ""
 "Gestion des modules d'applications web pour la navigation sur sites web "
 "riches ou complexes."
+
+#~ msgid "Input Gestures"
+#~ msgstr "Gestes de commande"
 
 #~ msgid "Toggle debug mode."
 #~ msgstr "Basculer le mode de débogage."
