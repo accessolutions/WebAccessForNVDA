@@ -21,8 +21,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
-"POT-Creation-Date: 2025-02-10 09:54+0100\n"
-"PO-Revision-Date: 2025-02-10 09:58+0100\n"
+"POT-Creation-Date: 2025-02-11 09:48+0100\n"
+"PO-Revision-Date: 2025-02-11 09:48+0100\n"
 "Last-Translator: Julien Cochuyt <JulienCochuyt@users.noreply.github.com>\n"
 "Language-Team: \n"
 "Language: fr_FR\n"
@@ -39,7 +39,14 @@ msgstr ""
 
 #: addon\globalPlugins\webAccess\overlay.py:534
 msgid "Zone border"
-msgstr "Bordure de zone"
+msgstr ""
+"La période de transition webModulesMC est révolue.n\n"
+"\n"
+"Dans votre dossier de configuration utilisateur :\n"
+" - {wmPath} a été renommé en {wmBackupPath} pour sauvegarde.\n"
+" - {mcPath} a été déplacé vers {mcBackupPath} pour sauvegarde.\n"
+" - Le plus récent de chaque webModule trouvé à ces deux emplacements a été "
+"copié dans votre nouveau dossier {wmPath}."
 
 #. Translators: Hint on how to cancel zone restriction.
 #: addon\globalPlugins\webAccess\overlay.py:538
@@ -149,50 +156,81 @@ msgstr "Échec de la mise à jour"
 msgid "An error occured. See NVDA log for more details."
 msgstr "Une erreur s'est produite. Voir le journal NVDA pour plus de détails."
 
+#: addon\globalPlugins\webAccess\__init__.py:251
+#, python-brace-format
+msgid ""
+"webModulesMC transition period is over.\n"
+"\n"
+"In your user configuration folder:\n"
+" - {wmPath} has been renamed to {wmBackupPath} for backup.\n"
+" - {mcPath} has been moved to {mcBackupPath} for backup.\n"
+" - The newer webModule found in each of these has been copied into your new "
+"{wmPath} folder."
+msgstr ""
+"webModulesMC transition period is over.\n"
+"\n"
+"In your user configuration folder:\n"
+" - {wmPath} has been renamed to {wmBackupPath} for backup.\n"
+" - {mcPath} has been moved to {mcBackupPath} for backup.\n"
+" - The newer webModule found in each of these has been copied into your new "
+"{wmPath} folder."
+
+#. Translators: The complement to a message shown after the webModulesMC transition phase
+#: addon\globalPlugins\webAccess\__init__.py:261
+msgid " - All other content in these folders has been ignored."
+msgstr " - Tout autre contenu dans ces dossiers a été ignoré."
+
+#. Translators: The title of a message dialog
+#. Translators: The title of an error message dialog
+#: addon\globalPlugins\webAccess\__init__.py:267
+#: addon\globalPlugins\webAccess\__init__.py:580
+msgid "Web Access for NVDA"
+msgstr "Web Access pour NVDA"
+
 #. Translators: Input help mode message for show Web Access menu command.
-#: addon\globalPlugins\webAccess\__init__.py:205
+#: addon\globalPlugins\webAccess\__init__.py:297
 msgid "Show the Web Access menu."
 msgstr "Afficher le menu Web Access."
 
 #. Translators: Error message when attempting to show the Web Access GUI.
-#: addon\globalPlugins\webAccess\__init__.py:216
+#: addon\globalPlugins\webAccess\__init__.py:308
 msgid "You must be in a web browser to use Web Access."
 msgstr "Placez-vous dans un navigateur web pour utiliser Web Access."
 
 #. Translators: Error message when attempting to show the Web Access GUI.
-#: addon\globalPlugins\webAccess\__init__.py:220
-#: addon\globalPlugins\webAccess\__init__.py:279
+#: addon\globalPlugins\webAccess\__init__.py:312
+#: addon\globalPlugins\webAccess\__init__.py:371
 msgid "You must be on the web page to use Web Access."
 msgstr "Placez-vous sur la page web pour utiliser Web Access."
 
 #. Translators: Input help mode message for open Web Access settings command.
-#: addon\globalPlugins\webAccess\__init__.py:248
+#: addon\globalPlugins\webAccess\__init__.py:340
 msgid "Open the Web Access Settings."
 msgstr "Ouvrir les préférences Web Access."
 
 #. Translators: Input help mode message for show Web Access menu command.
-#: addon\globalPlugins\webAccess\__init__.py:267
+#: addon\globalPlugins\webAccess\__init__.py:359
 msgid "Show the element description."
 msgstr "Afficher la description de l'élément."
 
 #. Translators: Error message when attempting to show the Web Access GUI.
-#: addon\globalPlugins\webAccess\__init__.py:275
+#: addon\globalPlugins\webAccess\__init__.py:367
 msgid "The current object does not support Web Access."
 msgstr "Cet objet n'est pas pris en charge par Web Access."
 
-#: addon\globalPlugins\webAccess\__init__.py:286
+#: addon\globalPlugins\webAccess\__init__.py:378
 msgid "Toggle Web Access support."
 msgstr "Basculer le support de Web Access."
 
-#: addon\globalPlugins\webAccess\__init__.py:295
+#: addon\globalPlugins\webAccess\__init__.py:387
 msgid "Web Access support disabled."
 msgstr "Web Access désactivé."
 
-#: addon\globalPlugins\webAccess\__init__.py:298
+#: addon\globalPlugins\webAccess\__init__.py:390
 msgid "Web Access support enabled."
 msgstr "Web Access activé."
 
-#: addon\globalPlugins\webAccess\__init__.py:427
+#: addon\globalPlugins\webAccess\__init__.py:519
 msgid ""
 "This web module has been created by a newer version of Web Access for NVDA "
 "and could not be loaded:"
@@ -200,7 +238,7 @@ msgstr ""
 "Ce module web ne peut pas être utilisé car il a été créé à l'aide d'une "
 "version plus récente de Web Access pour NVDA :"
 
-#: addon\globalPlugins\webAccess\__init__.py:431
+#: addon\globalPlugins\webAccess\__init__.py:523
 msgid ""
 "These web modules have been created by a newer version of Web Access for "
 "NVDA and could not be loaded:"
@@ -208,7 +246,7 @@ msgstr ""
 "Ces modules web ne peuvent pas être utilisé car ils ont été créé à l'aide "
 "d'une version plus récente de Web Access pour NVDA :"
 
-#: addon\globalPlugins\webAccess\__init__.py:438
+#: addon\globalPlugins\webAccess\__init__.py:530
 msgid ""
 "This Python web module uses a different API version of Web Access for NVDA "
 "and could not be loaded:"
@@ -216,7 +254,7 @@ msgstr ""
 "Ce module web Python ne peut pas être utilisé car il cible une version "
 "différente de l'API de Web Access pour NVDA :"
 
-#: addon\globalPlugins\webAccess\__init__.py:442
+#: addon\globalPlugins\webAccess\__init__.py:534
 msgid ""
 "These Python web modules use a different API version of Web Access for NVDA "
 "and could not be loaded:"
@@ -224,19 +262,14 @@ msgstr ""
 "Ces modules web Python ne peuvent pas être utilisé car ils ciblent une "
 "version différente de l'API de Web Access pour NVDA :"
 
-#: addon\globalPlugins\webAccess\__init__.py:449
+#: addon\globalPlugins\webAccess\__init__.py:541
 msgid "An unexpected error occurred while attempting to load this web module:"
 msgstr "Une erreur s'est produite au chargement de ce module web :"
 
-#: addon\globalPlugins\webAccess\__init__.py:453
+#: addon\globalPlugins\webAccess\__init__.py:545
 msgid ""
 "An unexpected error occurred while attempting to load these web modules:"
 msgstr "Une erreur s'est produite au chargement de ces modules web :"
-
-#. Translators: The title of an error message dialog
-#: addon\globalPlugins\webAccess\__init__.py:488
-msgid "Web Access for NVDA"
-msgstr "Web Access pour NVDA"
 
 #: addon\globalPlugins\webAccess\gui\elementDescription.py:54
 msgctxt "webAccess.elementDescription"
