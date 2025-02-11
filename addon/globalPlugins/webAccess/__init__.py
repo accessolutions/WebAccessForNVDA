@@ -258,7 +258,7 @@ In your user configuration folder:
 		if notifyOther:
 			msg += "\n"
 			# Translators: The complement to a message shown after the webModulesMC transition phase
-			msg += " - All other content in these directories has been ignored."
+			msg += _(" - All other content in these directories has been ignored.")
 		import gui
 		wx.CallAfter(
 			gui.messageBox,
