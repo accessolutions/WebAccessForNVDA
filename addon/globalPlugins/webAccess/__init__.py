@@ -170,12 +170,104 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		# The NVDA AppModule should not yet have been instanciated at this stage
 		NvdaAppModule.event_NVDAObject_init = appModule_nvda_event_NVDAObject_init
 
+		self.restorePackage()
 		core.callLater (2000, self.loadWebModules)
 
 	def loadWebModules(self):
 		webModuleHandler.initialize()
 		log.info("Web Access for NVDA version %s initialized" % getVersion())
 		showWebModulesLoadErrors()
+
+	def restorePackage(self):
+		"""Temporary remediation for the end of the webModulesMC transition phase
+		"""
+		import os
+		import os.path
+		import globalVars
+		mcPath = os.path.join(globalVars.appArgs.configPath, "webModulesMC")
+		wmPath = os.path.join(globalVars.appArgs.configPath, "webModules")
+		if not os.path.exists(mcPath) or not os.path.isdir(mcPath):
+			return
+		if not os.listdir(mcPath):
+			os.rmdir(mcPath)
+			return
+		if not os.path.exists(wmPath):
+			os.rename(mcPath, wmPath)
+			log.warning(f'Directory "{mcPath}" renamed to "{wmPath}"')
+			return
+		if not os.path.isdir(wmPath):
+			log.error(f"Path exists but is not a directory: {wmPath}")
+			return
+		if not os.listdir(wmPath):
+			os.rmdir(wmPath)
+			os.rename(mcPath, wmPath)
+			log.warning(f'Directory "{mcPath}" renamed to "{wmPath}"')
+			return
+		
+		def getUniquePath(base):
+			candidate = base
+			i = 0
+			while os.path.exists(candidate):
+				i += 1
+				candidate = f"{base}-{i:03}"
+			return candidate
+		
+		wmBackupPath = getUniquePath(os.path.join(globalVars.appArgs.configPath, "webModules.old"))
+		os.rename(wmPath, wmBackupPath)
+		log.warning(f'Directory "{wmPath}" renamed to "{wmBackupPath}"')
+		mcBackupPath = getUniquePath(os.path.join(wmBackupPath, "MC"))
+		os.mkdir(wmPath)
+		import shutil
+		notifyDuplicate = notifyOther = False
+		for src1, src2 in (
+			(wmBackupPath, mcPath),
+			(mcPath, wmBackupPath),
+		):
+			for filename in os.listdir(src1):
+				fp1 = os.path.join(src1, filename)
+				if not os.path.isfile(fp1) or not filename.endswith(".json"):
+					notifyOther = True
+					continue
+				fp2 = os.path.join(src2, filename)
+				if os.path.exists(fp2):
+					continue
+				if (
+					os.path.isfile(fp2)
+					and os.path.getmtime(fp2) > os.path.getmtime(fp1)
+				):
+					notifyDuplicate = True
+					continue
+				shutil.copy(fp1, wmPath)
+		os.rename(mcPath, mcBackupPath)
+		log.warning(f'Directory "{mcPath}" moved to "{mcBackupPath}"')
+		wmPath = os.path.basename(wmPath)
+		mcPath = os.path.basename(mcPath)
+		wmBackupPath = os.path.basename(wmBackupPath)
+		mcBackupPath = os.path.join(wmBackupPath, "MC")
+		if not (notifyDuplicate or notifyOther):
+			return
+		# Translators: A message shown after the webModulesMC transition phase
+		msg = _(
+			"""webModulesMC transition period is over.
+
+In your user configuration folder:
+ - {wmPath} has been renamed to {wmBackupPath} for backup.
+ - {mcPath} has been moved to {mcBackupPath} for backup.
+ - The newer webModule found in each of these has been copied into your new {wmPath} folder."""
+ 		)
+		if notifyOther:
+			msg += "\n"
+			# Translators: The complement to a message shown after the webModulesMC transition phase
+			msg += _(" - All other content in these folders has been ignored.")
+		import gui
+		wx.CallAfter(
+			gui.messageBox,
+			message=msg,
+			# Translators: The title of a message dialog
+			caption=_("Web Access for NVDA"),
+			style=wx.ICON_INFORMATION,
+			parent=gui.mainFrame
+		)
 
 	def terminate(self):
 		scheduler.send(eventName="stop")
