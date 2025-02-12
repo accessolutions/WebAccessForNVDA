@@ -307,7 +307,7 @@ class SinglePropertyEditorPanelBase(SingleFieldEditorMixin, ContextualSettingsPa
 	def prop_reset(self):
 		self.prop.reset()
 		self.updateEditor()
-		self.onEditor_change(reset=True)
+		self.onEditor_change()
 		speech.cancelSpeech()  # Avoid announcing the whole eventual control refresh
 		# Translators: Announced when resetting a property to its default value in the editor
 		ui.message(_("Reset to {value}").format(value=self.prop.displayValue))

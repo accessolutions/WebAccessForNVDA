@@ -589,7 +589,7 @@ class PropertiesPanel(PropertiesPanelBase, RuleEditorTreeContextualPanel):
 		self.props = Properties(self.context, self.getData())
 	
 	# Overrides SingleFieldEditorMixin's
-	def onEditor_change(self, reset=False):
+	def onEditor_change(self):
 		super().onEditor_change()
 		prm = self.categoryParams
 		# Refreshing all child nodes is too slow for quick editing
