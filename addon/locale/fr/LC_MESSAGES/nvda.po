@@ -21,8 +21,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
-"POT-Creation-Date: 2025-02-11 09:48+0100\n"
-"PO-Revision-Date: 2025-02-11 09:59+0100\n"
+"POT-Creation-Date: 2025-02-12 16:19+0100\n"
+"PO-Revision-Date: 2025-02-12 16:22+0100\n"
 "Last-Translator: Julien Cochuyt <JulienCochuyt@users.noreply.github.com>\n"
 "Language-Team: \n"
 "Language: fr_FR\n"
@@ -39,14 +39,7 @@ msgstr ""
 
 #: addon\globalPlugins\webAccess\overlay.py:534
 msgid "Zone border"
-msgstr ""
-"La période de transition webModulesMC est révolue.n\n"
-"\n"
-"Dans votre dossier de configuration utilisateur :\n"
-" - {wmPath} a été renommé en {wmBackupPath} pour sauvegarde.\n"
-" - {mcPath} a été déplacé vers {mcBackupPath} pour sauvegarde.\n"
-" - Le plus récent de chaque webModule trouvé à ces deux emplacements a été "
-"copié dans votre nouveau dossier {wmPath}."
+msgstr "Bordure de zone"
 
 #. Translators: Hint on how to cancel zone restriction.
 #: addon\globalPlugins\webAccess\overlay.py:538
@@ -167,13 +160,13 @@ msgid ""
 " - The newer webModule found in each of these has been copied into your new "
 "{wmPath} folder."
 msgstr ""
-"webModulesMC transition period is over.\n"
+"La période de transition webModulesMC est révolue.n\n"
 "\n"
-"In your user configuration folder:\n"
-" - {wmPath} has been renamed to {wmBackupPath} for backup.\n"
-" - {mcPath} has been moved to {mcBackupPath} for backup.\n"
-" - The newer webModule found in each of these has been copied into your new "
-"{wmPath} folder."
+"Dans votre dossier de configuration utilisateur :\n"
+" - {wmPath} a été renommé en {wmBackupPath} pour sauvegarde.\n"
+" - {mcPath} a été déplacé vers {mcBackupPath} pour sauvegarde.\n"
+" - Le plus récent de chaque webModule trouvé à ces deux emplacements a été "
+"copié dans votre nouveau dossier {wmPath}."
 
 #. Translators: The complement to a message shown after the webModulesMC transition phase
 #: addon\globalPlugins\webAccess\__init__.py:261
@@ -970,7 +963,7 @@ msgstr "&Type"
 #: addon\globalPlugins\webAccess\gui\rule\manager.py:352
 msgctxt "webAccess.rulesGroupBy"
 msgid "&Context"
-msgstr "&Contexte :"
+msgstr "&Contexte"
 
 #. Translator: Grouping option on the RulesManager dialog.
 #: addon\globalPlugins\webAccess\gui\rule\manager.py:358
@@ -1335,8 +1328,6 @@ msgstr "Charger le sous-module"
 
 #. Translators: The displayed text if there is no value for the "Load sub-module" property
 #: addon\globalPlugins\webAccess\ruleHandler\properties.py:187
-#, fuzzy
-#| msgid "No"
 msgctxt "webAccess.ruleProperty.subModule"
 msgid "No"
 msgstr "Non"
