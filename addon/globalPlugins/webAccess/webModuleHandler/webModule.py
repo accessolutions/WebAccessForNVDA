@@ -101,7 +101,7 @@ class WebModule(baseObject.ScriptableObject):
 
 	API_VERSION = version.parse("0.6")
 
-	FORMAT_VERSION_STR = "0.10-dev"
+	FORMAT_VERSION_STR = "0.11-dev"
 	FORMAT_VERSION = version.parse(FORMAT_VERSION_STR)
 
 	def __init__(self):

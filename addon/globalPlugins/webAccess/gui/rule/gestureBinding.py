@@ -41,6 +41,7 @@ from gui import guiHelper
 import speech
 import ui
 
+from ...ruleHandler import GestureScope
 from ...utils import guarded, logException
 from .. import ScalingMixin, showContextualDialog
 
@@ -52,6 +53,16 @@ else:
 
 
 addonHandler.initTranslation()
+
+
+SCOPE_LABELS = {
+	# Translators: Gesture Scope
+	GestureScope.GLOBAL.value: pgettext("webAccess.gestureScope", "global"),
+	# Translators: Gesture Scope
+	GestureScope.NORMAL.value: pgettext("webAccess.gestureScope", "normal"),
+	# Translators: Gesture Scope
+	GestureScope.LOCAL.value: pgettext("webAccess.gestureScope", "local"),
+}
 
 
 class GestureBindingDialog(wx.Dialog, ScalingMixin):
@@ -79,6 +90,7 @@ class GestureBindingDialog(wx.Dialog, ScalingMixin):
 		vSizer.Add(gbSizer, flag=wx.ALL | wx.EXPAND, border=guiHelper.BORDER_FOR_DIALOGS, proportion=1)
 		
 		row = 0
+		# Translators: The label for a field on the Gesture Binding dialog
 		item = wx.StaticText(self, label=_("Gesture: "))
 		gbSizer.Add(item, pos=(row, 0), flag=wx.EXPAND)
 		gbSizer.Add((guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
@@ -88,11 +100,22 @@ class GestureBindingDialog(wx.Dialog, ScalingMixin):
 		row += 1
 		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
 		row += 1
+		# Translators: The label for a field on the Gesture Binding dialog
 		item = wx.StaticText(self, label=_("&Action to execute"))
 		gbSizer.Add(item, pos=(row, 0), flag=wx.EXPAND)
 		gbSizer.Add((guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item = self.actionChoice = wx.Choice(self)
 		item.Bind(wx.EVT_CHOICE, self.onActionChoice)
+		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
+		row += 1
+		gbSizer.Add((0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+		row += 1
+		# Translators: The label for a field on the Gesture Binding dialog
+		item = wx.StaticText(self, label=_("&Scope"))
+		gbSizer.Add(item, pos=(row, 0), flag=wx.EXPAND)
+		gbSizer.Add((guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
+		item = self.scopeChoice = wx.Choice(self)
+		item.Bind(wx.EVT_CHOICE, self.onScopeChoice)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 		
 		gbSizer.AddGrowableCol(2)
@@ -123,17 +146,31 @@ class GestureBindingDialog(wx.Dialog, ScalingMixin):
 		data = self.getData()
 		data["oldId"] = data["newId"] = data.pop("gestureIdentifier", None)
 		self.updateGestureInput()
+		
 		# Translators: A prompt for selection in the action list on the Input Gesture dialog
 		actions = data["actions"] = {None: _("Select an action")}
 		mgr = context["webModule"].ruleManager
 		actions.update(mgr.getActions())
+		action = data.get("action")
+		if action is not None and action not in actions:
+			actions[action] = f"*{action}"
 		self.actionChoice.AppendItems(tuple(actions.values()))
-		self.actionChoice.Selection = tuple(actions.keys()).index(data.get("action", None))
+		self.actionChoice.Selection = tuple(actions.keys()).index(action)
+		
+		scope = data.setdefault("scope", GestureScope.NORMAL.value)
+		self.scopeChoice.AppendItems(tuple(SCOPE_LABELS.values()))
+		self.scopeChoice.Selection = tuple(SCOPE_LABELS.keys()).index(scope)
 	
 	@guarded
 	def onActionChoice(self, evt):
 		data = self.getData()
 		data["action"] = tuple(data["actions"].keys())[evt.Selection]
+		evt.Skip()
+	
+	@guarded
+	def onScopeChoice(self, evt):
+		data = self.getData()
+		data["scope"] = tuple(SCOPE_LABELS.keys())[evt.Selection]
 		evt.Skip()
 	
 	@guarded
@@ -175,11 +212,12 @@ class GestureBindingDialog(wx.Dialog, ScalingMixin):
 		gestures = self.context["data"]["gestures"]
 		oldId = data.pop("oldId")
 		newId = data["gestureIdentifier"] = data.pop("newId")
+		scope = data["scope"]
 		action = data["action"]
 		tmp = gestures.copy()
 		if oldId:
 			del tmp[oldId]
-		tmp[newId] = action
+		tmp[newId] = (scope, action)
 		gestures.clear()
 		gestures.update({k : tmp[k] for k in sorted(tmp)})
 		data["index"] = tuple(gestures.keys()).index(newId)

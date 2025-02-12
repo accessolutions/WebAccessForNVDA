@@ -41,7 +41,7 @@ import inputCore
 import queueHandler
 import ui
 
-from ...ruleHandler import Rule, Result, Zone, ruleTypes
+from ...ruleHandler import GestureScope, Rule, Result, Zone, ruleTypes
 from ...utils import guarded
 from ...webModuleHandler import getEditableWebModule, save
 from .. import ContextualDialog, showContextualDialog, stripAccel
@@ -62,6 +62,16 @@ except ImportError:
 
 
 addonHandler.initTranslation()
+
+
+SCOPE_LABELS = {
+	# Translators: The label for a gesture binding scope
+	GestureScope.GLOBAL: _("Global scope"),
+	# Translators: The label for a gesture binding scope
+	GestureScope.NORMAL: _("Normal scope"),
+	# Translators: The label for a gesture binding scope
+	GestureScope.LOCAL: _("Local scope"),
+}
 
 
 lastGroupBy = "position"
@@ -129,7 +139,7 @@ def rule_getResults_safe(rule):
 
 
 def iterRulesByGesture(ruleManager, filter=None, active=False):
-	gestures = {}
+	scopes = {}
 	noGesture = []
 	
 	for rule in getRules(ruleManager):
@@ -137,8 +147,10 @@ def iterRulesByGesture(ruleManager, filter=None, active=False):
 			continue
 		if active and not rule_getResults_safe(rule):
 			continue
-		for gesture, action in iteritems(rule.gestures):
-			rules = gestures.setdefault(getGestureLabel(gesture), [])
+		for gesture, (scope, action) in rule.gestures.items():
+			rules = scopes.setdefault(
+				scope, {}
+			).setdefault(getGestureLabel(gesture), [])
 			rules.append(TreeItemData(
 				label=(
 					"{rule} - {action}".format(
@@ -155,15 +167,26 @@ def iterRulesByGesture(ruleManager, filter=None, active=False):
 			noGesture.append(
 				TreeItemData(label=rule.name, obj=rule, children=[])
 			)
-	for gesture, tids in sorted(
-		list(gestures.items()),
-		key=lambda kvp: kvp[0]
-	):
-		yield TreeItemData(
-			label=gesture,
-			obj=None,
-			children=sorted(tids, key=lambda tid: tid.label)
-		)
+	normalScopeOnly = len(scopes) == 1 and scopes.get(GestureScope.NORMAL)
+	for scope, gestures in scopes.items():
+		scopeChildren = []
+		for gesture, gestureChildren in sorted(
+			list(gestures.items()),
+			key=lambda kvp: kvp[0]
+		):
+			scopeChildren.append(TreeItemData(
+				label=gesture,
+				obj=None,
+				children=sorted(gestureChildren, key=lambda tid: tid.label)
+			))
+		if normalScopeOnly:
+			yield from scopeChildren
+		else:
+			yield TreeItemData(
+				label=SCOPE_LABELS[scope],
+				obj=None,
+				children=scopeChildren
+			)
 	if noGesture:
 		yield TreeItemData(
 			# Translator: TreeItem label on the RulesManager dialog.
