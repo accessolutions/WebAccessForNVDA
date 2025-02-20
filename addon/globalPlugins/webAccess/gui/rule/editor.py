@@ -344,7 +344,7 @@ class GeneralPanel(RuleEditorTreeContextualPanel):
 			if not webModule:
 				# Raising rather than returning False does not focus the panel
 				raise ValidationError("The WebModule is not editable")
-			layer = webModule.getWritableLayer()
+			layer = webModule.getWritableLayer().name
 		else:
 			rule = context["rule"]
 			prevName = rule.name
