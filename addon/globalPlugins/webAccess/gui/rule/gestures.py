@@ -64,8 +64,7 @@ SCOPE_LABELS = {
 class GesturesPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
 	"""ABC for Gestures panels
 	
-	Sub-classes must implement the methods `getData` (inherited from `ContextualSettingsPanel`)
-	and `getRuleType` (inherited from `RuleTypeAware`).
+	Sub-classes must implement the method `getData` (inherited from `ContextualSettingsPanel`).
 	
 	Known sub-classes:
 	 - `criteriaEditor.GesturesPanel`
