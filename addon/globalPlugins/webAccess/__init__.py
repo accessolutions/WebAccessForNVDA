@@ -372,7 +372,7 @@ In your user configuration folder:
 			ui.message(_("You must be on the web page to use Web Access."))
 			return
 		from .gui import elementDescription
-		elementDescription.showElementDescriptionDialog()
+		elementDescription.show()
 
 
 	@script(

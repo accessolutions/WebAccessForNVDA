@@ -134,8 +134,8 @@ class Menu(wx.Menu):
 	
 	@guarded
 	def onElementDescription(self, evt):
-		from .elementDescription import showElementDescriptionDialog
-		showElementDescriptionDialog()
+		from . import elementDescription
+		elementDescription.show()
 	
 	@guarded
 	def onRuleCreate(self, evt):
