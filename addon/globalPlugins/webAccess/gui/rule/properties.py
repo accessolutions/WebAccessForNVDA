@@ -301,7 +301,6 @@ class SinglePropertyEditorPanelBase(SingleFieldEditorMixin, ContextualSettingsPa
 		return self.prop.value
 	
 	def setFieldValue(self, value):
-		# @@@
 		self.prop.value = value
 	
 	def prop_reset(self):

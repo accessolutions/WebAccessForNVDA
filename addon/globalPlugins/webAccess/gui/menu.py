@@ -141,12 +141,12 @@ class Menu(wx.Menu):
 	def onRuleCreate(self, evt):
 		self.context["new"] = True
 		from .rule.editor import show
-		show(self.context, gui.mainFrame)
+		show(self.context)
 	
 	@guarded
 	def onRulesManager(self, evt):
 		from .rule.manager import show
-		show(self.context, gui.mainFrame)
+		show(self.context)
 	
 	@guarded
 	def onWebModuleCreate(self, evt, webModule=None):

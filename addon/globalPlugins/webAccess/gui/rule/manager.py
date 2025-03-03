@@ -78,7 +78,7 @@ lastGroupBy = "position"
 lastActiveOnly = False
 
 
-def show(context, parent):
+def show(context, parent=None):
 	showContextualDialog(Dialog, context, parent)
 
 
