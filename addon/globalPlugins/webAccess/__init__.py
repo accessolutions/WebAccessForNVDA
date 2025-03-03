@@ -229,7 +229,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 					notifyOther = True
 					continue
 				fp2 = os.path.join(src2, filename)
-				if os.path.exists(fp2):
+				if not os.path.exists(fp2):
 					continue
 				if (
 					os.path.isfile(fp2)
