@@ -259,6 +259,7 @@ In your user configuration folder:
 			msg += "\n"
 			# Translators: The complement to a message shown after the webModulesMC transition phase
 			msg += _(" - All other content in these folders has been ignored.")
+		msg = msg.format(**locals())
 		import gui
 		wx.CallAfter(
 			gui.messageBox,
