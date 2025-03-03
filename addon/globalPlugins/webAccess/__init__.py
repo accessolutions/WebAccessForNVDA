@@ -179,29 +179,41 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		showWebModulesLoadErrors()
 
 	def restorePackage(self):
-		"""Temporary remediation for the end of the webModulesMC transition phase
+		"""Temporary remediation for the end of the webModulesMC/SM transition phase
 		"""
 		import os
 		import os.path
 		import globalVars
 		mcPath = os.path.join(globalVars.appArgs.configPath, "webModulesMC")
+		smPath = os.path.join(globalVars.appArgs.configPath, "webModulesSM")
 		wmPath = os.path.join(globalVars.appArgs.configPath, "webModules")
 		if not os.path.exists(mcPath) or not os.path.isdir(mcPath):
+			mcPath = False
+		if not os.path.exists(smPath) or not os.path.isdir(smPath):
+			smPath = False
+		if not (mcPath or smPath):
 			return
-		if not os.listdir(mcPath):
+		if mcPath and not os.listdir(mcPath):
 			os.rmdir(mcPath)
+			mcPath = False
+		if smPath and not os.listdir(smPath):
+			os.rmdir(smPath)
+			smPath = False
+		if not (mcPath or smPath):
 			return
-		if not os.path.exists(wmPath):
-			os.rename(mcPath, wmPath)
-			log.warning(f'Directory "{mcPath}" renamed to "{wmPath}"')
+		if not os.path.exists(wmPath) and (mcPath ^ smPath):
+			fromPath = mcPath or smPath
+			os.rename(fromPath, wmPath)
+			log.warning(f'Directory "{fromPath}" renamed to "{wmPath}"')
 			return
 		if not os.path.isdir(wmPath):
 			log.error(f"Path exists but is not a directory: {wmPath}")
 			return
-		if not os.listdir(wmPath):
+		if not os.listdir(wmPath) and (mcPath ^ smPath):
+			fromPath = smPath = mcPath or smPath
 			os.rmdir(wmPath)
-			os.rename(mcPath, wmPath)
-			log.warning(f'Directory "{mcPath}" renamed to "{wmPath}"')
+			os.rename(fromPath, wmPath)
+			log.warning(f'Directory "{fromPath}" renamed to "{wmPath}"')
 			return
 		
 		def getUniquePath(base):
@@ -215,50 +227,65 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		wmBackupPath = getUniquePath(os.path.join(globalVars.appArgs.configPath, "webModules.old"))
 		os.rename(wmPath, wmBackupPath)
 		log.warning(f'Directory "{wmPath}" renamed to "{wmBackupPath}"')
-		mcBackupPath = getUniquePath(os.path.join(wmBackupPath, "MC"))
+		mcBackupPath = mcPath and getUniquePath(os.path.join(wmBackupPath, "MC"))
+		smBackupPath = smPath and getUniquePath(os.path.join(wmBackupPath, "SM"))
 		os.mkdir(wmPath)
 		import shutil
 		notifyDuplicate = notifyOther = False
-		for src1, src2 in (
-			(wmBackupPath, mcPath),
-			(mcPath, wmBackupPath),
+		for src1, src2, src3 in (
+			(wmBackupPath, mcPath, smPath),
+			(mcPath, wmBackupPath, smPath),
+			(smPath, wmBackupPath, mcPath),
 		):
+			if not src1:
+				continue
 			for filename in os.listdir(src1):
 				fp1 = os.path.join(src1, filename)
 				if not os.path.isfile(fp1) or not filename.endswith(".json"):
 					notifyOther = True
 					continue
-				fp2 = os.path.join(src2, filename)
-				if not os.path.exists(fp2):
-					continue
-				if (
-					os.path.isfile(fp2)
-					and os.path.getmtime(fp2) > os.path.getmtime(fp1)
-				):
+				mtime1 = os.path.getmtime(fp1)
+				mtime2 = 0
+				if src2:
+					fp2 = os.path.join(src2, filename)
+					if os.path.exists(fp2) and os.path.isfile(fp2):
+						mtime2 = os.path.getmtime(fp2)
+				mtime3 = 0
+				if src3:
+					fp3 = os.path.join(src3, filename)
+					if os.path.exists(fp3) and os.path.isfile(fp3):
+						mtime3 = os.path.getmtime(fp3)
+				if mtime1 < mtime2 or mtime1 < mtime3:
 					notifyDuplicate = True
 					continue
 				shutil.copy(fp1, wmPath)
-		os.rename(mcPath, mcBackupPath)
-		log.warning(f'Directory "{mcPath}" moved to "{mcBackupPath}"')
+		if mcPath:
+			os.rename(mcPath, mcBackupPath)
+			log.warning(f'Directory "{mcPath}" moved to "{mcBackupPath}"')
+		if smPath:
+			os.rename(smPath, smBackupPath)
+			log.warning(f'Directory "{mcPath}" moved to "{mcBackupPath}"')
 		wmPath = os.path.basename(wmPath)
-		mcPath = os.path.basename(mcPath)
+		mcPath = mcPath and os.path.basename(mcPath)
+		smPath = smPath and os.path.basename(smPath)
 		wmBackupPath = os.path.basename(wmBackupPath)
-		mcBackupPath = os.path.join(wmBackupPath, "MC")
+		mcBackupPath = mcPath and os.path.join(wmBackupPath, "MC")
+		smBackupPath = smPath and os.path.join(wmBackupPath, "SM")
 		if not (notifyDuplicate or notifyOther):
 			return
-		# Translators: A message shown after the webModulesMC transition phase
-		msg = _(
-			"""webModulesMC transition period is over.
-
-In your user configuration folder:
- - {wmPath} has been renamed to {wmBackupPath} for backup.
- - {mcPath} has been moved to {mcBackupPath} for backup.
- - The newer webModule found in each of these has been copied into your new {wmPath} folder."""
- 		)
+		# Do not use translation to limit merge conflicts
+		msg = "La période de transition webModulesMC/SM est révolue.\n"
+		msg += "Dans votre dossier de configuration utilisateur :\n"
+		msg += " - {wmPath} a été renommé en {wmBackupPath} pour sauvegarde.\n"
+		if mcPath:
+			msg += " - {mcPath} a été déplacé vers {mcBackupPath} pour sauvegarde.\n"
+		if smPath:
+			msg += " - {smPath} a été déplacé vers {smBackupPath} pour sauvegarde.\n"
+		msg += "- Le plus récent de chaque webModule trouvé à ces emplacements a été "
+		msg += "copié dans votre nouveau dossier {wmPath}."
 		if notifyOther:
 			msg += "\n"
-			# Translators: The complement to a message shown after the webModulesMC transition phase
-			msg += _(" - All other content in these folders has been ignored.")
+			msg += " - Tout autre contenu dans ces dossiers a été ignoré."
 		msg = msg.format(**locals())
 		import gui
 		wx.CallAfter(
