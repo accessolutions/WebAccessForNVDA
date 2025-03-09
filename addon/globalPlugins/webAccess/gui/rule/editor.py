@@ -427,6 +427,7 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 		listEndCol = 2
 		item = self.criteriaList = wx.ListBox(self)
 		item.Bind(wx.EVT_LISTBOX, self.onCriteriaSelected)
+		item.Bind(wx.EVT_CHAR_HOOK, self.onCriteriaListCharHook)
 		gbSizer.Add(item, pos=(row, 0), span=(6, 3), flag=wx.EXPAND)
 		
 		row += 6
@@ -530,20 +531,112 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 			return False
 		return True
 
-
+	@guarded
+	def copyAlternative(self):
+		index = self.getIndex()
+		if index == wx.NOT_FOUND:
+			wx.Bell()
+			return
+		data = {"webAccess.criteria" : self.getData()[index]}
+		import json
+		data = json.dumps(data, indent=4)
+		import api
+		if api.copyToClip(data):
+			# Translators: A message from the Rule Editor dialog
+			ui.message(_("Criteria data copied to clipboard"))
+			return
+		wx.Bell()
+	
+	def pasteAlternative(self):
+		import api
+		data = api.getClipData()
+		if not data:
+			wx.Bell()
+			return
+		import json
+		try:
+			data = json.loads(data)
+		except Exception:
+			wx.Bell()
+			return
+		if not isinstance(data, dict) and len(data) == 1:
+			wx.Bell()
+			return
+		key, data = data.popitem()
+		if key == "webAccess.rule":
+			try:
+				data = data["criteria"]
+				if len(data) != 1:
+					wx.Bell()
+					return
+				data = data[0]
+			except (AttributeError, TypeError):
+				wx.Bell()
+				return
+		elif key == "webAccess.criteria":
+			pass
+		elif key == "webAccess.selector":
+			data = {"selector": data} 
+		else:
+			wx.Bell()
+			return
+		if criteriaEditor.isDualNode(data) and self.getRuleType() != ruleTypes.ZONE:
+			wx.Bell()
+			return
+		self.onNewCriteria(pastedData=data)
+	
 	def onCriteriaChange(self, change: Change, index: int):
 		self.updateCriteriaList(index)
 		self.refreshParent(self.categoryParams.treeNode)
 
 	@guarded
-	def onNewCriteria(self, evt):
-		prm = self.categoryParams
+	def onCriteriaListCharHook(self, evt):
+		keyCode = evt.KeyCode
+		mods = evt.GetModifiers()
+		if keyCode == wx.WXK_DELETE and mods == wx.MOD_NONE:
+			self.onDeleteCriteria()
+			return
+		elif (
+			keyCode in (ord("C"), wx.WXK_INSERT, wx.WXK_NUMPAD_INSERT)
+			and mods == wx.MOD_CONTROL
+		):
+			self.copyAlternative()
+			return
+		elif (
+			keyCode == ord("V") and mods == wx.MOD_CONTROL
+			or keyCode in (wx.WXK_INSERT, wx.WXK_NUMPAD_INSERT) and mods == wx.MOD_SHIFT
+		):
+			self.pasteAlternative()
+			return
+		evt.Skip()
+
+	@guarded
+	def onNewCriteria(self, evt=None, pastedData=None):
 		listData = self.getData()
+		index = self.getIndex()
+		if index != wx.NOT_FOUND:
+			itemData = listData[index]
+			if not itemData.get("name"):
+				with wx.TextEntryDialog(
+					self,
+					# Translators: A prompt on the Rule editor
+					_("You may first provide a name for the current criteria set:"),
+					# Translators: The title of an input dialog in the Rule Editor dialog
+					_("Add alternatives"),
+				) as dlg:
+					if dlg.ShowModal() != wx.ID_OK:
+						return
+					name = dlg.Value
+					if name:
+						itemData["name"] = name
+						self.onCriteriaChange(Change.UPDATE, index)
 		context = self.context.copy()
 		context["new"] = True
 		itemData = context["data"]["criteria"] = OrderedDict({
 			"criteriaIndex": len(self.getData())
 		})
+		if pastedData:
+			itemData.update(pastedData)
 		if criteriaEditor.show(context, parent=self):
 			index = itemData.pop("criteriaIndex")
 			listData.insert(index, itemData)
@@ -566,9 +659,11 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 			self.onCriteriaChange(Change.UPDATE, index)
 
 	@guarded
-	def onDeleteCriteria(self, evt):
-		prm = self.categoryParams
+	def onDeleteCriteria(self, evt=None):
 		index = self.getIndex()
+		if index == wx.NOT_FOUND:
+			wx.Bell()
+			return
 		if gui.messageBox(
 			# Translator: A confirmation prompt on the Rule editor
 			_("Are you sure you want to delete this alternative?"),
@@ -742,10 +837,7 @@ class AlternativeChildPanel(AlternativesPanel):
 		row = startRow
 		# Translators: New criteria button label
 		item = self.newButton = wx.Button(self, label=_("&New..."))
-		item.Bind(
-			wx.EVT_BUTTON,
-			self.onNewCriteria if full else self.Parent.onAddAlternative,
-		)
+		item.Bind(wx.EVT_BUTTON, self.onNewCriteria)
 		gbSizer.Add(item, pos=(row, col))
 		
 		row += 1
@@ -967,9 +1059,9 @@ class SimpleSingleNodeCriteriaPanel(criteriaEditor.CriteriaPanel):
 		self.Thaw()
 	
 	def onCharHook(self, evt):
-		keycode = evt.GetKeyCode()
+		keyCode = evt.GetKeyCode()
 		mods = evt.GetModifiers()
-		if keycode == wx.WXK_F5 and mods == wx.MOD_NONE:
+		if keyCode == wx.WXK_F5 and mods == wx.MOD_NONE:
 			self.testCriteria()
 			return
 		evt.Skip()
@@ -1002,6 +1094,7 @@ class SimpleSummaryCriteriaPanel(AlternativeChildPanel):
 		dlg = parent.Parent.Parent
 		if change is Change.CREATION:
 			dlg.switchToFullEditor()
+			return
 		parent.switchToAppropriatePanel()
 		parent.shownPanel.initData(self.context)
 
@@ -1035,20 +1128,6 @@ class SimpleCriteriaPanel(RuleEditorTreeContextualPanel):
 		self.shownPanel.updateData()
 	
 	def onAddAlternative(self, evt):
-		data = self.getData()
-		if not data.get("name"):
-			with wx.TextEntryDialog(
-				self,
-				# Translators: A prompt on the Rule editor
-				_("You may first provide a name for the current criteria set:"),
-				# Translators: The title of an input dialog in the Rule Editor dialog
-				_("Add alternatives"),
-			) as dlg:
-				if dlg.ShowModal() != wx.ID_OK:
-					return
-				name = dlg.Value
-				if name:
-					data["name"] = name
 		self.summaryPanel.onNewCriteria(evt)
 	
 	def onConvertToDualNode(self, evt):
@@ -1063,6 +1142,9 @@ class SimpleCriteriaPanel(RuleEditorTreeContextualPanel):
 	
 	def delete(self):
 		wx.Bell()
+	
+	def pasteAlternative(self):
+		self.summaryPanel.pasteAlternative()
 	
 	def spaceIsPressedOnTreeNode(self):
 		self.shownPanel.spaceIsPressedOnTreeNode()
@@ -1296,9 +1378,9 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 	
 	def onCharHook(self, evt):
 		# Bound by TreeMultiCategorySettingsDialog.makeSettings
-		keycode = evt.GetKeyCode()
+		keyCode = evt.KeyCode
 		mods = evt.GetModifiers()
-		if keycode == wx.WXK_F8 and mods == wx.MOD_NONE:
+		if keyCode == wx.WXK_F8 and mods == wx.MOD_NONE:
 			from ..inspector import show
 			try:
 				node = self.context["webModule"].ruleManager.nodeManager.getCaretNode().parent
@@ -1307,9 +1389,33 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 				return
 			show(parent=self, node=node)
 			return
-		elif keycode == wx.WXK_F12 and mods == wx.MOD_NONE:
+		elif keyCode == wx.WXK_F12 and mods == wx.MOD_NONE:
 			self.switchToFullEditor()
 			return
+		elif self.catListCtrl.HasFocus():
+			cat = self.currentCategory
+			if (
+				isinstance(cat, SimpleCriteriaPanel)
+				and keyCode in (ord("C"), wx.WXK_INSERT, wx.WXK_NUMPAD_INSERT)
+				and mods == wx.MOD_CONTROL
+			):
+				cat.updateData()
+				cat.summaryPanel.copyAlternative()
+				return
+			elif (
+				isinstance(cat, (AlternativesPanel, SimpleCriteriaPanel))
+				and (
+					keyCode == ord("V") and mods == wx.MOD_CONTROL
+					or keyCode in (wx.WXK_INSERT, wx.WXK_NUMPAD_INSERT) and mods == wx.MOD_SHIFT
+				)
+			):
+				if (
+					isinstance(cat, SimpleCriteriaPanel)
+					and isinstance(cat.shownPanel, SimpleSingleNodeCriteriaPanel)
+				):
+					cat.updateData()
+				cat.pasteAlternative()
+				return
 		super().onCharHook(evt)
 	
 	def switchToFullEditor(self):

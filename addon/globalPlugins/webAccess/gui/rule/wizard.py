@@ -279,7 +279,8 @@ class Wizard(wx.adv.Wizard, ScalingMixin):
 		if context.get("new"):
 			# Translators: The title for the Rule Creation Wizard dialog
 			title = _("Rule Creation Wizard")
-			data["rule"] = {"type": ruleTypes.MARKER}
+			# There might be existing data pasted from the clipboard
+			data.setdefault("rule", {"type": ruleTypes.MARKER})
 		else:
 			# Translators: The title for the Rule Creation Wizard dialog
 			title = _("Rule Edit Wizard")
