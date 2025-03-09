@@ -891,6 +891,73 @@ class CriteriaPanel(CriteriaEditorPanel):
 			value = InvalidValue(value)
 		updateOrDrop(data, "index", value)
 
+	def copySelector(self):
+		self.updateData()
+		data = {"webAccess.selector" : self.getData()}
+		import json
+		data = json.dumps(data, indent=4)
+		import api
+		if api.copyToClip(data):
+			# Translators: A message from the Rule Editor dialog
+			ui.message(_("Criteria data copied to clipboard"))
+			return
+		wx.Bell()
+	
+	def pasteSelector(self):
+		self.updateData()
+		import api
+		data = api.getClipData()
+		if not data:
+			wx.Bell()
+			return
+		import json
+		try:
+			data = json.loads(data)
+		except Exception:
+			wx.Bell()
+			return
+		if not isinstance(data, dict) and len(data) == 1:
+			wx.Bell()
+			return
+		key, data = data.popitem()
+		try:
+			if key == "webAccess.rule":
+					if len(data) != 1:
+						wx.Bell()
+						return
+					data = data[0]["criteria"]["selector"]
+			elif key == "webAccess.criteria":
+				data = data["selector"]
+			elif key == "webAccess.rule":
+				data = data["criteria"]
+				if len(data) != 1:
+					wx.Bell()
+					return
+				data = data[0]
+			elif key == "webAccess.selector":
+				pass 
+			else:
+				wx.Bell()
+				return
+		except (AttributeError, TypeError):
+			wx.Bell()
+			return
+		if not data or set(data.keys()) == {"start", "end"}:
+			wx.Bell()
+			return
+		if self.getData():
+			if gui.messageBox(
+				# Translators: A prompt for confirmation on the Criteria Editor
+				message=_("Replace editor content with data from the clipboard?"),
+				# Translators: The title of a prompt for confirmation on the Criteria Editor
+				caption=_("Paste"),
+				style=wx.YES_NO | wx.CANCEL | wx.ICON_QUESTION,
+				parent=self
+			) != wx.YES:
+				return
+		self.getData().clear()
+		self.getData().update(data)
+	
 	def refreshContextMacroChoices(self, initial=False):
 		context = self.context
 		dropDown = self.contextMacroDropDown
@@ -1251,9 +1318,9 @@ class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
 	
 	def onCharHook(self, evt):
 		# Bound by MultiCategorySettingsDialog.makeSettings
-		keycode = evt.GetKeyCode()
+		keyCode = evt.GetKeyCode()
 		mods = evt.GetModifiers()
-		if keycode == wx.WXK_F5 and mods in (wx.MOD_NONE, wx.MOD_CONTROL):
+		if keyCode == wx.WXK_F5 and mods in (wx.MOD_NONE, wx.MOD_CONTROL):
 			currCat = self.currentCategory
 			restrictDualNodeTo = None
 			if mods == wx.MOD_NONE:
@@ -1263,9 +1330,24 @@ class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
 					restrictDualNodeTo = "end"
 			currCat.updateData()
 			testCriteria(self.context, restrictDualNodeTo=restrictDualNodeTo)
-		elif keycode == wx.WXK_F12 and mods == wx.MOD_NONE:
+		elif keyCode == wx.WXK_F12 and mods == wx.MOD_NONE:
 			self.switchToFullEditor()
 			return
+		elif self.catListCtrl.HasFocus():
+			cat = self.currentCategory
+			if isinstance(cat, CriteriaPanel):
+				if (
+					keyCode in (ord("C"), wx.WXK_INSERT, wx.WXK_NUMPAD_INSERT)
+					and mods == wx.MOD_CONTROL
+				):
+					cat.copySelector()
+					return
+				elif (
+					keyCode == ord("V") and mods == wx.MOD_CONTROL
+					or keyCode in (wx.WXK_INSERT, wx.WXK_NUMPAD_INSERT) and mods == wx.MOD_SHIFT
+				):
+					cat.pasteSelector()
+					return
 		super().onCharHook(evt)
 	
 	def onConvertToDualNode(self, evt):

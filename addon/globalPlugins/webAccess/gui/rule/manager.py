@@ -579,6 +579,27 @@ class Dialog(ContextualDialog):
 			)
 		self.onGroupByRadio(None)
 	
+	@guarded
+	def copyRule(self):
+		obj = self.getSelectedObject()
+		if obj is None:
+			wx.Bell()
+			return
+		rule = None
+		if isinstance(obj, Result):
+			rule = obj.rule
+		elif isinstance(obj, Rule):
+			rule = obj
+		data = {"webAccess.rule" : rule.dump()}
+		import json
+		data = json.dumps(data, indent=4)
+		import api
+		if api.copyToClip(data):
+			# Translators: A message from the Rules Manager dialog
+			ui.message(_("Rule data copied to clipboard"))
+			return
+		wx.Bell()
+	
 	def disableGroupByPosition(self) -> bool:
 		"""Returns `True` if the tree was refreshed as of this call.
 		"""
@@ -590,6 +611,33 @@ class Dialog(ContextualDialog):
 				self.cycleGroupBy(previous=True, report=False)  # Selects groupBy name
 				return True
 		return False
+	
+	def pasteRule(self):
+		import api
+		data = api.getClipData()
+		if not data:
+			wx.Bell()
+			return
+		import json
+		try:
+			data = json.loads(data)
+		except Exception:
+			wx.Bell()
+			return
+		if not (isinstance(data, dict) and len(data) == 1):
+			wx.Bell()
+			return
+		key, data = data.popitem()
+		if key == "webAccess.rule":
+			pass
+		elif key == "webAccess.criteria":
+			data = {"type": ruleTypes.MARKER, "criteria": [data]}
+		elif key == "webAccess.selector":
+			data = {"type": ruleTypes.MARKER, "criteria": [{"selector": data}]}
+		else:
+			wx.Bell()
+			return
+		self.onRuleNew(pastedData=data)
 	
 	def refreshRuleList(self):
 		context = self.context
@@ -675,13 +723,14 @@ class Dialog(ContextualDialog):
 	
 	@guarded
 	def onCharHook(self, evt: wx.KeyEvent):
-		keycode = evt.KeyCode
-		if keycode == wx.WXK_ESCAPE:
+		keyCode = evt.KeyCode
+		mods = evt.GetModifiers()
+		if keyCode == wx.WXK_ESCAPE:
 			# Try to limit the difficulty of closing the dialog using the keyboard
 			# in the event of an error later in this function
 			evt.Skip()
 			return
-		elif keycode == wx.WXK_F6 and not evt.GetModifiers():
+		elif keyCode == wx.WXK_F6 and mods | wx.MOD_SHIFT == wx.MOD_SHIFT:
 			if self.tree.HasFocus():
 				getattr(self, "_lastDetails", self.ruleSummary).SetFocus()
 				return
@@ -691,13 +740,13 @@ class Dialog(ContextualDialog):
 						self._lastDetails = ctrl
 						self.tree.SetFocus()
 						return
-		elif keycode == wx.WXK_RETURN and not evt.GetModifiers():
+		elif keyCode == wx.WXK_RETURN and mods == wx.MOD_NONE:
 			# filterEdit is handled separately (TE_PROCESS_ENTER) 
 			for ctrl in (self.groupByRadio, self.activeOnlyCheckBox):
 			 	if ctrl.HasFocus():
 			 		self.tree.SetFocus()
 			 		return
-		elif keycode == wx.WXK_TAB and evt.ControlDown():
+		elif keyCode == wx.WXK_TAB and evt.ControlDown():
 			self.cycleGroupBy(previous=evt.ShiftDown())
 			return
 		elif self.tree.HasFocus():
@@ -706,11 +755,23 @@ class Dialog(ContextualDialog):
 			# currently active keyboard layout would require calling GetKeyboardLayout and ToUnicodeEx
 			# (passing 0 as vkState) from user32.dll. An example can be found in NVDA's keyboardHandler.
 			# Probably overkill, though.
-			if keycode == wx.WXK_NUMPAD_MULTIPLY:
+			if keyCode == wx.WXK_NUMPAD_MULTIPLY and mods == wx.MOD_NONE:
 				self.tree.ExpandAll()
 				return
-			elif keycode == wx.WXK_NUMPAD_DIVIDE:
+			elif keyCode == wx.WXK_NUMPAD_DIVIDE and mods == wx.MOD_NONE:
 				self.tree.CollapseAll()
+				return
+			elif (
+				keyCode in (ord("C"), wx.WXK_INSERT, wx.WXK_NUMPAD_INSERT)
+				and mods == wx.MOD_CONTROL
+			):
+				self.copyRule()
+				return
+			elif(
+				keyCode == ord("V") and mods == wx.MOD_CONTROL
+				or keyCode in (wx.WXK_INSERT, wx.WXK_NUMPAD_INSERT) and mods == wx.MOD_SHIFT
+			):
+				self.pasteRule()
 				return
 		evt.Skip()
 	
@@ -807,10 +868,12 @@ class Dialog(ContextualDialog):
 		wx.CallAfter(self.tree.SetFocus)
 	
 	@guarded
-	def onRuleNew(self, evt):
+	def onRuleNew(self, evt=None, pastedData=None):
 		context = self.context.copy()
 		context["new"] = True
 		context.get("data", {}).pop("rule", None)
+		if pastedData:
+			context.setdefault("data", {})["rule"] = pastedData
 		from .wizard import show
 		if show(context, parent=self):
 			rule = self.context["rule"] = context["rule"]
