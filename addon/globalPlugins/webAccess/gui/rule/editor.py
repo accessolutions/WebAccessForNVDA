@@ -1217,6 +1217,17 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 			else:
 				self.currentCategory.SetFocus()
 	
+	def focusContainerControl(self, index: int):
+		try:
+			super().focusContainerControl(index)
+		except IndexError:
+			cat = self.currentCategory
+			if isinstance(cat, SimpleCriteriaPanel):
+				[
+					child for child in cat.shownPanel.GetChildren()
+					if isinstance(child, wx.Control) and child.CanAcceptFocusFromKeyboard()
+				][index].SetFocus()
+	
 	def onCharHook(self, evt):
 		# Bound by TreeMultiCategorySettingsDialog.makeSettings
 		keycode = evt.GetKeyCode()
