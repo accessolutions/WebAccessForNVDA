@@ -305,7 +305,6 @@ def testCriteria(context, restrictDualNodeTo=None):
 			# Translators: The title of a dialog in the Criteria Set editor
 			caption = _("Criteria test")
 	critData.pop("new", None)
-	critData.pop("criteriaIndex", None)
 	ruleData["criteria"] = [critData]
 	# Ensure the user is informed about all the match occurrences, even if only
 	# the first is retained by a disabled "multiple" property.
@@ -363,9 +362,7 @@ def convertToSingleNode(data):
 class CriteriaEditorPanel(RuleAwarePanelBase):
 	
 	def getData(self):
-		# Should always be initialized, as the Rule Editor populates it with at least
-		# the index of this Alternative Criteria Set ("criteriaIndex").
-		return self.context["data"]["criteria"]
+		return self.context["data"].setdefault("criteria", {})
 
 
 class GeneralPanel(CriteriaEditorPanel):
@@ -388,22 +385,6 @@ class GeneralPanel(CriteriaEditorPanel):
 		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		item = self.criteriaName = wx.TextCtrl(self)
-		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-
-		items = self.hideable["order"] = []
-		row += 1
-		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-		items.append(item)
-
-		row += 1
-		# Translator: The label for a field on the Criteria editor
-		item = wx.StaticText(self, label=_("&Sequence order:"))
-		items.append(item)
-		gbSizer.Add(item, pos=(row, 0))
-		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-		items.append(item)
-		item = self.sequenceOrderChoice = wx.Choice(self)
-		items.append(item)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 
 		row += 1
@@ -466,19 +447,7 @@ class GeneralPanel(CriteriaEditorPanel):
 	
 	def initData(self, context):
 		super().initData(context)
-		self.sequenceOrderChoice.Clear()
-		nbAlternatives = len(context["data"]["rule"]["criteria"])
-		if context.get("new"):
-			nbAlternatives += 1
 		data = self.getData()
-		if nbAlternatives == 1:
-			for item in self.hideable["order"]:
-				item.Show(False)
-		else:
-			for index in range(nbAlternatives):
-				self.sequenceOrderChoice.Append(str(index + 1))
-			index = data.get("criteriaIndex", nbAlternatives + 1)
-			self.sequenceOrderChoice.SetSelection(index)
 		if self.getRuleType() == ruleTypes.ZONE:
 			key = "convert.single" if isDualNode(data) else "convert.dual"
 			for item in self.hideable[key]:
@@ -509,12 +478,6 @@ class GeneralPanel(CriteriaEditorPanel):
 
 	def spaceIsPressedOnTreeNode(self):
 		self.criteriaName.SetFocus()
-
-	def onSave(self):
-		super().onSave()
-		data = self.getData()
-		index = self.sequenceOrderChoice.Selection
-		data["criteriaIndex"] = index if index != -1 else 0
 
 
 class CriteriaPanel(CriteriaEditorPanel):
@@ -1294,9 +1257,7 @@ class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
 		super().__init__(parent, *args, **kwargs)
 	
 	def getData(self):
-		# Should always be initialized, as the Rule Editor populates it with at least
-		# the index of this Alternative Criteria Set ("criteriaIndex").
-		return self.context["data"]["criteria"]
+		return self.context["data"].setdefault("criteria")
 	
 	def initData(self, context):
 		super().initData(context)

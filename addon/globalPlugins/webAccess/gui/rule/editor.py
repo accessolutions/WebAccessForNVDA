@@ -60,6 +60,7 @@ from .. import (
 	Change,
 	ContextualSettingsPanel,
 	SingleFieldEditorPanelBase,
+	StaticNameAndDescription,
 	TreeContextualPanel,
 	TreeMultiCategorySettingsDialog,
 	TreeNodeInfo,
@@ -428,9 +429,9 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 		item = self.criteriaList = wx.ListBox(self)
 		item.Bind(wx.EVT_LISTBOX, self.onCriteriaSelected)
 		item.Bind(wx.EVT_CHAR_HOOK, self.onCriteriaListCharHook)
-		gbSizer.Add(item, pos=(row, 0), span=(6, 3), flag=wx.EXPAND)
+		gbSizer.Add(item, pos=(row, 0), span=(9, 3), flag=wx.EXPAND)
 		
-		row += 6
+		row += 9
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
 		
 		row += 1
@@ -462,7 +463,7 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 		# Translators: The label for a button on the Rule Editor dialog
 		item = self.newButton = wx.Button(self, label=_("&New..."))
 		item.Bind(wx.EVT_BUTTON, self.onNewCriteria)
-		gbSizer.Add(item, pos=(row, col))
+		gbSizer.Add(item, pos=(row, col), flag=wx.EXPAND)
 		
 		row += 1
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, col))
@@ -471,7 +472,7 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 		# Translators: The label for a button on the Rule Editor dialog
 		item = self.editButton = wx.Button(self, label=_("&Edit..."))
 		item.Bind(wx.EVT_BUTTON, self.onEditCriteria)
-		gbSizer.Add(item, pos=(row, col))
+		gbSizer.Add(item, pos=(row, col), flag=wx.EXPAND)
 		
 		row += 1
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, col))
@@ -480,8 +481,41 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 		# Translators: The label for a button on the Rule Editor dialog
 		item = self.deleteButton = wx.Button(self, label=_("&Delete"))
 		item.Bind(wx.EVT_BUTTON, self.onDeleteCriteria)
-		gbSizer.Add(item, pos=(row, col))
-
+		gbSizer.Add(item, pos=(row, col), flag=wx.EXPAND)
+		
+		row += 1
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, col))
+		
+		row += 1
+		hBoxSizer = wx.BoxSizer(wx.HORIZONTAL)
+		gbSizer.Add(hBoxSizer, pos=(row, col), flag=wx.EXPAND)
+		
+		# \u25B2: Black up-pointing triangle
+		item = wx.Button(self, label="\u25B2", style=wx.BU_EXACTFIT)
+		item.SetAccessible(StaticNameAndDescription(
+			item,
+			# Translators: The name for a button on the Rule Editor's full Criteria panel 
+			_("Move up"),
+			# Translators: The description for a button on the Rule Editor's full Criteria panel
+			_("alt + up arrow from the list"),
+		)) 
+		item.Bind(wx.EVT_BUTTON, lambda evt: self.moveUp())
+		hBoxSizer.Add(item, flag=wx.EXPAND, proportion=1)
+		
+		hBoxSizer.AddSpacer(scale(guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL))
+		
+		# \u25BC: Black down-pointing triangle
+		item = wx.Button(self, label="\u25BC", style=wx.BU_EXACTFIT)
+		item.SetAccessible(StaticNameAndDescription(
+			item,
+			# Translators: The name for a button on the Rule Editor's full Criteria panel 
+			_("Move down"),
+			# Translators: The description for a button on the Rule Editor's full Criteria panel
+			_("alt + down arrow from the list"),
+		)) 
+		item.Bind(wx.EVT_BUTTON, lambda evt: self.moveDown())
+		hBoxSizer.Add(item, flag=wx.EXPAND, proportion=1)
+		
 		gbSizer.AddGrowableCol(listEndCol)
 
 	def getData(self):
@@ -530,7 +564,35 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 			)
 			return False
 		return True
-
+	
+	def moveUp(self):
+		self.move(up=True)
+	
+	def moveDown(self):
+		self.move(up=False)
+	
+	@guarded
+	def move(self, up=False):
+		oldIndex = self.getIndex()
+		if oldIndex == wx.NOT_FOUND:
+			wx.Bell()
+			return
+		data = self.getData()
+		newIndex = oldIndex + (-1 if up else 1)
+		if not (0 <= newIndex <= len(data) - 1):
+			wx.Bell()
+			return
+		item = data.pop(oldIndex)
+		data.insert(newIndex, item)
+		if up:
+			# Translators: Reported when moving a list item on the Rule Editor
+			msg = _("Moved above {}")
+		else:
+			# Translators: Reported when moving a list item on the Rule Editor
+			msg = _("Moved below {}")
+		ui.message(msg.format(self.getCriteriaName(data[oldIndex])))
+		self.onCriteriaChange(Change.UPDATE, newIndex)
+	
 	@guarded
 	def copyAlternative(self):
 		index = self.getIndex()
@@ -596,6 +658,12 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 		if keyCode == wx.WXK_DELETE and mods == wx.MOD_NONE:
 			self.onDeleteCriteria()
 			return
+		elif keyCode == wx.WXK_UP and mods == wx.MOD_ALT:
+			self.moveUp()
+			return
+		elif keyCode == wx.WXK_DOWN and mods  == wx.MOD_ALT:
+			self.moveDown()
+			return
 		elif (
 			keyCode in (ord("C"), wx.WXK_INSERT, wx.WXK_NUMPAD_INSERT)
 			and mods == wx.MOD_CONTROL
@@ -632,14 +700,13 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 						self.onCriteriaChange(Change.UPDATE, index)
 		context = self.context.copy()
 		context["new"] = True
-		itemData = context["data"]["criteria"] = OrderedDict({
-			"criteriaIndex": len(self.getData())
-		})
 		if pastedData:
-			itemData.update(pastedData)
+			context["data"]["criteria"] = pastedData
 		if criteriaEditor.show(context, parent=self):
-			index = itemData.pop("criteriaIndex")
-			listData.insert(index, itemData)
+			index = self.getIndex()
+			if index == wx.NOT_FOUND:
+				index = 0
+			listData.insert(index, context["data"].pop("criteria"))
 			self.onCriteriaChange(Change.CREATION, index)
 
 	@guarded

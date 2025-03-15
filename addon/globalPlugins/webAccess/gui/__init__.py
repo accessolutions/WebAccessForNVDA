@@ -160,6 +160,24 @@ class CustomTreeCtrl(wx.TreeCtrl):
 				self.addToListCtrl(categoryClassInfo.children, newParent)
 
 
+class StaticNameAndDescription(wx.Accessible):
+	"""`wx.Accessible` implementation with static name and description
+	
+	Used to provide proper textual information for buttons labelled with a Unicode icon.
+	"""
+	
+	def __init__(self, window, name, description):
+		super().__init__(window)
+		self.name = name
+		self.description = description
+	
+	def GetName(self, childId):
+		return (wx.ACC_OK, self.name)
+	
+	def GetDescription(self, childId):
+		return (wx.ACC_OK, self.description)
+
+
 class ListCtrlAccessible(wx.Accessible):
 	"""`wx.Accessible` implementation advertising when a `wx.ListCtrl` is empty.
 	
