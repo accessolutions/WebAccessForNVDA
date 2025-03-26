@@ -1104,6 +1104,30 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 
 	script_quickNavToPreviousResultLevel3.ignoreTreeInterceptorPassThrough = True
 	script_quickNavToPreviousResultLevel3.passThroughIfNoWebModule = True
+	@script(
+		# Translators: The description for the quickNavToNextResultSameRule script
+		description=_("Move to next result of the same rule."),
+		category=SCRCAT_WEBACCESS,
+		gesture="kb:control+shift+pagedown"
+	)
+	def script_quickNavToNextResultSameRule(self, gesture):
+		self.webAccess.ruleManager.quickNavToNextSame()
+
+
+	script_quickNavToNextResultSameRule.ignoreTreeInterceptorPassThrough = True
+	script_quickNavToNextResultSameRule.passThroughIfNoWebModule = True
+
+	@script(
+		# Translators: The description for the quickNavToPreviousResultSameRule script
+		description=_("Move to previous result of the same rule."),
+		category=SCRCAT_WEBACCESS,
+		gesture="kb:control+shift+pageup"
+	)
+	def script_quickNavToPreviousResultSameRule(self, gesture):
+		self.webAccess.ruleManager.quickNavToPreviousSame()
+
+	script_quickNavToPreviousResultSameRule.ignoreTreeInterceptorPassThrough = True
+	script_quickNavToPreviousResultSameRule.passThroughIfNoWebModule = True
 
 	@script(
 		# Translators: The description for the refreshResults script
