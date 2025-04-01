@@ -41,7 +41,7 @@ import inputCore
 import queueHandler
 import ui
 
-from ...ruleHandler import GestureScope, Rule, Result, Zone, ruleTypes
+from ...ruleHandler import Criteria, GestureScope, Rule, Result, Selector, Zone, ruleTypes
 from ...utils import guarded
 from ...webModuleHandler import getEditableWebModule, save
 from .. import ContextualDialog, showContextualDialog, stripAccel
@@ -85,7 +85,13 @@ def show(context, parent=None):
 TreeItemData = namedtuple("TreeItemData", ("label", "obj", "children"))
 
 
-def getCriteriaLabel(criteria):
+def getCriteriaOrSelectorLabel(criteriaOrSelector):
+	if isinstance(criteriaOrSelector, Criteria):
+		criteria = criteriaOrSelector
+		selector = None
+	elif isinstance(criteriaOrSelector, Selector):
+		selector = criteriaOrSelector
+		criteria = selector.criteria
 	rule = criteria.rule
 	label = rule.name
 	if len(rule.criteria) > 1:
@@ -98,6 +104,13 @@ def getCriteriaLabel(criteria):
 			inputCore.getDisplayTextForGestureIdentifier(identifier)[1]
 			for identifier in list(rule._gestureMap.keys())
 		))
+	if selector is not None:
+		if selector is criteria.startSelector:
+			# Translators: A mention on the Rules Manager dialog for free zone selectors
+			label += _(" (start)")
+		elif selector is criteria.endSelector:
+			# Translators: A mention on the Rules Manager dialog for free zone selectors
+			label += _(" (end)")
 	return label
 
 
@@ -208,13 +221,16 @@ def getRulesByContext(ruleManager, filter=None, active=False):
 			alternatives = (result.criteria for result in results)
 		else:
 			alternatives = (criteria for criteria in rule.criteria)
-		for criteria in alternatives:
+		for selector in (
+			s for c in alternatives for s in ( c.nodeSelector, c.startSelector, c.endSelector)
+			if s is not None
+		):
 			contexts.setdefault((
-				criteria.contextPageTitle or "",  # Avoiding None eases later sorting
-				criteria.contextPageType or "",
-				criteria.contextParent or "",
+				selector.contextPageTitle or "",  # Avoiding None eases later sorting
+				selector.contextPageType or "",
+				selector.contextParent or "",
 			), []).append(TreeItemData(
-				label=getCriteriaLabel(criteria),
+				label=getCriteriaOrSelectorLabel(selector),
 				obj=rule,
 				children=[]
 			))
@@ -237,11 +253,20 @@ def getRulesByContext(ruleManager, filter=None, active=False):
 		else:
 			# Translators: A context grouping label on the Rules Manager
 			label = "General"
-		yield TreeItemData(
-			label=label,
-			obj=None,
-			children=sorted(tids, key=lambda tid: tid.label)
-		)
+		
+		def sortKey(tld):
+			label = tld.label
+			for index, suffix in (
+				# Translators: A mention on the Rules Manager dialog for free zone selectors
+				(0, _(" (end)")),
+				# Translators: A mention on the Rules Manager dialog for free zone selectors
+				(1, _(" (end)")),
+			):
+				if label.endswith(suffix):
+					label = label[:-len(suffix)] + str(index)
+			return label
+		
+		yield TreeItemData(label=label, obj=None, children=sorted(tids, key=sortKey))
 
 
 def getRulesByName(ruleManager, filter=None, active=False):
@@ -283,7 +308,7 @@ def getRulesByPosition(ruleManager, filter=None, active=True):
 		if layer and rule.layer != layer:
 			continue
 		tid = TreeItemData(
-			label=getCriteriaLabel(result.criteria),
+			label=getCriteriaOrSelectorLabel(result.criteria),
 			obj=result,
 			children=[]
 		)
