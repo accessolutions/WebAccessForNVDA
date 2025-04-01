@@ -1291,8 +1291,7 @@ class Result(ScriptableObject):
 		self.ti._activatePosition(info=self.getTextInfo())
 	
 	def containsNode(self, node):
-		offset = node.offset
-		return self.startOffset <= offset and self.endOffset >= offset + node.size
+		raise NotImplementedError
 	
 	def containsResult(self, result):
 		return self.startOffset <= result.startOffset and self.endOffset >= result.endOffset
@@ -1356,6 +1355,9 @@ class SingleNodeResult(Result):
 	def _get_endOffset(self):
 		node = self.node
 		return node.offset + node.size
+	
+	def containsNode(self, node):
+		return node in self.node
 
 
 class DualNodeResult(SingleNodeResult):
@@ -1371,6 +1373,12 @@ class DualNodeResult(SingleNodeResult):
 	def _get_endNode(self):
 		return self._endNode()
 	
+	def containsNode(self, node):
+		for part in self.node.getNodeSpan(self.endNode):
+			if node == part or node in part:
+				return True
+		return False
+
 
 class Selector(AutoPropertyObject):
 	
@@ -1953,10 +1961,6 @@ class Zone(AutoPropertyObject):
 		startOffset = result.startOffset
 		endOffset = result.endOffset
 		return f"<Zone {layer}/{name} at ({startOffset}, {endOffset})>"
-
-	def containsNode(self, node):
-		offset = node.offset
-		return self.containsOffsets(offset, offset + node.size)
 
 	def containsOffsets(self, startOffset, endOffset):
 		result = self.result

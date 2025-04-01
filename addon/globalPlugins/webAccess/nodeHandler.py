@@ -899,51 +899,54 @@ class NodeField(TrackedObject):
 		winUser.setCursorPos(x, y)
 		mouseHandler.executeMouseMoveEvent(x, y)
 
-	def __lt__(self, node):
-		"""
-		Compare nodes based on their offset.
-		"""
-		if self.offset < node.offset:
-			return True
-		return False
-
-	def __le__(self, node):
-		"""
-		Compare nodes based on their offset.
-		"""
-		if self.offset <= node.offset:
-			return True
-		return False
-
-	def __gt__(self, node):
-		"""
-		Compare nodes based on their offset.
-		"""
-		if self.offset > node.offset:
-			return True
-		return False
-
-	def __ge__(self, node):
-		"""
-		Compare nodes based on their offset.
-		"""
-		if self.offset >= node.offset:
-			return True
-		return False
+# 	def __lt__(self, node):
+# 		"""
+# 		Compare nodes based on their offset.
+# 		"""
+# 		if self.offset < node.offset:
+# 			return True
+# 		return False
+# 
+# 	def __le__(self, node):
+# 		"""
+# 		Compare nodes based on their offset.
+# 		"""
+# 		if self.offset <= node.offset:
+# 			return True
+# 		return False
+# 
+# 	def __gt__(self, node):
+# 		"""
+# 		Compare nodes based on their offset.
+# 		"""
+# 		if self.offset > node.offset:
+# 			return True
+# 		return False
+# 
+# 	def __ge__(self, node):
+# 		"""
+# 		Compare nodes based on their offset.
+# 		"""
+# 		if self.offset >= node.offset:
+# 			return True
+# 		return False
 
 	def __contains__(self, node):
-		"""
-		Check whether the given node belongs to the subtree of this node, based
-		on their offset.
-		"""
-		if self > node:
-			return False
-		if not self.children:
-			return False
-		lastChild = self.children[-1]
-		if lastChild >= node:
-			return True
-		return node in lastChild
+		children = self.children
+		start = node.offset
+		end = start + node.size
+		while True:
+			for child in children:
+				if child == node:
+					return True
+				if (
+					child.offset <= start
+					and child.offset + child.size >= end
+				):
+					children = child.children
+					break
+			else:
+				break
 
 	def __len__(self):
 		return self.size
