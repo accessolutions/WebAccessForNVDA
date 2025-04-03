@@ -435,7 +435,8 @@ class GeneralPanel(CriteriaEditorPanel):
 		row += 1
 		# Translators: The label for a button in the Criteria Editor dialog
 		item = wx.Button(self, label=_("Convert to free &zone (two sets of criteria)"))
-		item.Bind(wx.EVT_BUTTON, self.Parent.Parent.onConvertToDual)
+		item.Bind(wx.EVT_BUTTON, self.Parent.Parent.onConvertToDualNode)
+		item.Disable()
 		items.append(item)
 		item = gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
 		items.append(item)
@@ -449,8 +450,9 @@ class GeneralPanel(CriteriaEditorPanel):
 
 		row += 1
 		# Translators: The label for a button in the Criteria Editor dialog
-		item = wx.Button(self, label=_("Convert to simple zone (one set of criteria)"))
-		item.Bind(wx.EVT_BUTTON, self.Parent.Parent.onConvertToSingle)
+		item = wx.Button(self, label=_("Convert to simple &zone (one set of criteria)"))
+		item.Bind(wx.EVT_BUTTON, self.Parent.Parent.onConvertToSingleNode)
+		item.Disable()
 		items.append(item)
 		item = gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
 		items.append(item)
@@ -477,6 +479,8 @@ class GeneralPanel(CriteriaEditorPanel):
 		if self.getRuleType() == ruleTypes.ZONE:
 			key = "convert.single" if isDualNode(data) else "convert.dual"
 			for item in self.hideable[key]:
+				if isinstance(item, wx.Button):
+					item.Enable()
 				item.Show(True)
 		self.criteriaName.Value = data.get("name", "")
 		self.commentText.Value = data.get("comment", "")
@@ -1233,20 +1237,20 @@ class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
 			return
 		super().onCharHook(evt)
 	
-	def onConvertToDual(self, evt):
+	def onConvertToDualNode(self, evt):
 		convertToDualNode(self.getData())
 		self.EndModal(wx.ID_CONVERT)
 	
-	def onConvertToSingle(self, evt):
+	def onConvertToSingleNode(self, evt):
 		if gui.messageBox(
 			_(
-				#Translators: A confirmation prompt on the Criteria Set editor
+				#Translators: A prompt for confirmation on the Criteria Set editor
 				"""This will delete your End Criteria choices.
 
 Do you want to proceed?"""
 			),
-			# Translators: The title of a dialog on the Criteria Set editor
-			caption=_("Convert to simple &zone (one set of criteria)"),
+			# Translators: The title of prompt for confirmation on the Criteria Set editor
+			caption=_("Convert to simple zone (one set of criteria)"),
 			style=wx.ICON_WARNING | wx.YES_NO | wx.NO_DEFAULT
 		) != wx.YES:
 			return
