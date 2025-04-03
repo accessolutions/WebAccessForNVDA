@@ -1647,8 +1647,8 @@ class Criteria(ScriptableObject):
 				"end": self.endSelector.dump(),
 			}
 		gestures = {
-			grestureId: (scope.value, actionId)
-			for gestureId, (scope, actionId) in self.gestures
+			gestureId: (scope.value, actionId)
+			for gestureId, (scope, actionId) in self.gestures.items()
 		}
 		setIfNotDefault("gestures", gestures, {})
 		setIfNotDefault("properties", self.properties.dump(), {})
