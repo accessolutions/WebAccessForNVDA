@@ -248,7 +248,7 @@ class SinglePropertyEditorPanelBase(SingleFieldEditorMixin, ContextualSettingsPa
 	
 	Known sub-classes:
 	 - "PropertiesPanelBase"
-	 - "rule.editor.ChildPropertyPanel"
+	 - "rule.editor.PropertyChildPanel"
 	"""
 	
 	# Translators: The label for a category in the rule editor

@@ -167,16 +167,35 @@ class RuleEditorTreeContextualPanel(RuleAwarePanelBase, TreeContextualPanel):
 	def getData(self):
 		return self.getRuleData()
 	
+	def confirmRuleTypeChange(self):
+		data = self.getRuleData()
+		if any(
+			criteriaEditor.isDualNode(alternative)
+			for alternative in data.get("criteria", [])
+		):
+			if gui.messageBox(
+				_(
+					#Translators: A prompt for confirmation on the Rule editor
+					"""This will delete your End Criteria choices.
+	
+	Do you want to proceed?"""
+				),
+				# Translators: The title of a prompt for confirmation on the Rule editor
+				caption=_("Rule Type change"),
+				style=wx.ICON_WARNING | wx.YES_NO | wx.NO_DEFAULT
+			) != wx.YES:
+				return False
+			for alternative in data["criteria"]:
+				if criteriaEditor.isDualNode(alternative):
+					criteriaEditor.convertToSingleNode(alternative)
+		return True
+	
 	def onRuleType_change(self):
 		prm = self.categoryParams
 		categoryClasses = tuple(nodeInfo.categoryClass for nodeInfo in self.Parent.Parent.categoryClasses)
 		for index in (categoryClasses.index(cls) for cls in (GesturesPanel, PropertiesPanel)):
 			category = prm.tree.getXChild(prm.tree.RootItem, index)
 			self.refreshParent(category)
-
-
-class RuleEditorSingleFieldChildPanel(SingleFieldEditorPanelBase, RuleEditorTreeContextualPanel):
-	pass
 
 
 class GeneralPanel(RuleEditorTreeContextualPanel):
@@ -280,6 +299,9 @@ class GeneralPanel(RuleEditorTreeContextualPanel):
 
 	@guarded
 	def onRuleType_choice(self, evt):
+		if not self.confirmRuleTypeChange():
+			self.initData(self.context)
+			return
 		data = self.getData()
 		value = data["type"] = self.getTypeFieldValue()
 		self.refreshSummary()
@@ -626,11 +648,33 @@ class PropertiesPanel(PropertiesPanelBase, RuleEditorTreeContextualPanel):
 		# Refreshing all child nodes is too slow for quick editing
 		prm.tree.updateNodeText(
 			prm.tree.getXChild(prm.treeNode, tuple(p.name for p in self.props).index(self.prop.name)),
-			ChildPropertyPanel.getTreeNodeLabelForProp(self.prop)
+			PropertyChildPanel.getTreeNodeLabelForProp(self.prop)
 		)
 
 
-class ChildAlternativePanel(AlternativesPanel):
+class RuleEditorSingleFieldChildPanel(SingleFieldEditorPanelBase, RuleEditorTreeContextualPanel):
+	pass
+
+
+class RuleTypeChildPanel(RuleEditorSingleFieldChildPanel):
+
+	def onEditor_change(self):
+		super().onEditor_change()
+		self.onRuleType_change()
+	
+	@guarded
+	def onEditor_choice(self, evt):
+		if self.confirmRuleTypeChange():
+			super().onEditor_choice(evt)
+		else:
+			self.updateEditor()
+	
+	def toggleFieldValue(self, previous: bool = False) -> None:
+		if self.confirmRuleTypeChange():
+			super().toggleFieldValue(previous=previous)
+
+
+class AlternativeChildPanel(AlternativesPanel):
 
 	def makeSettings(self, settingsSizer):
 		scale = self.scale
@@ -856,7 +900,7 @@ class ChildGesturePanel(RuleEditorTreeContextualPanel):
 		self.onEditGesture(None)
 
 
-class ChildPropertyPanel(
+class PropertyChildPanel(
 	SinglePropertyEditorPanelBase,
 	RuleEditorSingleFieldChildPanel,
 	RuleEditorTreeContextualPanel
@@ -945,7 +989,7 @@ class SimpleSingleNodeCriteriaPanel(criteriaEditor.CriteriaPanel):
 		self.contextMacroDropDown.SetFocus()
 
 
-class SimpleSummaryCriteriaPanel(ChildAlternativePanel):
+class SimpleSummaryCriteriaPanel(AlternativeChildPanel):
 	
 	def makeSettings_buttons(self, gbSizer, row, col):
 		super().makeSettings_buttons(gbSizer, row, col, full=False)
@@ -1054,7 +1098,7 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 	INITIAL_SIZE = (750, 520)
 	categoryInitList = [
 		(GeneralPanel, 'getGeneralChildren'),
-		(AlternativesPanel, 'getAlternativeChildren'),
+		(AlternativesPanel, 'getAlternativesChildren'),
 		(GesturesPanel, 'getGesturesChildren'),
 		(PropertiesPanel, 'getPropertiesChildren'),
 	]
@@ -1087,7 +1131,6 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 		self.Bind(wx.EVT_CHAR_HOOK, self.onCharHook)
 
 	def getGeneralChildren(self):
-		cls = RuleEditorSingleFieldChildPanel
 		data = self.getData()
 		return tuple(
 			TreeNodeInfo(
@@ -1097,26 +1140,34 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 				),
 				categoryParams=prm
 			)
-			for editorType, prm in (
-				(EditorType.CHOICE, cls.CategoryParams(
-					editorChoices=ruleTypes.ruleTypeLabels,
-					fieldDisplayName=SHARED_LABELS["type"],
-					fieldName="type",
-					onEditor_change=cls.onRuleType_change,
-				)),
-				(EditorType.TEXT, cls.CategoryParams(
-					fieldDisplayName=SHARED_LABELS["name"],
-					fieldName="name",
-				)),
+			for cls, editorType, prm in (
+				(
+					RuleTypeChildPanel,
+					EditorType.CHOICE,
+					RuleEditorSingleFieldChildPanel.CategoryParams(
+						editorChoices=ruleTypes.ruleTypeLabels,
+						fieldDisplayName=SHARED_LABELS["type"],
+						fieldName="type",
+					)
+				),
+				(
+					RuleEditorSingleFieldChildPanel,
+					EditorType.TEXT,
+					RuleEditorSingleFieldChildPanel.CategoryParams(
+						fieldDisplayName=SHARED_LABELS["name"],
+						fieldName="name",
+					)
+				),
 			)
 		)
 
-	def getAlternativeChildren(self):
+	def getAlternativesChildren(self):
+		cls = AlternativeChildPanel
 		return tuple(
 			TreeNodeInfo(
-				ChildAlternativePanel,
-				title=ChildAlternativePanel.getTreeNodeLabel(data),
-				categoryParams=ChildAlternativePanel.CategoryParams()
+				cls,
+				title=cls.getTreeNodeLabel(data),
+				categoryParams=cls.CategoryParams()
 			)
 			for data in self.getData().get("criteria", [])
 		)
@@ -1140,7 +1191,7 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 		context = self.context
 		data = self.getData().setdefault("properties", {})
 		props = Properties(context, data)
-		cls = ChildPropertyPanel
+		cls = PropertyChildPanel
 		return tuple(
 			TreeNodeInfo(
 				partial(cls, prop=prop),
