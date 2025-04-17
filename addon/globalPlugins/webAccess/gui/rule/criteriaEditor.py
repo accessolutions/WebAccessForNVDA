@@ -323,10 +323,13 @@ def testCriteria(context, restrictDualNodeTo=None):
 	results = rule.getResults()
 	duration = time.time() - start
 	if len(results) == 1:
+		# Translators: Reported upon testing criteria
 		message = _("Found 1 result in {:.3f} seconds.".format(duration))
 	elif results:
+		# Translators: Reported upon testing criteria
 		message = _("Found {} results in {:.3f} seconds.".format(len(results), duration))
 	else:
+		# Translators: Reported upon testing criteria
 		message = _("No result found on the current page.")
 	gui.messageBox(message, caption=caption)
 
@@ -515,6 +518,12 @@ class GeneralPanel(CriteriaEditorPanel):
 
 
 class CriteriaPanel(CriteriaEditorPanel):
+	"""Criteria Panel of the Alternative Criteria Set Editor
+	
+	To accomodate with the Rule Creation Wizard which reuses this panel split on two different pages,
+	several method are split in two: "<method>_context" and "<method>_others".
+	"""
+	
 	# Translators: The label for a Criteria editor category.
 	title = _("Criteria")
 
@@ -553,13 +562,25 @@ class CriteriaPanel(CriteriaEditorPanel):
 
 	def makeSettings(self, settingsSizer):
 		scale = self.scale
+		self.hidable = {}
 		gbSizer = wx.GridBagSizer()
 		gbSizer.EmptyCellSize = (0, 0)
 		settingsSizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
-
-		hidable = self.hidable = {}
-
 		row = 0
+		row = self.makeSettings_context(gbSizer, row)
+		if row is not None:
+			row += 1
+			item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+			row += 1
+		else:
+			row = 0
+		self.makeSettings_others(gbSizer, row)
+		gbSizer.AddGrowableCol(2)
+
+	def makeSettings_context(self, gbSizer, row):
+		# This part is shown on its own page on the Rule Creation Wizard
+		scale = self.scale
+		hidable = self.hidable
 		item = wx.StaticText(self, label=_("Context:"))
 		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
@@ -580,66 +601,53 @@ class CriteriaPanel(CriteriaEditorPanel):
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 
 		row += 1
-		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+		items = hidable["contextPageTitle"] = []
+		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+		items.append(item)
 
 		row += 1
-		items = hidable["contextPageTitle"] = []
 		item = wx.StaticText(self, label=self.FIELDS["contextPageTitle"])
-		item.Hide()
 		items.append(item)
 		gbSizer.Add(item, pos=(row, 0))
 		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-		item.Show(False)
 		items.append(item)
 		item = self.contextPageTitleCombo = wx.ComboBox(self, size=(-1, 30))
-		item.Hide()
 		items.append(item)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-
-		row += 1
-		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-		item.Show(False)
-		items.append(item)
 
 		row += 1
 		items = hidable["contextPageType"] = []
+		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+		items.append(item)
+
+		row += 1
 		item = wx.StaticText(self, label=self.FIELDS["contextPageType"])
-		item.Hide()
 		items.append(item)
 		gbSizer.Add(item, pos=(row, 0))
 		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-		item.Show(False)
 		items.append(item)
 		item = self.contextPageTypeCombo = wx.ComboBox(self)
-		item.Hide()
 		items.append(item)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
-
-		row += 1
-		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-		item.Show(False)
-		items.append(item)
 
 		row += 1
 		items = hidable["contextParent"] = []
+		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+		items.append(item)
+
+		row += 1
 		item = wx.StaticText(self, label=self.FIELDS["contextParent"])
-		item.Hide()
 		items.append(item)
 		gbSizer.Add(item, pos=(row, 0))
 		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-		item.Show(False)
 		items.append(item)
 		item = self.contextParentCombo = wx.ComboBox(self)
-		item.Hide()
 		items.append(item)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
+		return row
 
-		row += 1
-		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
-		item.Show(False)
-		items.append(item)
-
-		row += 1
+	def makeSettings_others(self, gbSizer, row):
+		scale = self.scale
 		item = wx.StaticText(self, label=self.FIELDS["text"])
 		gbSizer.Add(item, pos=(row, 0))
 		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
@@ -748,8 +756,6 @@ class CriteriaPanel(CriteriaEditorPanel):
 		self.makeSettings_buttons(vBoxSizer)
 		gbSizer.Add(vBoxSizer, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
 
-		gbSizer.AddGrowableCol(2)
-
 	def makeSettings_buttons(self, vBoxSizer):
 		# Translators: The label for a button in the Criteria Editor dialog
 		item = wx.Button(self, label=_("Test these criteria (F5)"))
@@ -761,14 +767,16 @@ class CriteriaPanel(CriteriaEditorPanel):
 
 	def initData(self, context):
 		super().initData(context)
+		self.initData_context(context)
+		self.initData_others(context)
+	
+	def initData_context(self, context):
 		data = self.getData()
+		self.contextPageTitleCombo.Set([context["pageTitle"]])
 		mgr = context["webModule"].ruleManager
-
-		if mgr.isReady and mgr.nodeManager:
-			node = mgr.nodeManager.getCaretNode()
-
-			self.contextPageTitleCombo.Set([context["pageTitle"]])
+		if mgr.isReady:
 			self.contextPageTypeCombo.Set(mgr.getPageTypes())
+			node = mgr.nodeManager.getCaretNode()
 			parents = []
 			for result in mgr.getResults():
 				rule = result.rule
@@ -778,7 +786,16 @@ class CriteriaPanel(CriteriaEditorPanel):
 				):
 					parents.insert(0, rule.name)
 			self.contextParentCombo.Set(parents)
-
+		self.refreshContextMacroChoices(initial=True)
+		self.contextPageTitleCombo.Value = data.get("contextPageTitle", "")
+		self.contextPageTypeCombo.Value = data.get("contextPageType", "")
+		self.contextParentCombo.Value = data.get("contextParent", "")
+	
+	def initData_others(self, context):
+		data = self.getData()
+		mgr = context["webModule"].ruleManager
+		if mgr.isReady:
+			node = mgr.nodeManager.getCaretNode()
 			textNode = node
 			node = node.parent
 			t = textNode.text
@@ -787,7 +804,7 @@ class CriteriaPanel(CriteriaEditorPanel):
 			textChoices = [t]
 			if node.previousTextNode is not None:
 				textChoices.append("<" + node.previousTextNode.text)
-
+			
 			roleChoices = []
 			tagChoices = []
 			idChoices = []
@@ -814,13 +831,7 @@ class CriteriaPanel(CriteriaEditorPanel):
 			self.statesCombo.Set(statesChoices)
 			self.srcCombo.Set(srcChoices)
 			self.urlCombo.Set(urlChoices)
-
-		self.refreshContextMacroChoices(initial=True)
-		self.onContextMacroChoice(None)
-		self.contextPageTitleCombo.Value = data.get("contextPageTitle", "")
-		self.contextPageTypeCombo.Value = data.get("contextPageType", "")
-		self.contextParentCombo.Value = data.get("contextParent", "")
-
+		
 		self.textCombo.Value = data.get("text", "")
 		value = data.get("role", "")
 		if isinstance(value, InvalidValue):
@@ -845,10 +856,17 @@ class CriteriaPanel(CriteriaEditorPanel):
 			self.indexText.Value = str(value)
 
 	def updateData(self):
+		self.updateData_context()
+		self.updateData_others()
+	
+	def updateData_context(self):
 		data = self.getData()
 		updateOrDrop(data, "contextPageTitle", self.contextPageTitleCombo.Value)
 		updateOrDrop(data, "contextPageType", self.contextPageTypeCombo.Value)
 		updateOrDrop(data, "contextParent", self.contextParentCombo.Value)
+	
+	def updateData_others(self):
+		data = self.getData()
 		updateOrDrop(data, "text", self.textCombo.Value)
 		value = self.roleCombo.Value
 		try:
@@ -920,6 +938,11 @@ class CriteriaPanel(CriteriaEditorPanel):
 		self.Thaw()
 		self._sendLayoutUpdatedEvent()
 
+	@guarded
+	def onTestCriteria(self, evt):
+		self.updateData()
+		testCriteria(self.context)
+	
 	def onPanelActivated(self):
 		self.refreshContextMacroChoices()
 		super().onPanelActivated()
@@ -929,7 +952,15 @@ class CriteriaPanel(CriteriaEditorPanel):
 		testCriteria(self.context)
 	
 	def isValid(self):
-		self.updateData()
+		self.updateData()		
+		return self.isValid_context() and self.isValid_others()
+	
+	def isValid_context(self):
+		# TODO: Check the syntax of expressions
+		return True
+	
+	def isValid_others(self):
+		# TODO: Check the syntax of expressions
 		data = self.getData()
 		
 		if not data:

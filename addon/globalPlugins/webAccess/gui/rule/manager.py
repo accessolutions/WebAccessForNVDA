@@ -776,6 +776,8 @@ class Dialog(ContextualDialog):
 				webModule=self.context["webModule"],
 				layerName=rule.layer,
 			)
+			# As a rule was deleted, all results are to be considered obsolete
+			self.disableGroupByPosition()
 			self.refreshRuleList()
 		wx.CallAfter(self.tree.SetFocus)
 	
@@ -789,20 +791,28 @@ class Dialog(ContextualDialog):
 		context["new"] = False
 		context["rule"] = rule
 		context["webModule"] = rule.ruleManager.webModule
-		from .editor import show
+		context.setdefault("data", {})["rule"] = rule.dump()
+		from . import editor
+		if editor.supportsSimpleMode(context):
+			from . import wizard
+			show = wizard.show
+		else:
+			show = editor.show
 		if show(context, parent=self):
 			rule = self.context["rule"] = context["rule"]
 			# As the rule changed, all results are to be considered obsolete
 			if not self.disableGroupByPosition():
 				self.refreshRuleList()
+		context.get("data", {}).pop("rule", None)
 		wx.CallAfter(self.tree.SetFocus)
 	
 	@guarded
 	def onRuleNew(self, evt):
 		context = self.context.copy()
 		context["new"] = True
-		from .editor import show
-		if show(context, self.Parent):
+		context.get("data", {}).pop("rule", None)
+		from .wizard import show
+		if show(context, parent=self):
 			rule = self.context["rule"] = context["rule"]
 			# As a new rule was created, all results are to be considered obsolete
 			if not self.disableGroupByPosition():
