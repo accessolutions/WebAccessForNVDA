@@ -177,8 +177,8 @@ class RuleEditorTreeContextualPanel(RuleAwarePanelBase, TreeContextualPanel):
 				_(
 					#Translators: A prompt for confirmation on the Rule editor
 					"""This will delete your End Criteria choices.
-	
-	Do you want to proceed?"""
+
+Do you want to proceed?"""
 				),
 				# Translators: The title of a prompt for confirmation on the Rule editor
 				caption=_("Rule Type change"),
