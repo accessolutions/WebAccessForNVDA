@@ -199,7 +199,8 @@ class SizeFrugalComboBox(wx.ComboBox):
 	"""
 	
 	def DoGetBestSize(self):
-		return wx.Size(0, 0)
+		size = super().DoGetBestSize()
+		return wx.Size(0, size.Height)
 
 
 class ValidationError(Exception):

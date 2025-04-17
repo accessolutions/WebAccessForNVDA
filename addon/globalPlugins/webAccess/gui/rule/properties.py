@@ -319,8 +319,9 @@ class PropertiesPanelBase(SinglePropertyEditorPanelBase, metaclass=guiHelper.SIP
 	and `initData_properties` methods.
 	
 	Known sub-classes:
-	 - `criteriaEditor.PropertiesPanel`
+	 - `rule.criteriaEditor.PropertiesPanel`
 	 - `rule.editor.PropertiesPanel`
+	 - `rule.wizard.PropertiesPage`
 	"""
 
 	# Translators: Displayed when the selected rule type doesn't support any property
@@ -551,6 +552,7 @@ class PropertiesPanelBase(SinglePropertyEditorPanelBase, metaclass=guiHelper.SIP
 				self.prop_reset()
 				return
 		evt.Skip()
+
 	
 	@guarded
 	def onListCtrl_charHook(self, evt):
