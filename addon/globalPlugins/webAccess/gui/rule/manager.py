@@ -682,7 +682,7 @@ class Dialog(ContextualDialog):
 			# in the event of an error later in this function
 			evt.Skip()
 			return
-		elif keyCode == wx.WXK_F6 and (mods | wx.MOD_SHIFT) == mods:
+		elif keyCode == wx.WXK_F6 and mods | wx.MOD_SHIFT == wx.MOD_SHIFT:
 			if self.tree.HasFocus():
 				getattr(self, "_lastDetails", self.ruleSummary).SetFocus()
 				return
