@@ -71,6 +71,17 @@ countNode = 0
 nodeManagerIndex = 0
 
 
+class DeepCopyWeakRef(weakref.ref):
+	"""A weak reference that supports deepcopy of the referenced object
+	"""
+	def __deepcopy__(self, memo):
+		from copy import deepcopy
+		obj = self()
+		if obj is not None:
+			return type(self)(deepcopy(obj, memo))
+		return self
+
+
 class NodeManager(baseObject.AutoPropertyObject):
 
 	def __init__(self, treeInterceptor, callbackNodeMoveto=None):
@@ -420,7 +431,8 @@ class NodeField(TrackedObject):
 	def __init__(self, nodeType, attrs, parent, offset, nodeManager):
 		super().__init__()
 		self._nodeManager = weakref.ref(nodeManager)
-		self._parent = weakref.ref(parent) if parent is not None else None
+		# Allows to take a snapshot of the document tree
+		self._parent = DeepCopyWeakRef(parent) if parent is not None else None
 		self.offset = offset
 		self.size = 0
 		self.children = []
@@ -465,7 +477,7 @@ class NodeField(TrackedObject):
 			raise ValueError(
 				"Unexpected nodeType: {nodeType}".format(nodeType=nodeType))
 		self._previousTextNode = \
-			weakref.ref(nodeManager.lastTextNode) \
+			DeepCopyWeakRef(nodeManager.lastTextNode) \
 			if nodeManager.lastTextNode is not None \
 			else None
 		if parent is not None:

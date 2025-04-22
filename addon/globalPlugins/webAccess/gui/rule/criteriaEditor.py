@@ -1263,6 +1263,15 @@ class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
 					restrictDualNodeTo = "end"
 			currCat.updateData()
 			testCriteria(self.context, restrictDualNodeTo=restrictDualNodeTo)
+		elif keycode == wx.WXK_F8 and mods == wx.MOD_NONE:
+			from ..inspector import show
+			try:
+				node = self.context["webModule"].ruleManager.nodeManager.getCaretNode().parent
+			except Exception:
+				wx.Bell()
+				return
+			show(parent=self, node=node)
+			return
 		elif keycode == wx.WXK_F12 and mods == wx.MOD_NONE:
 			self.switchToFullEditor()
 			return
