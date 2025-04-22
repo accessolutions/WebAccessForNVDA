@@ -21,8 +21,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
-"POT-Creation-Date: 2025-04-22 16:21+0200\n"
-"PO-Revision-Date: 2025-04-22 16:34+0200\n"
+"POT-Creation-Date: 2025-04-22 17:29+0200\n"
+"PO-Revision-Date: 2025-04-22 17:35+0200\n"
 "Last-Translator: Julien Cochuyt <JulienCochuyt@users.noreply.github.com>\n"
 "Language-Team: \n"
 "Language: fr_FR\n"
@@ -209,7 +209,6 @@ msgstr "Ouvrir les préférences Web Access."
 
 #. Translators: Input help mode message for a WebAccess command
 #: addon\globalPlugins\webAccess\__init__.py:368
-#, fuzzy
 msgid "Inspect the element at caret"
 msgstr "Inspecter l'élément au curseur"
 
@@ -278,18 +277,12 @@ msgstr "éléments"
 
 #. Translators: A mention on the Inspector dialog
 #: addon\globalPlugins\webAccess\gui\inspector.py:102
-#, fuzzy
-#| msgctxt "webAccess.elementDescription"
-#| msgid "from:"
 msgctxt "webAccess.inspector"
 msgid "from:"
-msgstr "de :"
+msgstr "de :"
 
 #. Translators: A mention on the Inspector dialog
 #: addon\globalPlugins\webAccess\gui\inspector.py:107
-#, fuzzy
-#| msgctxt "webAccess.elementDescription"
-#| msgid "to:"
 msgctxt "webAccess.inspector"
 msgid "to:"
 msgstr "à :"
@@ -486,7 +479,7 @@ msgstr "Gérer les &modules web..."
 #. Translators: Web Access menu item label.
 #: addon\globalPlugins\webAccess\gui\menu.py:116
 msgid "Inspect &element..."
-msgstr "Inpecter l'élém&ent..."
+msgstr "Inspecter l'élém&ent..."
 
 #. Translators: Web Access menu item label.
 #: addon\globalPlugins\webAccess\gui\menu.py:125
@@ -1330,22 +1323,24 @@ msgstr "Valeur"
 
 #: addon\globalPlugins\webAccess\gui\rule\wizard.py:120
 msgid ""
-"First, choose a type and name for the new Rule.\n"
+"First, choose a type and name for the Rule.\n"
 "At any time, press F12 to leave this wizard and open the full fledged editor."
 msgstr ""
-"D'abord, choisissez un type et un nom pour la nouvelle règle.\n"
+"D'abord, choisissez un type et un nom pour la règle.\n"
 "À tout moment, appuyez sur F12 pour quitter cet assistant et ouvrir "
 "l'éditeur complet."
 
 #: addon\globalPlugins\webAccess\gui\rule\wizard.py:140
 msgid ""
-"Choose a context for the criteria of the new rule.\n"
+"Choose the criteria evaluation context.\n"
 "\n"
 "Contexts allow to restrict the look-up on some pages or some portion of the "
 "pages.\n"
 "\n"
-"If unsure, keep the default \"General\" choice"
+"If unsure, keep the default \"General\" choice."
 msgstr ""
+"Choisissez le contexte d'évaluation pour les critères.\n"
+"\n"
 "Les contextes permettent de restreindre la recherche à certaines pages ou à "
 "certaines portions des pages.\n"
 "\n"
@@ -1353,7 +1348,7 @@ msgstr ""
 
 #: addon\globalPlugins\webAccess\gui\rule\wizard.py:164
 msgid ""
-"Choose criteria for the new rule.\n"
+"Choose search criteria.\n"
 "\n"
 "Each criterion corresponds to an attribute that will be looked-up on the "
 "elements all along the branches of the document tree.\n"
@@ -1362,7 +1357,7 @@ msgid ""
 "Press F5 to test these criteria. Once satisfied with the result, press Enter "
 "or click Next."
 msgstr ""
-"Choisissez les critères pour la nouvelle règle.\n"
+"Choisissez les critères de recherche.\n"
 "\n"
 "Chaque critère correspond à un attribut qui sera recherché le long des "
 "branches de l'arbre du document.\n"
