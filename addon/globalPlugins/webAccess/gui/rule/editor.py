@@ -1298,7 +1298,16 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 		# Bound by TreeMultiCategorySettingsDialog.makeSettings
 		keycode = evt.GetKeyCode()
 		mods = evt.GetModifiers()
-		if keycode == wx.WXK_F12 and mods == wx.MOD_NONE:
+		if keycode == wx.WXK_F8 and mods == wx.MOD_NONE:
+			from ..inspector import show
+			try:
+				node = self.context["webModule"].ruleManager.nodeManager.getCaretNode().parent
+			except Exception:
+				wx.Bell()
+				return
+			show(parent=self, node=node)
+			return
+		elif keycode == wx.WXK_F12 and mods == wx.MOD_NONE:
 			self.switchToFullEditor()
 			return
 		super().onCharHook(evt)

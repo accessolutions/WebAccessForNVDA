@@ -207,7 +207,7 @@ class Dialog(ContextualDialog):
 			wx.Bell()
 			return
 		webModule = self.modules[index]
-		context = self.context
+		context = self.context.copy()
 		if not webModule.equals(context.get("webModule")):
 			context["webModule"] = webModule
 			context.pop("result", None)

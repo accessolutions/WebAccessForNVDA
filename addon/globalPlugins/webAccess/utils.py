@@ -131,3 +131,28 @@ def tryInt(value):
 		return int(value)
 	except ValueError:
 		return value
+
+
+def getCharFromKeyEvent(evt):
+	import ctypes
+	import wx
+	
+	vkCode = evt.RawKeyCode
+	scanCode = ctypes.windll.user32.MapVirtualKeyW(vkCode, 0)  # MAPVK_VK_TO_VSC
+	
+	mods = evt.GetModifiers()
+	state = (ctypes.c_ubyte * 256)()
+	if (mods | wx.MOD_SHIFT) == mods:
+		state[0x10] = 0x80 # VK_SHIFT
+	if (mods | wx.MOD_CONTROL) == mods:
+		state[0x11] = 0x80 # VK_CONTROL
+	if (mods | wx.MOD_ALT) == mods:
+		state[0x12] = 0x80 # VK_MENU (Alt key)
+	if (mods | wx.MOD_WIN) == mods:
+		state[0x5B] = 0x80 # VK_LWIN
+
+	buffer = ctypes.create_unicode_buffer(2)
+	if ctypes.windll.user32.ToUnicode(vkCode, scanCode, state, buffer, len(buffer), 0) > 0:
+		return buffer.value
+	else:
+		return None

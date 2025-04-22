@@ -29,6 +29,7 @@ import os
 import pkgutil
 import wx
 
+import addonHandler
 import api
 import controlTypes
 import config
@@ -45,6 +46,9 @@ from ..overlay import WebAccessBmdti
 from ..store import DuplicateRefError
 from ..store import MalformedRefError
 from ..utils import notifyError
+
+
+addonHandler.initTranslation()
 
 
 PACKAGE_NAME = "webModules"
