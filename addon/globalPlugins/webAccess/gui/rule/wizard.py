@@ -49,6 +49,7 @@ from .gestures import GesturesPanelBase
 from .properties import Properties, PropertiesPanelBase
 from . import editor, saveRule
 
+
 addonHandler.initTranslation()
 
 
