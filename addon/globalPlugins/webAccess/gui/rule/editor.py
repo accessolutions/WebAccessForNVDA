@@ -1392,7 +1392,7 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 		elif keyCode == wx.WXK_F12 and mods == wx.MOD_NONE:
 			self.switchToFullEditor()
 			return
-		if self.catListCtrl.HasFocus():
+		elif self.catListCtrl.HasFocus():
 			cat = self.currentCategory
 			if (
 				isinstance(cat, SimpleCriteriaPanel)
