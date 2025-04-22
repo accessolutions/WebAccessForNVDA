@@ -113,9 +113,9 @@ class Menu(wx.Menu):
 			item = self.Append(
 				wx.ID_ANY,
 				# Translators: Web Access menu item label.
-				_("&Element description...")
+				_("Inspect &element...")
 			)
-			self.Bind(wx.EVT_MENU, self.onElementDescription, item)
+			self.Bind(wx.EVT_MENU, self.onInspect, item)
 			
 			self.AppendSeparator()
 		
@@ -133,9 +133,9 @@ class Menu(wx.Menu):
 		gui.mainFrame.postPopup()
 	
 	@guarded
-	def onElementDescription(self, evt):
-		from .elementDescription import showElementDescriptionDialog
-		showElementDescriptionDialog()
+	def onInspect(self, evt):
+		from . import inspector
+		inspector.show()
 	
 	@guarded
 	def onRuleCreate(self, evt):

@@ -49,6 +49,7 @@ from .gestures import GesturesPanelBase
 from .properties import Properties, PropertiesPanelBase
 from . import editor, saveRule
 
+
 addonHandler.initTranslation()
 
 
@@ -117,7 +118,7 @@ class GeneralPage(Page, GeneralPanel):
 	
 	# Translators: The description for a page of the Rule wizard
 	wizardPageHeaderDescription = _(
-		"First, choose a type and name for the new Rule."
+		"First, choose a type and name for the Rule."
 		"\n"
 		"At any time, press F12 to leave this wizard and open the full fledged editor."
 	)
@@ -137,11 +138,11 @@ class ContextPage(CriteriaPageBase):
 	
 	# Translators: The description for a page of the Rule wizard
 	wizardPageHeaderDescription = _(
-		"Choose a context for the criteria of the new rule."
+		"Choose the criteria evaluation context."
 		"\n\n"
 		"Contexts allow to restrict the look-up on some pages or some portion of the pages."
 		"\n\n"
-		"If unsure, keep the default \"General\" choice"
+		"If unsure, keep the default \"General\" choice."
 	)
 	
 	def makeSettings_others(self, gbSizer, row):
@@ -161,7 +162,7 @@ class CriteriaPage(CriteriaPageBase):
 	
 	# Translators: The description for a page of the Rule wizard
 	wizardPageHeaderDescription = _(
-		"Choose criteria for the new rule."
+		"Choose search criteria."
 		"\n\n"
 		"Each criterion corresponds to an attribute that will be looked-up on the elements all along the "
 		"branches of the document tree."

@@ -1059,9 +1059,9 @@ class SimpleSingleNodeCriteriaPanel(criteriaEditor.CriteriaPanel):
 		self.Thaw()
 	
 	def onCharHook(self, evt):
-		keycode = evt.GetKeyCode()
+		keyCode = evt.GetKeyCode()
 		mods = evt.GetModifiers()
-		if keycode == wx.WXK_F5 and mods == wx.MOD_NONE:
+		if keyCode == wx.WXK_F5 and mods == wx.MOD_NONE:
 			self.testCriteria()
 			return
 		evt.Skip()
@@ -1380,7 +1380,16 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 		# Bound by TreeMultiCategorySettingsDialog.makeSettings
 		keyCode = evt.KeyCode
 		mods = evt.GetModifiers()
-		if keyCode == wx.WXK_F12 and mods == wx.MOD_NONE:
+		if keyCode == wx.WXK_F8 and mods == wx.MOD_NONE:
+			from ..inspector import show
+			try:
+				node = self.context["webModule"].ruleManager.nodeManager.getCaretNode().parent
+			except Exception:
+				wx.Bell()
+				return
+			show(parent=self, node=node)
+			return
+		elif keyCode == wx.WXK_F12 and mods == wx.MOD_NONE:
 			self.switchToFullEditor()
 			return
 		if self.catListCtrl.HasFocus():

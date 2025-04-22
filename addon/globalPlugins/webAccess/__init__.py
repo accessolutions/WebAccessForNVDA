@@ -292,7 +292,15 @@ In your user configuration folder:
 				clsList.insert(0, overlay.WebAccessDocument)
 				return
 			clsList.insert(0, overlay.WebAccessObject)
-
+		else:
+			from .gui import inspector
+			if (
+				inspector.outputWindowHandle is not None
+				and obj.role == controlTypes.ROLE_EDITABLETEXT
+				and obj.windowHandle == inspector.outputWindowHandle
+				and obj.appModule.appName == "nvda"
+			):
+				clsList.insert(0, inspector.InspectorOutputOverlay)
 	@script(
 		# Translators: Input help mode message for show Web Access menu command.
 		description=_("Show the Web Access menu."),
@@ -356,12 +364,12 @@ In your user configuration folder:
 			gui.mainFrame.popupSettingsDialog(WebAccessSettingsDialog)
 
 	@script(
-		# Translators: Input help mode message for show Web Access menu command.
-		description=_("Show the element description."),
+		# Translators: Input help mode message for a WebAccess command
+		description=_("Inspect the element at caret"),
 		category=SCRIPT_CATEGORY,
 		gesture="kb:nvda+control+e"
 	)
-	def script_showElementDescription(self, gesture):  # @UnusedVariable
+	def script_inspect(self, gesture):  # @UnusedVariable
 		obj = api.getFocusObject()
 		if obj is None or obj.appModule is None:
 			# Translators: Error message when attempting to show the Web Access GUI.
@@ -371,8 +379,8 @@ In your user configuration folder:
 			# Translators: Error message when attempting to show the Web Access GUI.
 			ui.message(_("You must be on the web page to use Web Access."))
 			return
-		from .gui import elementDescription
-		elementDescription.showElementDescriptionDialog()
+		from .gui import inspector
+		inspector.show()
 
 
 	@script(

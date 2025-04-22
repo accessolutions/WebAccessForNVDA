@@ -42,7 +42,7 @@ import queueHandler
 import ui
 
 from ...ruleHandler import Criteria, GestureScope, Rule, Result, Selector, Zone, ruleTypes
-from ...utils import guarded
+from ...utils import getCharFromKeyEvent, guarded
 from ...webModuleHandler import getEditableWebModule, save
 from .. import ContextualDialog, showContextualDialog, stripAccel
 from .editor import getSummary
@@ -746,19 +746,19 @@ class Dialog(ContextualDialog):
 			 	if ctrl.HasFocus():
 			 		self.tree.SetFocus()
 			 		return
-		elif keyCode == wx.WXK_TAB and evt.ControlDown():
+		elif (
+			keyCode == wx.WXK_TAB
+			and ((mods | wx.MOD_SHIFT) & wx.MOD_CONTROL) == (wx.MOD_CONTROL | wx.MOD_SHIFT)
+		):
 			self.cycleGroupBy(previous=evt.ShiftDown())
 			return
 		elif self.tree.HasFocus():
 			# Collapse/Expand all instead of current node as there are only two levels.
-			# To also handle "*" and "/" from alphanum section of the keyboard with respect to the
-			# currently active keyboard layout would require calling GetKeyboardLayout and ToUnicodeEx
-			# (passing 0 as vkState) from user32.dll. An example can be found in NVDA's keyboardHandler.
-			# Probably overkill, though.
-			if keyCode == wx.WXK_NUMPAD_MULTIPLY and mods == wx.MOD_NONE:
+			char = getCharFromKeyEvent(evt)
+			if char == "*":
 				self.tree.ExpandAll()
 				return
-			elif keyCode == wx.WXK_NUMPAD_DIVIDE and mods == wx.MOD_NONE:
+			elif char == "/":
 				self.tree.CollapseAll()
 				return
 			elif (

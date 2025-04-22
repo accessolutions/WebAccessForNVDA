@@ -21,8 +21,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
-"POT-Creation-Date: 2025-04-17 11:08+0200\n"
-"PO-Revision-Date: 2025-04-17 11:16+0200\n"
+"POT-Creation-Date: 2025-04-22 17:29+0200\n"
+"PO-Revision-Date: 2025-04-22 17:35+0200\n"
 "Last-Translator: Julien Cochuyt <JulienCochuyt@users.noreply.github.com>\n"
 "Language-Team: \n"
 "Language: fr_FR\n"
@@ -38,7 +38,7 @@ msgstr ""
 "X-Poedit-SearchPath-0: .\n"
 
 #. Translators: Announced when failing to move the mouse to the Result
-#: addon\globalPlugins\webAccess\nodeHandler.py:895
+#: addon\globalPlugins\webAccess\nodeHandler.py:907
 #: addon\globalPlugins\webAccess\ruleHandler\__init__.py:1287
 msgid "Unable to determine mouse target location"
 msgstr "Impossible de déterminer l'emplacement cible du pointeur de souris"
@@ -182,54 +182,54 @@ msgstr " - Tout autre contenu dans ces dossiers a été ignoré."
 #. Translators: The title of a message dialog
 #. Translators: The title of an error message dialog
 #: addon\globalPlugins\webAccess\__init__.py:268
-#: addon\globalPlugins\webAccess\__init__.py:581
+#: addon\globalPlugins\webAccess\__init__.py:589
 msgid "Web Access for NVDA"
 msgstr "Web Access pour NVDA"
 
 #. Translators: Input help mode message for show Web Access menu command.
-#: addon\globalPlugins\webAccess\__init__.py:298
+#: addon\globalPlugins\webAccess\__init__.py:306
 msgid "Show the Web Access menu."
 msgstr "Afficher le menu Web Access."
 
 #. Translators: Error message when attempting to show the Web Access GUI.
-#: addon\globalPlugins\webAccess\__init__.py:309
+#: addon\globalPlugins\webAccess\__init__.py:317
 msgid "You must be in a web browser to use Web Access."
 msgstr "Placez-vous dans un navigateur web pour utiliser Web Access."
 
 #. Translators: Error message when attempting to show the Web Access GUI.
-#: addon\globalPlugins\webAccess\__init__.py:313
-#: addon\globalPlugins\webAccess\__init__.py:372
+#: addon\globalPlugins\webAccess\__init__.py:321
+#: addon\globalPlugins\webAccess\__init__.py:380
 msgid "You must be on the web page to use Web Access."
 msgstr "Placez-vous sur la page web pour utiliser Web Access."
 
 #. Translators: Input help mode message for open Web Access settings command.
-#: addon\globalPlugins\webAccess\__init__.py:341
+#: addon\globalPlugins\webAccess\__init__.py:349
 msgid "Open the Web Access Settings."
 msgstr "Ouvrir les préférences Web Access."
 
-#. Translators: Input help mode message for show Web Access menu command.
-#: addon\globalPlugins\webAccess\__init__.py:360
-msgid "Show the element description."
-msgstr "Afficher la description de l'élément."
+#. Translators: Input help mode message for a WebAccess command
+#: addon\globalPlugins\webAccess\__init__.py:368
+msgid "Inspect the element at caret"
+msgstr "Inspecter l'élément au curseur"
 
 #. Translators: Error message when attempting to show the Web Access GUI.
-#: addon\globalPlugins\webAccess\__init__.py:368
+#: addon\globalPlugins\webAccess\__init__.py:376
 msgid "The current object does not support Web Access."
 msgstr "Cet objet n'est pas pris en charge par Web Access."
 
-#: addon\globalPlugins\webAccess\__init__.py:379
+#: addon\globalPlugins\webAccess\__init__.py:387
 msgid "Toggle Web Access support."
 msgstr "Basculer le support de Web Access."
 
-#: addon\globalPlugins\webAccess\__init__.py:388
+#: addon\globalPlugins\webAccess\__init__.py:396
 msgid "Web Access support disabled."
 msgstr "Web Access désactivé."
 
-#: addon\globalPlugins\webAccess\__init__.py:391
+#: addon\globalPlugins\webAccess\__init__.py:399
 msgid "Web Access support enabled."
 msgstr "Web Access activé."
 
-#: addon\globalPlugins\webAccess\__init__.py:520
+#: addon\globalPlugins\webAccess\__init__.py:528
 msgid ""
 "This web module has been created by a newer version of Web Access for NVDA "
 "and could not be loaded:"
@@ -237,7 +237,7 @@ msgstr ""
 "Ce module web ne peut pas être utilisé car il a été créé à l'aide d'une "
 "version plus récente de Web Access pour NVDA :"
 
-#: addon\globalPlugins\webAccess\__init__.py:524
+#: addon\globalPlugins\webAccess\__init__.py:532
 msgid ""
 "These web modules have been created by a newer version of Web Access for "
 "NVDA and could not be loaded:"
@@ -245,7 +245,7 @@ msgstr ""
 "Ces modules web ne peuvent pas être utilisé car ils ont été créé à l'aide "
 "d'une version plus récente de Web Access pour NVDA :"
 
-#: addon\globalPlugins\webAccess\__init__.py:531
+#: addon\globalPlugins\webAccess\__init__.py:539
 msgid ""
 "This Python web module uses a different API version of Web Access for NVDA "
 "and could not be loaded:"
@@ -253,7 +253,7 @@ msgstr ""
 "Ce module web Python ne peut pas être utilisé car il cible une version "
 "différente de l'API de Web Access pour NVDA :"
 
-#: addon\globalPlugins\webAccess\__init__.py:535
+#: addon\globalPlugins\webAccess\__init__.py:543
 msgid ""
 "These Python web modules use a different API version of Web Access for NVDA "
 "and could not be loaded:"
@@ -261,42 +261,183 @@ msgstr ""
 "Ces modules web Python ne peuvent pas être utilisé car ils ciblent une "
 "version différente de l'API de Web Access pour NVDA :"
 
-#: addon\globalPlugins\webAccess\__init__.py:542
+#: addon\globalPlugins\webAccess\__init__.py:550
 msgid "An unexpected error occurred while attempting to load this web module:"
 msgstr "Une erreur s'est produite au chargement de ce module web :"
 
-#: addon\globalPlugins\webAccess\__init__.py:546
+#: addon\globalPlugins\webAccess\__init__.py:554
 msgid ""
 "An unexpected error occurred while attempting to load these web modules:"
 msgstr "Une erreur s'est produite au chargement de ces modules web :"
 
-#: addon\globalPlugins\webAccess\gui\elementDescription.py:54
-msgctxt "webAccess.elementDescription"
+#: addon\globalPlugins\webAccess\gui\inspector.py:88
+msgctxt "webAccess.inspector"
 msgid "elements"
 msgstr "éléments"
 
-#: addon\globalPlugins\webAccess\gui\elementDescription.py:56
-msgctxt "webAccess.elementDescription"
-msgid "element"
-msgstr "élément"
-
-#: addon\globalPlugins\webAccess\gui\elementDescription.py:69
-msgctxt "webAccess.elementDescription"
+#. Translators: A mention on the Inspector dialog
+#: addon\globalPlugins\webAccess\gui\inspector.py:102
+msgctxt "webAccess.inspector"
 msgid "from:"
-msgstr "de :"
+msgstr "de :"
 
-#: addon\globalPlugins\webAccess\gui\elementDescription.py:73
-msgctxt "webAccess.elementDescription"
+#. Translators: A mention on the Inspector dialog
+#: addon\globalPlugins\webAccess\gui\inspector.py:107
+msgctxt "webAccess.inspector"
 msgid "to:"
 msgstr "à :"
 
-#: addon\globalPlugins\webAccess\gui\elementDescription.py:113
-msgid "No NodeManager"
-msgstr "Pas de NodeManager"
+#. Translators: A mention on the Inspector dialog
+#: addon\globalPlugins\webAccess\gui\inspector.py:145
+#, python-brace-format
+msgid "{rule} (start)"
+msgstr "{rule} (début)"
 
-#: addon\globalPlugins\webAccess\gui\elementDescription.py:167
-msgid "Element description"
-msgstr "Description de l'élément"
+#. Translators: A mention on the Inspector dialog
+#: addon\globalPlugins\webAccess\gui\inspector.py:148
+#, python-brace-format
+msgid "{rule} (end)"
+msgstr "{rule} (fin)"
+
+#: addon\globalPlugins\webAccess\gui\inspector.py:165
+msgid "Content:"
+msgstr "Contenu :"
+
+#. Translators: An item in the Inspector dialog
+#: addon\globalPlugins\webAccess\gui\inspector.py:175
+msgid "Rules: {}"
+msgstr "Règles : {}"
+
+#. Translators: The title for the Inspector dialog
+#: addon\globalPlugins\webAccess\gui\inspector.py:356
+msgid "Inspect element"
+msgstr "Inspecter l'élément"
+
+#. Translators: An error message from the Inspector dialog
+#: addon\globalPlugins\webAccess\gui\inspector.py:421
+msgid "First mark an origin node by hitting F9."
+msgstr "Marquez d'abord le nœud d'origine à l'aide de la touche F9."
+
+#. Translators: An error message on the Inspector dialog
+#: addon\globalPlugins\webAccess\gui\inspector.py:430
+#: addon\globalPlugins\webAccess\gui\inspector.py:545
+msgid "The document has been updated."
+msgstr "Le document a été mis à jour."
+
+#: addon\globalPlugins\webAccess\gui\inspector.py:434
+msgid ""
+"These nodes do not seem to belong to the same document or the page has been "
+"refreshed."
+msgstr ""
+"Ces nœuds n'appartiennent pas au même document ou la page a été mise à jour."
+
+#. A message from the Inspector dialog
+#: addon\globalPlugins\webAccess\gui\inspector.py:447
+msgid "Relative path copied to clipboard"
+msgstr "Chemin relatif copié dans le presse-papier"
+
+#. Translators: An error message shown on the Inspector dialog
+#: addon\globalPlugins\webAccess\gui\inspector.py:478
+msgid "Document not supported."
+msgstr "Document non pris en charge."
+
+#. Translators: A message from the Inspector dialog
+#: addon\globalPlugins\webAccess\gui\inspector.py:522
+msgid ""
+"Node marked. Press F10 while inspecting another one to compute their "
+"relative path."
+msgstr ""
+"Nœud marqué. Inspectez un autre nœud et appuyez sur F10 pour déterminer leur "
+"chemin relatif."
+
+#. Translators: An error message from the Inspector dialog
+#. Translators: Reported when attempting an action while WebAccess is not ready
+#: addon\globalPlugins\webAccess\gui\inspector.py:540
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:430
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:784
+#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:794
+msgid "Not ready"
+msgstr "Pas encore prêt"
+
+#. Translators: A context menu entry on the Inspector dialog
+#: addon\globalPlugins\webAccess\gui\inspector.py:569
+msgid "Move to this position on the document\tEnter"
+msgstr "Aller à cette position dans le document\tEntrée"
+
+#. Translators: A context menu entry on the Inspector dialog
+#: addon\globalPlugins\webAccess\gui\inspector.py:575
+msgid "Parent node\tAlt + Up Arrow or Alt + U"
+msgstr "Nœud parent\tAlt + Flèche haut ou Alt + U"
+
+#. Translators: A context menu entry on the Inspector dialog
+#: addon\globalPlugins\webAccess\gui\inspector.py:581
+msgid "First child node\tAlt + Down Arrow or Alt + D"
+msgstr "Premier nœud enfant\tAlt + Flèche bas ou Alt + D"
+
+#. Translators: A context menu entry on the Inspector dialog
+#: addon\globalPlugins\webAccess\gui\inspector.py:587
+msgid "Previous sibling node\tAlt + Left Arrow or Alt + L"
+msgstr "Nœud précédent de même niveau\tAlt + Flèche gauche ou Alt + L"
+
+#. Translators: A context menu entry on the Inspector dialog
+#: addon\globalPlugins\webAccess\gui\inspector.py:593
+msgid "Next sibling node\tAlt + Right Arrow or Alt + R"
+msgstr "Nœud suivant de même niveau\tAlt + Flèche droite ou Alt + R"
+
+#. Translators: A context menu entry on the Inspector dialog
+#: addon\globalPlugins\webAccess\gui\inspector.py:599
+msgid "Previous node in document order\tAlt + Page Up or Alt + B"
+msgstr ""
+"Nœud précédent dans l'ordre du document\tAlt + Page précédente ou Alt + B"
+
+#. Translators: A context menu entry on the Inspector dialog
+#: addon\globalPlugins\webAccess\gui\inspector.py:605
+msgid "Next node in document order\tAlt + Page Down or Alt + A"
+msgstr "Nœud suivant dans l'ordre du document\tAlt + Page suivante ou Alt + A"
+
+#. Translators: A context menu entry on the Inspector dialog
+#: addon\globalPlugins\webAccess\gui\inspector.py:611
+msgid "Previous node in history\tBackspace or Alt + Backspace"
+msgstr ""
+"Retour en arrière dans l'historique\tRetour arrière ou Alt + Retour arrière"
+
+#. Translators: A context menu entry on the Inspector dialog
+#: addon\globalPlugins\webAccess\gui\inspector.py:619
+msgid "First node in history\tAlt + Home"
+msgstr "Premier emplacement dans l'historique\tAlt + Origine"
+
+#. Translators: A context menu entry on the Inspector dialog
+#: addon\globalPlugins\webAccess\gui\inspector.py:627
+msgid "Node at current reading position on the document\tAlt + End"
+msgstr "Nœud à la position de lecture dans le document\tAlt + Fin"
+
+#. Translators: A context menu entry on the Inspector dialog
+#: addon\globalPlugins\webAccess\gui\inspector.py:635
+msgid "Mark node\tF9"
+msgstr "Marquer ce nœud\tF9"
+
+#. Translators: A context menu entry on the Inspector dialog
+#: addon\globalPlugins\webAccess\gui\inspector.py:641
+msgid "Back to marked node\tShift + F9"
+msgstr "Retour au nœud marqué\tMajuscule + F9"
+
+#. Translators: A context menu entry on the Inspector dialog
+#: addon\globalPlugins\webAccess\gui\inspector.py:649
+msgid "Compute relative path from marked node\tF10"
+msgstr "Déterminer le chemin relatif depuis le nœud marqué\tF10"
+
+#. Translators: A context menu entry on the Inspector dialog
+#: addon\globalPlugins\webAccess\gui\inspector.py:657
+msgid ""
+"Walk the relative path stored in the clipboard\tControl + V or Shift + Insert"
+msgstr ""
+"Parcourir le chemin relatif contenu dans le presse-papier\tContrôle + V ou "
+"Majuscule + Insertion"
+
+#. Translators: An error message from the Inspector dialog
+#: addon\globalPlugins\webAccess\gui\inspector.py:733
+msgid "Unable to walk this path"
+msgstr "Impossible de parcourir ce chemin"
 
 #. Translators: Web Access menu item label.
 #. Translator: The label for a button on the RulesManager dialog.
@@ -337,8 +478,8 @@ msgstr "Gérer les &modules web..."
 
 #. Translators: Web Access menu item label.
 #: addon\globalPlugins\webAccess\gui\menu.py:116
-msgid "&Element description..."
-msgstr "D&escription de l'élément..."
+msgid "Inspect &element..."
+msgstr "Inspecter l'élém&ent..."
 
 #. Translators: Web Access menu item label.
 #: addon\globalPlugins\webAccess\gui\menu.py:125
@@ -759,7 +900,7 @@ msgstr "Éditeur de jeux de critères WebAccess"
 
 #. Translators: A prompt for confirmation on the Criteria Set editor
 #. Translators: A prompt for confirmation on the Rule editor
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1279
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1288
 #: addon\globalPlugins\webAccess\gui\rule\editor.py:179
 msgid ""
 "This will delete your End Criteria choices.\n"
@@ -771,11 +912,11 @@ msgstr ""
 "Voulez-vous continuer ?"
 
 #. Translators: The title of prompt for confirmation on the Criteria Set editor
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1284
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1293
 msgid "Convert to simple zone (one set of criteria)"
 msgstr "Convertir en zone simple (un seul jeu de critères)"
 
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1327
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1336
 #: addon\globalPlugins\webAccess\gui\rule\__init__.py:112
 msgid ""
 "The \"Transform\" property is not supported with free zones (two sets of "
@@ -789,7 +930,7 @@ msgstr ""
 "Voulez-vous poursuivre néanmoins ?\n"
 
 #. Translators: The title of a message dialog
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1333
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1342
 #: addon\globalPlugins\webAccess\gui\rule\__init__.py:118
 #: addon\globalPlugins\webAccess\gui\webModule\__init__.py:86
 msgid "Warning"
@@ -896,7 +1037,7 @@ msgstr "Êtes-vous sûr de vouloir supprimer cette alternative ?"
 #. Translator: The title for a confirmation prompt on the
 #. RulesManager dialog.
 #: addon\globalPlugins\webAccess\gui\rule\editor.py:576
-#: addon\globalPlugins\webAccess\gui\rule\manager.py:768
+#: addon\globalPlugins\webAccess\gui\rule\manager.py:770
 msgid "Confirm Deletion"
 msgstr "Confirmation d'effacement"
 
@@ -1149,7 +1290,7 @@ msgid "Group by: {}"
 msgstr "Regrouper par : {}"
 
 #. Translator: A confirmation prompt on the RulesManager dialog.
-#: addon\globalPlugins\webAccess\gui\rule\manager.py:762
+#: addon\globalPlugins\webAccess\gui\rule\manager.py:764
 msgid "Are you sure you want to delete this rule?"
 msgstr "Êtes-vous sûr de vouloir supprimer cette règle ?"
 
@@ -1182,22 +1323,24 @@ msgstr "Valeur"
 
 #: addon\globalPlugins\webAccess\gui\rule\wizard.py:120
 msgid ""
-"First, choose a type and name for the new Rule.\n"
+"First, choose a type and name for the Rule.\n"
 "At any time, press F12 to leave this wizard and open the full fledged editor."
 msgstr ""
-"D'abord, choisissez un type et un nom pour la nouvelle règle.\n"
+"D'abord, choisissez un type et un nom pour la règle.\n"
 "À tout moment, appuyez sur F12 pour quitter cet assistant et ouvrir "
 "l'éditeur complet."
 
 #: addon\globalPlugins\webAccess\gui\rule\wizard.py:140
 msgid ""
-"Choose a context for the criteria of the new rule.\n"
+"Choose the criteria evaluation context.\n"
 "\n"
 "Contexts allow to restrict the look-up on some pages or some portion of the "
 "pages.\n"
 "\n"
-"If unsure, keep the default \"General\" choice"
+"If unsure, keep the default \"General\" choice."
 msgstr ""
+"Choisissez le contexte d'évaluation pour les critères.\n"
+"\n"
 "Les contextes permettent de restreindre la recherche à certaines pages ou à "
 "certaines portions des pages.\n"
 "\n"
@@ -1205,7 +1348,7 @@ msgstr ""
 
 #: addon\globalPlugins\webAccess\gui\rule\wizard.py:164
 msgid ""
-"Choose criteria for the new rule.\n"
+"Choose search criteria.\n"
 "\n"
 "Each criterion corresponds to an attribute that will be looked-up on the "
 "elements all along the branches of the document tree.\n"
@@ -1214,7 +1357,7 @@ msgid ""
 "Press F5 to test these criteria. Once satisfied with the result, press Enter "
 "or click Next."
 msgstr ""
-"Choisissez les critères pour la nouvelle règle.\n"
+"Choisissez les critères de recherche.\n"
 "\n"
 "Chaque critère correspond à un attribut qui sera recherché le long des "
 "branches de l'arbre du document.\n"
@@ -1589,13 +1732,6 @@ msgctxt "webAccess.action"
 msgid "Mouse move"
 msgstr "Déplacer la souris"
 
-#. Translators: Reported when attempting an action while WebAccess is not ready
-#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:430
-#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:784
-#: addon\globalPlugins\webAccess\ruleHandler\__init__.py:794
-msgid "Not ready"
-msgstr "Pas encore prêt"
-
 #. Translator: Error message in quickNav (page up/down)
 #: addon\globalPlugins\webAccess\ruleHandler\__init__.py:823
 msgid "No previous zone"
@@ -1734,6 +1870,22 @@ msgid "Web application modules support for modern or complex web sites."
 msgstr ""
 "Gestion des modules d'applications web pour la navigation sur sites web "
 "riches ou complexes."
+
+#~ msgid "Show the element description."
+#~ msgstr "Afficher la description de l'élément."
+
+#~ msgctxt "webAccess.elementDescription"
+#~ msgid "element"
+#~ msgstr "élément"
+
+#~ msgid "No NodeManager"
+#~ msgstr "Pas de NodeManager"
+
+#~ msgid "Element description"
+#~ msgstr "Description de l'élément"
+
+#~ msgid "&Element description..."
+#~ msgstr "D&escription de l'élément..."
 
 #~ msgid "Input Gestures"
 #~ msgstr "Gestes de commande"
