@@ -874,7 +874,12 @@ class Dialog(ContextualDialog):
 		context.get("data", {}).pop("rule", None)
 		if pastedData:
 			context.setdefault("data", {})["rule"] = pastedData
-		from .wizard import show
+		from . import editor
+		if not pastedData or editor.supportsSimpleMode(context):
+			from . import wizard
+			show = wizard.show
+		else:
+			show = editor.show
 		if show(context, parent=self):
 			rule = self.context["rule"] = context["rule"]
 			# As a new rule was created, all results are to be considered obsolete
