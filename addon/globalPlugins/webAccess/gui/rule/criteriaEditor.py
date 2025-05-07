@@ -181,7 +181,7 @@ def getSummary_context(data) -> Sequence[str]:
 
 
 def getSummary_selector_full(data, condensed=False) -> Sequence[str]:
-	if len(data) == 2 and "start" in data and "end" in data:
+	if set(data.keys()) == {"start", "end"}:
 		parts = []
 		sections = {
 			"start": _("Start:"),

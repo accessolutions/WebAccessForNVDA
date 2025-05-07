@@ -502,7 +502,10 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 		if criteria.get("name"):
 			return criteria["name"]
 		else:
-			return criteriaEditor.getSummary_context(criteria)[0]
+			data = criteria.get("selector", {})
+			if set(data.keys()) == {"start", "end"}:
+				data = data["start"]
+			return ", ".join(criteriaEditor.getSummary_context(data))
 
 	def spaceIsPressedOnTreeNode(self, withShift=False):
 		if self.getData():
