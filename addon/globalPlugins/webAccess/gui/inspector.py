@@ -721,7 +721,7 @@ class InspectorDialog(ScalingMixin, wx.Dialog):
 				self.walk("a")
 				return
 		char = getCharFromKeyEvent(evt)
-		if char is not None:
+		if char is not None and char > " ":  # First printable character
 			self.initial(char)
 			return
 		evt.Skip()
