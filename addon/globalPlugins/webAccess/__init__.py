@@ -201,7 +201,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			smPath = False
 		if not (mcPath or smPath):
 			return
-		if not os.path.exists(wmPath) and (mcPath ^ smPath):
+		if not os.path.exists(wmPath) and (bool(mcPath) ^ bool(smPath)):
 			fromPath = mcPath or smPath
 			os.rename(fromPath, wmPath)
 			log.warning(f'Directory "{fromPath}" renamed to "{wmPath}"')
@@ -209,7 +209,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		if not os.path.isdir(wmPath):
 			log.error(f"Path exists but is not a directory: {wmPath}")
 			return
-		if not os.listdir(wmPath) and (mcPath ^ smPath):
+		if not os.listdir(wmPath) and (bool(mcPath) ^ bool(smPath)):
 			fromPath = smPath = mcPath or smPath
 			os.rmdir(wmPath)
 			os.rename(fromPath, wmPath)
