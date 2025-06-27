@@ -150,13 +150,11 @@ def getResultNames(node, root, identifier):
 
 
 def coalesce(*args):
+	if not args:
+		raise ValueError
 	for arg in args:
 		if arg is not None:
-			break
-	try:
-		return arg
-	except NameError:
-		raise ValueError
+			return arg
 
 
 def getFieldLabels():
@@ -166,33 +164,52 @@ def getFieldLabels():
 	return labels
 
 
-def getNodeDescription(node, root=None, identifier=None):
+def getNodeDescription(
+	node,
+	root=None,
+	identifier=None,
+	includeAncestors=False,
+):
 	labels = getFieldLabels()
 	parts = []
-	results = getResultNames(node, root, identifier)
-	if results is not None:
-		# Translators: An item in the Inspector dialog
-		parts.append(_("Rules: {}").format(", ".join(results)))
-	if not hasattr(node, "tag"):
-		parts.append(f"{labels['text']} {getText(node)}")
-	else:
-		parts.append(f"{labels['tag']} {node.tag}")
-		parts.append(f"{labels['role']} {node.role.displayString}")
-		parts.append(f"{labels['id']} {coalesce(node.id, '')}")
-		parts.append(f"{labels['className']} {coalesce(node.className, '')}")
-		states = ", ".join(sorted((
-			state.displayString if isinstance(state, controlTypes.State) else str(state)
-			for state in node.states
-		)))
-		parts.append(f"{labels['states']} {states}")
-		parts.append(f"{labels['src']} {coalesce(node.src, '')}")
-		try:
-			parts.append(f"{labels['url']} {coalesce(node.url, '')}")
-		except AttributeError:
-			# This requires an active TreeInterceptor, which might no longer be the case if
-			# eg. the document was refreshed.
-			pass
-		parts.append(f"{labels['content']} {getText(node)}")
+	while True:
+		results = getResultNames(node, root, identifier)
+		if (includeAncestors and results) or results is not None:
+			# Translators: An item in the Inspector dialog
+			parts.append(_("Rules: {}").format(", ".join(results)))
+		if not hasattr(node, "tag"):
+			parts.append(f"{labels['text']} {getText(node)}")
+		else:
+			parts.append(f"{labels['tag']} {node.tag}")
+			parts.append(f"{labels['role']} {node.role.displayString}")
+			if not includeAncestors or node.id is not None:
+				parts.append(f"{labels['id']} {coalesce(node.id, '')}")
+			if not includeAncestors or node.className:
+				parts.append(f"{labels['className']} {coalesce(node.className, '')}")
+			states = ", ".join(sorted((
+				state.displayString if isinstance(state, controlTypes.State) else str(state)
+				for state in node.states
+			)))
+			if not includeAncestors or states:
+				parts.append(f"{labels['states']} {states}")
+			if not includeAncestors or node.src:
+				parts.append(f"{labels['src']} {coalesce(node.src, '')}")
+			try:
+				url = node.url
+			except AttributeError:
+				# This requires an active TreeInterceptor, which might no longer be the case if
+				# eg. the document was refreshed.
+				pass
+			else:
+				if not includeAncestors or url:
+					parts.append(f"{labels['url']} {coalesce(url, '')}")
+			parts.append(f"{labels['content']} {getText(node)}")
+		if includeAncestors:
+			node = node.parent
+			if node is not None:
+				parts.append("")
+				continue
+		break
 	return "\n".join(parts)
 
 
@@ -361,6 +378,7 @@ class InspectorDialog(ScalingMixin, wx.Dialog):
 		self.root = None
 		self.node = None
 		self.lastNonTextLineNum = None
+		self.showAncestors = False
 		
 		scale = self.scale
 		sizer = wx.BoxSizer(wx.VERTICAL)
@@ -379,6 +397,20 @@ class InspectorDialog(ScalingMixin, wx.Dialog):
 		self.SetSizerAndFit(sizer)
 		self.CenterOnScreen()
 		self.Bind(wx.EVT_CLOSE, self.onClose)
+	
+	def ancestor(self):
+		if not self.showAncestors:
+			wx.Bell()
+			return
+		output = self.output
+		lineNum = output.PositionToXY(output.GetInsertionPoint())[2]
+		lineNums = tuple(range(lineNum, output.PositionToXY(output.GetLastPosition())[2] + 1))
+		for lineNum in lineNums:
+			line = output.GetLineText(lineNum).strip()
+			if not line:
+				output.SetInsertionPoint(output.XYToPosition(0, lineNum + 1))
+				return
+		wx.Bell()
 	
 	def back(self):
 		history = self.history
@@ -446,6 +478,25 @@ class InspectorDialog(ScalingMixin, wx.Dialog):
 			# A message from the Inspector dialog
 			self.message(_("Relative path copied to clipboard"))
 	
+	def descendant(self):
+		if not self.showAncestors:
+			wx.Bell()
+			return
+		output = self.output
+		lineNum = output.PositionToXY(output.GetInsertionPoint())[2]
+		foundBreak = False
+		for lineNum in range(lineNum, -1, -1):
+			line = output.GetLineText(lineNum).strip()
+			if not line and not foundBreak:
+				foundBreak = True
+				continue
+			if foundBreak and (not line or lineNum == 0):
+				if lineNum > 0:
+					lineNum += 1
+				output.SetInsertionPoint(output.XYToPosition(0, lineNum))
+				return
+		wx.Bell()
+	
 	def first(self):
 		history = self.history
 		if not history:
@@ -457,7 +508,10 @@ class InspectorDialog(ScalingMixin, wx.Dialog):
 		output = self.output
 		lineNums = tuple(range(output.PositionToXY(output.GetLastPosition())[2] + 1))
 		lineNum = output.PositionToXY(output.GetInsertionPoint())[2] + 1
-		lineNums = lineNums[lineNum:] + lineNums[:lineNum]
+		if self.showAncestors:
+			lineNums = lineNums[lineNum:]
+		else:
+			lineNums = lineNums[lineNum:] + lineNums[:lineNum]
 		for lineNum in lineNums:
 			line = output.GetLineText(lineNum).strip()
 			if line and line[0].casefold() == char.casefold():
@@ -467,12 +521,17 @@ class InspectorDialog(ScalingMixin, wx.Dialog):
 		wx.Bell()
 	
 	def inspect(self, node, root=None, identifier=None, back=False):
+		showAncestors = self.showAncestors
 		output = self.output
-		lineNum = output.PositionToXY(output.GetInsertionPoint())[2]
-		if hasattr(self.node, "tag"):
-			self.lastNonTextLineNum = lineNum
-		elif hasattr(node, "tag") and self.lastNonTextLineNum is not None:
-			lineNum = self.lastNonTextLineNum
+		if showAncestors:
+			lineNum = 0
+			self.lastNonTextLineNum = None
+		else:
+			lineNum = output.PositionToXY(output.GetInsertionPoint())[2]
+			if hasattr(self.node, "tag"):
+				self.lastNonTextLineNum = lineNum
+			elif hasattr(node, "tag") and self.lastNonTextLineNum is not None:
+				lineNum = self.lastNonTextLineNum
 		if node is None and self.mgr is None:
 			# Translators: An error message shown on the Inspector dialog
 			desc = _("Document not supported.")
@@ -488,7 +547,9 @@ class InspectorDialog(ScalingMixin, wx.Dialog):
 				node, root = snapshot(node)
 			if identifier is None:
 				identifier = mgr.identifier
-			desc = getNodeDescription(node, root, identifier)
+			desc = getNodeDescription(
+				node, root, identifier, showAncestors
+			)
 			self.node = node
 			self.root = root
 			self.identifier = identifier
@@ -499,7 +560,7 @@ class InspectorDialog(ScalingMixin, wx.Dialog):
 		if output.HasFocus():
 			api.processPendingEvents()
 			msg = output.GetLineText(lineNum)
-			if hasattr(node, "tag"):
+			if not showAncestors and hasattr(node, "tag"):
 				labels = getFieldLabels()
 				if msg.startswith(labels["content"]):
 					msg = f"{labels['content']} {getText(node, truncate=True)}"
@@ -695,6 +756,9 @@ class InspectorDialog(ScalingMixin, wx.Dialog):
 		elif keyCode == wx.WXK_F10 and mods == wx.MOD_NONE:
 			self.copyRelativePath()
 			return
+		elif keyCode == wx.WXK_F12 and mods == wx.MOD_NONE:
+			self.switchView()
+			return
 		elif mods == wx.MOD_ALT:
 			if keyCode == wx.WXK_HOME:
 				self.first()
@@ -702,16 +766,16 @@ class InspectorDialog(ScalingMixin, wx.Dialog):
 			elif keyCode == wx.WXK_END:
 				self.caret()
 				return
-			elif keyCode in (wx.WXK_UP, ord("U")):
+			elif keyCode in (wx.WXK_UP, wx.WXK_NUMPAD_UP, ord("U")):
 				self.walk("u")
 				return
-			elif keyCode in (wx.WXK_DOWN, ord("D")):
+			elif keyCode in (wx.WXK_DOWN, wx.WXK_NUMPAD_DOWN, ord("D")):
 				self.walk("d")
 				return
-			elif keyCode in (wx.WXK_LEFT, ord("L")):
+			elif keyCode in (wx.WXK_LEFT, wx.WXK_NUMPAD_LEFT, ord("L")):
 				self.walk("l")
 				return
-			elif keyCode in (wx.WXK_RIGHT, ord("R")):
+			elif keyCode in (wx.WXK_RIGHT, wx.WXK_NUMPAD_RIGHT, ord("R")):
 				self.walk("r")
 				return
 			elif keyCode in (wx.WXK_PAGEUP, ord("B")):
@@ -719,6 +783,13 @@ class InspectorDialog(ScalingMixin, wx.Dialog):
 				return
 			elif keyCode in (wx.WXK_PAGEDOWN, ord("A")):
 				self.walk("a")
+				return
+		elif self.showAncestors and mods == wx.MOD_CONTROL:
+			if keyCode in (wx.WXK_UP, wx.WXK_NUMPAD_UP):
+				self.descendant()
+				return
+			if keyCode in (wx.WXK_DOWN, wx.WXK_NUMPAD_DOWN):
+				self.ancestor()
 				return
 		char = getCharFromKeyEvent(evt)
 		if char is not None and char > " ":  # First printable character
@@ -738,6 +809,16 @@ class InspectorDialog(ScalingMixin, wx.Dialog):
 			wx.Bell()
 			return
 		self.inspect(refresh(node, self.root, self.mgr.mainNode), back=True)
+	
+	def switchView(self):
+		showAncestors = self.showAncestors = not self.showAncestors
+		if showAncestors:
+			# Translators: A message from the Inspector dialog
+			self.message(_("Show all ancestors"))
+		else:
+			# Translators: A message from the Inspector dialog
+			self.message(_("Show single element"))
+		self.inspect(self.node, self.root, self.identifier)
 	
 	def walk(self, path):
 		node = self.node
