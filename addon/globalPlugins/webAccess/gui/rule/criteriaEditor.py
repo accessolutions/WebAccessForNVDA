@@ -471,7 +471,8 @@ class GeneralPanel(CriteriaEditorPanel):
 		else:
 			for index in range(nbAlternatives):
 				self.sequenceOrderChoice.Append(str(index + 1))
-			index = data.get("criteriaIndex", nbAlternatives + 1)
+			# Default to the last position (append) if unset, e.g. when adding a new alternative.
+			index = data.get("criteriaIndex", nbAlternatives - 1)
 			self.sequenceOrderChoice.SetSelection(index)
 		if self.getRuleType() == ruleTypes.ZONE:
 			key = "convert.single" if isDualNode(data) else "convert.dual"

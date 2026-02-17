@@ -1092,7 +1092,12 @@ class SimpleSummaryCriteriaPanel(AlternativeChildPanel):
 		parent = self.Parent
 		dlg = parent.Parent.Parent
 		if change is Change.CREATION:
-			dlg.switchToFullEditor()
+			# The new alternative has already been inserted into the rule's criteria
+			# list. Do not flush the currently shown single-node panel: it still holds
+			# the widget values of the previous sole alternative and, since indices may
+			# have shifted, could otherwise overwrite the newly created alternative's
+			# data with stale data (e.g. when it is reordered to the first position).
+			dlg.switchToFullEditor(updateData=False)
 			return
 		parent.switchToAppropriatePanel()
 		parent.shownPanel.initData(self.context)
@@ -1417,11 +1422,12 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 				return
 		super().onCharHook(evt)
 	
-	def switchToFullEditor(self):
+	def switchToFullEditor(self, updateData=True):
 		if not self.simpleMode:
 			wx.Bell()
 			return
-		self.currentCategory.updateData()
+		if updateData:
+			self.currentCategory.updateData()
 		tree = self.catListCtrl
 		treePath = []
 		child = tree.GetSelection()
