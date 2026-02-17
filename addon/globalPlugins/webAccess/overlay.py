@@ -630,30 +630,30 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		if itemType == "annotation":
 			attrs = {
 				"IAccessible::role": [
-					controlTypes.ROLE_DELETED_CONTENT,
-					controlTypes.ROLE_INSERTED_CONTENT
+					controlTypes.Role.DELETED_CONTENT,
+					controlTypes.Role.INSERTED_CONTENT
 				]
 			}
 		elif itemType == "blockQuote":
 			attrs = {
-				"role": [controlTypes.ROLE_BLOCKQUOTE]
+				"role": [controlTypes.Role.BLOCKQUOTE]
 			}
 		elif itemType == "button":
-			attrs = {"role": [controlTypes.ROLE_BUTTON]}
+			attrs = {"role": [controlTypes.Role.BUTTON]}
 		elif itemType == "checkBox":
-			attrs = {"role": [controlTypes.ROLE_CHECKBOX]}
+			attrs = {"role": [controlTypes.Role.CHECKBOX]}
 		elif itemType == "comboBox":
-			attrs = {"role": [controlTypes.ROLE_COMBOBOX]}
+			attrs = {"role": [controlTypes.Role.COMBOBOX]}
 		elif itemType == "edit":
 			attrs = [
 				{
-					"role": [controlTypes.ROLE_EDITABLETEXT],
-					"states": [set((controlTypes.STATE_EDITABLE,))]
+					"role": [controlTypes.Role.EDITABLETEXT],
+					"states": [set((controlTypes.State.EDITABLE,))]
 				},
 				{
-					"states": [set((controlTypes.STATE_EDITABLE,))],
+					"states": [set((controlTypes.State.EDITABLE,))],
 					"parent::states::not": [
-						set((controlTypes.STATE_EDITABLE,))
+						set((controlTypes.State.EDITABLE,))
 					]
 				},
 			]
@@ -664,50 +664,50 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 				},
 				{
 					"role": [
-						controlTypes.ROLE_APPLICATION,
-						controlTypes.ROLE_DIALOG
+						controlTypes.Role.APPLICATION,
+						controlTypes.Role.DIALOG
 					]
 				}
 			]
 		elif itemType == "frame":
-			attrs = {"role": [controlTypes.ROLE_INTERNALFRAME]}
+			attrs = {"role": [controlTypes.Role.INTERNALFRAME]}
 		elif itemType == "focusable":
 			attrs = {
-				"states": [set((controlTypes.STATE_FOCUSABLE,))]
+				"states": [set((controlTypes.State.FOCUSABLE,))]
 			}
 		elif itemType == "formField":
 			attrs = [
 				{
 					"role": [
-						controlTypes.ROLE_BUTTON,
-						controlTypes.ROLE_CHECKBOX,
-						controlTypes.ROLE_COMBOBOX,
-						controlTypes.ROLE_LIST,
-						controlTypes.ROLE_MENUBUTTON,
-						controlTypes.ROLE_RADIOBUTTON,
-						controlTypes.ROLE_TOGGLEBUTTON,
-						controlTypes.ROLE_TREEVIEW,
+						controlTypes.Role.BUTTON,
+						controlTypes.Role.CHECKBOX,
+						controlTypes.Role.COMBOBOX,
+						controlTypes.Role.LIST,
+						controlTypes.Role.MENUBUTTON,
+						controlTypes.Role.RADIOBUTTON,
+						controlTypes.Role.TOGGLEBUTTON,
+						controlTypes.Role.TREEVIEW,
 					],
-					"states::not": [set((controlTypes.STATE_READONLY,))]
+					"states::not": [set((controlTypes.State.READONLY,))]
 				},
 				{
 					"role": [
-						controlTypes.ROLE_COMBOBOX,
-						controlTypes.ROLE_EDITABLETEXT
+						controlTypes.Role.COMBOBOX,
+						controlTypes.Role.EDITABLETEXT
 					],
-					"states": [set((controlTypes.STATE_EDITABLE,))]
+					"states": [set((controlTypes.State.EDITABLE,))]
 				},
 				{
-					"states": [set((controlTypes.STATE_EDITABLE,))],
+					"states": [set((controlTypes.State.EDITABLE,))],
 					"parent::states::not": [
-						set((controlTypes.STATE_EDITABLE,))
+						set((controlTypes.State.EDITABLE,))
 					]
 				},
 			]
 		elif itemType == "graphic":
-			attrs = {"role": [controlTypes.ROLE_GRAPHIC]}
+			attrs = {"role": [controlTypes.Role.GRAPHIC]}
 		elif itemType.startswith('heading'):
-			attrs = {"role": [controlTypes.ROLE_HEADING]}
+			attrs = {"role": [controlTypes.Role.HEADING]}
 			if itemType[7:].isdigit():
 				# "level" is int in position info,
 				# but text in control field attributes...
@@ -715,17 +715,17 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		elif itemType == "landmark":
 			attrs = {"landmark": [True]}
 		elif itemType == "link":
-			attrs = {"role": [controlTypes.ROLE_LINK]}
+			attrs = {"role": [controlTypes.Role.LINK]}
 		elif itemType == "list":
-			attrs = {"role": [controlTypes.ROLE_LIST]}
+			attrs = {"role": [controlTypes.Role.LIST]}
 		elif itemType == "listItem":
-			attrs = {"role": [controlTypes.ROLE_LISTITEM]}
+			attrs = {"role": [controlTypes.Role.LISTITEM]}
 		elif itemType == "radioButton":
-			attrs = {"role": [controlTypes.ROLE_RADIOBUTTON]}
+			attrs = {"role": [controlTypes.Role.RADIOBUTTON]}
 		elif itemType == "separator":
-			attrs = {"role": [controlTypes.ROLE_SEPARATOR]}
+			attrs = {"role": [controlTypes.Role.SEPARATOR]}
 		elif itemType == "table":
-			attrs = {"role": [controlTypes.ROLE_TABLE]}
+			attrs = {"role": [controlTypes.Role.TABLE]}
 			if not config.conf["documentFormatting"]["includeLayoutTables"]:
 				attrs["table-layout"] = [False]
 		elif itemType == "unvisitedLink":

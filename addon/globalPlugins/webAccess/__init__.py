@@ -285,9 +285,9 @@ In your user configuration folder:
 			if cls in clsList
 		):
 			if obj.role in (
-				controlTypes.ROLE_APPLICATION,
-				controlTypes.ROLE_DIALOG,
-				controlTypes.ROLE_DOCUMENT,
+				controlTypes.Role.APPLICATION,
+				controlTypes.Role.DIALOG,
+				controlTypes.Role.DOCUMENT,
 			):
 				clsList.insert(0, overlay.WebAccessDocument)
 				return
@@ -296,7 +296,7 @@ In your user configuration folder:
 			from .gui import inspector
 			if (
 				inspector.outputWindowHandle is not None
-				and obj.role == controlTypes.ROLE_EDITABLETEXT
+				and obj.role == controlTypes.Role.EDITABLETEXT
 				and obj.windowHandle == inspector.outputWindowHandle
 				and obj.appModule.appName == "nvda"
 			):
@@ -501,7 +501,7 @@ def appModule_nvda_event_NVDAObject_init(self, obj):
 		"popupContextMenuName" in globals()
 		and popupContextMenuName is not None
 		and isinstance(obj, IAccessible)
-		and obj.role == controlTypes.ROLE_POPUPMENU
+		and obj.role == controlTypes.Role.POPUPMENU
 	):
 		obj.name = popupContextMenuName
 		popupContextMenuName = None

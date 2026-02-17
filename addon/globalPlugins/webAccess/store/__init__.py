@@ -198,7 +198,6 @@ class DispatchStore(Store):
 
 class DuplicateRefError(Exception):
 	pass
-
 		
 class MalformedRefError(Exception):
 	pass

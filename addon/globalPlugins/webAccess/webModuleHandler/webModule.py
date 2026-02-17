@@ -318,12 +318,12 @@ class WebModule(baseObject.ScriptableObject):
 
 	# Currently dead code, but will likely be revived for issue #17
 	def event_webModule_gainFocus(self, obj, nextHandler):
-		if obj.role not in [controlTypes.ROLE_DOCUMENT, controlTypes.ROLE_FRAME, controlTypes.ROLE_INTERNALFRAME]:
+		if obj.role not in [controlTypes.Role.DOCUMENT, controlTypes.Role.FRAME, controlTypes.Role.INTERNALFRAME]:
 			nextHandler()
 
 	# Currently dead code, but will likely be revived for issue #17
 	def event_focusEntered(self, obj, nextHandler):
-		if obj.role != controlTypes.ROLE_DOCUMENT:
+		if obj.role != controlTypes.Role.DOCUMENT:
 			nextHandler()
 
 	def event_gainFocus(self, obj, nextHandler):

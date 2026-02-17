@@ -54,13 +54,6 @@ else:
     from collections.abc import Mapping
 
 
-try:
-	from six import iteritems
-except ImportError:
-	# NVDA version < 2018.3
-	iteritems = dict.iteritems
-
-
 addonHandler.initTranslation()
 
 
@@ -345,7 +338,7 @@ def getRulesByType(ruleManager, filter=None, active=False):
 			obj=rule,
 			children=[]
 		))
-	for ruleType, label in iteritems(ruleTypes.ruleTypeLabels):
+	for ruleType, label in ruleTypes.ruleTypeLabels.items():
 		try:
 			tids = types[ruleType]
 		except KeyError:
@@ -693,7 +686,7 @@ class Dialog(ContextualDialog):
 						self.tree.SetFocus()
 						return
 		elif keyCode == wx.WXK_RETURN and mods == wx.MOD_NONE:
-			# filterEdit is handled separately (TE_PROCESS_ENTER) 
+			# filterEdit is handled separately (TE_PROCESS_ENTER)
 			for ctrl in (self.groupByRadio, self.activeOnlyCheckBox):
 			 	if ctrl.HasFocus():
 			 		self.tree.SetFocus()

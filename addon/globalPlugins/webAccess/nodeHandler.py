@@ -397,7 +397,7 @@ class NodeManager(baseObject.AutoPropertyObject):
 					prev = map[controlId]
 					if prev[1] == span[0]:
 						# Consecutive spans for the same control. Expand the recorded span.
-						span = (prev[0], span[1]) 
+						span = (prev[0], span[1])
 					elif not(prev[0] <= span[0] and span[1] <= prev[1]):
 						# Neither consecutive nor nested
 						log.warning(f"ControlId double: {controlId} at {prev} and {span} (role: {node.role})")
@@ -521,7 +521,7 @@ class NodeField(TrackedObject):
 	def url(self):
 		if hasattr(self, "_url"):
 			return self._url
-		if self.role != controlTypes.ROLE_DOCUMENT:
+		if self.role != controlTypes.Role.DOCUMENT:
 			return None
 		url = None
 		obj = self.getNVDAObject()
@@ -918,7 +918,7 @@ class NodeField(TrackedObject):
 # 		if self.offset < node.offset:
 # 			return True
 # 		return False
-# 
+#
 # 	def __le__(self, node):
 # 		"""
 # 		Compare nodes based on their offset.
@@ -926,7 +926,7 @@ class NodeField(TrackedObject):
 # 		if self.offset <= node.offset:
 # 			return True
 # 		return False
-# 
+#
 # 	def __gt__(self, node):
 # 		"""
 # 		Compare nodes based on their offset.
@@ -934,7 +934,7 @@ class NodeField(TrackedObject):
 # 		if self.offset > node.offset:
 # 			return True
 # 		return False
-# 
+#
 # 	def __ge__(self, node):
 # 		"""
 # 		Compare nodes based on their offset.

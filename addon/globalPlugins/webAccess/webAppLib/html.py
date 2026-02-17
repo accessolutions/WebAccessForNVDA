@@ -32,11 +32,7 @@ from logHandler import log
 import virtualBuffers
 
 
-try:
-	REASON_CARET = controlTypes.OutputReason.CARET
-except AttributeError:
-	# NVDA < 2021.1
-	REASON_CARET = controlTypes.REASON_CARET
+REASON_CARET = controlTypes.OutputReason.CARET
 
 
 # global variable that stores the last valid document tree interceptor
@@ -174,7 +170,7 @@ def getTreeInterceptor(focusObject=None):
 
 def getCaretInfo(focusObject=None):
 	treeInterceptor = getTreeInterceptor(focusObject=focusObject)
-	if not treeInterceptor: 
+	if not treeInterceptor:
 		return None
 	return treeInterceptor.makeTextInfo(textInfos.POSITION_CARET)
 
@@ -446,7 +442,7 @@ def searchTag_2014(nodeType, first=False, reverse=False, func=None, elementDescr
 		startOffset=info._startOffset
 		endOffset=info._endOffset
 		ok = False
-		while not ok: 
+		while not ok:
 			if reverse:
 				node, startOffset, endOffset = previousTag (focus, nodeType, startOffset)
 			else:
@@ -477,7 +473,6 @@ def searchTag_2014(nodeType, first=False, reverse=False, func=None, elementDescr
 	api.setReviewPosition(info)
 	return True
 
-
 	
 """
 searchTag - searches for a specific tag into the document.
@@ -490,4 +485,5 @@ def searchTag(nodeType, info=None, id=None, className=None, src=None, text=None,
 		return searchTag_2014(nodeType, first, reverse, func, moveFocus)
 	else:
 		return searchTag_2015(nodeType, info=info, id=id, className=className, src=src, text=text, first=first, reverse=reverse, func=func, max=maxAncestors, moveFocus=moveFocus)
+
 	

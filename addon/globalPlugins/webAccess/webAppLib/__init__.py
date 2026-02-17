@@ -51,13 +51,6 @@ import winUser
 from . import html
 
 
-try:
-	from six import string_types
-except ImportError:
-	# NVDA version < 2018.3
-	string_types = str
-
-
 def speechOff():
 	speech.setSpeechMode(speech.SpeechMode.off)
 	
@@ -117,7 +110,7 @@ def focusVirtualBuffer (obj=None):
 	# place le focus NVDA sur le premier objet qui a un attribut treeInterceptor afin d'accÃ©der au curseur virtuel
 	if obj is None:
 		obj = api.getFocusObject()
-		if obj.role == controlTypes.ROLE_UNKNOWN:
+		if obj.role == controlTypes.Role.UNKNOWN:
 			obj = obj.parent
 	if hasattr (obj, "treeInterceptor") and obj.treeInterceptor is not None:
 		api.setFocusObject(obj)
@@ -239,7 +232,7 @@ def searchNameByColor (obj, background):
 					trace (repr(f["background-color"]))
 				except:
 					red = -1
-		elif isinstance (field, string_types):
+		elif isinstance (field, str):
 			if red == background and len(field) > 3:
 				return str (field)
 	# end of loop

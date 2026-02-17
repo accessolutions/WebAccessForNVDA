@@ -162,7 +162,6 @@ class Dialog(ContextualDialog):
 			self.onRulesManager(None)
 			return
 		evt.Skip()
-
 	
 	@guarded
 	def onModuleCreate(self, evt=None):

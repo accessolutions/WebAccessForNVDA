@@ -27,7 +27,6 @@ __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 from collections import OrderedDict
 import errno
-import imp
 import os
 import os.path
 from pprint import pformat

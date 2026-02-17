@@ -75,7 +75,6 @@ else:
 
 addonHandler.initTranslation()
 
-from six import iteritems, text_type
 
 EXPR_VALUE = re.compile("(([^!&| ])+( (?=[^!&|]))*)+")
 """
@@ -104,7 +103,7 @@ def captureValues(expr):
 
 def getStatesLblExprForSet(states):
 	return " & ".join((
-		controlTypes.stateLabels.get(state, state)
+		state.displayString if isinstance(state, controlTypes.State) else str(state)
 		for state in states
 	))
 
@@ -113,7 +112,7 @@ def translateExprValues(expr, func):
 	buf = list(expr)
 	offset = 0
 	for src, start, end in captureValues(expr):
-		dest = text_type(func(src))
+		dest = str(func(src))
 		start += offset
 		end += offset
 		buf[start:end] = dest
@@ -124,7 +123,7 @@ def translateExprValues(expr, func):
 def translateRoleIdToLbl(expr):
 	def translate(value):
 		try:
-			return controlTypes.roleLabels[int(value)]
+			return controlTypes.Role(int(value)).displayString
 		except (KeyError, ValueError):
 			return value
 	return translateExprValues(expr, translate)
@@ -132,9 +131,9 @@ def translateRoleIdToLbl(expr):
 
 def translateRoleLblToId(expr, raiseOnError=True):
 	def translate(value):
-		for key, candidate in iteritems(controlTypes.roleLabels):
-			if candidate == value:
-				return text_type(key.value)
+		for role in controlTypes.Role:
+			if role.displayString == value:
+				return str(role.value)
 		if raiseOnError:
 			raise ValidationError(value)
 		return value
@@ -144,7 +143,7 @@ def translateRoleLblToId(expr, raiseOnError=True):
 def translateStatesIdToLbl(expr):
 	def translate(value):
 		try:
-			return controlTypes.stateLabels[int(value)]
+			return controlTypes.State(int(value)).displayString
 		except (KeyError, ValueError):
 			return value
 	return translateExprValues(expr, translate)
@@ -152,9 +151,9 @@ def translateStatesIdToLbl(expr):
 
 def translateStatesLblToId(expr, raiseOnError=True):
 	def translate(value):
-		for key, candidate in iteritems(controlTypes.stateLabels):
-			if candidate == value:
-				return text_type(key.value)
+		for state in controlTypes.State:
+			if state.displayString == value:
+				return str(state.value)
 		if raiseOnError:
 			raise ValidationError(value)
 		return value
@@ -814,7 +813,7 @@ class CriteriaPanel(CriteriaEditorPanel):
 			urlChoices = []
 			# todo: actually there are empty choices created
 			while node is not None:
-				roleChoices.append(controlTypes.roleLabels.get(node.role, "") or "")
+				roleChoices.append(node.role.displayString if node.role else "")
 				tagChoices.append(node.tag or "")
 				idChoices.append(node.id or "")
 				classChoices.append(node.className or "")
@@ -952,7 +951,7 @@ class CriteriaPanel(CriteriaEditorPanel):
 		testCriteria(self.context)
 	
 	def isValid(self):
-		self.updateData()		
+		self.updateData()
 		return self.isValid_context() and self.isValid_others()
 	
 	def isValid_context(self):

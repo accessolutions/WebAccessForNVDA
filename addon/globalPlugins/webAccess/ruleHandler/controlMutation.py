@@ -85,32 +85,32 @@ class MutatedControl(object):
 
 
 MUTATIONS = {
-	"button": Mutation({"role": controlTypes.ROLE_BUTTON}, False),
+	"button": Mutation({"role": controlTypes.Role.BUTTON}, False),
 	# "level" is int in position info, but text in control field attributes...
 	"heading.1": Mutation(
-		{"role": controlTypes.ROLE_HEADING, "level": "1"}, False
+		{"role": controlTypes.Role.HEADING, "level": "1"}, False
 	),
 	"heading.2": Mutation(
-		{"role": controlTypes.ROLE_HEADING, "level": "2"}, False
+		{"role": controlTypes.Role.HEADING, "level": "2"}, False
 	),
 	"heading.3": Mutation(
-		{"role": controlTypes.ROLE_HEADING, "level": "3"}, False
+		{"role": controlTypes.Role.HEADING, "level": "3"}, False
 	),
 	"heading.4": Mutation(
-		{"role": controlTypes.ROLE_HEADING, "level": "4"}, False
+		{"role": controlTypes.Role.HEADING, "level": "4"}, False
 	),
 	"heading.5": Mutation(
-		{"role": controlTypes.ROLE_HEADING, "level": "5"}, False
+		{"role": controlTypes.Role.HEADING, "level": "5"}, False
 	),
 	"heading.6": Mutation(
-		{"role": controlTypes.ROLE_HEADING, "level": "6"}, False
+		{"role": controlTypes.Role.HEADING, "level": "6"}, False
 	),
 	"labelled": Mutation({}, True),
 	"landmark.region": Mutation({"landmark": "region"}, True),
 	"landmark.nav.named": Mutation({"landmark": "navigation"}, True),
 	"landmark.nav.unnamed": Mutation({"landmark": "navigation"}, False),
-	"link": Mutation({"role": controlTypes.ROLE_LINK}, False),
-	"section": Mutation({"role": controlTypes.ROLE_SECTION}, False),
+	"link": Mutation({"role": controlTypes.Role.LINK}, False),
+	"section": Mutation({"role": controlTypes.Role.SECTION}, False),
 	"table.data": Mutation({"table-layout": False}, False),
 	"table.layout": Mutation({"table-layout": True}, False)
 }

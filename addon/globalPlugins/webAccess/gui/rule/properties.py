@@ -552,7 +552,6 @@ class PropertiesPanelBase(SinglePropertyEditorPanelBase, metaclass=guiHelper.SIP
 				self.prop_reset()
 				return
 		evt.Skip()
-
 	
 	@guarded
 	def onListCtrl_charHook(self, evt):

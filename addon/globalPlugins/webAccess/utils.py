@@ -34,12 +34,6 @@ from logHandler import log
 
 import addonHandler
 
-try:
-	from six import text_type
-except ImportError:
-	# NVDA version < 2018.3
-	text_type = str
-
 
 addonHandler.initTranslation()
 
@@ -47,7 +41,7 @@ addonHandler.initTranslation()
 def updateOrDrop(map, key, value, default=None):
 	if (
 		value == default
-		or (isinstance(value, text_type) and not value.strip())
+		or (isinstance(value, str) and not value.strip())
 	):
 		map.pop(key, None)
 	else:

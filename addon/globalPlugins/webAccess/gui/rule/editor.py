@@ -90,8 +90,8 @@ else:
 addonHandler.initTranslation()
 
 formModeRoles = [
-	controlTypes.ROLE_EDITABLETEXT,
-	controlTypes.ROLE_COMBOBOX,
+	controlTypes.Role.EDITABLETEXT,
+	controlTypes.Role.COMBOBOX,
 ]
 
 SHARED_LABELS: Mapping[str, str] = {
@@ -632,7 +632,7 @@ class GesturesPanel(GesturesPanelBase, RuleEditorTreeContextualPanel):
 	def onGestureChange(self, change: Change, id: str):
 		super().onGestureChange(change, id)
 		prm = self.categoryParams
-		self.refreshParent(prm.treeNode)			
+		self.refreshParent(prm.treeNode)
 	
 	def spaceIsPressedOnTreeNode(self, withShift=False):
 		self.gesturesListBox.SetFocus()
@@ -753,6 +753,7 @@ class AlternativeChildPanel(AlternativesPanel):
 		
 		row += 1
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, col))
+
 		
 	
 	def spaceIsPressedOnTreeNode(self, withShift=False):
