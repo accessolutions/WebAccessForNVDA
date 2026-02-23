@@ -37,6 +37,7 @@ import sys
 from typing import Any, Callable
 import wx
 import wx.lib.mixins.listctrl as listmix
+from wx.lib.scrolledpanel import ScrolledPanel
 
 import gui
 from gui import guiHelper, nvdaControls
@@ -55,6 +56,10 @@ import ui
 import winUser
 
 from ..utils import guarded, logException, notifyError, updateOrDrop
+
+# TabbableScrolledPanel was removed in NVDA 2026.1 (wxPython 4.2.3 update).
+# Fall back to wx.lib.scrolledpanel.ScrolledPanel which now has the fix built-in.
+_TabbableScrolledPanel = getattr(nvdaControls, "TabbableScrolledPanel", ScrolledPanel)
 
 
 if sys.version_info[1] < 9:
@@ -572,7 +577,7 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 			style=wx.TR_HAS_BUTTONS | wx.TR_HIDE_ROOT | wx.TR_LINES_AT_ROOT
 		)
 
-		self.container = nvdaControls.TabbableScrolledPanel(
+		self.container = _TabbableScrolledPanel(
 			parent = self,
 			style = wx.TAB_TRAVERSAL | wx.BORDER_THEME,
 			size=containerDim

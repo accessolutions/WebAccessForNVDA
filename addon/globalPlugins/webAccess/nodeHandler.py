@@ -41,6 +41,10 @@ import controlTypes
 from logHandler import log
 import mouseHandler
 import NVDAHelper
+try:
+	from NVDAHelper.localLib import VBuf_getTextInRange
+except (ImportError, AttributeError):
+	VBuf_getTextInRange = NVDAHelper.VBuf_getTextInRange
 import textInfos
 import treeInterceptorHandler
 import ui
@@ -285,7 +289,7 @@ class NodeManager(baseObject.AutoPropertyObject):
 			if debug:
 				log.info("The VirtualBuffer is empty")
 			return False
-		text = NVDAHelper.VBuf_getTextInRange(
+		text = VBuf_getTextInRange(
 			info.obj.VBufHandle, start, end, True)
 		if self.mainNode is not None:
 			self.mainNode.recursiveDelete()
