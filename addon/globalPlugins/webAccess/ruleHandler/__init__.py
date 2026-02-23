@@ -1831,7 +1831,7 @@ def getSimpleSearchKwargs(criteria, raiseOnUnsupported=False):
 			if expr[0] == "<":
 				kwargs["in_prevText"] = expr[1:]
 				continue
-			kwargs["in_text"] = expr[1:]
+			kwargs["in_text"] = expr
 			continue
 		if prop == "className":
 			# For "className", both space and ampersand are treated as "and" operator
