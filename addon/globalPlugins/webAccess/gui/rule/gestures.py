@@ -29,7 +29,6 @@ __authors__ = (
 )
 
 
-import sys
 from typing import Any
 import wx
 
@@ -44,11 +43,7 @@ from .. import ContextualSettingsPanel, Change
 from . import gestureBinding
 from .abc import RuleAwarePanelBase
 
-
-if sys.version_info[1] < 9:
-    from typing import Mapping
-else:
-    from collections.abc import Mapping
+from collections.abc import Mapping
 
 
 addonHandler.initTranslation()

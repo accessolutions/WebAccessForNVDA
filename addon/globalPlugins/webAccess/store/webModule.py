@@ -52,10 +52,7 @@ from . import Store
 from .addons import AddonsStore
 
 
-try:
-	import json
-except ImportError:
-	from ..lib import json
+import json
 
 
 class WebModuleJsonFileDataStore(Store):

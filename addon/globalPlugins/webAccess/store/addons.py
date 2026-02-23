@@ -42,8 +42,7 @@ class AddonsStore(DispatchStore):
 
 	def __getStores(self):
 		for addon in addonHandler.getAvailableAddons():
-			# Introduced in NVDA 2016.3
-			if hasattr(addon, "isDisabled") and addon.isDisabled:
+			if addon.isDisabled:
 				continue
 			yield self.addonStoreFactory(addon)
 	

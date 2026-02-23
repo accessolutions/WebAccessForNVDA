@@ -23,7 +23,6 @@
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
-import sys
 from typing import Any
 
 import wx
@@ -37,11 +36,7 @@ from ... import webModuleHandler
 from ...utils import updateOrDrop
 from .properties import Properties
 
-
-if sys.version_info[1] < 9:
-    from typing import Mapping
-else:
-    from collections.abc import Mapping
+from collections.abc import Mapping
 
 
 addonHandler.initTranslation()

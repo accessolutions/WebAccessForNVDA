@@ -33,7 +33,6 @@ from collections import OrderedDict
 import datetime
 import json
 import os
-import sys
 
 import addonHandler
 addonHandler.initTranslation()
@@ -52,10 +51,7 @@ from ..lib.packaging import version
 from ..webAppLib import playWebAccessSound
 
 
-if sys.version_info[1] < 9:
-    from typing import Sequence
-else:
-    from collections.abc import Sequence
+from collections.abc import Sequence
 
 
 class InvalidApiVersion(version.InvalidVersion):

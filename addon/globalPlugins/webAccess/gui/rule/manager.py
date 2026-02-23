@@ -30,7 +30,6 @@ __authors__ = (
 
 
 from collections import namedtuple
-import sys
 import wx
 
 import addonHandler
@@ -47,11 +46,7 @@ from ...webModuleHandler import getEditableWebModule, save
 from .. import ContextualDialog, showContextualDialog, stripAccel
 from .editor import getSummary
 
-
-if sys.version_info[1] < 9:
-    from typing import Mapping
-else:
-    from collections.abc import Mapping
+from collections.abc import Mapping
 
 
 addonHandler.initTranslation()

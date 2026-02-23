@@ -36,7 +36,6 @@ from itertools import chain
 from pprint import pformat
 import threading
 import time
-import sys
 from typing import Any
 import weakref
 
@@ -73,11 +72,8 @@ from .controlMutation import MUTATIONS, MutatedControl, getMutationId
 from .properties import RuleProperties, CriteriaProperties
 
 
-if sys.version_info[1] < 9:
-    from typing import Mapping, Sequence, Tuple
-else:
-    from collections.abc import Mapping, Sequence
-    Tuple = tuple
+from collections.abc import Mapping, Sequence
+Tuple = tuple
 
 
 addonHandler.initTranslation()

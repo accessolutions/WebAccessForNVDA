@@ -33,7 +33,6 @@ __authors__ = (
 from collections import OrderedDict
 from copy import deepcopy
 import re
-import sys
 from typing import Any
 import wx
 from wx.lib.expando import EVT_ETC_LAYOUT_NEEDED, ExpandoTextCtrl
@@ -66,11 +65,7 @@ from .abc import RuleAwarePanelBase
 from .gestures import GesturesPanelBase
 from .properties import Properties, PropertiesPanelBase, Property
 
-
-if sys.version_info[1] < 9:
-    from typing import Mapping, Sequence
-else:
-    from collections.abc import Mapping, Sequence
+from collections.abc import Mapping, Sequence
 
 
 addonHandler.initTranslation()

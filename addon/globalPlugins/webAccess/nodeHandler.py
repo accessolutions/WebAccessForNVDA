@@ -30,7 +30,6 @@ __authors__ = (
 
 import gc
 import re
-import sys
 import time
 import weakref
 from ast import literal_eval
@@ -40,11 +39,7 @@ import baseObject
 import controlTypes
 from logHandler import log
 import mouseHandler
-import NVDAHelper
-try:
-	from NVDAHelper.localLib import VBuf_getTextInRange
-except (ImportError, AttributeError):
-	VBuf_getTextInRange = NVDAHelper.VBuf_getTextInRange
+from NVDAHelper.localLib import VBuf_getTextInRange
 import textInfos
 import treeInterceptorHandler
 import ui
@@ -55,10 +50,7 @@ from .utils import tryInt
 from .webAppLib import *
 
 
-if sys.version_info[1] < 9:
-    from typing import Mapping
-else:
-    from collections.abc import Mapping
+from collections.abc import Mapping
 
 
 TRACE = lambda *args, **kwargs: None  # noqa: E731
