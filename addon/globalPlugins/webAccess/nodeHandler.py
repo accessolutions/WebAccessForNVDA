@@ -39,7 +39,17 @@ import baseObject
 import controlTypes
 from logHandler import log
 import mouseHandler
-from NVDAHelper.localLib import VBuf_getTextInRange
+import NVDAObjects.IAccessible
+import NVDAHelper
+
+# NVDA <= 2025.x: source/NVDAHelper.py exposes VBuf_getTextInRange directly.
+# NVDA >= 2026.1 (commit 9cc7ed6a6): NVDAHelper is a package and localLib contains declarations.
+if hasattr(NVDAHelper, "VBuf_getTextInRange"):
+	VBuf_getTextInRange = NVDAHelper.VBuf_getTextInRange
+elif hasattr(NVDAHelper, "localLib") and hasattr(NVDAHelper.localLib, "VBuf_getTextInRange"):
+	VBuf_getTextInRange = NVDAHelper.localLib.VBuf_getTextInRange
+else:
+	from NVDAHelper.localLib import VBuf_getTextInRange
 import textInfos
 import treeInterceptorHandler
 import ui
@@ -521,13 +531,16 @@ class NodeField(TrackedObject):
 			return None
 		url = None
 		obj = self.getNVDAObject()
-		while obj.role != self.role:
+		while obj is not None and obj.role != self.role:
 			try:
 				obj = obj.parent
 			except Exception:
-				break
-		else:
-			url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
+				obj = None
+		if obj is not None:
+			try:
+				url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
+			except Exception:
+				url = None
 		self._url = url
 		return url
 	
@@ -888,7 +901,28 @@ class NodeField(TrackedObject):
 	def getNVDAObject(self):
 		if not self.isReady():
 			return None
-		return self.getTextInfo().NVDAObjectAtStart
+		info = self.getTextInfo()
+		if info is None:
+			return None
+		obj = info.NVDAObjectAtStart
+		if obj is not None:
+			return obj
+		try:
+			docHandle, objId = self.controlIdentifier
+		except Exception:
+			return None
+		if not docHandle or not objId:
+			return None
+		try:
+			# NVDA commit 9afb6fc5b (introduced in 2024.3) changed Gecko IA2 object
+			# resolution for iframes, and NVDAObjectAtStart can be None in some cases.
+			# Legacy pre-2024.3 fallback path: event-based resolution.
+			# This keeps URL-based matching retrocompatible for iframe-driven submodules.
+			return NVDAObjects.IAccessible.getNVDAObjectFromEvent(
+				docHandle, winUser.OBJID_CLIENT, objId
+			)
+		except Exception:
+			return None
 
 	def mouseMove(self):
 		if not self.checkNodeManager():
