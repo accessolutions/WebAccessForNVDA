@@ -40,16 +40,13 @@ import controlTypes
 from logHandler import log
 import mouseHandler
 import NVDAObjects.IAccessible
-import NVDAHelper
-
-# NVDA <= 2025.x: source/NVDAHelper.py exposes VBuf_getTextInRange directly.
-# NVDA >= 2026.1 (commit 9cc7ed6a6): NVDAHelper is a package and localLib contains declarations.
-if hasattr(NVDAHelper, "VBuf_getTextInRange"):
-	VBuf_getTextInRange = NVDAHelper.VBuf_getTextInRange
-elif hasattr(NVDAHelper, "localLib") and hasattr(NVDAHelper.localLib, "VBuf_getTextInRange"):
-	VBuf_getTextInRange = NVDAHelper.localLib.VBuf_getTextInRange
-else:
+try:
+	# NVDA >= 2026.1 (package layout)
 	from NVDAHelper.localLib import VBuf_getTextInRange
+except Exception:
+	# NVDA <= 2025.x (legacy module layout)
+	import NVDAHelper
+	VBuf_getTextInRange = NVDAHelper.VBuf_getTextInRange
 import textInfos
 import treeInterceptorHandler
 import ui
