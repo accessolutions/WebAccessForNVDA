@@ -141,7 +141,7 @@ class WebModule(baseObject.ScriptableObject):
 				)
 		if not title:
 			title = api.getForegroundObject().name
-		return title
+		return title or ""
 
 	def _get_url(self):
 		return self._getLayeredProperty("url")

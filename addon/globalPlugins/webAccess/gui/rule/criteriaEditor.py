@@ -766,7 +766,8 @@ class CriteriaPanel(CriteriaEditorPanel):
 	
 	def initData_context(self, context):
 		data = self.getData()
-		self.contextPageTitleCombo.Set([context["pageTitle"]])
+		pageTitle = context.get("pageTitle") or ""
+		self.contextPageTitleCombo.Set([pageTitle])
 		mgr = context["webModule"].ruleManager
 		if mgr.isReady:
 			self.contextPageTypeCombo.Set(mgr.getPageTypes())
