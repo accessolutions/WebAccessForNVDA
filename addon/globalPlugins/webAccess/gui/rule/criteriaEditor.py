@@ -766,8 +766,7 @@ class CriteriaPanel(CriteriaEditorPanel):
 	
 	def initData_context(self, context):
 		data = self.getData()
-		pageTitle = context.get("pageTitle") or ""
-		self.contextPageTitleCombo.Set([pageTitle])
+		self.contextPageTitleCombo.Set([context.get("pageTitle") or ""])
 		mgr = context["webModule"].ruleManager
 		if mgr.isReady:
 			self.contextPageTypeCombo.Set(mgr.getPageTypes())
@@ -782,9 +781,9 @@ class CriteriaPanel(CriteriaEditorPanel):
 					parents.insert(0, rule.name)
 			self.contextParentCombo.Set(parents)
 		self.refreshContextMacroChoices(initial=True)
-		self.contextPageTitleCombo.Value = data.get("contextPageTitle", "")
-		self.contextPageTypeCombo.Value = data.get("contextPageType", "")
-		self.contextParentCombo.Value = data.get("contextParent", "")
+		self.contextPageTitleCombo.Value = data.get("contextPageTitle") or ""
+		self.contextPageTypeCombo.Value = data.get("contextPageType") or ""
+		self.contextParentCombo.Value = data.get("contextParent") or ""
 	
 	def initData_others(self, context):
 		data = self.getData()
@@ -794,11 +793,11 @@ class CriteriaPanel(CriteriaEditorPanel):
 			textNode = node
 			node = node.parent
 			t = textNode.text
-			if t == " ":
+			if not t or t == " ":
 				t = ""
 			textChoices = [t]
 			if node.previousTextNode is not None:
-				textChoices.append("<" + node.previousTextNode.text)
+				textChoices.append("<" + (node.previousTextNode.text or ""))
 			
 			roleChoices = []
 			tagChoices = []
