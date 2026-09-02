@@ -40,6 +40,7 @@ import inputCore
 import queueHandler
 import ui
 
+from ...config import resolveUiMode, setUiModeLastUsed
 from ...ruleHandler import Criteria, GestureScope, Rule, Result, Selector, Zone, ruleTypes
 from ...utils import getCharFromKeyEvent, guarded
 from ...webModuleHandler import getEditableWebModule, save
@@ -68,6 +69,16 @@ lastActiveOnly = False
 
 def show(context, parent=None):
 	showContextualDialog(Dialog, context, parent)
+
+
+def showRuleWizardOrEditor(context, parent):
+	from . import editor, wizard
+	canUseWizard = editor.supportsSimpleMode(context)
+	useWizard = canUseWizard and resolveUiMode("ruleWizard", "wizard") == "wizard"
+	if canUseWizard:
+		setUiModeLastUsed("ruleWizard", "wizard" if useWizard else "editor")
+	showDlg = wizard.show if useWizard else editor.show
+	return showDlg(context, parent=parent)
 
 
 TreeItemData = namedtuple("TreeItemData", ("label", "obj", "children"))
@@ -841,13 +852,7 @@ class Dialog(ContextualDialog):
 		context["rule"] = rule
 		context["webModule"] = rule.ruleManager.webModule
 		context.setdefault("data", {})["rule"] = rule.dump()
-		from . import editor
-		if editor.supportsSimpleMode(context):
-			from . import wizard
-			show = wizard.show
-		else:
-			show = editor.show
-		if show(context, parent=self):
+		if showRuleWizardOrEditor(context, self):
 			rule = self.context["rule"] = context["rule"]
 			# As the rule changed, all results are to be considered obsolete
 			if not self.disableGroupByPosition():
@@ -862,13 +867,7 @@ class Dialog(ContextualDialog):
 		context.get("data", {}).pop("rule", None)
 		if pastedData:
 			context.setdefault("data", {})["rule"] = pastedData
-		from . import editor
-		if not pastedData or editor.supportsSimpleMode(context):
-			from . import wizard
-			show = wizard.show
-		else:
-			show = editor.show
-		if show(context, parent=self):
+		if showRuleWizardOrEditor(context, self):
 			rule = self.context["rule"] = context["rule"]
 			# As a new rule was created, all results are to be considered obsolete
 			if not self.disableGroupByPosition():

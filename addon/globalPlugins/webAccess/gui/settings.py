@@ -108,9 +108,117 @@ class WebAccessSettingsPanel(SettingsPanel):
 		)
 		item.SetValue(config.conf["webAccess"]["writeInAddons"])
 
+		group = guiHelper.BoxSizerHelper(
+			self,
+			sizer=wx.StaticBoxSizer(
+				wx.StaticBox(
+					self,
+					# Translators: The title of a group of settings in the WebAccess settings panel
+					label=_("Default UI modes")
+				),
+				wx.VERTICAL
+			)
+		)
+		sHelper.addItem(group.sizer, flag=wx.EXPAND)
+		self.ruleWizardMode, self._ruleWizardModeKeys = self._addModeChoice(
+			group,
+			# Translators: The label for a setting in the WebAccess settings panel
+			_("Rule &wizard"),
+			"ruleWizardMode",
+			(
+				# Translators: A choice in the WebAccess settings panel
+				("default", _("Default (wizard if simple)")),
+				# Translators: A choice in the WebAccess settings panel
+				("lastUsed", _("Last used")),
+				# Translators: A choice in the WebAccess settings panel
+				("wizard", _("Wizard if simple")),
+				# Translators: A choice in the WebAccess settings panel
+				("editor", _("Editor")),
+			),
+		)
+		self.ruleEditorMode, self._ruleEditorModeKeys = self._addModeChoice(
+			group,
+			# Translators: The label for a setting in the WebAccess settings panel
+			_("Rule &editor"),
+			"ruleEditorMode",
+			(
+				# Translators: A choice in the WebAccess settings panel
+				("default", _("Default (simple if one criteria set)")),
+				# Translators: A choice in the WebAccess settings panel
+				("lastUsed", _("Last used")),
+				# Translators: A choice in the WebAccess settings panel
+				("simple", _("Simple if one criteria set")),
+				# Translators: A choice in the WebAccess settings panel
+				("full", _("Full")),
+			),
+		)
+		self.criteriaEditorMode, self._criteriaEditorModeKeys = self._addModeChoice(
+			group,
+			# Translators: The label for a setting in the WebAccess settings panel
+			_("&Criteria editor"),
+			"criteriaEditorMode",
+			(
+				# Translators: A choice in the WebAccess settings panel
+				("default", _("Default (simple if no gestures/properties)")),
+				# Translators: A choice in the WebAccess settings panel
+				("lastUsed", _("Last used")),
+				# Translators: A choice in the WebAccess settings panel
+				("simple", _("Simple if no gestures/properties")),
+				# Translators: A choice in the WebAccess settings panel
+				("full", _("Full")),
+			),
+		)
+		self.inspectorMode, self._inspectorModeKeys = self._addModeChoice(
+			group,
+			# Translators: The label for a setting in the WebAccess settings panel
+			_("Element &inspector"),
+			"inspectorMode",
+			(
+				# Translators: A choice in the WebAccess settings panel
+				("default", _("Default (single element)")),
+				# Translators: A choice in the WebAccess settings panel
+				("lastUsed", _("Last used")),
+				# Translators: A choice in the WebAccess settings panel
+				("single", _("Single element")),
+				# Translators: A choice in the WebAccess settings panel
+				("ancestors", _("All ancestors")),
+			),
+		)
+
+	def _addModeChoice(self, sHelper, label, confKey, choices):
+		keys = tuple(key for key, _lbl in choices)
+		item = sHelper.addLabeledControl(
+			label,
+			wx.Choice,
+			choices=[lbl for _key, lbl in choices]
+		)
+		try:
+			item.SetSelection(keys.index(config.conf["webAccess"][confKey]))
+		except ValueError:
+			item.SetSelection(0)
+		return item, keys
+
+	def _getModeChoiceValue(self, ctrl, keys):
+		index = ctrl.GetSelection()
+		if index < 0 or index >= len(keys):
+			return keys[0]
+		return keys[index]
+
 	def onSave(self):
 		config.conf["webAccess"]["devMode"] = self.devMode.GetValue()
 		config.conf["webAccess"]["disableUserConfig"] = self.disableUserConfig.GetValue()
 		config.conf["webAccess"]["writeInAddons"] = self.writeInAddons.GetValue()
+		config.conf["webAccess"]["ruleWizardMode"] = self._getModeChoiceValue(
+			self.ruleWizardMode, self._ruleWizardModeKeys
+		)
+		config.conf["webAccess"]["ruleEditorMode"] = self._getModeChoiceValue(
+			self.ruleEditorMode, self._ruleEditorModeKeys
+		)
+		config.conf["webAccess"]["criteriaEditorMode"] = self._getModeChoiceValue(
+			self.criteriaEditorMode, self._criteriaEditorModeKeys
+		)
+		config.conf["webAccess"]["inspectorMode"] = self._getModeChoiceValue(
+			self.inspectorMode, self._inspectorModeKeys
+		)
 		from ..config import handleConfigChange
 		handleConfigChange()

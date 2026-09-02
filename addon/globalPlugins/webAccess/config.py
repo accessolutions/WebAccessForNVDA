@@ -33,10 +33,67 @@ CONFIG_SPEC = {
 	"devMode": "boolean(default=False)",
 	"disableUserConfig": "boolean(default=False)",
 	"writeInAddons": "boolean(default=False)",
+	"ruleWizardMode": "option('default', 'lastUsed', 'wizard', 'editor', default='default')",
+	"ruleWizardLastUsed": "option('wizard', 'editor', default='wizard')",
+	"ruleEditorMode": "option('default', 'lastUsed', 'simple', 'full', default='default')",
+	"ruleEditorLastUsed": "option('simple', 'full', default='simple')",
+	"criteriaEditorMode": "option('default', 'lastUsed', 'simple', 'full', default='default')",
+	"criteriaEditorLastUsed": "option('simple', 'full', default='simple')",
+	"inspectorMode": "option('default', 'lastUsed', 'single', 'ancestors', default='default')",
+	"inspectorLastUsed": "option('single', 'ancestors', default='single')",
+}
+
+
+_UI_MODES = {
+	"ruleWizard": {
+		"pref": "ruleWizardMode",
+		"lastUsed": "ruleWizardLastUsed",
+		"values": ("wizard", "editor"),
+	},
+	"ruleEditor": {
+		"pref": "ruleEditorMode",
+		"lastUsed": "ruleEditorLastUsed",
+		"values": ("simple", "full"),
+	},
+	"criteriaEditor": {
+		"pref": "criteriaEditorMode",
+		"lastUsed": "criteriaEditorLastUsed",
+		"values": ("simple", "full"),
+	},
+	"inspector": {
+		"pref": "inspectorMode",
+		"lastUsed": "inspectorLastUsed",
+		"values": ("single", "ancestors"),
+	},
 }
 
 
 _cache = None
+
+
+def resolveUiMode(name, defaultValue):
+	spec = _UI_MODES[name]
+	section = config.conf["webAccess"]
+	pref = section[spec["pref"]]
+	valid = spec["values"]
+	if pref == "lastUsed":
+		value = section[spec["lastUsed"]]
+	elif pref == "default":
+		value = defaultValue
+	else:
+		value = pref
+	if value not in valid:
+		value = defaultValue
+	return value
+
+
+def setUiModeLastUsed(name, value):
+	spec = _UI_MODES[name]
+	if value not in spec["values"]:
+		raise ValueError("Invalid last-used value %r for %s" % (value, name))
+	key = spec["lastUsed"]
+	if config.conf["webAccess"][key] != value:
+		config.conf["webAccess"][key] = value
 
 
 def handleConfigChange():

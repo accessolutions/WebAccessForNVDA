@@ -38,6 +38,7 @@ from gui import guiHelper
 from logHandler import log
 import speech
 
+from ...config import setUiModeLastUsed
 from ...utils import guarded, notifyError
 from ...ruleHandler import ruleTypes
 from ...ruleHandler.properties import PropertySpec
@@ -372,6 +373,7 @@ class Wizard(wx.adv.Wizard, ScalingMixin):
 		self.CurrentPage.updateData()
 		context = self.context
 		context["fromWizardPage"] = type(self.CurrentPage).__name__
+		setUiModeLastUsed("ruleWizard", "editor")
 		self.Hide()
 		returnCode = wx.ID_OK if editor.show(context, self) else wx.ID_CANCEL
 		self.EndModal(returnCode)  # RunWizard called ShowModal
