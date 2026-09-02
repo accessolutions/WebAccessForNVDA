@@ -134,6 +134,7 @@ class RuleManager(ScriptableObject):
 		self.triggeredIdentifiers = {}
 		self.lastAutoMoveto = None
 		self.lastAutoMovetoTime = 0
+		self.lastMoveto = None
 		self.defaultScripts = DefaultScripts("Aucun marqueur associé à cette touche")
 		self.timerCheckAutoAction = None
 		self._zone: Zone = None
@@ -824,7 +825,17 @@ class RuleManager(ScriptableObject):
 					# Translator: Error message in quickNav (page up/down)
 					ui.message(_("No zone"))
 				return False
-			if cycle:
+			if name:
+				if cycle:
+					# Translator: Error message in quickNav (page up/down)
+					msg = _("No other result")
+				elif previous:
+					# Translator: Error message in quickNav (page up/down)
+					msg = _("No previous result")
+				else:
+					# Translator: Error message in quickNav (page up/down)
+					msg = _("No next result")
+			elif cycle:
 				# Translator: Error message in quickNav (page up/down)
 				msg = _("No marker")
 			elif previous:
@@ -874,6 +885,30 @@ class RuleManager(ScriptableObject):
 			cycle=False
 		)
 
+	def quickNavToNextSame(self):
+		name = self.lastMoveto
+		if not name:
+			wx.Bell()
+			return
+		self.quickNav(
+			name=name,
+			respectZone=True,
+			honourSkip=False,
+			cycle=False
+		)
+
+	def quickNavToPreviousSame(self):
+		name = self.lastMoveto
+		if not name:
+			wx.Bell()
+			return
+		self.quickNav(
+			previous=True,
+			name=name,
+			respectZone=True,
+			honourSkip=False,
+			cycle=False
+		)
 
 class SubModules(AutoPropertyObject):
 	
@@ -1288,6 +1323,8 @@ class Result(ScriptableObject):
 		mouseHandler.executeMouseMoveEvent(x, y)
 	
 	def moveto(self):
+		rule = self.rule
+		rule.ruleManager.lastMoveto = rule.name
 		info = self.getTextInfo()
 		info.collapse()
 		self.ti.selection = info
