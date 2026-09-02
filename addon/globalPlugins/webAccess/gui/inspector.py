@@ -48,6 +48,7 @@ import speech
 import ui
 import vision
 
+from ..config import resolveUiMode, setUiModeLastUsed
 from ..utils import getCharFromKeyEvent, guarded
 from . import ScalingMixin
 
@@ -812,6 +813,7 @@ class InspectorDialog(ScalingMixin, wx.Dialog):
 	
 	def switchView(self):
 		showAncestors = self.showAncestors = not self.showAncestors
+		setUiModeLastUsed("inspector", "ancestors" if showAncestors else "single")
 		if showAncestors:
 			# Translators: A message from the Inspector dialog
 			self.message(_("Show all ancestors"))
@@ -856,7 +858,12 @@ def show(parent=None, node=None, root=None, identifier=None):
 	if parent is None:
 		parent = gui.mainFrame
 	dlg = InspectorDialog.getInstance(parent)
+	alreadyShown = dlg.IsShown()
 	dlg.clear()
+	if not alreadyShown:
+		mode = resolveUiMode("inspector", "single")
+		dlg.showAncestors = mode == "ancestors"
+		setUiModeLastUsed("inspector", "ancestors" if dlg.showAncestors else "single")
 	dlg.inspect(node, root, identifier)
 	if dlg.IsShown():
 		dlg.Raise()
