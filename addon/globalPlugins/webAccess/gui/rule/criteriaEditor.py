@@ -33,7 +33,6 @@ __authors__ = (
 from collections import OrderedDict
 from copy import deepcopy
 import re
-import sys
 from typing import Any
 import wx
 from wx.lib.expando import EVT_ETC_LAYOUT_NEEDED, ExpandoTextCtrl
@@ -66,16 +65,11 @@ from .abc import RuleAwarePanelBase
 from .gestures import GesturesPanelBase
 from .properties import Properties, PropertiesPanelBase, Property
 
-
-if sys.version_info[1] < 9:
-    from typing import Mapping, Sequence
-else:
-    from collections.abc import Mapping, Sequence
+from collections.abc import Mapping, Sequence
 
 
 addonHandler.initTranslation()
 
-from six import iteritems, text_type
 
 EXPR_VALUE = re.compile("(([^!&| ])+( (?=[^!&|]))*)+")
 """
@@ -104,7 +98,7 @@ def captureValues(expr):
 
 def getStatesLblExprForSet(states):
 	return " & ".join((
-		controlTypes.stateLabels.get(state, state)
+		state.displayString if isinstance(state, controlTypes.State) else str(state)
 		for state in states
 	))
 
@@ -113,7 +107,7 @@ def translateExprValues(expr, func):
 	buf = list(expr)
 	offset = 0
 	for src, start, end in captureValues(expr):
-		dest = text_type(func(src))
+		dest = str(func(src))
 		start += offset
 		end += offset
 		buf[start:end] = dest
@@ -124,7 +118,7 @@ def translateExprValues(expr, func):
 def translateRoleIdToLbl(expr):
 	def translate(value):
 		try:
-			return controlTypes.roleLabels[int(value)]
+			return controlTypes.Role(int(value)).displayString
 		except (KeyError, ValueError):
 			return value
 	return translateExprValues(expr, translate)
@@ -132,9 +126,9 @@ def translateRoleIdToLbl(expr):
 
 def translateRoleLblToId(expr, raiseOnError=True):
 	def translate(value):
-		for key, candidate in iteritems(controlTypes.roleLabels):
-			if candidate == value:
-				return text_type(key.value)
+		for role in controlTypes.Role:
+			if role.displayString == value:
+				return str(role.value)
 		if raiseOnError:
 			raise ValidationError(value)
 		return value
@@ -144,7 +138,7 @@ def translateRoleLblToId(expr, raiseOnError=True):
 def translateStatesIdToLbl(expr):
 	def translate(value):
 		try:
-			return controlTypes.stateLabels[int(value)]
+			return controlTypes.State(int(value)).displayString
 		except (KeyError, ValueError):
 			return value
 	return translateExprValues(expr, translate)
@@ -152,9 +146,9 @@ def translateStatesIdToLbl(expr):
 
 def translateStatesLblToId(expr, raiseOnError=True):
 	def translate(value):
-		for key, candidate in iteritems(controlTypes.stateLabels):
-			if candidate == value:
-				return text_type(key.value)
+		for state in controlTypes.State:
+			if state.displayString == value:
+				return str(state.value)
 		if raiseOnError:
 			raise ValidationError(value)
 		return value
@@ -772,7 +766,7 @@ class CriteriaPanel(CriteriaEditorPanel):
 	
 	def initData_context(self, context):
 		data = self.getData()
-		self.contextPageTitleCombo.Set([context["pageTitle"]])
+		self.contextPageTitleCombo.Set([context.get("pageTitle") or ""])
 		mgr = context["webModule"].ruleManager
 		if mgr.isReady:
 			self.contextPageTypeCombo.Set(mgr.getPageTypes())
@@ -787,9 +781,9 @@ class CriteriaPanel(CriteriaEditorPanel):
 					parents.insert(0, rule.name)
 			self.contextParentCombo.Set(parents)
 		self.refreshContextMacroChoices(initial=True)
-		self.contextPageTitleCombo.Value = data.get("contextPageTitle", "")
-		self.contextPageTypeCombo.Value = data.get("contextPageType", "")
-		self.contextParentCombo.Value = data.get("contextParent", "")
+		self.contextPageTitleCombo.Value = data.get("contextPageTitle") or ""
+		self.contextPageTypeCombo.Value = data.get("contextPageType") or ""
+		self.contextParentCombo.Value = data.get("contextParent") or ""
 	
 	def initData_others(self, context):
 		data = self.getData()
@@ -799,11 +793,11 @@ class CriteriaPanel(CriteriaEditorPanel):
 			textNode = node
 			node = node.parent
 			t = textNode.text
-			if t == " ":
+			if not t or t == " ":
 				t = ""
 			textChoices = [t]
 			if node.previousTextNode is not None:
-				textChoices.append("<" + node.previousTextNode.text)
+				textChoices.append("<" + (node.previousTextNode.text or ""))
 			
 			roleChoices = []
 			tagChoices = []
@@ -814,7 +808,7 @@ class CriteriaPanel(CriteriaEditorPanel):
 			urlChoices = []
 			# todo: actually there are empty choices created
 			while node is not None:
-				roleChoices.append(controlTypes.roleLabels.get(node.role, "") or "")
+				roleChoices.append(node.role.displayString if node.role else "")
 				tagChoices.append(node.tag or "")
 				idChoices.append(node.id or "")
 				classChoices.append(node.className or "")
@@ -952,7 +946,7 @@ class CriteriaPanel(CriteriaEditorPanel):
 		testCriteria(self.context)
 	
 	def isValid(self):
-		self.updateData()		
+		self.updateData()
 		return self.isValid_context() and self.isValid_others()
 	
 	def isValid_context(self):

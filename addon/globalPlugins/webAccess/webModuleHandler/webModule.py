@@ -33,7 +33,6 @@ from collections import OrderedDict
 import datetime
 import json
 import os
-import sys
 
 import addonHandler
 addonHandler.initTranslation()
@@ -52,10 +51,7 @@ from ..lib.packaging import version
 from ..webAppLib import playWebAccessSound
 
 
-if sys.version_info[1] < 9:
-    from typing import Sequence
-else:
-    from collections.abc import Sequence
+from collections.abc import Sequence
 
 
 class InvalidApiVersion(version.InvalidVersion):
@@ -145,7 +141,7 @@ class WebModule(baseObject.ScriptableObject):
 				)
 		if not title:
 			title = api.getForegroundObject().name
-		return title
+		return title or ""
 
 	def _get_url(self):
 		return self._getLayeredProperty("url")
@@ -318,12 +314,12 @@ class WebModule(baseObject.ScriptableObject):
 
 	# Currently dead code, but will likely be revived for issue #17
 	def event_webModule_gainFocus(self, obj, nextHandler):
-		if obj.role not in [controlTypes.ROLE_DOCUMENT, controlTypes.ROLE_FRAME, controlTypes.ROLE_INTERNALFRAME]:
+		if obj.role not in [controlTypes.Role.DOCUMENT, controlTypes.Role.FRAME, controlTypes.Role.INTERNALFRAME]:
 			nextHandler()
 
 	# Currently dead code, but will likely be revived for issue #17
 	def event_focusEntered(self, obj, nextHandler):
-		if obj.role != controlTypes.ROLE_DOCUMENT:
+		if obj.role != controlTypes.Role.DOCUMENT:
 			nextHandler()
 
 	def event_gainFocus(self, obj, nextHandler):

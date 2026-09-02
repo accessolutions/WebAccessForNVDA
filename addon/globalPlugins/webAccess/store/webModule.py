@@ -27,7 +27,6 @@ __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 from collections import OrderedDict
 import errno
-import imp
 import os
 import os.path
 from pprint import pformat
@@ -53,10 +52,7 @@ from . import Store
 from .addons import AddonsStore
 
 
-try:
-	import json
-except ImportError:
-	from ..lib import json
+import json
 
 
 class WebModuleJsonFileDataStore(Store):

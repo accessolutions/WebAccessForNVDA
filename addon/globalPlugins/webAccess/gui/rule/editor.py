@@ -35,7 +35,6 @@ from copy import deepcopy
 from dataclasses import dataclass
 from enum import Enum
 from functools import partial
-import sys
 from typing import Any
 import wx
 from wx.lib.expando import EVT_ETC_LAYOUT_NEEDED, ExpandoTextCtrl
@@ -80,18 +79,14 @@ from .properties import (
 	SinglePropertyEditorPanelBase,
 )
 
-
-if sys.version_info[1] < 9:
-    from typing import Mapping, Sequence
-else:
-    from collections.abc import Mapping, Sequence
+from collections.abc import Mapping, Sequence
 
 
 addonHandler.initTranslation()
 
 formModeRoles = [
-	controlTypes.ROLE_EDITABLETEXT,
-	controlTypes.ROLE_COMBOBOX,
+	controlTypes.Role.EDITABLETEXT,
+	controlTypes.Role.COMBOBOX,
 ]
 
 SHARED_LABELS: Mapping[str, str] = {
@@ -632,7 +627,7 @@ class GesturesPanel(GesturesPanelBase, RuleEditorTreeContextualPanel):
 	def onGestureChange(self, change: Change, id: str):
 		super().onGestureChange(change, id)
 		prm = self.categoryParams
-		self.refreshParent(prm.treeNode)			
+		self.refreshParent(prm.treeNode)
 	
 	def spaceIsPressedOnTreeNode(self, withShift=False):
 		self.gesturesListBox.SetFocus()
@@ -753,6 +748,7 @@ class AlternativeChildPanel(AlternativesPanel):
 		
 		row += 1
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, col))
+
 		
 	
 	def spaceIsPressedOnTreeNode(self, withShift=False):

@@ -102,7 +102,7 @@ def getWebModuleForTreeInterceptor(treeInterceptor):
 	# when the TreeInterceptor gets killed when the modal is discarded.
 	if (
 		isinstance(obj, WebAccessObject)
-		and obj._get_role(original=True) in (controlTypes.ROLE_DIALOG, controlTypes.ROLE_APPLICATION)
+		and obj._get_role(original=True) in (controlTypes.Role.DIALOG, controlTypes.Role.APPLICATION)
 	):
 		class Break(Exception):
 			"""Block-level break."""
@@ -166,13 +166,13 @@ def getWindowTitle(obj):
 		role = obj._get_role(original=True)
 	else:
 		role = obj.role
-	if role == controlTypes.ROLE_DIALOG:
+	if role == controlTypes.Role.DIALOG:
 		try:
 			root = obj.parent.treeInterceptor.rootNVDAObject
 		except AttributeError:
 			return None
 		return getWindowTitle(root)
-	if role != controlTypes.ROLE_DOCUMENT:
+	if role != controlTypes.Role.DOCUMENT:
 		try:
 			root = obj.treeInterceptor.rootNVDAObject
 		except AttributeError:
@@ -436,19 +436,28 @@ def getWebModuleFactory(name):
 
 
 def hasCustomModule(name):
-	return any(
-		importer.find_module(f"{PACKAGE_NAME}.{name}")
-		for importer in _importers
-		if importer
-	)
+	fullname = f"{PACKAGE_NAME}.{name}"
+	for importer in _importers:
+		if importer is None:
+			continue
+		# Python 3.12+: find_module is removed, use find_spec instead
+		if hasattr(importer, 'find_spec'):
+			spec = importer.find_spec(fullname, None)
+			if spec is not None:
+				return True
+		elif hasattr(importer, 'find_module'):
+			# Fallback for older Python versions
+			if importer.find_module(fullname):
+				return True
+	return False
 
 
 def initialize():
 	global store
 	global _importers
 
-	import imp
-	webModules = imp.new_module(PACKAGE_NAME)
+	import types
+	webModules = types.ModuleType(PACKAGE_NAME)
 	webModules.__path__ = list()
 	import sys
 	sys.modules[PACKAGE_NAME] = webModules

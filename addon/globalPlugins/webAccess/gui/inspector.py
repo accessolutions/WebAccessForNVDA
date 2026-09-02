@@ -177,11 +177,11 @@ def getNodeDescription(node, root=None, identifier=None):
 		parts.append(f"{labels['text']} {getText(node)}")
 	else:
 		parts.append(f"{labels['tag']} {node.tag}")
-		parts.append(f"{labels['role']} {controlTypes.roleLabels[node.role]}")
+		parts.append(f"{labels['role']} {node.role.displayString}")
 		parts.append(f"{labels['id']} {coalesce(node.id, '')}")
 		parts.append(f"{labels['className']} {coalesce(node.className, '')}")
 		states = ", ".join(sorted((
-			controlTypes.stateLabels.get(state, state)
+			state.displayString if isinstance(state, controlTypes.State) else str(state)
 			for state in node.states
 		)))
 		parts.append(f"{labels['states']} {states}")
@@ -270,7 +270,7 @@ def computeRelativePath(node1, node2):
 	if index1 < index2:
 		link = "r" * (index2 - index1)
 	else:
-		link = "l" * (index1 - index2)	
+		link = "l" * (index1 - index2)
 	return path1 + link + path2
 
 

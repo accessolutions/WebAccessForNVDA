@@ -28,15 +28,14 @@ __authors__ = (
 
 
 from abc import abstractmethod
-from buildVersion import version_detailed as NVDA_VERSION
 from collections import OrderedDict
 from dataclasses import dataclass
 from enum import Enum, auto
 import re
-import sys
 from typing import Any, Callable
 import wx
 import wx.lib.mixins.listctrl as listmix
+from wx.lib.scrolledpanel import ScrolledPanel
 
 import gui
 from gui import guiHelper, nvdaControls
@@ -56,11 +55,11 @@ import winUser
 
 from ..utils import guarded, logException, notifyError, updateOrDrop
 
+# TabbableScrolledPanel was removed in NVDA 2026.1 (wxPython 4.2.3 update).
+# Fall back to wx.lib.scrolledpanel.ScrolledPanel which now has the fix built-in.
+_TabbableScrolledPanel = getattr(nvdaControls, "TabbableScrolledPanel", ScrolledPanel)
 
-if sys.version_info[1] < 9:
-    from typing import Iterable, Mapping, Sequence, Set
-else:
-    from collections.abc import Iterable, Mapping, Sequence, Set
+from collections.abc import Iterable, Mapping, Sequence, Set
 
 
 addonHandler.initTranslation()
@@ -251,7 +250,7 @@ class FillableSettingsPanel(SettingsPanel, ScalingMixin):
 		self.SetSizer(self.mainSizer)
 
 
-# TODO: Consider migrating to NVDA's SettingsDialog once we hit 2023.2 as minimum version 
+# TODO: Consider migrating to NVDA's SettingsDialog
 class ContextualDialog(ScalingMixin, wx.Dialog):
 	
 	def initData(self, context):
@@ -367,12 +366,9 @@ def configuredSettingsDialogType(hasApplyButton: bool) -> type(SettingsDialog):
 	class Type(SettingsDialog):
 		
 		def __init__(self, *args, **kwargs):
-			if NVDA_VERSION < "2023.2":
-				kwargs["hasApplyButton"] = hasApplyButton
-			else:
-				buttons: Set[int] = kwargs.get("buttons", {wx.OK, wx.CANCEL})
-				if not hasApplyButton:
-					buttons -= {wx.APPLY}
+			buttons: Set[int] = kwargs.get("buttons", {wx.OK, wx.CANCEL})
+			if not hasApplyButton:
+				buttons -= {wx.APPLY}
 			super().__init__(*args, **kwargs)
 	
 	return Type
@@ -572,7 +568,7 @@ class TreeMultiCategorySettingsDialog(ContextualMultiCategorySettingsDialog):
 			style=wx.TR_HAS_BUTTONS | wx.TR_HIDE_ROOT | wx.TR_LINES_AT_ROOT
 		)
 
-		self.container = nvdaControls.TabbableScrolledPanel(
+		self.container = _TabbableScrolledPanel(
 			parent = self,
 			style = wx.TAB_TRAVERSAL | wx.BORDER_THEME,
 			size=containerDim

@@ -29,14 +29,9 @@ import speech
 from NVDAObjects.IAccessible import IAccessible
 import controlTypes
 from logHandler import log
-import virtualBuffers
 
 
-try:
-	REASON_CARET = controlTypes.OutputReason.CARET
-except AttributeError:
-	# NVDA < 2021.1
-	REASON_CARET = controlTypes.REASON_CARET
+REASON_CARET = controlTypes.OutputReason.CARET
 
 
 # global variable that stores the last valid document tree interceptor
@@ -174,7 +169,7 @@ def getTreeInterceptor(focusObject=None):
 
 def getCaretInfo(focusObject=None):
 	treeInterceptor = getTreeInterceptor(focusObject=focusObject)
-	if not treeInterceptor: 
+	if not treeInterceptor:
 		return None
 	return treeInterceptor.makeTextInfo(textInfos.POSITION_CARET)
 
@@ -383,111 +378,3 @@ def searchTag_2015(nodeType, info=None, id=None, className=None, src=None, text=
 		item.moveTo()
 	api.setReviewPosition(info)
 	return info
-
-"""
-NVDA 2014.4 and lower code for searchTag
-"""
-
-def nextTag (focus, nodeType, start):
-	if nodeType == "button|link":
-		type1 = "button"
-		type2 = "link"
-	else:
-		type1 = nodeType
-		type2 = None
-	try:
-		node1, start1, end1 = next(focus._iterNodesByType(type1, "next", start))
-	except:
-		start1 = 1000000
-	try:
-		node2, start2, end2 = next(focus._iterNodesByType(type2, "next", start))
-	except:
-		start2 = 1000000
-	if start1 < start2:
-		return node1, start1, end1
-	elif start2 < start1:
-		return node2, start2, end2
-	else:
-		raise
-
-def previousTag (focus, nodeType, start):
-	if nodeType == "button|link":
-		type1 = "button"
-		type2 = "link"
-	else:
-		type1 = nodeType
-		type2 = None
-	try:
-		node1, start1, end1 = next(focus._iterNodesByType(type1, "previous", start))
-	except:
-		start1 = -1
-	try:
-		node2, start2, end2 = next(focus._iterNodesByType(type2, "previous", start))
-	except:
-		start2 = -1
-	if start1 > start2:
-		return node1, start1, end1
-	elif start2 > start1:
-		return node2, start2, end2
-	else:
-		raise
-
-def searchTag_2014(nodeType, first=False, reverse=False, func=None, elementDescription=None, moveFocus=True):
-	try:
-		focus = api.getFocusObject()
-		focus = focus.treeInterceptor
-		if moveFocus:
-			focus.passThrough = False
-		virtualBuffers.reportPassThrough.last = False # pour que le changement de mode ne soit pas lu  automatiquement
-		if first:
-			info=focus.makeTextInfo(textInfos.POSITION_FIRST)
-		else:
-			info=focus.makeTextInfo(textInfos.POSITION_CARET)
-		startOffset=info._startOffset
-		endOffset=info._endOffset
-		ok = False
-		while not ok: 
-			if reverse:
-				node, startOffset, endOffset = previousTag (focus, nodeType, startOffset)
-			else:
-				node, startOffset, endOffset = nextTag (focus, nodeType, startOffset)
-			info = focus.makeTextInfo(textInfos.offsets.Offsets(startOffset, endOffset))
-			if elementDescription is not None:
-				obj = info.NVDAObjectAtStart
-				ok = getElementDescription (obj).find (elementDescription) > 0
-			elif func is not None:
-				ok = func(info)
-			else:
-				ok = True
-	except:
-		return False
-	info = focus.makeTextInfo(textInfos.offsets.Offsets(startOffset, endOffset))
-	if func is not None:
-		if not func(info):
-			return False
-	fieldInfo = info.copy()
-	info.collapse()
-	info.move(textInfos.UNIT_LINE, 1, endPoint="end")
-	if info.compareEndPoints(fieldInfo, "endToEnd") > 0:
-		# We've expanded past the end of the field, so limit to the end of the field.
-		info.setEndPoint(fieldInfo, "endToEnd")
-	info.collapse()
-	if moveFocus:
-		focus._set_selection(info)
-	api.setReviewPosition(info)
-	return True
-
-
-	
-"""
-searchTag - searches for a specific tag into the document.
-This calls either the 2015.1 or 2014.4 version, depending on the NVDA version we actually use.
-"""
-
-def searchTag(nodeType, info=None, id=None, className=None, src=None, text=None, first=False, reverse=False, func=None, maxAncestors=1, moveFocus=False):
-	if hasattr (virtualBuffers, "reportPassThrough"):
-		# ancienne version de NVDA
-		return searchTag_2014(nodeType, first, reverse, func, moveFocus)
-	else:
-		return searchTag_2015(nodeType, info=info, id=id, className=className, src=src, text=text, first=first, reverse=reverse, func=func, max=maxAncestors, moveFocus=moveFocus)
-	

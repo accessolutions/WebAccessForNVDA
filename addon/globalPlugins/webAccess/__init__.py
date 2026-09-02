@@ -65,7 +65,6 @@ from NVDAObjects.IAccessible.mozilla import Mozilla
 import addonHandler
 import api
 import baseObject
-from buildVersion import version_detailed as NVDA_VERSION
 import controlTypes
 import core
 import eventHandler
@@ -285,9 +284,9 @@ In your user configuration folder:
 			if cls in clsList
 		):
 			if obj.role in (
-				controlTypes.ROLE_APPLICATION,
-				controlTypes.ROLE_DIALOG,
-				controlTypes.ROLE_DOCUMENT,
+				controlTypes.Role.APPLICATION,
+				controlTypes.Role.DIALOG,
+				controlTypes.Role.DOCUMENT,
 			):
 				clsList.insert(0, overlay.WebAccessDocument)
 				return
@@ -296,7 +295,7 @@ In your user configuration folder:
 			from .gui import inspector
 			if (
 				inspector.outputWindowHandle is not None
-				and obj.role == controlTypes.ROLE_EDITABLETEXT
+				and obj.role == controlTypes.Role.EDITABLETEXT
 				and obj.windowHandle == inspector.outputWindowHandle
 				and obj.appModule.appName == "nvda"
 			):
@@ -356,12 +355,7 @@ In your user configuration folder:
 		# After the above import, it appears that the `gui` name now points to the `.gui` module
 		# rather than NVDA's `gui`… No clue why…
 		import gui
-		if NVDA_VERSION < "2023.2":
-			# Deprecated as of NVDA 2023.2
-			gui.mainFrame._popupSettingsDialog(WebAccessSettingsDialog)
-		else:
-			# Now part of the public API as of NVDA PR #15121
-			gui.mainFrame.popupSettingsDialog(WebAccessSettingsDialog)
+		gui.mainFrame.popupSettingsDialog(WebAccessSettingsDialog)
 
 	@script(
 		# Translators: Input help mode message for a WebAccess command
@@ -501,7 +495,7 @@ def appModule_nvda_event_NVDAObject_init(self, obj):
 		"popupContextMenuName" in globals()
 		and popupContextMenuName is not None
 		and isinstance(obj, IAccessible)
-		and obj.role == controlTypes.ROLE_POPUPMENU
+		and obj.role == controlTypes.Role.POPUPMENU
 	):
 		obj.name = popupContextMenuName
 		popupContextMenuName = None

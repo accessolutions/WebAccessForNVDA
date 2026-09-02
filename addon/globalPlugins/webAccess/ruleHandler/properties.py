@@ -28,7 +28,6 @@ from collections import ChainMap
 from dataclasses import dataclass
 from enum import Enum
 from pprint import pformat
-import sys
 from typing import Any, TypeAlias
 import weakref
 
@@ -37,10 +36,7 @@ from . import ruleTypes
 import addonHandler
 
 
-if sys.version_info[1] < 9:
-    from typing import Iterator, Mapping, Sequence
-else:
-    from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 
 
 addonHandler.initTranslation()
@@ -289,4 +285,3 @@ class CriteriaProperties(RuleProperties):
 	def __init__(self, criteria: "Criteria"):
 		super().__init__(criteria.rule)
 		self._map = criteria.rule.properties._map.new_child()
-

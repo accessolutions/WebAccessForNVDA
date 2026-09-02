@@ -35,16 +35,10 @@ import wx
 
 import api
 import textInfos
+import queue
 
 from .overlay import WebAccessBmdti, WebAccessObject
 from .webAppLib import *
-
-
-try:
-	from six.moves import queue
-except ImportError:
-	# NVDA version < 2018.3
-	import queue as queue
 
 
 TRACE = lambda *args, **kwargs: None  # @UnusedVariable
@@ -91,7 +85,7 @@ class WebAppScheduler(threading.Thread):
 		self.queue.put(kwargs)
 		
 	def event_stop(self):
-		self.stop = True 
+		self.stop = True
 		
 	def event_timeout(self):
 		focus = api.getFocusObject()

@@ -31,7 +31,6 @@ __authors__ = (
 from collections import ChainMap
 from abc import abstractmethod
 from enum import Enum
-import sys
 from typing import Any
 import wx
 
@@ -46,11 +45,7 @@ from ...ruleHandler.properties import PropertiesBase, PropertySpec, PropertySpec
 from ...utils import guarded, logException, updateOrDrop
 from .. import ContextualSettingsPanel, EditorType, ListCtrlAutoWidth, SingleFieldEditorMixin
 
-
-if sys.version_info[1] < 9:
-    from typing import Iterator, Mapping
-else:
-    from collections.abc import Iterator, Mapping
+from collections.abc import Iterator, Mapping
 
 
 addonHandler.initTranslation()
@@ -552,7 +547,6 @@ class PropertiesPanelBase(SinglePropertyEditorPanelBase, metaclass=guiHelper.SIP
 				self.prop_reset()
 				return
 		evt.Skip()
-
 	
 	@guarded
 	def onListCtrl_charHook(self, evt):

@@ -30,7 +30,6 @@ __authors__ = (
 
 import gc
 import re
-import sys
 import time
 import weakref
 from ast import literal_eval
@@ -40,7 +39,14 @@ import baseObject
 import controlTypes
 from logHandler import log
 import mouseHandler
-import NVDAHelper
+import NVDAObjects.IAccessible
+try:
+	# NVDA >= 2026.1 (package layout)
+	from NVDAHelper.localLib import VBuf_getTextInRange
+except Exception:
+	# NVDA <= 2025.x (legacy module layout)
+	import NVDAHelper
+	VBuf_getTextInRange = NVDAHelper.VBuf_getTextInRange
 import textInfos
 import treeInterceptorHandler
 import ui
@@ -51,10 +57,7 @@ from .utils import tryInt
 from .webAppLib import *
 
 
-if sys.version_info[1] < 9:
-    from typing import Mapping
-else:
-    from collections.abc import Mapping
+from collections.abc import Mapping
 
 
 TRACE = lambda *args, **kwargs: None  # noqa: E731
@@ -285,7 +288,7 @@ class NodeManager(baseObject.AutoPropertyObject):
 			if debug:
 				log.info("The VirtualBuffer is empty")
 			return False
-		text = NVDAHelper.VBuf_getTextInRange(
+		text = VBuf_getTextInRange(
 			info.obj.VBufHandle, start, end, True)
 		if self.mainNode is not None:
 			self.mainNode.recursiveDelete()
@@ -397,7 +400,7 @@ class NodeManager(baseObject.AutoPropertyObject):
 					prev = map[controlId]
 					if prev[1] == span[0]:
 						# Consecutive spans for the same control. Expand the recorded span.
-						span = (prev[0], span[1]) 
+						span = (prev[0], span[1])
 					elif not(prev[0] <= span[0] and span[1] <= prev[1]):
 						# Neither consecutive nor nested
 						log.warning(f"ControlId double: {controlId} at {prev} and {span} (role: {node.role})")
@@ -521,17 +524,20 @@ class NodeField(TrackedObject):
 	def url(self):
 		if hasattr(self, "_url"):
 			return self._url
-		if self.role != controlTypes.ROLE_DOCUMENT:
+		if self.role != controlTypes.Role.DOCUMENT:
 			return None
 		url = None
 		obj = self.getNVDAObject()
-		while obj.role != self.role:
+		while obj is not None and obj.role != self.role:
 			try:
 				obj = obj.parent
 			except Exception:
-				break
-		else:
-			url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
+				obj = None
+		if obj is not None:
+			try:
+				url = obj.IAccessibleObject.accValue(obj.IAccessibleChildID)
+			except Exception:
+				url = None
 		self._url = url
 		return url
 	
@@ -892,7 +898,28 @@ class NodeField(TrackedObject):
 	def getNVDAObject(self):
 		if not self.isReady():
 			return None
-		return self.getTextInfo().NVDAObjectAtStart
+		info = self.getTextInfo()
+		if info is None:
+			return None
+		obj = info.NVDAObjectAtStart
+		if obj is not None:
+			return obj
+		try:
+			docHandle, objId = self.controlIdentifier
+		except Exception:
+			return None
+		if not docHandle or not objId:
+			return None
+		try:
+			# NVDA commit 9afb6fc5b (introduced in 2024.3) changed Gecko IA2 object
+			# resolution for iframes, and NVDAObjectAtStart can be None in some cases.
+			# Legacy pre-2024.3 fallback path: event-based resolution.
+			# This keeps URL-based matching retrocompatible for iframe-driven submodules.
+			return NVDAObjects.IAccessible.getNVDAObjectFromEvent(
+				docHandle, winUser.OBJID_CLIENT, objId
+			)
+		except Exception:
+			return None
 
 	def mouseMove(self):
 		if not self.checkNodeManager():
@@ -918,7 +945,7 @@ class NodeField(TrackedObject):
 # 		if self.offset < node.offset:
 # 			return True
 # 		return False
-# 
+#
 # 	def __le__(self, node):
 # 		"""
 # 		Compare nodes based on their offset.
@@ -926,7 +953,7 @@ class NodeField(TrackedObject):
 # 		if self.offset <= node.offset:
 # 			return True
 # 		return False
-# 
+#
 # 	def __gt__(self, node):
 # 		"""
 # 		Compare nodes based on their offset.
@@ -934,7 +961,7 @@ class NodeField(TrackedObject):
 # 		if self.offset > node.offset:
 # 			return True
 # 		return False
-# 
+#
 # 	def __ge__(self, node):
 # 		"""
 # 		Compare nodes based on their offset.

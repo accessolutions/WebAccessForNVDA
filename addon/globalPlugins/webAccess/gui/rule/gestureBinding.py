@@ -30,7 +30,6 @@ __authors__ = (
 )
 
 
-import sys
 from typing import Any
 import wx
 
@@ -45,11 +44,7 @@ from ...ruleHandler import GestureScope
 from ...utils import guarded, logException
 from .. import ScalingMixin, showContextualDialog
 
-
-if sys.version_info[1] < 9:
-    from typing import Mapping
-else:
-    from collections.abc import Mapping
+from collections.abc import Mapping
 
 
 addonHandler.initTranslation()

@@ -31,7 +31,6 @@ __author__ = (
 
 import itertools
 import os
-import sys
 from typing import Any
 import wx
 
@@ -49,11 +48,7 @@ from ...utils import guarded
 from ...webModuleHandler import WebModule, getEditableWebModule, getUrl, getWindowTitle, save, store
 from .. import ContextualDialog, showContextualDialog
 
-
-if sys.version_info[1] < 9:
-    from typing import Mapping
-else:
-    from collections.abc import Mapping
+from collections.abc import Mapping
 
 
 addonHandler.initTranslation()

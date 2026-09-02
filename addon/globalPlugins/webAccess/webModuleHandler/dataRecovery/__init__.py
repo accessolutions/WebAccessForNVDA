@@ -39,14 +39,6 @@ from logHandler import getCodePath, log
 from ...lib.packaging import version
 
 
-try:
-	from six import string_types, text_type
-except ImportError:
-	# NVDA version < 2018.3
-	string_types = str
-	text_type = str
-
-
 class NewerFormatVersion(version.InvalidVersion):
 	pass
 
@@ -111,7 +103,7 @@ def recoverFromLegacyTo_0_1(data):
 		data["Rules"] = data.pop("PlaceMarkers")
 	# Earlier versions supported only a single URL trigger
 	url = data.get("WebModule", {}).get("url", None)
-	if isinstance(url, string_types):
+	if isinstance(url, str):
 		data["WebModule"]["url"] = [url]
 	# Custom labels for certain fields are not supported anymore
 	# TODO: Re-implement custom field labels?
@@ -246,7 +238,7 @@ def recoverFrom_0_4_to_0_5(data):
 	rules = data.get("Rules", [])
 	for rule in rules:
 		if "role" in rule:
-			rule["role"] = text_type(rule["role"])
+			rule["role"] = str(rule["role"])
 	data["formatVersion"] = "0.5"
 
 
