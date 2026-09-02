@@ -21,8 +21,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: 'nvda-translations@groups.io'\n"
-"POT-Creation-Date: 2025-04-22 17:29+0200\n"
-"PO-Revision-Date: 2025-04-22 17:35+0200\n"
+"POT-Creation-Date: 2025-04-24 09:56+0200\n"
+"PO-Revision-Date: 2025-04-24 10:02+0200\n"
 "Last-Translator: Julien Cochuyt <JulienCochuyt@users.noreply.github.com>\n"
 "Language-Team: \n"
 "Language: fr_FR\n"
@@ -648,7 +648,7 @@ msgstr "Ordre de &séquence :"
 #. Translators: The label for a field on the Rule editor
 #: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:414
 #: addon\globalPlugins\webAccess\gui\rule\editor.py:240
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:437
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:438
 msgid "Summar&y:"
 msgstr "&Résumé :"
 
@@ -656,14 +656,14 @@ msgstr "&Résumé :"
 #. Translators: The label for a field on the Rule editor
 #: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:426
 #: addon\globalPlugins\webAccess\gui\rule\editor.py:252
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:449
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:450
 msgid "Technical n&otes:"
 msgstr "N&otes techniques :"
 
 #. Translators: The label for a button in the Criteria Editor dialog
 #. Translators: The label for a button in the Rule Editor dialog
 #: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:440
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:938
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:1030
 msgid "Convert to free &zone (two sets of criteria)"
 msgstr "Convertir en &zone libre (deux jeux de critères)"
 
@@ -676,7 +676,7 @@ msgstr "Convertir en &zone simple (un seul jeu de critères)"
 #. Translators: The label for a category in the rule editor
 #: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:528
 #: addon\globalPlugins\webAccess\gui\rule\editor.py:405
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:1012
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:1105
 msgid "Criteria"
 msgstr "Critères"
 
@@ -789,81 +789,99 @@ msgstr "Avancé"
 msgid "Test these criteria (F5)"
 msgstr "Tester ces critères (F5)"
 
+#. Translators: A message from the Rule Editor dialog
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:902
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:546
+msgid "Criteria data copied to clipboard"
+msgstr "Données des critères copiées dans le presse-papier"
+
+#. Translators: A prompt for confirmation on the Criteria Editor
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:951
+msgid "Replace editor content with data from the clipboard?"
+msgstr ""
+"Voulez-vous remplacer le contenu de l'éditeur avec les données présentes "
+"dans le presse-papier ?"
+
+#. Translators: The title of a prompt for confirmation on the Criteria Editor
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:953
+msgid "Paste"
+msgstr "Coller"
+
 #. Translators: An error message on the Criteria Editor
 #. Translators: An error message on the Rule Editor
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:969
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:525
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1036
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:526
 msgid "You must choose at least one criteria."
 msgstr "Vous devez choisir au moins un critère."
 
 #. Translators: The title of a message dialog
 #. Translators: The title of an error message dialog
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:970
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:985
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:999
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1014
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1028
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1045
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1037
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1052
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1066
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1081
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1095
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1112
 #: addon\globalPlugins\webAccess\gui\rule\editor.py:354
 #: addon\globalPlugins\webAccess\gui\rule\editor.py:366
 #: addon\globalPlugins\webAccess\gui\rule\editor.py:395
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:526
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:527
 #: addon\globalPlugins\webAccess\gui\webModule\editor.py:275
 #: addon\globalPlugins\webAccess\gui\webModule\editor.py:289
-#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:357
+#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:361
 msgid "Error"
 msgstr "Erreur"
 
 #. Translators: Error message when the field doesn't meet the required syntax
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:983
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1012
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1050
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1079
 #, python-brace-format
 msgid "Syntax error in the field \"{field}\""
 msgstr "Erreur de syntaxe dans le champ \"{field}\""
 
 #. Translators: Error message when the field doesn't match any known identifier
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:997
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1026
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1064
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1093
 #, python-brace-format
 msgid "Unknown identifier in the field \"{field}\""
 msgstr "Identifiant inconnu dans le champ \"{field}\""
 
 #. Translators: Error message when the index is not positive
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1044
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1111
 msgid "Index, if set, must be a positive integer."
 msgstr "Index, si renseigné, doit être un nombre entier strictement positif."
 
 #. Translators: The label for a Criteria editor category.
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1057
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1124
 msgid "Start Criteria"
 msgstr "Critères de début"
 
 #. Translators: The label for a Criteria editor category.
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1069
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1136
 msgid "End Criteria"
 msgstr "Critères de fin"
 
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1088
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1155
 msgid "Select a property to override"
 msgstr "Sélectionnez une propriété à surcharger"
 
 #. Translators: The label for a list on the Criteria Editor dialog
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1101
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1168
 msgid "Properties specific to this criteria set"
 msgstr "Propriétés spécifiques à cet ensemble de critères"
 
 #. Translators: A hint stating a list is empty and how to populate it on the Criteria Editor dialog
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1104
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1171
 msgid "None. Press alt+n to override a property."
 msgstr "Aucune. Appuyez sur alt+n pour remplacer une propriété."
 
 #. Translators: A column header in the Criteria Editor dialog
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1106
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1173
 msgid "Rule value"
 msgstr "Valeur de la règle"
 
 #. Translators: The label for a button on the Criteria Editor dialog
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1114
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1181
 msgid "&New"
 msgstr "&Nouveau"
 
@@ -875,10 +893,10 @@ msgstr "&Nouveau"
 #. Translator: The label for a button on the RulesManager dialog.
 #. Translators: The label for a button in the
 #. Web Modules Manager dialog
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1124
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:480
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:737
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:831
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1191
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:481
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:832
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:923
 #: addon\globalPlugins\webAccess\gui\rule\gestures.py:144
 #: addon\globalPlugins\webAccess\gui\rule\manager.py:519
 #: addon\globalPlugins\webAccess\gui\webModule\manager.py:126
@@ -887,20 +905,20 @@ msgstr "&Supprimer"
 
 #. Avoid announcing the whole eventual control refresh
 #. Translators: Announced when resetting a property to its default value in the editor
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1200
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1267
 #: addon\globalPlugins\webAccess\gui\rule\properties.py:312
 #, python-brace-format
 msgid "Reset to {value}"
 msgstr "Réinitialiser à {value}"
 
 #. Translators: The title of the Criteria Editor dialog.
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1205
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1272
 msgid "WebAccess Criteria Set editor"
 msgstr "Éditeur de jeux de critères WebAccess"
 
 #. Translators: A prompt for confirmation on the Criteria Set editor
 #. Translators: A prompt for confirmation on the Rule editor
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1288
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1370
 #: addon\globalPlugins\webAccess\gui\rule\editor.py:179
 msgid ""
 "This will delete your End Criteria choices.\n"
@@ -912,11 +930,11 @@ msgstr ""
 "Voulez-vous continuer ?"
 
 #. Translators: The title of prompt for confirmation on the Criteria Set editor
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1293
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1375
 msgid "Convert to simple zone (one set of criteria)"
 msgstr "Convertir en zone simple (un seul jeu de critères)"
 
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1336
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1418
 #: addon\globalPlugins\webAccess\gui\rule\__init__.py:112
 msgid ""
 "The \"Transform\" property is not supported with free zones (two sets of "
@@ -930,7 +948,7 @@ msgstr ""
 "Voulez-vous poursuivre néanmoins ?\n"
 
 #. Translators: The title of a message dialog
-#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1342
+#: addon\globalPlugins\webAccess\gui\rule\criteriaEditor.py:1424
 #: addon\globalPlugins\webAccess\gui\rule\__init__.py:118
 #: addon\globalPlugins\webAccess\gui\webModule\__init__.py:86
 msgid "Warning"
@@ -1008,9 +1026,9 @@ msgstr "&Alternatives"
 #. Translators: New criteria button label
 #. Translators: The label for a button on the Rule Editor dialog
 #. Translators: The label for a button in the Rule Editor dialog
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:462
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:744
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:838
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:463
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:839
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:930
 #: addon\globalPlugins\webAccess\gui\rule\gestures.py:122
 msgid "&New..."
 msgstr "&Nouveau..."
@@ -1020,79 +1038,79 @@ msgstr "&Nouveau..."
 #. Translators: The label for a button in the Rule Editor dialog
 #. Translator: The label for a button on the RulesManager dialog.
 #. Translators: The label for a button in the Web Modules Manager dialog
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:471
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:727
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:472
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:822
 #: addon\globalPlugins\webAccess\gui\rule\gestures.py:133
 #: addon\globalPlugins\webAccess\gui\rule\manager.py:511
 #: addon\globalPlugins\webAccess\gui\webModule\manager.py:103
 msgid "&Edit..."
 msgstr "&Modifier..."
 
+#. Translators: A prompt on the Rule editor
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:623
+msgid "You may first provide a name for the current criteria set:"
+msgstr "Vous pouvez d'abord attribuer un nom au jeu de critères existant :"
+
+#. Translators: The title of an input dialog in the Rule Editor dialog
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:625
+msgid "Add alternatives"
+msgstr "Ajouter des alternatives"
+
 #. Translator: A confirmation prompt on the Rule editor
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:574
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:669
 msgid "Are you sure you want to delete this alternative?"
 msgstr "Êtes-vous sûr de vouloir supprimer cette alternative ?"
 
 #. Translator: The title for a confirmation prompt on the Rule editor
 #. Translator: The title for a confirmation prompt on the
 #. RulesManager dialog.
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:576
-#: addon\globalPlugins\webAccess\gui\rule\manager.py:770
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:671
+#: addon\globalPlugins\webAccess\gui\rule\manager.py:829
 msgid "Confirm Deletion"
 msgstr "Confirmation d'effacement"
 
 #. Translators: The label for a field on the Rule editor
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:686
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:781
 msgid "Summar&y"
 msgstr "&Résumé"
 
 #. Translators: The label for a field on the Rule editor
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:703
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:798
 msgid "Technical n&otes"
 msgstr "N&otes techniques"
 
 #. Translators: The label for a button in the Rule Editor dialog
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:946
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:1038
 msgid "Add alternati&ves"
 msgstr "Ajouter des alternati&ves"
 
-#. Translators: A prompt on the Rule editor
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:1043
-msgid "You may first provide a name for the current criteria set:"
-msgstr "Vous pouvez d'abord attribuer un nom au jeu de critères existant :"
-
-#. Translators: The title of an input dialog in the Rule Editor dialog
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:1045
-msgid "Add alternatives"
-msgstr "Ajouter des alternatives"
-
 #. Translators: A title of the rule editor
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:1217
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:1299
 msgid "Sub Module {} - New Rule"
 msgstr "Sous-module {} - Nouvelle règle"
 
 #. Translators: A title of the rule editor
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:1220
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:1302
 msgid "Root Module {} - New Rule"
 msgstr "Module racine {} - Nouvelle règle"
 
 #. Translators: A title of the rule editor
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:1223
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:1305
 msgid "Web Module {} - New Rule"
 msgstr "Module web {} - Nouvelle règle"
 
 #. Translators: A title of the rule editor
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:1235
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:1317
 msgid "Sub Module {} - Edit Rule {}"
 msgstr "Sous-module {} - Modifier la règle {}"
 
 #. Translators: A title of the rule editor
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:1238
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:1320
 msgid "Root Module {} - Edit Rule {}"
 msgstr "Module racine - Modifier la règle {}"
 
 #. Translators: A title of the rule editor
-#: addon\globalPlugins\webAccess\gui\rule\editor.py:1241
+#: addon\globalPlugins\webAccess\gui\rule\editor.py:1323
 msgid "Web Module {} - Edit Rule {}"
 msgstr "Module web {} - Modifier la règle {}"
 
@@ -1289,8 +1307,13 @@ msgstr "Aller à"
 msgid "Group by: {}"
 msgstr "Regrouper par : {}"
 
+#. Translators: A message from the Rules Manager dialog
+#: addon\globalPlugins\webAccess\gui\rule\manager.py:599
+msgid "Rule data copied to clipboard"
+msgstr "Données de la règle copiées dans le presse-papier"
+
 #. Translator: A confirmation prompt on the RulesManager dialog.
-#: addon\globalPlugins\webAccess\gui\rule\manager.py:764
+#: addon\globalPlugins\webAccess\gui\rule\manager.py:823
 msgid "Are you sure you want to delete this rule?"
 msgstr "Êtes-vous sûr de vouloir supprimer cette règle ?"
 
@@ -1321,7 +1344,7 @@ msgctxt "webAccess.ruleEditor"
 msgid "Value"
 msgstr "Valeur"
 
-#: addon\globalPlugins\webAccess\gui\rule\wizard.py:120
+#: addon\globalPlugins\webAccess\gui\rule\wizard.py:121
 msgid ""
 "First, choose a type and name for the Rule.\n"
 "At any time, press F12 to leave this wizard and open the full fledged editor."
@@ -1330,7 +1353,7 @@ msgstr ""
 "À tout moment, appuyez sur F12 pour quitter cet assistant et ouvrir "
 "l'éditeur complet."
 
-#: addon\globalPlugins\webAccess\gui\rule\wizard.py:140
+#: addon\globalPlugins\webAccess\gui\rule\wizard.py:141
 msgid ""
 "Choose the criteria evaluation context.\n"
 "\n"
@@ -1346,7 +1369,7 @@ msgstr ""
 "\n"
 "En cas de doute, conservez le choix par défaut \"Général\"."
 
-#: addon\globalPlugins\webAccess\gui\rule\wizard.py:164
+#: addon\globalPlugins\webAccess\gui\rule\wizard.py:165
 msgid ""
 "Choose search criteria.\n"
 "\n"
@@ -1367,7 +1390,7 @@ msgstr ""
 "Appuyez sur F5 pour tester ces critères. Une fois satisfait du résultat, "
 "appuyez sur Entrée ou cliquez sur Suivant."
 
-#: addon\globalPlugins\webAccess\gui\rule\wizard.py:200
+#: addon\globalPlugins\webAccess\gui\rule\wizard.py:201
 msgid ""
 "You may associate an input gesture with an action on the result found.\n"
 "\n"
@@ -1380,12 +1403,12 @@ msgstr ""
 "l'emplacement souhaité."
 
 #. Translators: The title for the Rule Creation Wizard dialog
-#: addon\globalPlugins\webAccess\gui\rule\wizard.py:280
+#: addon\globalPlugins\webAccess\gui\rule\wizard.py:281
 msgid "Rule Creation Wizard"
 msgstr "Assistant nouvelle règle"
 
 #. Translators: The title for the Rule Creation Wizard dialog
-#: addon\globalPlugins\webAccess\gui\rule\wizard.py:284
+#: addon\globalPlugins\webAccess\gui\rule\wizard.py:286
 msgid "Rule Edit Wizard"
 msgstr "Assistant modification de règle"
 
@@ -1805,49 +1828,49 @@ msgid "Current web module is: {name}"
 msgstr "Le module web actuel est : {name}"
 
 #. Translators: Confirmation message after web module creation.
-#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:255
+#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:259
 #, python-brace-format
 msgid "Your new web module {name} has been created."
 msgstr "Votre nouveau module web {name} a été créé."
 
-#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:269
+#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:273
 msgid "The web module name should be a valid file name."
 msgstr "Le nom d'un web module doit être un nom de fichier valide."
 
-#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:271
+#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:275
 msgid "It should not contain any of the following:"
 msgstr "Il ne doit contenir aucun des caractères suivants :"
 
 #. Translators: An error message upon attempting to save a modification
-#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:326
+#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:330
 msgid "This modification cannot be saved under the current configuration."
 msgstr ""
 "Cette modification ne peut pas être enregistrée de par la configuration "
 "actuelle."
 
 #. Translators: A hint on how to allow to save a modification
-#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:330
+#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:334
 msgid "• In the WebAccess category, enable User WebModules."
 msgstr "• Dans la catégorie WebAccess, activer les WebModules utilisateur."
 
 #. Translators: A hint on how to allow to save a modification
-#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:336
+#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:340
 msgid "• In the WebAccess category, enable Developper Mode."
 msgstr "• Dans la catégorie WebAccess, activer le mode développeur."
 
 #. Translators: A hint on how to allow to save a modification
-#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:345
+#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:349
 msgid "• In the Advanced category, enable loading of the Scratchpad directory"
 msgstr ""
 "• Dans la catégorie Avancé, activer le chargement de code personnalisé "
 "depuis le répertoire Bloc-notes du Développeur"
 
-#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:348
+#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:352
 msgid "or"
 msgstr "ou"
 
 #. Translators: An introduction to hints on how to allow to save a modification
-#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:351
+#: addon\globalPlugins\webAccess\webModuleHandler\__init__.py:355
 msgid "You may, in NVDA Preferences:"
 msgstr "Vous pouvez, dans les paramètres de NVDA :"
 

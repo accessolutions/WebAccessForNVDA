@@ -567,6 +567,27 @@ class Dialog(ContextualDialog):
 			)
 		self.onGroupByRadio(None)
 	
+	@guarded
+	def copyRule(self):
+		obj = self.getSelectedObject()
+		if obj is None:
+			wx.Bell()
+			return
+		rule = None
+		if isinstance(obj, Result):
+			rule = obj.rule
+		elif isinstance(obj, Rule):
+			rule = obj
+		data = {"webAccess.rule" : rule.dump()}
+		import json
+		data = json.dumps(data, indent=4)
+		import api
+		if api.copyToClip(data):
+			# Translators: A message from the Rules Manager dialog
+			ui.message(_("Rule data copied to clipboard"))
+			return
+		wx.Bell()
+	
 	def disableGroupByPosition(self) -> bool:
 		"""Returns `True` if the tree was refreshed as of this call.
 		"""
@@ -578,6 +599,33 @@ class Dialog(ContextualDialog):
 				self.cycleGroupBy(previous=True, report=False)  # Selects groupBy name
 				return True
 		return False
+	
+	def pasteRule(self):
+		import api
+		data = api.getClipData()
+		if not data:
+			wx.Bell()
+			return
+		import json
+		try:
+			data = json.loads(data)
+		except Exception:
+			wx.Bell()
+			return
+		if not (isinstance(data, dict) and len(data) == 1):
+			wx.Bell()
+			return
+		key, data = data.popitem()
+		if key == "webAccess.rule":
+			pass
+		elif key == "webAccess.criteria":
+			data = {"type": ruleTypes.MARKER, "criteria": [data]}
+		elif key == "webAccess.selector":
+			data = {"type": ruleTypes.MARKER, "criteria": [{"selector": data}]}
+		else:
+			wx.Bell()
+			return
+		self.onRuleNew(pastedData=data)
 	
 	def refreshRuleList(self):
 		context = self.context
@@ -695,12 +743,23 @@ class Dialog(ContextualDialog):
 		elif self.tree.HasFocus():
 			# Collapse/Expand all instead of current node as there are only two levels.
 			char = getCharFromKeyEvent(evt)
-			#char = evt.GetUnicodeKey()
 			if char == "*":
 				self.tree.ExpandAll()
 				return
 			elif char == "/":
 				self.tree.CollapseAll()
+				return
+			elif (
+				keyCode in (ord("C"), wx.WXK_INSERT, wx.WXK_NUMPAD_INSERT)
+				and mods == wx.MOD_CONTROL
+			):
+				self.copyRule()
+				return
+			elif(
+				keyCode == ord("V") and mods == wx.MOD_CONTROL
+				or keyCode in (wx.WXK_INSERT, wx.WXK_NUMPAD_INSERT) and mods == wx.MOD_SHIFT
+			):
+				self.pasteRule()
 				return
 		evt.Skip()
 	
@@ -797,11 +856,18 @@ class Dialog(ContextualDialog):
 		wx.CallAfter(self.tree.SetFocus)
 	
 	@guarded
-	def onRuleNew(self, evt):
+	def onRuleNew(self, evt=None, pastedData=None):
 		context = self.context.copy()
 		context["new"] = True
 		context.get("data", {}).pop("rule", None)
-		from .wizard import show
+		if pastedData:
+			context.setdefault("data", {})["rule"] = pastedData
+		from . import editor
+		if not pastedData or editor.supportsSimpleMode(context):
+			from . import wizard
+			show = wizard.show
+		else:
+			show = editor.show
 		if show(context, parent=self):
 			rule = self.context["rule"] = context["rule"]
 			# As a new rule was created, all results are to be considered obsolete

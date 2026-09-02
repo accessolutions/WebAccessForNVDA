@@ -381,7 +381,7 @@ class KbNavMultiCategorySettingsDialog(FillableMultiCategorySettingsDialog):
 	def onCharHook(self, evt):
 		keycode = evt.GetKeyCode()
 		mods = evt.GetModifiers()
-		if keycode == wx.WXK_F6 and mods == wx.MOD_NONE:
+		if keycode == wx.WXK_F6 and mods | wx.MOD_SHIFT == wx.MOD_SHIFT:
 			if self.catListCtrl.HasFocus():
 				self.container.SetFocus()
 			else:
