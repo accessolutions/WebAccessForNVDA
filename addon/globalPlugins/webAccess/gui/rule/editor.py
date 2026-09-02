@@ -487,7 +487,7 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 		self.initData_alternatives()
 
 	def initData_alternatives(self) -> None:
-		self.updateCriteriaList()
+		self.updateCriteriaList(self.context.pop("AlternativesPanel.initialIndex", None))
 
 	def updateData(self):
 		# Nothing to update: This panel writes directly into the data map.
@@ -1097,7 +1097,7 @@ class SimpleSummaryCriteriaPanel(AlternativeChildPanel):
 			# the widget values of the previous sole alternative and, since indices may
 			# have shifted, could otherwise overwrite the newly created alternative's
 			# data with stale data (e.g. when it is reordered to the first position).
-			dlg.switchToFullEditor(updateData=False)
+			dlg.switchToFullEditor(updateData=False, criteriaIndex=index)
 			return
 		parent.switchToAppropriatePanel()
 		parent.shownPanel.initData(self.context)
@@ -1356,6 +1356,11 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 			else:
 				treePath = reload["tree.path"]
 				treeFocus = reload["tree.focus"]
+				criteriaIndex = reload.get("criteriaIndex")
+				if criteriaIndex is not None:
+					# Consumed by AlternativesPanel.initData_alternatives to select the
+					# alternative just created or edited, instead of defaulting to the first.
+					context["AlternativesPanel.initialIndex"] = criteriaIndex
 			tree = self.catListCtrl
 			node = tree.RootItem
 			for index in treePath:
@@ -1422,7 +1427,7 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 				return
 		super().onCharHook(evt)
 	
-	def switchToFullEditor(self, updateData=True):
+	def switchToFullEditor(self, updateData=True, criteriaIndex=None):
 		if not self.simpleMode:
 			wx.Bell()
 			return
@@ -1441,6 +1446,7 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 		self.context["RuleEditorFocusOnReload"] = {
 			"tree.path": treePath,
 			"tree.focus": tree.HasFocus(),
+			"criteriaIndex": criteriaIndex,
 		}
 		self.EndModal(wx.ID_MORE)
 	
