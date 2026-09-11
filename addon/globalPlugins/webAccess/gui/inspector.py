@@ -634,6 +634,15 @@ class InspectorDialog(ScalingMixin, wx.Dialog):
 		item = menu.Append(
 			wx.ID_ANY,
 			# Translators: A context menu entry on the Inspector dialog
+			_("Show element and ancestors\tF12")
+			if not self.showAncestors else
+			# Translators: A context menu entry on the Inspector dialog
+			_("Show current element\tF12")
+		)
+		menu.Bind(wx.EVT_MENU, lambda evt: self.switchView(), item)
+		item = menu.Append(
+			wx.ID_ANY,
+			# Translators: A context menu entry on the Inspector dialog
 			_("Parent node\tAlt + Up Arrow or Alt + U")
 		)
 		menu.Bind(wx.EVT_MENU, lambda evt: self.walk("u"), item)
@@ -819,10 +828,10 @@ class InspectorDialog(ScalingMixin, wx.Dialog):
 		)
 		if showAncestors:
 			# Translators: A message from the Inspector dialog
-			self.message(_("Show all ancestors"))
+			self.message(_("Show element and ancestors"))
 		else:
 			# Translators: A message from the Inspector dialog
-			self.message(_("Show single element"))
+			self.message(_("Show current element"))
 		self.inspect(self.node, self.root, self.identifier)
 	
 	def walk(self, path):

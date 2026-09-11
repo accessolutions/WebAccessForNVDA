@@ -30,6 +30,7 @@ import wx
 import addonHandler
 import config
 import gui
+import winUser
 
 
 from gui import guiHelper
@@ -48,6 +49,34 @@ from ..config import (
 
 
 addonHandler.initTranslation()
+
+
+class _GroupingNameAccessible(wx.Accessible):
+	"""Include extra text in a StaticBox grouping name so NVDA announces it with the group."""
+
+	def __init__(self, win, extraName):
+		super().__init__(win)
+		self._extraName = extraName
+
+	def GetName(self, childId):
+		res = super().GetName(childId)
+		if childId != winUser.CHILDID_SELF:
+			return res
+		status, name = res
+		if status != wx.ACC_OK or not name:
+			name = self.Window.GetLabel()
+		if self._extraName:
+			name = "{}. {}".format(name, self._extraName)
+		return (wx.ACC_OK, name)
+
+
+class _PresentationOnlyAccessible(wx.Accessible):
+	"""Keep the window visible while omitting it from the accessibility tree."""
+
+	def GetState(self, childId):
+		if childId == winUser.CHILDID_SELF:
+			return (wx.ACC_OK, wx.ACC_STATE_SYSTEM_INVISIBLE)
+		return super().GetState(childId)
 
 
 def initialize():
@@ -119,18 +148,23 @@ class WebAccessSettingsPanel(SettingsPanel):
 		)
 		item.SetValue(config.conf["webAccess"]["writeInAddons"])
 
-		group = guiHelper.BoxSizerHelper(
+		groupBox = wx.StaticBox(
 			self,
-			sizer=wx.StaticBoxSizer(
-				wx.StaticBox(
-					self,
-					# Translators: The title of a group of settings in the WebAccess settings panel
-					label=_("Default UI modes")
-				),
-				wx.VERTICAL
-			)
+			# Translators: The title of a group of settings in the WebAccess settings panel
+			label=_("Default UI modes")
+		)
+		# Translators: A note in the WebAccess settings panel
+		uiModesHint = _("In these dialogs, press F12 to switch mode.")
+		groupBox.SetAccessible(_GroupingNameAccessible(groupBox, uiModesHint))
+		groupBox.SetHelpText(uiModesHint)
+		group = guiHelper.BoxSizerHelper(
+			groupBox,
+			sizer=wx.StaticBoxSizer(groupBox, wx.VERTICAL)
 		)
 		sHelper.addItem(group.sizer, flag=wx.EXPAND)
+		hint = wx.StaticText(groupBox, label=uiModesHint)
+		hint.SetAccessible(_PresentationOnlyAccessible(hint))
+		group.addItem(hint)
 		self._modeChoices = []
 		for name, label, defaultLabel, extraChoices in (
 			(
@@ -138,12 +172,12 @@ class WebAccessSettingsPanel(SettingsPanel):
 				# Translators: The label for a setting in the WebAccess settings panel
 				_("Rule &wizard"),
 				# Translators: A choice in the WebAccess settings panel
-				_("Default (wizard if simple)"),
+				_("Default (wizard if a single criteria set)"),
 				(
 					# Translators: A choice in the WebAccess settings panel
-					(RuleWizardMode.WIZARD, _("Wizard if simple")),
+					(RuleWizardMode.WIZARD, _("Wizard if a single criteria set")),
 					# Translators: A choice in the WebAccess settings panel
-					(RuleWizardMode.EDITOR, _("Editor")),
+					(RuleWizardMode.EDITOR, _("Always editor")),
 				),
 			),
 			(
@@ -151,10 +185,10 @@ class WebAccessSettingsPanel(SettingsPanel):
 				# Translators: The label for a setting in the WebAccess settings panel
 				_("Rule &editor"),
 				# Translators: A choice in the WebAccess settings panel
-				_("Default (simple if one criteria set)"),
+				_("Default (simple if a single criteria set)"),
 				(
 					# Translators: A choice in the WebAccess settings panel
-					(EditorMode.SIMPLE, _("Simple if one criteria set")),
+					(EditorMode.SIMPLE, _("Simple if a single criteria set")),
 					# Translators: A choice in the WebAccess settings panel
 					(EditorMode.FULL, _("Full")),
 				),
@@ -164,12 +198,12 @@ class WebAccessSettingsPanel(SettingsPanel):
 				# Translators: The label for a setting in the WebAccess settings panel
 				_("&Criteria editor"),
 				# Translators: A choice in the WebAccess settings panel
-				_("Default (simple if no gestures/properties)"),
+				_("Default (simple if no gestures or properties)"),
 				(
 					# Translators: A choice in the WebAccess settings panel
-					(EditorMode.SIMPLE, _("Simple if no gestures/properties")),
+					(EditorMode.SIMPLE, _("Simple if no gestures or properties")),
 					# Translators: A choice in the WebAccess settings panel
-					(EditorMode.FULL, _("Full")),
+					(EditorMode.FULL, _("Always full")),
 				),
 			),
 			(
@@ -177,12 +211,12 @@ class WebAccessSettingsPanel(SettingsPanel):
 				# Translators: The label for a setting in the WebAccess settings panel
 				_("Element &inspector"),
 				# Translators: A choice in the WebAccess settings panel
-				_("Default (single element)"),
+				_("Default (current element)"),
 				(
 					# Translators: A choice in the WebAccess settings panel
-					(InspectorMode.SINGLE, _("Single element")),
+					(InspectorMode.SINGLE, _("Current element")),
 					# Translators: A choice in the WebAccess settings panel
-					(InspectorMode.ANCESTORS, _("All ancestors")),
+					(InspectorMode.ANCESTORS, _("Element and ancestors")),
 				),
 			),
 		):
