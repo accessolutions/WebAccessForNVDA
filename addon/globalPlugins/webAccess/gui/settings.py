@@ -47,6 +47,7 @@ from ..config import (
 	handleConfigChange,
 	setUiModePref,
 )
+from ..utils import logException
 
 
 addonHandler.initTranslation()
@@ -59,6 +60,7 @@ class _GroupingNameAccessible(wx.Accessible):
 		super().__init__(win)
 		self._extraName = extraName
 
+	@logException
 	def GetName(self, childId: int) -> tuple[int, str]:
 		res = super().GetName(childId)
 		if childId != winUser.CHILDID_SELF:
@@ -74,6 +76,7 @@ class _GroupingNameAccessible(wx.Accessible):
 class _PresentationOnlyAccessible(wx.Accessible):
 	"""Keep the window visible while omitting it from the accessibility tree."""
 
+	@logException
 	def GetState(self, childId: int) -> tuple[int, int]:
 		if childId == winUser.CHILDID_SELF:
 			return (wx.ACC_OK, wx.ACC_STATE_SYSTEM_INVISIBLE)
@@ -157,7 +160,6 @@ class WebAccessSettingsPanel(SettingsPanel):
 		# Translators: A note in the WebAccess settings panel
 		uiModesHint = _("In these dialogs, press F12 to switch mode.")
 		groupBox.SetAccessible(_GroupingNameAccessible(groupBox, uiModesHint))
-		groupBox.SetHelpText(uiModesHint)
 		group = guiHelper.BoxSizerHelper(
 			groupBox,
 			sizer=wx.StaticBoxSizer(groupBox, wx.VERTICAL)

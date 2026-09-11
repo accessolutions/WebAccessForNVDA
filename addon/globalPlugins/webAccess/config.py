@@ -221,8 +221,7 @@ def initialize():
 		# ConfigObj mutates this into a configobj.Section.
 		section = baseProfile[key]
 	section.configspec = spec
-	# copy=True applies nested spec defaults (e.g. uiModes) on first run.
-	baseProfile.validate(config.conf.validator, copy=True, section=section)
+	baseProfile.validate(config.conf.validator, section=section)
 	# Initialize cache for later comparison
 	handleConfigChange()
 	config.post_configReset.register(handleConfigChange)
