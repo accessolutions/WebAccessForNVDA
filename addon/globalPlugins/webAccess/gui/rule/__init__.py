@@ -153,7 +153,10 @@ Do you want to proceed anyway?
 		raise ValidationError()  # Cancels closing of the dialog
 
 
-def showRuleWizardOrEditor(context, parent=None):
+def showRuleWizardOrEditor(
+		context: Mapping[str, Any],
+		parent: wx.Window | None = None
+	) -> bool:
 	"""Open the rule wizard or editor according to the user's UI mode preference."""
 	from . import editor, wizard
 	from ...config import RuleWizardMode, UiMode, getUiMode
