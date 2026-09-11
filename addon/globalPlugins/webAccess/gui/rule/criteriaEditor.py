@@ -46,7 +46,7 @@ import speech
 import ui
 
 import addonHandler
-from ...config import EditorMode, UiMode, getUiMode, setUiModeLastUsed
+from ...config import EditorMode, UiMode, getUiMode
 from ...ruleHandler import ruleTypes
 from ...utils import guarded, notifyError, updateOrDrop
 from .. import (
@@ -1441,7 +1441,6 @@ def show(context, parent=None):
 		)
 		if res == wx.ID_MORE:
 			simpleMode = False
-			setUiModeLastUsed(UiMode.CRITERIA_EDITOR, EditorMode.FULL)
 		elif res != wx.ID_CONVERT:
 			break
 	return res == wx.ID_OK

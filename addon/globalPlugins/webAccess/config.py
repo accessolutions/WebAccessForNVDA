@@ -39,8 +39,7 @@ class UiMode(StrEnum):
 
 
 class UiModePref(StrEnum):
-	"""How a concrete mode is chosen for a UI surface."""
-	DEFAULT = auto()
+	"""Prefixed choice used only by the inspector (F12 toggles both ways)."""
 	LAST_USED = auto()
 
 
@@ -74,6 +73,9 @@ UI_MODES = {
 	UiMode.INSPECTOR: InspectorMode,
 }
 
+# Only the inspector persists last-used: F12 switches both ways.
+_REMEMBERS_LAST_USED = frozenset({UiMode.INSPECTOR})
+
 _UI_MODES_SECTION = "uiModes"
 
 
@@ -101,31 +103,41 @@ def _coerceEnum(enumCls, value, default=None):
 		return default if default is not None else _first(enumCls)
 
 
+def _uiModeName(name):
+	return name if isinstance(name, UiMode) else UiMode(name)
+
+
+def _remembersLastUsed(name):
+	return _uiModeName(name) in _REMEMBERS_LAST_USED
+
+
+def _uiModeConfSpec(enumCls, rememberLastUsed):
+	modeValues = tuple(enumCls)
+	if rememberLastUsed:
+		modeValues = (UiModePref.LAST_USED,) + modeValues
+	spec = {
+		str(UiModeSetting.MODE): _optionSpec(modeValues, default=_first(enumCls)),
+	}
+	if rememberLastUsed:
+		spec[str(UiModeSetting.LAST_USED)] = _optionSpec(
+			tuple(enumCls),
+			default=_first(enumCls),
+		)
+	return spec
+
+
 CONFIG_SPEC = {
 	"devMode": "boolean(default=False)",
 	"disableUserConfig": "boolean(default=False)",
 	"writeInAddons": "boolean(default=False)",
 	_UI_MODES_SECTION: {
-		str(name): {
-			str(UiModeSetting.MODE): _optionSpec(
-				tuple(UiModePref) + tuple(enumCls),
-				default=UiModePref.DEFAULT,
-			),
-			str(UiModeSetting.LAST_USED): _optionSpec(
-				tuple(enumCls),
-				default=_first(enumCls),
-			),
-		}
+		str(name): _uiModeConfSpec(enumCls, name in _REMEMBERS_LAST_USED)
 		for name, enumCls in UI_MODES.items()
 	},
 }
 
 
 _cache = None
-
-
-def _uiModeName(name):
-	return name if isinstance(name, UiMode) else UiMode(name)
 
 
 def _uiModeSection(name):
@@ -136,10 +148,12 @@ def getUiModePref(name):
 	name = _uiModeName(name)
 	enumCls = UI_MODES[name]
 	value = _uiModeSection(name)[UiModeSetting.MODE]
-	try:
-		return value if isinstance(value, UiModePref) else UiModePref(value)
-	except ValueError:
-		return _coerceEnum(enumCls, value, default=UiModePref.DEFAULT)
+	if _remembersLastUsed(name):
+		try:
+			return value if isinstance(value, UiModePref) else UiModePref(value)
+		except ValueError:
+			pass
+	return _coerceEnum(enumCls, value)
 
 
 def setUiModePref(name, value):
@@ -151,17 +165,15 @@ def resolveUiMode(name):
 	enumCls = UI_MODES[name]
 	section = _uiModeSection(name)
 	pref = section[UiModeSetting.MODE]
-	if pref == UiModePref.LAST_USED:
-		value = section[UiModeSetting.LAST_USED]
-	elif pref == UiModePref.DEFAULT:
-		value = _first(enumCls)
-	else:
-		value = pref
-	return _coerceEnum(enumCls, value)
+	if _remembersLastUsed(name) and pref == UiModePref.LAST_USED:
+		return _coerceEnum(enumCls, section[UiModeSetting.LAST_USED])
+	return _coerceEnum(enumCls, pref)
 
 
 def setUiModeLastUsed(name, value):
 	name = _uiModeName(name)
+	if not _remembersLastUsed(name):
+		return
 	enumCls = UI_MODES[name]
 	value = value if isinstance(value, enumCls) else enumCls(value)
 	section = _uiModeSection(name)
@@ -173,14 +185,15 @@ def getUiMode(name, canPrefer=True):
 	"""Return the concrete UI mode to use for `name`.
 
 	When `canPrefer` is False (the simpler mode is not available), the fallback
-	member is returned without recording last-used. Otherwise the resolved
-	preference is recorded as last-used and returned.
+	member is returned. Last-used is recorded only for surfaces that persist it
+	(the inspector).
 	"""
 	name = _uiModeName(name)
 	if not canPrefer:
 		return _last(UI_MODES[name])
 	value = resolveUiMode(name)
-	setUiModeLastUsed(name, value)
+	if _remembersLastUsed(name):
+		setUiModeLastUsed(name, value)
 	return value
 
 

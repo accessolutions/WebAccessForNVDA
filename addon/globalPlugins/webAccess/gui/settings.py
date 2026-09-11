@@ -166,13 +166,11 @@ class WebAccessSettingsPanel(SettingsPanel):
 		hint.SetAccessible(_PresentationOnlyAccessible(hint))
 		group.addItem(hint)
 		self._modeChoices = []
-		for name, label, defaultLabel, extraChoices in (
+		for name, label, extraChoices in (
 			(
 				UiMode.RULE_WIZARD,
 				# Translators: The label for a setting in the WebAccess settings panel
 				_("Rule &wizard"),
-				# Translators: A choice in the WebAccess settings panel
-				_("Default (wizard if a single criteria set)"),
 				(
 					# Translators: A choice in the WebAccess settings panel
 					(RuleWizardMode.WIZARD, _("Wizard if a single criteria set")),
@@ -184,21 +182,17 @@ class WebAccessSettingsPanel(SettingsPanel):
 				UiMode.RULE_EDITOR,
 				# Translators: The label for a setting in the WebAccess settings panel
 				_("Rule &editor"),
-				# Translators: A choice in the WebAccess settings panel
-				_("Default (simple if a single criteria set)"),
 				(
 					# Translators: A choice in the WebAccess settings panel
 					(EditorMode.SIMPLE, _("Simple if a single criteria set")),
 					# Translators: A choice in the WebAccess settings panel
-					(EditorMode.FULL, _("Full")),
+					(EditorMode.FULL, _("Always full")),
 				),
 			),
 			(
 				UiMode.CRITERIA_EDITOR,
 				# Translators: The label for a setting in the WebAccess settings panel
 				_("&Criteria editor"),
-				# Translators: A choice in the WebAccess settings panel
-				_("Default (simple if no gestures or properties)"),
 				(
 					# Translators: A choice in the WebAccess settings panel
 					(EditorMode.SIMPLE, _("Simple if no gestures or properties")),
@@ -210,8 +204,6 @@ class WebAccessSettingsPanel(SettingsPanel):
 				UiMode.INSPECTOR,
 				# Translators: The label for a setting in the WebAccess settings panel
 				_("Element &inspector"),
-				# Translators: A choice in the WebAccess settings panel
-				_("Default (current element)"),
 				(
 					# Translators: A choice in the WebAccess settings panel
 					(InspectorMode.SINGLE, _("Current element")),
@@ -220,11 +212,14 @@ class WebAccessSettingsPanel(SettingsPanel):
 				),
 			),
 		):
-			choices = (
-				(UiModePref.DEFAULT, defaultLabel),
-				# Translators: A choice in the WebAccess settings panel
-				(UiModePref.LAST_USED, _("Last used")),
-			) + extraChoices
+			if name == UiMode.INSPECTOR:
+				choices = (
+					extraChoices[0],
+					# Translators: A choice in the WebAccess settings panel
+					(UiModePref.LAST_USED, _("Last used")),
+				) + extraChoices[1:]
+			else:
+				choices = extraChoices
 			ctrl, keys = self._addModeChoice(group, label, getUiModePref(name), choices)
 			self._modeChoices.append((name, ctrl, keys))
 
