@@ -40,11 +40,11 @@ import inputCore
 import queueHandler
 import ui
 
-from ...config import resolveUiMode, setUiModeLastUsed
 from ...ruleHandler import Criteria, GestureScope, Rule, Result, Selector, Zone, ruleTypes
 from ...utils import getCharFromKeyEvent, guarded
 from ...webModuleHandler import getEditableWebModule, save
 from .. import ContextualDialog, showContextualDialog, stripAccel
+from . import showRuleWizardOrEditor
 from .editor import getSummary
 
 from collections.abc import Mapping
@@ -69,16 +69,6 @@ lastActiveOnly = False
 
 def show(context, parent=None):
 	showContextualDialog(Dialog, context, parent)
-
-
-def showRuleWizardOrEditor(context, parent):
-	from . import editor, wizard
-	canUseWizard = editor.supportsSimpleMode(context)
-	useWizard = canUseWizard and resolveUiMode("ruleWizard", "wizard") == "wizard"
-	if canUseWizard:
-		setUiModeLastUsed("ruleWizard", "wizard" if useWizard else "editor")
-	showDlg = wizard.show if useWizard else editor.show
-	return showDlg(context, parent=parent)
 
 
 TreeItemData = namedtuple("TreeItemData", ("label", "obj", "children"))
@@ -851,22 +841,28 @@ class Dialog(ContextualDialog):
 		context["new"] = False
 		context["rule"] = rule
 		context["webModule"] = rule.ruleManager.webModule
-		context.setdefault("data", {})["rule"] = rule.dump()
+		data = dict(context.get("data", {}))
+		data["rule"] = rule.dump()
+		context["data"] = data
 		if showRuleWizardOrEditor(context, self):
 			rule = self.context["rule"] = context["rule"]
 			# As the rule changed, all results are to be considered obsolete
 			if not self.disableGroupByPosition():
 				self.refreshRuleList()
-		context.get("data", {}).pop("rule", None)
 		wx.CallAfter(self.tree.SetFocus)
 	
 	@guarded
 	def onRuleNew(self, evt=None, pastedData=None):
 		context = self.context.copy()
 		context["new"] = True
-		context.get("data", {}).pop("rule", None)
+		data = dict(context.get("data", {}))
+		data.pop("rule", None)
 		if pastedData:
-			context.setdefault("data", {})["rule"] = pastedData
+			data["rule"] = pastedData
+		if data:
+			context["data"] = data
+		else:
+			context.pop("data", None)
 		if showRuleWizardOrEditor(context, self):
 			rule = self.context["rule"] = context["rule"]
 			# As a new rule was created, all results are to be considered obsolete

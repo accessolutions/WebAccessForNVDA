@@ -23,47 +23,100 @@
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
+from enum import StrEnum, auto
+
 import config
-from logHandler import log
 
 from . import webModuleHandler
+
+
+class UiMode(StrEnum):
+	"""Configurable UI surfaces stored under conf["webAccess"]["uiModes"]."""
+	RULE_WIZARD = auto()
+	RULE_EDITOR = auto()
+	CRITERIA_EDITOR = auto()
+	INSPECTOR = auto()
+
+
+class UiModePref(StrEnum):
+	"""How a concrete mode is chosen for a UI surface."""
+	DEFAULT = auto()
+	LAST_USED = auto()
+
+
+class UiModeSetting(StrEnum):
+	"""Keys of each per-surface subsection."""
+	MODE = auto()
+	LAST_USED = auto()
+
+
+class RuleWizardMode(StrEnum):
+	WIZARD = auto()
+	EDITOR = auto()
+
+
+class EditorMode(StrEnum):
+	SIMPLE = auto()
+	FULL = auto()
+
+
+class InspectorMode(StrEnum):
+	SINGLE = auto()
+	ANCESTORS = auto()
+
+
+# Maps each UI surface to its concrete mode enum.
+# The first member is the built-in default; the last is the fallback.
+UI_MODES = {
+	UiMode.RULE_WIZARD: RuleWizardMode,
+	UiMode.RULE_EDITOR: EditorMode,
+	UiMode.CRITERIA_EDITOR: EditorMode,
+	UiMode.INSPECTOR: InspectorMode,
+}
+
+_UI_MODES_SECTION = "uiModes"
+
+
+def _optionSpec(values, default):
+	return "option(%s, default=%r)" % (
+		", ".join("%r" % str(v) for v in values),
+		str(default),
+	)
+
+
+def _first(enumCls):
+	return next(iter(enumCls))
+
+
+def _last(enumCls):
+	return tuple(enumCls)[-1]
+
+
+def _coerceEnum(enumCls, value, default=None):
+	if isinstance(value, enumCls):
+		return value
+	try:
+		return enumCls(value)
+	except ValueError:
+		return default if default is not None else _first(enumCls)
 
 
 CONFIG_SPEC = {
 	"devMode": "boolean(default=False)",
 	"disableUserConfig": "boolean(default=False)",
 	"writeInAddons": "boolean(default=False)",
-	"ruleWizardMode": "option('default', 'lastUsed', 'wizard', 'editor', default='default')",
-	"ruleWizardLastUsed": "option('wizard', 'editor', default='wizard')",
-	"ruleEditorMode": "option('default', 'lastUsed', 'simple', 'full', default='default')",
-	"ruleEditorLastUsed": "option('simple', 'full', default='simple')",
-	"criteriaEditorMode": "option('default', 'lastUsed', 'simple', 'full', default='default')",
-	"criteriaEditorLastUsed": "option('simple', 'full', default='simple')",
-	"inspectorMode": "option('default', 'lastUsed', 'single', 'ancestors', default='default')",
-	"inspectorLastUsed": "option('single', 'ancestors', default='single')",
-}
-
-
-_UI_MODES = {
-	"ruleWizard": {
-		"pref": "ruleWizardMode",
-		"lastUsed": "ruleWizardLastUsed",
-		"values": ("wizard", "editor"),
-	},
-	"ruleEditor": {
-		"pref": "ruleEditorMode",
-		"lastUsed": "ruleEditorLastUsed",
-		"values": ("simple", "full"),
-	},
-	"criteriaEditor": {
-		"pref": "criteriaEditorMode",
-		"lastUsed": "criteriaEditorLastUsed",
-		"values": ("simple", "full"),
-	},
-	"inspector": {
-		"pref": "inspectorMode",
-		"lastUsed": "inspectorLastUsed",
-		"values": ("single", "ancestors"),
+	_UI_MODES_SECTION: {
+		str(name): {
+			str(UiModeSetting.MODE): _optionSpec(
+				tuple(UiModePref) + tuple(enumCls),
+				default=UiModePref.DEFAULT,
+			),
+			str(UiModeSetting.LAST_USED): _optionSpec(
+				tuple(enumCls),
+				default=_first(enumCls),
+			),
+		}
+		for name, enumCls in UI_MODES.items()
 	},
 }
 
@@ -71,29 +124,64 @@ _UI_MODES = {
 _cache = None
 
 
-def resolveUiMode(name, defaultValue):
-	spec = _UI_MODES[name]
-	section = config.conf["webAccess"]
-	pref = section[spec["pref"]]
-	valid = spec["values"]
-	if pref == "lastUsed":
-		value = section[spec["lastUsed"]]
-	elif pref == "default":
-		value = defaultValue
+def _uiModeName(name):
+	return name if isinstance(name, UiMode) else UiMode(name)
+
+
+def _uiModeSection(name):
+	return config.conf["webAccess"][_UI_MODES_SECTION][_uiModeName(name)]
+
+
+def getUiModePref(name):
+	name = _uiModeName(name)
+	enumCls = UI_MODES[name]
+	value = _uiModeSection(name)[UiModeSetting.MODE]
+	try:
+		return value if isinstance(value, UiModePref) else UiModePref(value)
+	except ValueError:
+		return _coerceEnum(enumCls, value, default=UiModePref.DEFAULT)
+
+
+def setUiModePref(name, value):
+	_uiModeSection(name)[UiModeSetting.MODE] = str(value)
+
+
+def resolveUiMode(name):
+	name = _uiModeName(name)
+	enumCls = UI_MODES[name]
+	section = _uiModeSection(name)
+	pref = section[UiModeSetting.MODE]
+	if pref == UiModePref.LAST_USED:
+		value = section[UiModeSetting.LAST_USED]
+	elif pref == UiModePref.DEFAULT:
+		value = _first(enumCls)
 	else:
 		value = pref
-	if value not in valid:
-		value = defaultValue
-	return value
+	return _coerceEnum(enumCls, value)
 
 
 def setUiModeLastUsed(name, value):
-	spec = _UI_MODES[name]
-	if value not in spec["values"]:
-		raise ValueError("Invalid last-used value %r for %s" % (value, name))
-	key = spec["lastUsed"]
-	if config.conf["webAccess"][key] != value:
-		config.conf["webAccess"][key] = value
+	name = _uiModeName(name)
+	enumCls = UI_MODES[name]
+	value = value if isinstance(value, enumCls) else enumCls(value)
+	section = _uiModeSection(name)
+	if section[UiModeSetting.LAST_USED] != value:
+		section[UiModeSetting.LAST_USED] = str(value)
+
+
+def getUiMode(name, canPrefer=True):
+	"""Return the concrete UI mode to use for `name`.
+
+	When `canPrefer` is False (the simpler mode is not available), the fallback
+	member is returned without recording last-used. Otherwise the resolved
+	preference is recorded as last-used and returned.
+	"""
+	name = _uiModeName(name)
+	if not canPrefer:
+		return _last(UI_MODES[name])
+	value = resolveUiMode(name)
+	setUiModeLastUsed(name, value)
+	return value
 
 
 def handleConfigChange():
@@ -131,7 +219,8 @@ def initialize():
 		# ConfigObj mutates this into a configobj.Section.
 		section = baseProfile[key]
 	section.configspec = spec
-	baseProfile.validate(config.conf.validator, section=section)
+	# copy=True applies nested spec defaults (e.g. uiModes) on first run.
+	baseProfile.validate(config.conf.validator, copy=True, section=section)
 	# Initialize cache for later comparison
 	handleConfigChange()
 	config.post_configReset.register(handleConfigChange)

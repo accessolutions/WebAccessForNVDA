@@ -46,7 +46,7 @@ import speech
 import ui
 
 import addonHandler
-from ...config import resolveUiMode, setUiModeLastUsed
+from ...config import EditorMode, UiMode, getUiMode, setUiModeLastUsed
 from ...ruleHandler import ruleTypes
 from ...utils import guarded, notifyError, updateOrDrop
 from .. import (
@@ -1430,10 +1430,7 @@ def show(context, parent=None):
 	if parent is None:
 		parent = gui.mainFrame
 	data = context.get("data", {}).get("criteria", {})
-	canSimple = supportsSimpleMode(data)
-	simpleMode = canSimple and resolveUiMode("criteriaEditor", "simple") == "simple"
-	if canSimple:
-		setUiModeLastUsed("criteriaEditor", "simple" if simpleMode else "full")
+	simpleMode = getUiMode(UiMode.CRITERIA_EDITOR, canPrefer=supportsSimpleMode(data)) == EditorMode.SIMPLE
 	while True:
 		res = showContextualDialog(
 			CriteriaEditorDialog,
@@ -1444,7 +1441,7 @@ def show(context, parent=None):
 		)
 		if res == wx.ID_MORE:
 			simpleMode = False
-			setUiModeLastUsed("criteriaEditor", "full")
+			setUiModeLastUsed(UiMode.CRITERIA_EDITOR, EditorMode.FULL)
 		elif res != wx.ID_CONVERT:
 			break
 	return res == wx.ID_OK

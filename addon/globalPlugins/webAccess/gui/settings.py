@@ -35,6 +35,17 @@ import gui
 from gui import guiHelper
 from gui.settingsDialogs import SettingsDialog, SettingsPanel
 
+from ..config import (
+	EditorMode,
+	InspectorMode,
+	RuleWizardMode,
+	UiMode,
+	UiModePref,
+	getUiModePref,
+	handleConfigChange,
+	setUiModePref,
+)
+
 
 addonHandler.initTranslation()
 
@@ -120,72 +131,70 @@ class WebAccessSettingsPanel(SettingsPanel):
 			)
 		)
 		sHelper.addItem(group.sizer, flag=wx.EXPAND)
-		self.ruleWizardMode, self._ruleWizardModeKeys = self._addModeChoice(
-			group,
-			# Translators: The label for a setting in the WebAccess settings panel
-			_("Rule &wizard"),
-			"ruleWizardMode",
+		self._modeChoices = []
+		for name, label, defaultLabel, extraChoices in (
 			(
+				UiMode.RULE_WIZARD,
+				# Translators: The label for a setting in the WebAccess settings panel
+				_("Rule &wizard"),
 				# Translators: A choice in the WebAccess settings panel
-				("default", _("Default (wizard if simple)")),
-				# Translators: A choice in the WebAccess settings panel
-				("lastUsed", _("Last used")),
-				# Translators: A choice in the WebAccess settings panel
-				("wizard", _("Wizard if simple")),
-				# Translators: A choice in the WebAccess settings panel
-				("editor", _("Editor")),
+				_("Default (wizard if simple)"),
+				(
+					# Translators: A choice in the WebAccess settings panel
+					(RuleWizardMode.WIZARD, _("Wizard if simple")),
+					# Translators: A choice in the WebAccess settings panel
+					(RuleWizardMode.EDITOR, _("Editor")),
+				),
 			),
-		)
-		self.ruleEditorMode, self._ruleEditorModeKeys = self._addModeChoice(
-			group,
-			# Translators: The label for a setting in the WebAccess settings panel
-			_("Rule &editor"),
-			"ruleEditorMode",
 			(
+				UiMode.RULE_EDITOR,
+				# Translators: The label for a setting in the WebAccess settings panel
+				_("Rule &editor"),
 				# Translators: A choice in the WebAccess settings panel
-				("default", _("Default (simple if one criteria set)")),
-				# Translators: A choice in the WebAccess settings panel
-				("lastUsed", _("Last used")),
-				# Translators: A choice in the WebAccess settings panel
-				("simple", _("Simple if one criteria set")),
-				# Translators: A choice in the WebAccess settings panel
-				("full", _("Full")),
+				_("Default (simple if one criteria set)"),
+				(
+					# Translators: A choice in the WebAccess settings panel
+					(EditorMode.SIMPLE, _("Simple if one criteria set")),
+					# Translators: A choice in the WebAccess settings panel
+					(EditorMode.FULL, _("Full")),
+				),
 			),
-		)
-		self.criteriaEditorMode, self._criteriaEditorModeKeys = self._addModeChoice(
-			group,
-			# Translators: The label for a setting in the WebAccess settings panel
-			_("&Criteria editor"),
-			"criteriaEditorMode",
 			(
+				UiMode.CRITERIA_EDITOR,
+				# Translators: The label for a setting in the WebAccess settings panel
+				_("&Criteria editor"),
 				# Translators: A choice in the WebAccess settings panel
-				("default", _("Default (simple if no gestures/properties)")),
-				# Translators: A choice in the WebAccess settings panel
-				("lastUsed", _("Last used")),
-				# Translators: A choice in the WebAccess settings panel
-				("simple", _("Simple if no gestures/properties")),
-				# Translators: A choice in the WebAccess settings panel
-				("full", _("Full")),
+				_("Default (simple if no gestures/properties)"),
+				(
+					# Translators: A choice in the WebAccess settings panel
+					(EditorMode.SIMPLE, _("Simple if no gestures/properties")),
+					# Translators: A choice in the WebAccess settings panel
+					(EditorMode.FULL, _("Full")),
+				),
 			),
-		)
-		self.inspectorMode, self._inspectorModeKeys = self._addModeChoice(
-			group,
-			# Translators: The label for a setting in the WebAccess settings panel
-			_("Element &inspector"),
-			"inspectorMode",
 			(
+				UiMode.INSPECTOR,
+				# Translators: The label for a setting in the WebAccess settings panel
+				_("Element &inspector"),
 				# Translators: A choice in the WebAccess settings panel
-				("default", _("Default (single element)")),
-				# Translators: A choice in the WebAccess settings panel
-				("lastUsed", _("Last used")),
-				# Translators: A choice in the WebAccess settings panel
-				("single", _("Single element")),
-				# Translators: A choice in the WebAccess settings panel
-				("ancestors", _("All ancestors")),
+				_("Default (single element)"),
+				(
+					# Translators: A choice in the WebAccess settings panel
+					(InspectorMode.SINGLE, _("Single element")),
+					# Translators: A choice in the WebAccess settings panel
+					(InspectorMode.ANCESTORS, _("All ancestors")),
+				),
 			),
-		)
+		):
+			choices = (
+				(UiModePref.DEFAULT, defaultLabel),
+				# Translators: A choice in the WebAccess settings panel
+				(UiModePref.LAST_USED, _("Last used")),
+			) + extraChoices
+			ctrl, keys = self._addModeChoice(group, label, getUiModePref(name), choices)
+			self._modeChoices.append((name, ctrl, keys))
 
-	def _addModeChoice(self, sHelper, label, confKey, choices):
+	def _addModeChoice(self, sHelper, label, current, choices):
 		keys = tuple(key for key, _lbl in choices)
 		item = sHelper.addLabeledControl(
 			label,
@@ -193,9 +202,12 @@ class WebAccessSettingsPanel(SettingsPanel):
 			choices=[lbl for _key, lbl in choices]
 		)
 		try:
-			item.SetSelection(keys.index(config.conf["webAccess"][confKey]))
+			item.SetSelection(keys.index(current))
 		except ValueError:
-			item.SetSelection(0)
+			try:
+				item.SetSelection(tuple(str(k) for k in keys).index(str(current)))
+			except ValueError:
+				item.SetSelection(0)
 		return item, keys
 
 	def _getModeChoiceValue(self, ctrl, keys):
@@ -208,17 +220,6 @@ class WebAccessSettingsPanel(SettingsPanel):
 		config.conf["webAccess"]["devMode"] = self.devMode.GetValue()
 		config.conf["webAccess"]["disableUserConfig"] = self.disableUserConfig.GetValue()
 		config.conf["webAccess"]["writeInAddons"] = self.writeInAddons.GetValue()
-		config.conf["webAccess"]["ruleWizardMode"] = self._getModeChoiceValue(
-			self.ruleWizardMode, self._ruleWizardModeKeys
-		)
-		config.conf["webAccess"]["ruleEditorMode"] = self._getModeChoiceValue(
-			self.ruleEditorMode, self._ruleEditorModeKeys
-		)
-		config.conf["webAccess"]["criteriaEditorMode"] = self._getModeChoiceValue(
-			self.criteriaEditorMode, self._criteriaEditorModeKeys
-		)
-		config.conf["webAccess"]["inspectorMode"] = self._getModeChoiceValue(
-			self.inspectorMode, self._inspectorModeKeys
-		)
-		from ..config import handleConfigChange
+		for name, ctrl, keys in self._modeChoices:
+			setUiModePref(name, self._getModeChoiceValue(ctrl, keys))
 		handleConfigChange()
