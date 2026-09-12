@@ -48,6 +48,7 @@ import inputCore
 from logHandler import log
 import ui
 
+from ...config import EditorMode, UiMode, getUiMode
 from ... import webModuleHandler
 from ...ruleHandler import RuleManager, ruleTypes
 from ...ruleHandler.controlMutation import (
@@ -1482,7 +1483,8 @@ def show(context, parent=None):
 			simpleMode=simpleMode,
 		)
 	
-	res = show(simpleMode=supportsSimpleMode(context))
+	simpleMode = getUiMode(UiMode.RULE_EDITOR, canPrefer=supportsSimpleMode(context)) == EditorMode.SIMPLE
+	res = show(simpleMode=simpleMode)
 	if res == wx.ID_MORE:
 		res = show(simpleMode=False)
 	return res == wx.ID_OK

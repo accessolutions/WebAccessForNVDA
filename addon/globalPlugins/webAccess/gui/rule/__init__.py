@@ -151,3 +151,16 @@ Do you want to proceed anyway?
 	webModule.getLayer(layerName, raiseIfMissing=True).dirty = True
 	if not webModuleHandler.save(webModule, layerName=layerName):
 		raise ValidationError()  # Cancels closing of the dialog
+
+
+def showRuleWizardOrEditor(
+		context: Mapping[str, Any],
+		parent: wx.Window | None = None
+	) -> bool:
+	"""Open the rule wizard or editor according to the user's UI mode preference."""
+	from . import editor, wizard
+	from ...config import RuleWizardMode, UiMode, getUiMode
+	canUseWizard = editor.supportsSimpleMode(context)
+	if getUiMode(UiMode.RULE_WIZARD, canPrefer=canUseWizard) == RuleWizardMode.WIZARD:
+		return wizard.show(context, parent=parent)
+	return editor.show(context, parent=parent)

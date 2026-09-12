@@ -139,10 +139,13 @@ class Menu(wx.Menu):
 	
 	@guarded
 	def onRuleCreate(self, evt):
-		from .rule.wizard import show
+		from .rule import showRuleWizardOrEditor
 		context = self.context.copy()
 		context["new"] = True
-		show(context)
+		if "data" in context:
+			context["data"] = dict(context["data"])
+			context["data"].pop("rule", None)
+		showRuleWizardOrEditor(context)
 	
 	@guarded
 	def onRulesManager(self, evt):

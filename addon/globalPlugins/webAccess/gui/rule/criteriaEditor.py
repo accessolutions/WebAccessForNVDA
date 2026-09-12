@@ -46,6 +46,7 @@ import speech
 import ui
 
 import addonHandler
+from ...config import EditorMode, UiMode, getUiMode
 from ...ruleHandler import ruleTypes
 from ...utils import guarded, notifyError, updateOrDrop
 from .. import (
@@ -1429,7 +1430,7 @@ def show(context, parent=None):
 	if parent is None:
 		parent = gui.mainFrame
 	data = context.get("data", {}).get("criteria", {})
-	simpleMode = supportsSimpleMode(data)
+	simpleMode = getUiMode(UiMode.CRITERIA_EDITOR, canPrefer=supportsSimpleMode(data)) == EditorMode.SIMPLE
 	while True:
 		res = showContextualDialog(
 			CriteriaEditorDialog,
