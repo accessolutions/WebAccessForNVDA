@@ -36,7 +36,7 @@ from itertools import chain
 from pprint import pformat
 import threading
 import time
-from typing import Any
+from typing import Any, Optional, Union
 import weakref
 
 import wx
@@ -1833,11 +1833,24 @@ class Rule(ScriptableObject):
 
 
 def getSimpleSearchKwargs(
-		critData: Mapping[str, Any],
-		raiseOnUnsupported: bool = False
+		criteria: Union[Mapping[str, Any], Any] = None,
+		raiseOnUnsupported: bool = False,
+		*,
+		critData: Optional[Mapping[str, Any]] = None,
 ) -> Mapping[str, Any]:
+	if criteria is None:
+		criteria = critData
+	if criteria is None:
+		raise ValueError("Criteria must be provided")
+	if hasattr(criteria, "dump") and callable(criteria.dump):
+		criteria = criteria.dump()
+	if not isinstance(criteria, Mapping):
+		raise TypeError(
+			"Expected criteria mapping or object with dump() method, "
+			f"got {type(criteria).__name__}"
+		)
 	kwargs = {}
-	for prop, expr in critData.items():
+	for prop, expr in criteria.items():
 		if prop in ("contextPageTitle", "contextPageType", "contextParent"):
 			continue
 		if prop not in [

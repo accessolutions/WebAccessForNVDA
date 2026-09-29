@@ -843,8 +843,15 @@ class NodeField(TrackedObject):
 						return None
 					# TODO: Refactor to break this coupling
 					from .ruleHandler import getSimpleSearchKwargs
-					critData = literal_eval(match.group())
-					searchKwargs = getSimpleSearchKwargs(critData, raiseOnUnsupported=True)
+					try:
+						critData = literal_eval(match.group())
+						searchKwargs = getSimpleSearchKwargs(critData, raiseOnUnsupported=True)
+					except Exception as e:
+						log.error((
+							"Invalid criteria expression in relative path expression "
+							"at position {index}: {path} ({error})"
+						).format(index=index, path=path, error=e))
+						return None
 					skipUntil = index + match.end()
 					continue
 				else:
