@@ -1582,7 +1582,7 @@ class Selector(AutoPropertyObject):
 			if not newRootNodes:
 				return
 			rootNodes = newRootNodes
-		kwargs = getSimpleSearchKwargs(self)
+		kwargs = getSimpleSearchKwargs(self.dump())
 		excludedNodes.update(iterResultsNodes(mgr.subModules._results))
 		if excludedNodes:
 			kwargs["exclude"] = excludedNodes
@@ -1832,9 +1832,12 @@ class Rule(ScriptableObject):
 		return []
 
 
-def getSimpleSearchKwargs(criteria, raiseOnUnsupported=False):
+def getSimpleSearchKwargs(
+		critData: Mapping[str, Any],
+		raiseOnUnsupported: bool = False
+) -> Mapping[str, Any]:
 	kwargs = {}
-	for prop, expr in list(criteria.dump().items()):
+	for prop, expr in critData.items():
 		if prop in ("contextPageTitle", "contextPageType", "contextParent"):
 			continue
 		if prop not in [

@@ -843,9 +843,9 @@ class NodeField(TrackedObject):
 						return None
 					# TODO: Refactor to break this coupling
 					from .ruleHandler import getSimpleSearchKwargs
-					criteria = literal_eval(match.group())
-					searchKwargs = getSimpleSearchKwargs(criteria)
-					skipUntil = match.end() + 1
+					critData = literal_eval(match.group())
+					searchKwargs = getSimpleSearchKwargs(critData, raiseOnUnsupported=True)
+					skipUntil = index + match.end()
 					continue
 				else:
 					log.error((
