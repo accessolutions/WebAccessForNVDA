@@ -36,7 +36,7 @@ from itertools import chain
 from pprint import pformat
 import threading
 import time
-from typing import Any
+from typing import Any, Union
 import weakref
 
 import wx
@@ -1582,7 +1582,7 @@ class Selector(AutoPropertyObject):
 			if not newRootNodes:
 				return
 			rootNodes = newRootNodes
-		kwargs = getSimpleSearchKwargs(self.dump())
+		kwargs = getSimpleSearchKwargs(self)
 		excludedNodes.update(iterResultsNodes(mgr.subModules._results))
 		if excludedNodes:
 			kwargs["exclude"] = excludedNodes
@@ -1833,9 +1833,18 @@ class Rule(ScriptableObject):
 
 
 def getSimpleSearchKwargs(
-		critData: Mapping[str, Any],
-		raiseOnUnsupported: bool = False
+		criteria: Union[Mapping[str, Any], Any] = None,
+		raiseOnUnsupported: bool = False,
+		critData: Any = None,
 ) -> Mapping[str, Any]:
+	if criteria is None and critData is not None:
+		criteria = critData
+	if criteria is None:
+		critData = {}
+	elif hasattr(criteria, "dump") and callable(criteria.dump):
+		critData = criteria.dump()
+	else:
+		critData = criteria
 	kwargs = {}
 	for prop, expr in critData.items():
 		if prop in ("contextPageTitle", "contextPageType", "contextParent"):
