@@ -26,7 +26,6 @@ __version__ = "2021.02.10"
 __author__ = u"Frédéric Brugnot <f.brugnot@accessolutions.fr>"
 
 
-from collections import OrderedDict
 from itertools import chain
 import threading
 import time
@@ -72,7 +71,7 @@ addonHandler.initTranslation()
 SCRIPT_CATEGORY = "WebAccess"
 
 
-builtinRuleActions = OrderedDict()
+builtinRuleActions = {}
 # Translators: Action name
 builtinRuleActions["moveto"] = pgettext("webAccess.action", "Move to")
 # Translators: Action name
@@ -138,7 +137,7 @@ class MarkerManager(baseObject.ScriptableObject):
 		self._nodeManager = None
 		self.nodeManagerIdentifier = None
 		self.lock = threading.RLock()
-		self.layers = OrderedDict()
+		self.layers = {}
 		self.layersIndex = {}
 		self.rules = self.markerQueries = []
 		self.results = self.markerResults = []
@@ -406,8 +405,8 @@ class MarkerManager(baseObject.ScriptableObject):
 			# This is a temporary measure, no longer necessary once multi
 			# criteria sets rules will be implemented, as rule names will be
 			# unique again.
-			for name, layer in list(OrderedDict((
-				(rule.name, rule.layer)
+			for name, layer in list({
+				rule.name: rule.layer
 				for rule in sorted(
 					self.markerQueries,
 					key=lambda rule: (
@@ -415,7 +414,8 @@ class MarkerManager(baseObject.ScriptableObject):
 							ruleTypes.PAGE_TITLE_1, ruleTypes.PAGE_TITLE_2
 						) else 1
 					)
-			))).items()):
+				)
+			}.items()):
 				results = self.getPrioritizedResultsByName(name, layer=layer)
 			# for query in sorted(
 			# 	self.markerQueries,

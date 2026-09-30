@@ -64,7 +64,7 @@ class ColumnSorterMixin:
         self.SetColumnCount(numColumns)
         list = self.GetListCtrl()
         if not list:
-            raise ValueError, "No wx.ListCtrl available"
+            raise ValueError("No wx.ListCtrl available")
         list.Bind(wx.EVT_LIST_COL_CLICK, self.__OnColClick, list)
 
 
@@ -153,7 +153,7 @@ class ColumnSorterMixin:
         item2 = self.itemDataMap[key2][col]
 
         #--- Internationalization of string sorting with locale module
-        if type(item1) == unicode and type(item2) == unicode:
+        if type(item1) == str and type(item2) == str:
             cmpVal = locale.strcoll(item1, item2)
         elif type(item1) == str or type(item2) == str:
             cmpVal = locale.strcoll(str(item1), str(item2))
@@ -835,7 +835,7 @@ class ListRowHighlighter:
 
     def RefreshRows(self):
         """Re-color all the rows"""
-        for row in xrange(self.GetItemCount()):
+        for row in range(self.GetItemCount()):
             if self._defaultb is None:
                 self._defaultb = self.GetItemBackgroundColour(row)
 

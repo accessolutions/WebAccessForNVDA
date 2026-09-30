@@ -26,8 +26,6 @@ __version__ = "2018.12.14"
 __author__ = u"Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
-from collections import OrderedDict
-
 import addonHandler
 
 
@@ -42,17 +40,17 @@ PARENT = "parent"
 ZONE = "zone"
 
 
-ruleTypeLabels = OrderedDict((
+ruleTypeLabels = {
 	# Translators: The label for a rule type.
-	(PAGE_TITLE_1, _("Page main title")),
+	PAGE_TITLE_1: _("Page main title"),
 	# Translators: The label for a rule type.
-	(PAGE_TITLE_2, _("Page secondary title")),
+	PAGE_TITLE_2: _("Page secondary title"),
 	# Translators: The label for a rule type.
-	(PAGE_TYPE, _("Page type")),
+	PAGE_TYPE: _("Page type"),
 	# Translators: The label for a rule type.
-	(ZONE, _("Zone")),
+	ZONE: _("Zone"),
 	# Translators: The label for a rule type.
-	(PARENT, _("Parent element")),
+	PARENT: _("Parent element"),
 	# Translators: The label for a rule type.
-	(MARKER, _("Marker")),
-))
+	MARKER: _("Marker"),
+}

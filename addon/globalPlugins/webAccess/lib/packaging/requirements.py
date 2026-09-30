@@ -9,7 +9,7 @@ import re
 from pkg_resources.extern.pyparsing import stringStart, stringEnd, originalTextFor, ParseException
 from pkg_resources.extern.pyparsing import ZeroOrMore, Word, Optional, Regex, Combine
 from pkg_resources.extern.pyparsing import Literal as L  # noqa
-from pkg_resources.extern.six.moves.urllib import parse as urlparse
+from urllib import parse as urlparse
 
 from .markers import MARKER_EXPR, Marker
 from .specifiers import LegacySpecifier, Specifier, SpecifierSet

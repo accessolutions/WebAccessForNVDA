@@ -143,7 +143,7 @@ def getVersion():
 		thisPath = os.path.abspath(
 			os.path.join(
 				os.path.split(__file__)[0],
-				"..\.."
+				r"..\.."
 				)
 			)
 		for addon in addonHandler.getAvailableAddons():
@@ -361,12 +361,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		allMsg = u""
 
 		if not diverged:
-			try:
-				from six import text_type
-			except ImportError:
-				# NVDA version < 2018.3
-				text_type = unicode
-			msg = text_type(focusModule.storeRef)
+			msg = str(focusModule.storeRef)
 		speech.speakMessage(msg)
 		allMsg += msg + os.linesep
 		

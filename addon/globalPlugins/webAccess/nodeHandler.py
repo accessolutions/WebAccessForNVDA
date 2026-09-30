@@ -49,11 +49,6 @@ import winUser
 from .webAppLib import *
 
 
-try:
-	from six import unichr
-except ImportError:
-	# NVDA version < 2018.3	
-	pass
 
 try:
 	from ast import literal_eval
@@ -162,7 +157,7 @@ class NodeManager(baseObject.ScriptableObject):
 			data = attrs.get('value', None)
 			if data is not None:
 				try:
-					data = unichr(int(data))
+					data = chr(int(data))
 				except ValueError:
 					data = u'\ufffd'
 				self._CharacterDataHandler(data)

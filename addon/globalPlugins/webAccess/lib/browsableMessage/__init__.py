@@ -30,7 +30,6 @@ __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 __license__ = "GPL"
 
 
-from six import string_types
 import weakref
 
 import addonHandler
@@ -115,7 +114,7 @@ def browsableMessage(source, type=None, title=None, rootDirs=None):
 				pass
 	
 	callback = None
-	if isinstance(source, string_types):
+	if isinstance(source, str):
 		callback = lambda id: source if id == "index" else None
 		if type is None:
 			type = "text"

@@ -30,7 +30,6 @@ import re
 import wx
 
 import addonHandler
-from collections import OrderedDict
 import controlTypes
 import config
 import gui
@@ -49,13 +48,6 @@ try:
 	from wx.lib.expando import ExpandoTextCtrl
 except ImportError:
 	from ..backports.nvda_2018_2.wx_lib_expando import ExpandoTextCtrl
-
-try:
-	from six import iteritems, text_type
-except ImportError:
-	# NVDA version < 2018.3
-	iteritems = dict.iteritems
-	text_type = unicode
 
 addonHandler.initTranslation()
 
@@ -110,7 +102,7 @@ def translateExprValues(expr, func):
 	buf = list(expr)
 	offset = 0
 	for src, start, end in captureValues(expr):
-		dest = text_type(func(src))
+		dest = str(func(src))
 		start += offset
 		end += offset
 		buf[start:end] = dest
@@ -129,9 +121,9 @@ def translateRoleIdToLbl(expr):
 
 def translateRoleLblToId(expr):
 	def translate(value):
-		for key, candidate in iteritems(controlTypes.roleLabels):
+		for key, candidate in controlTypes.roleLabels.items():
 			if candidate == value:
-				return text_type(key)
+				return str(key)
 		return value
 	return translateExprValues(expr, translate)
 
@@ -151,9 +143,9 @@ def translateStatesIdToLbl(expr):
 
 def translateStatesLblToId(expr):
 	def translate(value):
-		for key, candidate in iteritems(controlTypes.stateLabels):
+		for key, candidate in controlTypes.stateLabels.items():
 			if candidate == value:
-				return text_type(key)
+				return str(key)
 		return value
 	return translateExprValues(expr, translate)
 
@@ -199,28 +191,20 @@ class RuleContextEditor(wx.Dialog):
 	
 	# The semi-column is part of the labels because some localizations
 	# (ie. French) require it to be prepended with one space.
-	FIELDS = OrderedDict((
-		(
-			"contextPageTitle",
+	FIELDS = {
+		"contextPageTitle":
 			# Translator: Field label on the RuleContextEditor dialog.
-			pgettext("webAccess.ruleContext", u"Page &title:")
-		),
-		(
-			"contextPageType",
+			pgettext("webAccess.ruleContext", u"Page &title:"),
+		"contextPageType":
 			# Translator: Field label on the RuleContextEditor dialog.
-			pgettext("webAccess.ruleContext", u"Page t&ype:")
-		),
-		(
-			# Translator: Field label on the RuleContextEditor dialog.
-			"contextParent",
-			pgettext("webAccess.ruleContext", u"&Parent element:")
-		),
-		(
-			# Translator: Field label on the RuleContextEditor dialog.
-			"priority",
-			pgettext("webAccess.ruleContext", u"Pri&ority:")
-		),
-	))
+			pgettext("webAccess.ruleContext", u"Page t&ype:"),
+		# Translator: Field label on the RuleContextEditor dialog.
+		"contextParent":
+			pgettext("webAccess.ruleContext", u"&Parent element:"),
+		# Translator: Field label on the RuleContextEditor dialog.
+		"priority":
+			pgettext("webAccess.ruleContext", u"Pri&ority:"),
+	}
 	
 	@classmethod
 	def getSummary(cls, data):
@@ -351,29 +335,27 @@ class RuleCriteriaEditor(wx.Dialog):
 	
 	# The semi-column is part of the labels because some localizations
 	# (ie. French) require it to be prepended with one space.
-	FIELDS = OrderedDict((
+	FIELDS = {
 		# Translator: Field label on the RuleCriteriaEditor dialog.
-		("text", pgettext("webAccess.ruleCriteria", u"&Text:")),
+		"text": pgettext("webAccess.ruleCriteria", u"&Text:"),
 		# Translator: Field label on the RuleCriteriaEditor dialog.
-		("role", pgettext("webAccess.ruleCriteria", u"&Role:")),
+		"role": pgettext("webAccess.ruleCriteria", u"&Role:"),
 		# Translator: Field label on the RuleCriteriaEditor dialog.
-		("tag", pgettext("webAccess.ruleCriteria", u"T&ag:")),
+		"tag": pgettext("webAccess.ruleCriteria", u"T&ag:"),
 		# Translator: Field label on the RuleCriteriaEditor dialog.
-		("id", pgettext("webAccess.ruleCriteria", u"&ID:")),
+		"id": pgettext("webAccess.ruleCriteria", u"&ID:"),
 		# Translator: Field label on the RuleCriteriaEditor dialog.
-		("className", pgettext("webAccess.ruleCriteria", u"&Class:")),
+		"className": pgettext("webAccess.ruleCriteria", u"&Class:"),
 		# Translator: Field label on the RuleCriteriaEditor dialog.
-		("states", pgettext("webAccess.ruleCriteria", u"&States:")),
+		"states": pgettext("webAccess.ruleCriteria", u"&States:"),
 		# Translator: Field label on the RuleCriteriaEditor dialog.
-		("src", pgettext("webAccess.ruleCriteria", u"Ima&ge source:")),
-		(
-			"relativePath",
+		"src": pgettext("webAccess.ruleCriteria", u"Ima&ge source:"),
+		"relativePath":
 			# Translator: Field label on the RuleCriteriaEditor dialog.
-			pgettext("webAccess.ruleCriteria", u"R&elative path:")
-		),
+			pgettext("webAccess.ruleCriteria", u"R&elative path:"),
 		# Translator: Field label on the RuleCriteriaEditor dialog.
-		("index", pgettext("webAccess.ruleCriteria", u"Inde&x:")),
-	))
+		"index": pgettext("webAccess.ruleCriteria", u"Inde&x:"),
+	}
 	
 	@classmethod
 	def getSummary(cls, data):
@@ -607,70 +589,52 @@ class RulePropertiesEditor(wx.Dialog):
 	
 	# The semi-column is part of the labels because some localizations
 	# (ie. French) require it to be prepended with one space.
-	FIELDS = OrderedDict((
-		(
-			"multiple",
-			# Translator: Field label on the RulePropertiesEditor dialog.
+	FIELDS = {
+		# Translator: Field label on the RulePropertiesEditor dialog.
+		"multiple":
 			pgettext(
 				"webAccess.ruleProperties",
 				u"&Multiple results"
-			)
-		),
-		(
-			"formMode",
+			),
+		"formMode":
 			# Translator: Field label on the RulePropertiesEditor dialog.
-			pgettext("webAccess.ruleProperties", u"Activate &form mode")
-		),
-		(
-			# Translator: Field label on the RulePropertiesEditor dialog.
-			"skip",
-			pgettext("webAccess.ruleProperties", u"S&kip with Page Down")
-		),
-		(
-			# Translator: Field label on the RulePropertiesEditor dialog.
-			"sayName",
-			pgettext("webAccess.ruleProperties", u"&Speak rule name")
-		),
-		(
-			# Translator: Field label on the RulePropertiesEditor dialog.
-			"customName",
-			pgettext("webAccess.ruleProperties", u"Custom &name:")
-		),
-		("customValue", None),  # Label depends on rule type)
-		(
-			# Translator: Field label on the RulePropertiesEditor dialog.
-			"mutation",
-			pgettext("webAccess.ruleProperties", u"&Transform:")
-		),
-	))
+			pgettext("webAccess.ruleProperties", u"Activate &form mode"),
+		# Translator: Field label on the RulePropertiesEditor dialog.
+		"skip":
+			pgettext("webAccess.ruleProperties", u"S&kip with Page Down"),
+		# Translator: Field label on the RulePropertiesEditor dialog.
+		"sayName":
+			pgettext("webAccess.ruleProperties", u"&Speak rule name"),
+		# Translator: Field label on the RulePropertiesEditor dialog.
+		"customName":
+			pgettext("webAccess.ruleProperties", u"Custom &name:"),
+		"customValue": None,  # Label depends on rule type)
+		# Translator: Field label on the RulePropertiesEditor dialog.
+		"mutation":
+			pgettext("webAccess.ruleProperties", u"&Transform:"),
+	}
 	
-	RULE_TYPE_FIELDS = OrderedDict((
-		(ruleTypes.PAGE_TITLE_1, ("customValue",)),
-		(ruleTypes.PAGE_TITLE_2, ("customValue",)),
-		(
-			ruleTypes.ZONE,
-			(
-				"formMode",
-				"skip",
-				"sayName",
-				"customName",
-				"customValue",
-				"mutation",
-			)
+	RULE_TYPE_FIELDS = {
+		ruleTypes.PAGE_TITLE_1: ("customValue",),
+		ruleTypes.PAGE_TITLE_2: ("customValue",),
+		ruleTypes.ZONE: (
+			"formMode",
+			"skip",
+			"sayName",
+			"customName",
+			"customValue",
+			"mutation",
 		),
-		(
-			ruleTypes.MARKER,
-			(
-				"multiple",
-				"formMode",
-				"skip",
-				"sayName",
-				"customName",
-				"customValue",
-				"mutation",
-			)
+		ruleTypes.MARKER: (
+			"multiple",
+			"formMode",
+			"skip",
+			"sayName",
+			"customName",
+			"customValue",
+			"mutation",
 		),
-	))
+	}
 	
 	@classmethod
 	def getAltFieldLabel(cls, ruleType, key, default=None):
@@ -922,7 +886,7 @@ class RulePropertiesEditor(wx.Dialog):
 			self.mutationCombo.Show()
 	
 	def onOk(self, evt):
-		data = OrderedDict()
+		data = {}
 		
 		fields = self.RULE_TYPE_FIELDS.get(self.data.get("type"), {})
 		
@@ -1162,7 +1126,7 @@ class RuleEditor(wx.Dialog):
 		rule = self.rule = context.get("rule")
 		self.data = context.setdefault("data", {}).setdefault(
 			"rule",
-			rule.dump() if rule else OrderedDict()
+			rule.dump() if rule else {}
 		)
 		ruleManager = self.ruleManager = context["webModule"].ruleManager
 		if not self.rule and ruleManager.nodeManager:

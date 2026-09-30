@@ -436,13 +436,8 @@ def getWebModuleFactory(name):
 		return WebModule
 	mod = None
 	try:
-		if nvdaVersion < (2019, 3):
-			# Python 2.x can't properly handle unicode module names, so convert them.
-			name = name.encode("mbcs")
-			mod = __import__("webModules.{}".format(name), globals(), locals(), ("webModules",))
-		else:
-			import importlib
-			mod = importlib.import_module("webModules.{}".format(name), package="webModules")
+		import importlib
+		mod = importlib.import_module("webModules.{}".format(name), package="webModules")
 	except Exception:
 		log.exception("Could not import custom module webModules.{}".format(name))
 	if not mod:
@@ -463,9 +458,6 @@ def getWebModuleFactory(name):
 
 
 def hasCustomModule(name):
-	if nvdaVersion < (2019, 3):
-		# Python 2.x can't properly handle unicode module names, so convert them.
-		name = name.encode("mbcs")
 	return any(
 		importer.find_module("webModules.{}".format(name))
 		for importer in _importers

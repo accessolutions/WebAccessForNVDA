@@ -63,7 +63,7 @@ def handleConfigChange():
 		if nvdaVersion >= (2019, 1):
 			_cache["development"] = config.conf["development"].dict()
 	else:
-		_cache = {"webAccess": dict(config.conf["webAccess"].iteritems())}
+		_cache = {"webAccess": dict(config.conf["webAccess"].items())}
 
 
 def initialize():

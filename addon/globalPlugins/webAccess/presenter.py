@@ -192,7 +192,7 @@ class Presenter(baseObject.ScriptableObject):
 			braillePres = speechPres
 		if isinstance(braillePres, list):
 			for s in braillePres:
-				if isinstance(s, unicode):
+				if isinstance(s, str):
 					outStr = self.formatPresentation(s, ctx, True)
 					self.brailleObjects.append(BrailleOffset(ctx, outStr))
 				else:
@@ -247,7 +247,7 @@ class Presenter(baseObject.ScriptableObject):
 						except KeyError:
 							attr = controlTypes.roleLabels[attr]
 				else:
-					attr = unicode(attr)
+					attr = str(attr)
 			string = string.replace(match.group(1), attr, 1)
 		return string
 

@@ -368,14 +368,14 @@ class Tableau (object):
 		region.obj = None
 		region.update()
 		if selected or visited:
-			for x in xrange(len(region.brailleCells)):
+			for x in range(len(region.brailleCells)):
 				region.brailleCells[x] |= braille.DOT7 | braille.DOT8
 		else:
 			for pos in self.brlPositions:
 				debut, fin, i = pos
 				if i == self._curCol - 1:
 					start = False
-					for x in xrange(len(region.brailleCells)):
+					for x in range(len(region.brailleCells)):
 						if x == debut and start is False:
 							start = True
 						# if region.brailleCells[x] == 0x00 and x + 1 < fin and region.brailleCells[x + 1] == 0x00:
