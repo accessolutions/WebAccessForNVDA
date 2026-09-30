@@ -30,13 +30,57 @@ import wx
 import addonHandler
 import config
 import gui
+import winUser
 
 
 from gui import guiHelper
 from gui.settingsDialogs import SettingsDialog, SettingsPanel
 
+from ..config import (
+	EditorMode,
+	InspectorMode,
+	RuleWizardMode,
+	UiMode,
+	UiModePref,
+	UiModePrefValue,
+	getUiModePref,
+	handleConfigChange,
+	setUiModePref,
+)
+from ..utils import logException
+
 
 addonHandler.initTranslation()
+
+
+class _GroupingNameAccessible(wx.Accessible):
+	"""Include extra text in a StaticBox grouping name so NVDA announces it with the group."""
+
+	def __init__(self, win: wx.Window, extraName: str) -> None:
+		super().__init__(win)
+		self._extraName = extraName
+
+	@logException
+	def GetName(self, childId: int) -> tuple[int, str]:
+		res = super().GetName(childId)
+		if childId != winUser.CHILDID_SELF:
+			return res
+		status, name = res
+		if status != wx.ACC_OK or not name:
+			name = self.Window.GetLabel()
+		if self._extraName:
+			name = "{}. {}".format(name, self._extraName)
+		return (wx.ACC_OK, name)
+
+
+class _PresentationOnlyAccessible(wx.Accessible):
+	"""Keep the window visible while omitting it from the accessibility tree."""
+
+	@logException
+	def GetState(self, childId: int) -> tuple[int, int]:
+		if childId == winUser.CHILDID_SELF:
+			return (wx.ACC_OK, wx.ACC_STATE_SYSTEM_INVISIBLE)
+		return super().GetState(childId)
 
 
 def initialize():
@@ -108,9 +152,107 @@ class WebAccessSettingsPanel(SettingsPanel):
 		)
 		item.SetValue(config.conf["webAccess"]["writeInAddons"])
 
+		groupBox = wx.StaticBox(
+			self,
+			# Translators: The title of a group of settings in the WebAccess settings panel
+			label=_("Default UI modes")
+		)
+		# Translators: A note in the WebAccess settings panel
+		uiModesHint = _("In these dialogs, press F12 to switch mode.")
+		groupBox.SetAccessible(_GroupingNameAccessible(groupBox, uiModesHint))
+		group = guiHelper.BoxSizerHelper(
+			groupBox,
+			sizer=wx.StaticBoxSizer(groupBox, wx.VERTICAL)
+		)
+		sHelper.addItem(group.sizer, flag=wx.EXPAND)
+		hint = wx.StaticText(groupBox, label=uiModesHint)
+		hint.SetAccessible(_PresentationOnlyAccessible(hint))
+		group.addItem(hint)
+		self._modeChoices: list[tuple[UiMode, wx.Choice, tuple[UiModePrefValue, ...]]] = []
+		for name, label, choices in (
+			(
+				UiMode.RULE_WIZARD,
+				# Translators: The label for a setting in the WebAccess settings panel
+				_("Rule &wizard"),
+				(
+					# Translators: A choice in the WebAccess settings panel
+					(RuleWizardMode.WIZARD, _("Wizard if a single criteria set")),
+					# Translators: A choice in the WebAccess settings panel
+					(RuleWizardMode.EDITOR, _("Always editor")),
+				),
+			),
+			(
+				UiMode.RULE_EDITOR,
+				# Translators: The label for a setting in the WebAccess settings panel
+				_("Rule &editor"),
+				(
+					# Translators: A choice in the WebAccess settings panel
+					(EditorMode.SIMPLE, _("Simple if a single criteria set")),
+					# Translators: A choice in the WebAccess settings panel
+					(EditorMode.FULL, _("Always full")),
+				),
+			),
+			(
+				UiMode.CRITERIA_EDITOR,
+				# Translators: The label for a setting in the WebAccess settings panel
+				_("&Criteria editor"),
+				(
+					# Translators: A choice in the WebAccess settings panel
+					(EditorMode.SIMPLE, _("Simple if no gestures or properties")),
+					# Translators: A choice in the WebAccess settings panel
+					(EditorMode.FULL, _("Always full")),
+				),
+			),
+			(
+				UiMode.INSPECTOR,
+				# Translators: The label for a setting in the WebAccess settings panel
+				_("Element &inspector"),
+				(
+					# Translators: A choice in the WebAccess settings panel
+					(InspectorMode.SINGLE, _("Current element")),
+					# Translators: A choice in the WebAccess settings panel
+					(UiModePref.LAST_USED, _("Last used")),
+					# Translators: A choice in the WebAccess settings panel
+					(InspectorMode.ANCESTORS, _("Element and ancestors")),
+				),
+			),
+		):
+			ctrl, keys = self._addModeChoice(group, label, getUiModePref(name), choices)
+			self._modeChoices.append((name, ctrl, keys))
+
+	def _addModeChoice(
+			self,
+			sHelper: guiHelper.BoxSizerHelper,
+			label: str,
+			current: UiModePrefValue,
+			choices: tuple[tuple[UiModePrefValue, str], ...],
+		) -> tuple[wx.Choice, tuple[UiModePrefValue, ...]]:
+		keys = tuple(key for key, _lbl in choices)
+		item = sHelper.addLabeledControl(
+			label,
+			wx.Choice,
+			choices=[lbl for _key, lbl in choices]
+		)
+		try:
+			item.SetSelection(keys.index(current))
+		except ValueError:
+			item.SetSelection(0)
+		return item, keys
+
+	def _getModeChoiceValue(
+			self,
+			ctrl: wx.Choice,
+			keys: tuple[UiModePrefValue, ...],
+		) -> UiModePrefValue:
+		index = ctrl.GetSelection()
+		if index < 0 or index >= len(keys):
+			return keys[0]
+		return keys[index]
+
 	def onSave(self):
 		config.conf["webAccess"]["devMode"] = self.devMode.GetValue()
 		config.conf["webAccess"]["disableUserConfig"] = self.disableUserConfig.GetValue()
 		config.conf["webAccess"]["writeInAddons"] = self.writeInAddons.GetValue()
-		from ..config import handleConfigChange
+		for name, ctrl, keys in self._modeChoices:
+			setUiModePref(name, self._getModeChoiceValue(ctrl, keys))
 		handleConfigChange()
