@@ -33,8 +33,6 @@ __license__ = "GPL"
 import ctypes
 from io import BytesIO
 import os.path
-from six import string_types
-import six
 import sys
 import wx
 
@@ -120,7 +118,7 @@ class WebViewHandler(wx.html2.WebViewHandler):
 			stream = res.get("stream")
 			if not stream:
 				data = res["data"]
-				if (mimeType or "").startswith("text") or isinstance(data, string_types):
+				if (mimeType or "").startswith("text") or isinstance(data, str):
 					data = data.encode("utf8")
 				stream = BytesIO(data)
 		return wx.FSFile(stream, id, mimeType, location, wx.DateTime.Now())

@@ -569,12 +569,12 @@ class MultiCategorySettingsDialog(SettingsDialog):
 			evt.Skip()
 
 	def _doSave(self):
-		for panel in self.catIdToInstanceMap.itervalues():
+		for panel in self.catIdToInstanceMap.values():
 			if panel.isValid() is False:
 				raise ValueError("Validation for %s blocked saving settings" % panel.__class__.__name__)
-		for panel in self.catIdToInstanceMap.itervalues():
+		for panel in self.catIdToInstanceMap.values():
 			panel.onSave()
-		for panel in self.catIdToInstanceMap.itervalues():
+		for panel in self.catIdToInstanceMap.values():
 			panel.postSave()
 
 	def onOk(self,evt):
@@ -583,12 +583,12 @@ class MultiCategorySettingsDialog(SettingsDialog):
 		except ValueError:
 			log.debugWarning("", exc_info=True)
 			return
-		for panel in self.catIdToInstanceMap.itervalues():
+		for panel in self.catIdToInstanceMap.values():
 			panel.Destroy()
 		super(MultiCategorySettingsDialog,self).onOk(evt)
 
 	def onCancel(self,evt):
-		for panel in self.catIdToInstanceMap.itervalues():
+		for panel in self.catIdToInstanceMap.values():
 			panel.onDiscard()
 			panel.Destroy()
 		super(MultiCategorySettingsDialog,self).onCancel(evt)

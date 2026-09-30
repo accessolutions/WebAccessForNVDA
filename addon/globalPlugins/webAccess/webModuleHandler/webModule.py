@@ -30,7 +30,7 @@ __author__ = (
 	)
 
 
-from collections import OrderedDict
+import json
 import os
 
 import addonHandler
@@ -50,19 +50,6 @@ from ..lib.packaging import version
 from .. import ruleHandler
 from ..ruleHandler import ruleTypes
 from ..webAppLib import *
-
-
-try:
-	import json
-except ImportError:
-	from ..lib import json
-
-try:
-	from six import string_types, text_type
-except ImportError:
-	# NVDA version < 2018.3
-	string_types = basestring
-	text_type = unicode
 
 
 class NewerFormatVersion(version.InvalidVersion):
@@ -232,8 +219,7 @@ class WebModule(baseObject.ScriptableObject):
 			data = layer.data
 			recover(data)
 		else:
-			data = OrderedDict({"WebModule": OrderedDict()})
-			data["WebModule"] = OrderedDict()
+			data = {"WebModule": {}}
 			data["WebModule"]["name"] = self.name
 			for attr in ("url", "windowTitle"):
 				value = getattr(self, attr)
@@ -405,7 +391,7 @@ def recoverFrom_legacy(data):
 		data["Rules"] = data.pop("PlaceMarkers")
 	# Earlier versions supported only a single URL trigger
 	url = data.get("WebModule", {}).get("url", None)
-	if isinstance(url, string_types):
+	if isinstance(url, str):
 		data["WebModule"]["url"] = [url]
 	# Custom labels for certain fields are not supported anymore
 	# TODO: Re-implement custom field labels?
@@ -541,7 +527,7 @@ def recoverFrom_0_5(data):
 	rules = data.get("Rules", [])
 	for rule in rules:
 		if "role" in rule:
-			rule["role"] = text_type(rule["role"])
+			rule["role"] = str(rule["role"])
 
 
 def recoverFrom_0_6(data):

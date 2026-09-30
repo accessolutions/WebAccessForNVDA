@@ -47,12 +47,6 @@ from ..ruleHandler import (
 from ..webModuleHandler import getEditableWebModule, save
 
 try:
-	from six import iteritems
-except ImportError:
-	# NVDA version < 2018.3
-	iteritems = dict.iteritems
-
-try:
 	TreeCtrl_GetItemData = wx.TreeCtrl.GetItemPyData
 	TreeCtrl_SetItemData = wx.TreeCtrl.SetItemPyData
 except AttributeError:
@@ -121,7 +115,7 @@ def getRulesByGesture(ruleManager, filter=None, active=False):
 			continue
 		if active and not rule.getResults():
 			continue
-		for gesture, action in iteritems(rule.gestures):
+		for gesture, action in rule.gestures.items():
 			rules = gestures.setdefault(getGestureLabel(gesture), [])
 			rules.append(TreeItemData(
 				label=(
@@ -251,7 +245,7 @@ def getRulesByType(ruleManager, filter=None, active=False):
 			obj=rule,
 			children=[]
 		))
-	for ruleType, label in iteritems(ruleTypes.ruleTypeLabels):
+	for ruleType, label in ruleTypes.ruleTypeLabels.items():
 		try:
 			tids = types[ruleType]
 		except KeyError:

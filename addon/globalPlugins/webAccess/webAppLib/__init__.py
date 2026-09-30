@@ -48,13 +48,6 @@ import winUser
 from . import html
 
 
-try:
-	from six import string_types
-except ImportError:
-	# NVDA version < 2018.3
-	string_types = basestring
-
-
 def speechOff():
 	speech.speechMode=speech.speechMode_off
 	
@@ -236,8 +229,8 @@ def searchNameByColor (obj, background):
 					trace (repr(f["background-color"]))
 				except:
 					red = -1
-		elif isinstance (field, string_types):
+		elif isinstance (field, str):
 			if red == background and len(field) > 3:
-				return unicode (field)
+				return str(field)
 	# end of loop
 	return ""

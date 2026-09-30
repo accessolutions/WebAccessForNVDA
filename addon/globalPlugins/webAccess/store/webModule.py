@@ -28,7 +28,6 @@ __version__ = "2021.02.10"
 __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 
-from collections import OrderedDict
 import errno
 import imp
 import os
@@ -50,10 +49,7 @@ from . import Store
 from .addons import AddonsStore
 
 
-try:
-	import json
-except ImportError:
-	from ..lib import json
+import json
 
 
 class WebModuleJsonFileDataStore(Store):
@@ -71,7 +67,7 @@ class WebModuleJsonFileDataStore(Store):
 			return
 		for f in os.listdir(self.path):
 			if os.path.isfile(os.path.join(self.path, f)):
-				matches = re.match("^(.*)\.json$", f)
+				matches = re.match(r"^(.*)\.json$", f)
 				if not matches:
 					continue
 				ref = matches.group(1)
@@ -241,11 +237,11 @@ class WebModuleStore(DispatchStore):
 		)
 	
 	def catalog(self, errors=None):
-		full = OrderedDict()
+		full = {}
 		for storeRef, meta in super(WebModuleStore, self).catalog(errors=errors):
 			full[storeRef] = meta
 		uniqueKeyRefs = set()
-		consolidated = OrderedDict()
+		consolidated = {}
 		for storeRef, meta in full.items():
 			keyRef = self._getKeyRef(storeRef)
 			if keyRef in uniqueKeyRefs:

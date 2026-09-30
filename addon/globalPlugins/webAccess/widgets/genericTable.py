@@ -224,12 +224,12 @@ class GenericTable(WebAppWidget):
 	webApp = None
 	editColWidthMode = False
 
-	def __init__(self, webApp, obj=None, tableIniFile=None, userIniFi;e=None):
+	def __init__(self, webApp, obj=None, tableIniFile=None, userIniFile=None):
 		super(GenericTable, self).__init__(webApp, obj)
 		self.addGestures(self.__widgetGestures)
 		letters = {}
 		if self.supportSearch:
-			for x in range(ord('A'), ord('Z') + 1) + range(ord('a'), ord('z') + 1) + [ord(' ')]:
+			for x in list(range(ord('A'), ord('Z') + 1)) + list(range(ord('a'), ord('z') + 1)) + [ord(' ')]:
 				c = chr(x)
 				if c.isupper():
 					g = "shift+" + c
@@ -390,14 +390,14 @@ class GenericTable(WebAppWidget):
 		region.obj = None
 		region.update()
 		if selected or visited:
-			for x in xrange(len(region.brailleCells)):
+			for x in range(len(region.brailleCells)):
 				region.brailleCells[x] |= braille.DOT7 | braille.DOT8
 		else:
 			for pos in self.brlPositions:
 				start, end, i = pos
 				if i == self._curCol - 1:
 					startWindow = False
-					for x in xrange(len(region.brailleCells)):
+					for x in range(len(region.brailleCells)):
 						if x == start and startWindow is False:
 							startWindow = True
 						# if region.brailleCells[x] == 0x00 and x + 1 < end and region.brailleCells[x + 1] == 0x00:
@@ -762,6 +762,3 @@ class GenericTable(WebAppWidget):
 
 	def script_typeLetter(self, gesture):
 		ui.message(u"Recherche non supportée")
-
-
-class GenericTable(WebAppWidget):

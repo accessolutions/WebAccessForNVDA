@@ -53,12 +53,6 @@ import virtualBuffers
 from .nvdaVersion import nvdaVersion
 
 
-try:
-	from six import iteritems
-	from six.moves import xrange
-except ImportError:
-	# NVDA version < 2018.3
-	iteritems = dict.iteritems
 
 try:
 	from garbageHandler import TrackedObject
@@ -88,7 +82,7 @@ def getDynamicClass(bases):
 def mutateObj(obj, clsList):
 	# Determine the bases for the new class.
 	bases = []
-	for index in xrange(len(clsList)):
+	for index in range(len(clsList)):
 		# A class doesn't need to be a base if it is already implicitly included
 		# by being a superclass of a previous base.
 		if index == 0 or not issubclass(clsList[index - 1], clsList[index]):
@@ -785,7 +779,7 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		parentAttrs = None  # Fetch lazily as seldom needed
 		parentNode = mutated.node.parent
 		for alternative in criteria:
-			for key, values in iteritems(alternative):
+			for key, values in alternative.items():
 				if key.endswith("::not"):
 					negate = True
 					key = key[:-len("::not")]

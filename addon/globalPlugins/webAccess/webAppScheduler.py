@@ -36,11 +36,7 @@ from .overlay import WebAccessBmdti, WebAccessObject
 from .webAppLib import *
 
 
-try:
-	from six.moves import queue
-except ImportError:
-	# NVDA version < 2018.3
-	import Queue as queue
+import queue
 
 
 TRACE = lambda *args, **kwargs: None  # @UnusedVariable

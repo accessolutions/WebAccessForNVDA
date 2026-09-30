@@ -26,7 +26,10 @@
     :license: Python License.
 """
 from _ast import *
-from _ast import __version__
+try:
+    from _ast import __version__
+except ImportError:
+    __version__ = "1.0"
 
 
 def parse(source, filename='<unknown>', mode='exec'):
@@ -37,7 +40,11 @@ def parse(source, filename='<unknown>', mode='exec'):
     return compile(source, filename, mode, PyCF_ONLY_AST)
 
 
-def literal_eval(node_or_string):
+import ast as _stdlib_ast
+literal_eval = _stdlib_ast.literal_eval
+
+
+def _legacy_literal_eval(node_or_string):
     """
     Safely evaluate an expression node or a string containing a Python
     expression.  The string or node provided may only consist of the following
@@ -45,7 +52,7 @@ def literal_eval(node_or_string):
     and None.
     """
     _safe_names = {'None': None, 'True': True, 'False': False}
-    if isinstance(node_or_string, basestring):
+    if isinstance(node_or_string, str):
         node_or_string = parse(node_or_string, mode='eval')
     if isinstance(node_or_string, Expression):
         node_or_string = node_or_string.body
@@ -69,7 +76,7 @@ def literal_eval(node_or_string):
              isinstance(node.right, Num) and \
              isinstance(node.right.n, complex) and \
              isinstance(node.left, Num) and \
-             isinstance(node.left.n, (int, long, float)):
+             isinstance(node.left.n, (int, float)):
             left = node.left.n
             right = node.right.n
             if isinstance(node.op, Add):
