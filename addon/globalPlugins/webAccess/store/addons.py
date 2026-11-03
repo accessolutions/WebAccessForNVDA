@@ -41,13 +41,22 @@ class AddonsStore(DispatchStore):
 		super().__init__(*args, **kwargs)
 
 	def __getStores(self):
-		# Snapshot: NVDA's generator iterates a live OrderedDict that may be
-		# mutated by add-on installation running in a background thread.
 		return [
 			self.addonStoreFactory(addon)
-			for addon in list(addonHandler.getAvailableAddons())
+			for addon in self.__snapshotAddons()
 			if not addon.isDisabled
 		]
+
+	@staticmethod
+	def __snapshotAddons(attempts=3):
+		# NVDA's generator iterates a live OrderedDict that may be mutated
+		# by add-on installation running in a background thread.
+		for attempt in range(attempts):
+			try:
+				return list(addonHandler.getAvailableAddons())
+			except RuntimeError:
+				if attempt == attempts - 1:
+					raise
 	
 	stores = property(__getStores)
 	
