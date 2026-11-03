@@ -85,7 +85,7 @@ addonHandler.initTranslation()
 
 SCRIPT_CATEGORY = "WebAccess"
 SOUND_DIRECTORY = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "..", "sounds")
-SUPPORTED_HOSTS = ['brave', 'firefox', 'chrome', 'java', 'iexplore', 'microsoftedgecp', 'msedge']
+SUPPORTED_HOSTS = ['brave', 'claude', 'code', 'cursor', 'firefox', 'chrome', 'java', 'iexplore', 'microsoftedgecp', 'msedge']
 TRACE = lambda *args, **kwargs: None  # @UnusedVariable
 #TRACE = log.info
 
