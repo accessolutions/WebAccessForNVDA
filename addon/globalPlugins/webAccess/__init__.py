@@ -118,16 +118,10 @@ defaultBrowserScripts = DefaultBrowserScripts("Pas de web module pour cette page
 
 def getVersion():
 	try:
-		thisPath = os.path.abspath(
-			os.path.join(
-				os.path.split(__file__)[0],
-				r"..\.."
-				)
-			)
-		for addon in addonHandler.getAvailableAddons():
-			addonPath = os.path.abspath(addon.path)
-			if addonPath == thisPath:
-				return addon.manifest["version"]
+		return addonHandler.getCodeAddon().version
+	except addonHandler.AddonError:
+		# Not running from an add-on package
+		return None
 	except Exception:
 		log.exception("While retrieving addon version")
 

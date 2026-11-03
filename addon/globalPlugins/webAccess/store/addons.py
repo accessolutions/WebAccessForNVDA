@@ -41,10 +41,13 @@ class AddonsStore(DispatchStore):
 		super().__init__(*args, **kwargs)
 
 	def __getStores(self):
-		for addon in addonHandler.getAvailableAddons():
-			if addon.isDisabled:
-				continue
-			yield self.addonStoreFactory(addon)
+		# Snapshot: NVDA's generator iterates a live OrderedDict that may be
+		# mutated by add-on installation running in a background thread.
+		return [
+			self.addonStoreFactory(addon)
+			for addon in list(addonHandler.getAvailableAddons())
+			if not addon.isDisabled
+		]
 	
 	stores = property(__getStores)
 	
