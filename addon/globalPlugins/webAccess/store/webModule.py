@@ -229,11 +229,15 @@ class WebModuleStore(DispatchStore):
 					name=addon.name, basePath=addon.path,
 			)
 		))
+		# Snapshot of the store refs found by the last full scan of the underlying stores.
+		# Scanning reads and parses every web module file, so lookups such as `alternatives`
+		# must not trigger one each time. See `_getStoreRefs`.
+		self._storeRefs = None
 		super().__init__(*args, **kwargs)
 
 	def alternatives(self, keyRef):
 		return (
-			storeRef for storeRef, meta in super().catalog()
+			storeRef for storeRef in self._getStoreRefs()
 			if self._getKeyRef(storeRef) == keyRef
 		)
 
@@ -241,6 +245,7 @@ class WebModuleStore(DispatchStore):
 		full = OrderedDict()
 		for storeRef, meta in super().catalog(errors=errors):
 			full[storeRef] = meta
+		self._storeRefs = tuple(full)
 		uniqueKeyRefs = set()
 		consolidated = OrderedDict()
 		for storeRef, meta in list(full.items()):
@@ -282,7 +287,10 @@ class WebModuleStore(DispatchStore):
 			raise ValueError("Expecting a single new data layer, found {}.".format(len(layers)))
 		layer = layers[0]
 		layer = item.dump(layer.name)
-		layer.storeRef = super().create(layer, **kwargs)
+		try:
+			layer.storeRef = super().create(layer, **kwargs)
+		finally:
+			self._storeRefs = None
 
 	def delete(self, item, layerName=None, ref=None, **kwargs):
 		if layerName is not None:
@@ -302,7 +310,10 @@ class WebModuleStore(DispatchStore):
 				raise Exception("UserConfig is disabled")
 		elif not config.conf["webAccess"]["devMode"]:
 			raise Exception("This action is allowed only in Developer Mode")
-		super().delete(layer, ref=ref, **kwargs)
+		try:
+			super().delete(layer, ref=ref, **kwargs)
+		finally:
+			self._storeRefs = None
 
 	def get(self, ref):
 		keyRef = self._getKeyRef(ref)
@@ -387,7 +398,20 @@ class WebModuleStore(DispatchStore):
 		elif not config.conf["webAccess"]["devMode"]:
 			raise Exception("This action is allowed only in Developer Mode")
 		layer = item.dump(layer.name)
-		super().update(layer, ref=ref, **kwargs)
+		try:
+			super().update(layer, ref=ref, **kwargs)
+		finally:
+			self._storeRefs = None
+
+	def _getStoreRefs(self):
+		"""Store refs from the last full scan, scanning only if none is available.
+
+		A new scan occurs on each call to `catalog` and after each modification made through
+		this store.
+		"""
+		if self._storeRefs is None:
+			self._storeRefs = tuple(storeRef for storeRef, meta in super().catalog())
+		return self._storeRefs
 
 	def _getKeyRef(self, storeRef):
 		# Consider only the tail of DispatcherStore refs
