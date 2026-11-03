@@ -393,18 +393,18 @@ class NodeManager(baseObject.AutoPropertyObject):
 		map: Mapping[tuple[int, int], tuple[int, int]] = {}
 		
 		def walk(node):
-			controlId = node.controlIdentifier
-			span = (node.offset, node.offset + node.size)
-			if controlId:
-				if controlId in map:
-					prev = map[controlId]
-					if prev[1] == span[0]:
-						# Consecutive spans for the same control. Expand the recorded span.
-						span = (prev[0], span[1])
-					elif not(prev[0] <= span[0] and span[1] <= prev[1]):
-						# Neither consecutive nor nested
-						log.warning(f"ControlId double: {controlId} at {prev} and {span} (role: {node.role})")
-				map[controlId] = span
+			# Format nodes only inherit the controlIdentifier of their parent
+			# control: considering them would both overwrite the recorded span
+			# of the control with a narrower one and report false doubles.
+			if hasattr(node, "control"):
+				controlId = node.controlIdentifier
+				span = (node.offset, node.offset + node.size)
+				prev = map.get(controlId)
+				if prev is None:
+					map[controlId] = span
+				elif not (prev[0] <= span[0] and span[1] <= prev[1]):
+					# Two distinct controls share the same identifier
+					log.debugWarning(f"ControlId double: {controlId} at {prev} and {span}")
 			for child in node.children:
 				walk(child)
 		
