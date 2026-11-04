@@ -27,6 +27,7 @@ __author__ = "Julien Cochuyt <j.cochuyt@accessolutions.fr>"
 
 from collections import OrderedDict
 import errno
+from functools import wraps
 import os
 import os.path
 from pprint import pformat
@@ -53,6 +54,20 @@ from .addons import AddonsStore
 
 
 import json
+
+
+def invalidatesAlternatives(method):
+	"""Decorate a `WebModuleStore` method modifying the underlying stores.
+	
+	The index used by `WebModuleStore.alternatives` is reset once the method returns or raises.
+	"""
+	@wraps(method)
+	def wrapper(self, *args, **kwargs):
+		try:
+			return method(self, *args, **kwargs)
+		finally:
+			self._alternatives = None
+	return wrapper
 
 
 class WebModuleJsonFileDataStore(Store):
@@ -229,23 +244,20 @@ class WebModuleStore(DispatchStore):
 					name=addon.name, basePath=addon.path,
 			)
 		))
-		# Snapshot of the store refs found by the last full scan of the underlying stores.
+		# Store refs found by the last full scan of the underlying stores, indexed by key ref.
 		# Scanning reads and parses every web module file, so lookups such as `alternatives`
-		# must not trigger one each time. See `_getStoreRefs`.
-		self._storeRefs = None
+		# must not trigger one each time. See `_getAlternatives`.
+		self._alternatives = None
 		super().__init__(*args, **kwargs)
 
 	def alternatives(self, keyRef):
-		return (
-			storeRef for storeRef in self._getStoreRefs()
-			if self._getKeyRef(storeRef) == keyRef
-		)
+		return iter(self._getAlternatives().get(keyRef, ()))
 
 	def catalog(self, errors=None):
 		full = OrderedDict()
 		for storeRef, meta in super().catalog(errors=errors):
 			full[storeRef] = meta
-		self._storeRefs = tuple(full)
+		self._setAlternatives(full)
 		uniqueKeyRefs = set()
 		consolidated = OrderedDict()
 		for storeRef, meta in list(full.items()):
@@ -281,17 +293,16 @@ class WebModuleStore(DispatchStore):
 			consolidated[storeRef] = meta
 		return list(consolidated.items())
 
+	@invalidatesAlternatives
 	def create(self, item, **kwargs):
 		layers = [layer for layer in reversed(item.layers) if layer.storeRef is None]
 		if len(layers) != 1:
 			raise ValueError("Expecting a single new data layer, found {}.".format(len(layers)))
 		layer = layers[0]
 		layer = item.dump(layer.name)
-		try:
-			layer.storeRef = super().create(layer, **kwargs)
-		finally:
-			self._storeRefs = None
+		layer.storeRef = super().create(layer, **kwargs)
 
+	@invalidatesAlternatives
 	def delete(self, item, layerName=None, ref=None, **kwargs):
 		if layerName is not None:
 			layer = item.getLayers(layerName, raiseIfMissing=True)
@@ -310,10 +321,7 @@ class WebModuleStore(DispatchStore):
 				raise Exception("UserConfig is disabled")
 		elif not config.conf["webAccess"]["devMode"]:
 			raise Exception("This action is allowed only in Developer Mode")
-		try:
-			super().delete(layer, ref=ref, **kwargs)
-		finally:
-			self._storeRefs = None
+		super().delete(layer, ref=ref, **kwargs)
 
 	def get(self, ref):
 		keyRef = self._getKeyRef(ref)
@@ -375,6 +383,7 @@ class WebModuleStore(DispatchStore):
 			return tuple()
 		return super().getSupportingStores(operation, **kwargs)
 
+	@invalidatesAlternatives
 	def update(self, item, layerName=None, ref=None, **kwargs):
 		if layerName is not None or ref is not None:
 			for layer in reversed(item.layers):
@@ -398,20 +407,23 @@ class WebModuleStore(DispatchStore):
 		elif not config.conf["webAccess"]["devMode"]:
 			raise Exception("This action is allowed only in Developer Mode")
 		layer = item.dump(layer.name)
-		try:
-			super().update(layer, ref=ref, **kwargs)
-		finally:
-			self._storeRefs = None
+		super().update(layer, ref=ref, **kwargs)
 
-	def _getStoreRefs(self):
-		"""Store refs from the last full scan, scanning only if none is available.
-
+	def _getAlternatives(self):
+		"""Store refs from the last full scan, indexed by key ref, scanning only if needed.
+		
 		A new scan occurs on each call to `catalog` and after each modification made through
 		this store.
 		"""
-		if self._storeRefs is None:
-			self._storeRefs = tuple(storeRef for storeRef, meta in super().catalog())
-		return self._storeRefs
+		if self._alternatives is None:
+			self._setAlternatives(storeRef for storeRef, meta in super().catalog())
+		return self._alternatives
+
+	def _setAlternatives(self, storeRefs):
+		alternatives = {}
+		for storeRef in storeRefs:
+			alternatives.setdefault(self._getKeyRef(storeRef), []).append(storeRef)
+		self._alternatives = {keyRef: tuple(refs) for keyRef, refs in alternatives.items()}
 
 	def _getKeyRef(self, storeRef):
 		# Consider only the tail of DispatcherStore refs
