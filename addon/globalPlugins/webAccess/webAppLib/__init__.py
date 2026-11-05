@@ -30,11 +30,13 @@ __authors__ = (
 
 
 import os
+import threading
 
 import api
 import braille
 import config
 import controlTypes
+import core
 import inputCore
 from keyboardHandler import KeyboardInputGesture, currentModifiers
 from logHandler import log
@@ -149,9 +151,26 @@ def handleGesture (gesture):
 		gesture.send()
 	focus.appModule = saveAppModule
 
-def waitKeyUp ():
-	while len(currentModifiers) >  0:
-		time.sleep(0.1)
+def waitKeyUp(timeout=3.0):
+	"""Wait for all modifier keys to be released.
+
+	When called from NVDA's main thread, pending wx events are processed while waiting:
+	When NVDA Remote is controlled from a remote leader, it injects the keys it receives
+	using `wx.CallAfter`. Blocking the main thread would then prevent the release of the
+	modifiers from ever being injected, freezing NVDA.
+
+	Returns `False` if some modifiers are still held after `timeout` seconds.
+	"""
+	deadline = time.monotonic() + timeout
+	isMainThread = threading.get_ident() == core.mainThreadId
+	while currentModifiers:
+		if time.monotonic() >= deadline:
+			log.warning(f"Modifiers still held after {timeout}s: {currentModifiers}")
+			return False
+		if isMainThread:
+			api.processPendingEvents(processEventQueue=False)
+		time.sleep(0.01)
+	return True
 
 def sendGestures(gestureList):
 	waitKeyUp ()
