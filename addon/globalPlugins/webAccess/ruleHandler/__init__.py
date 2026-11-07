@@ -80,7 +80,7 @@ from .controlMutation import MUTATIONS, MutatedControl, getMutationId
 from .properties import RuleProperties, CriteriaProperties
 
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 Tuple = tuple
 
 
@@ -1116,6 +1116,22 @@ class SubModules(AutoPropertyObject):
 			if start <= offset < end:
 				subModule = webModule.ruleManager.subModules.atPosition(offset)
 				return subModule if subModule is not None else webModule
+	
+	def iterAtPosition(self, offset) -> Iterator["WebModule"]:
+		"""Yield the SubModules at the given offset, from the outermost to the innermost.
+		"""
+		for (start, end), webModule in tuple(self._webModulesByPosition.items()):
+			if start <= offset < end:
+				yield webModule
+				yield from webModule.ruleManager.subModules.iterAtPosition(offset)
+				return
+	
+	def iterPositions(self) -> Iterator[tuple[int, int]]:
+		"""Yield the positions of all the SubModules, including nested ones.
+		"""
+		for position, webModule in tuple(self._webModulesByPosition.items()):
+			yield position
+			yield from webModule.ruleManager.subModules.iterPositions()
 	
 	@logException
 	def update(self):

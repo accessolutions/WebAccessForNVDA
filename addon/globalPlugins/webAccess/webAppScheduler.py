@@ -37,6 +37,7 @@ import api
 import textInfos
 import queue
 
+from . import profiles
 from .overlay import WebAccessBmdti, WebAccessObject
 from .webAppLib import *
 
@@ -88,6 +89,7 @@ class WebAppScheduler(threading.Thread):
 		self.stop = True
 		
 	def event_timeout(self):
+		profiles.onTimeout()
 		focus = api.getFocusObject()
 		if not (
 			isinstance(focus, WebAccessObject)
@@ -153,6 +155,7 @@ class WebAppScheduler(threading.Thread):
 	def event_ruleManagerUpdated(self, ruleManager):
 		# Doesn't work outside of the main thread for Google Chrome 83
 		wx.CallAfter(ruleManager.checkPageTitle)
+		profiles.requestUpdate()
 
 	def event_gainFocus(self, obj):
 		pass

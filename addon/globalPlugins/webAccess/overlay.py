@@ -54,6 +54,7 @@ import treeInterceptorHandler
 import ui
 import virtualBuffers
 
+from . import profiles
 from .utils import guarded, logException, tryInt
 
 
@@ -165,6 +166,7 @@ class WebAccessBmdtiHelper(TrackedObject):
 		if self._nodeManager is not None:
 			self._nodeManager.terminate()
 		self._nodeManager = None
+		profiles.requestUpdate()
 	
 	def resetWebModule(self):
 		"""Detach the root WebModule so that it gets reloaded upon next access.
@@ -176,6 +178,7 @@ class WebAccessBmdtiHelper(TrackedObject):
 			self._rootWebModule = None
 		if webModule is not None:
 			webModule.ruleManager.cancelCheckAutoAction()
+		profiles.onWebModulesReset()
 		nodeManager = self._nodeManager
 		if nodeManager is not None:
 			from .webAppScheduler import scheduler
@@ -520,8 +523,9 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		webModule = self.webAccess.getWebModuleAtTextInfo(info)
 		if webModule and hasattr(webModule, "_set_selection"):
 			webModule._set_selection(self, info, reason=reason)
-			return
-		super()._set_selection(info, reason=reason)
+		else:
+			super()._set_selection(info, reason=reason)
+		profiles.onCaretMoved(self, info)
 
 	def _caretMovementScriptHelper(
 		self,
@@ -570,16 +574,17 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 			elif posConstant == textInfos.POSITION_LAST:
 				pos = max(zone.result.endOffset - 1, zone.result.startOffset)
 				posConstant = textInfos.offsets.Offsets(pos, pos)
-		super()._caretMovementScriptHelper(
-			gesture,
-			unit,
-			direction=direction,
-			posConstant=posConstant,
-			posUnit=posUnit,
-			posUnitEnd=posUnitEnd,
-			extraDetail=extraDetail,
-			handleSymbols=handleSymbols
-		)
+		with profiles.updatingBeforeSpeech(self):
+			super()._caretMovementScriptHelper(
+				gesture,
+				unit,
+				direction=direction,
+				posConstant=posConstant,
+				posUnit=posUnit,
+				posUnitEnd=posUnitEnd,
+				extraDetail=extraDetail,
+				handleSymbols=handleSymbols
+			)
 
 	def _iterNodesByType(self, itemType, direction="next", pos=None):
 		superIter = super()._iterNodesByType(
@@ -996,6 +1001,8 @@ class WebAccessBmdti(browseMode.BrowseModeDocumentTreeInterceptor):
 		return super().getScript(gesture)
 
 	def event_treeInterceptor_gainFocus(self):
+		# Before the document is reported
+		profiles.onFocusChanging()
 		webModule = self.webAccess.webModule
 		if webModule and hasattr(webModule, "event_treeInterceptor_gainFocus"):
 			if webModule.event_treeInterceptor_gainFocus():

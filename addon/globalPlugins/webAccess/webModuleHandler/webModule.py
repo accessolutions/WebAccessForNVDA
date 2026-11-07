@@ -137,6 +137,16 @@ class WebModule(baseObject.ScriptableObject):
 
 	_cache_pageTitle = False
 
+	def _get_configProfile(self):
+		"""The profile activated along with this WebModule.
+
+		Stored as "profile" in the JSON data.
+		"""
+		return self._getLayeredProperty("profile")
+
+	def _set_configProfile(self, value):
+		self._setLayeredProperty("profile", value)
+
 	def _get_pageTitle(self):
 		title = self.activePageTitle
 		if not title:
@@ -287,6 +297,8 @@ class WebModule(baseObject.ScriptableObject):
 
 	def terminate(self):
 		self.ruleManager.terminate()
+		from .. import profiles
+		profiles.requestUpdate()
 
 	def _getLayeredProperty(self, name, startLayerIndex=-1, raiseIfMissing=False):
 		for index, layer in list(enumerate(self.layers))[startLayerIndex::-1]:
@@ -322,12 +334,10 @@ class WebModule(baseObject.ScriptableObject):
 		playWebAccessSound("pageChanged")
 		speech.speakMessage(pageTitle)
 
-	# Currently dead code, but will likely be revived for issue #17
 	def event_webModule_gainFocus(self, obj, nextHandler):
 		if obj.role not in [controlTypes.Role.DOCUMENT, controlTypes.Role.FRAME, controlTypes.Role.INTERNALFRAME]:
 			nextHandler()
 
-	# Currently dead code, but will likely be revived for issue #17
 	def event_focusEntered(self, obj, nextHandler):
 		if obj.role != controlTypes.Role.DOCUMENT:
 			nextHandler()
