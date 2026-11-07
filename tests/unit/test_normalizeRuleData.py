@@ -58,6 +58,7 @@ class TestFalsyOverridesAreKept(unittest.TestCase):
 		"customName": "Foo",
 		"customValue": "Bar",
 		"mutation": "heading.2",
+		"profile": "someProfile",
 	}
 	CANCELLING_OVERRIDES = {
 		"autoAction": None,
@@ -68,6 +69,7 @@ class TestFalsyOverridesAreKept(unittest.TestCase):
 		"customName": "",
 		"customValue": "",
 		"mutation": None,
+		"profile": None,
 	}
 	
 	def test_markerOverridesKept(self):

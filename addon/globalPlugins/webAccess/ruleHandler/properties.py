@@ -173,6 +173,17 @@ class PropertySpec(Enum):
 		isRestrictedChoice=True,
 		hasSuggestions=False,
 	)
+	profile = PropertySpecValue(
+		ruleTypes=(ruleTypes.MARKER, ruleTypes.PAGE_TYPE, ruleTypes.PARENT, ruleTypes.ZONE),
+		valueType=str,
+		default=None,
+		# Translators: The display name for a rule property
+		displayName=pgettext("webAccess.ruleProperty", "Configuration profile"),
+		# Translators: Displayed if no value is set for the "Configuration profile" rule property
+		displayValueIfUndefined=pgettext("webAccess.ruleProperty.profile", "None"),
+		isRestrictedChoice=True,
+		hasSuggestions=False,
+	)
 	subModule = PropertySpecValue(
 		ruleTypes=(ruleTypes.ZONE,),
 		valueType=str,

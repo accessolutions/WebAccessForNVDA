@@ -132,7 +132,7 @@ class WebModule(baseObject.ScriptableObject):
 	Raise only upon a breaking change of the API.
 	"""
 
-	FORMAT_VERSION_STR = "0.12-dev"
+	FORMAT_VERSION_STR = "0.13-dev"
 	FORMAT_VERSION = version.parse(FORMAT_VERSION_STR)
 
 	def __init__(self):

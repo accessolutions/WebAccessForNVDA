@@ -115,6 +115,12 @@ def buildEmbeddedProfile(name: str, data: dict) -> ConfigObj:
 	return profile
 
 
+def containsOffset(result, offset: int) -> bool:
+	"""Whether a Result is at the given offset, consistently with `RuleManager.iterResultsAtTextInfo`.
+	"""
+	return result.startOffset <= offset <= result.endOffset
+
+
 def toJsonValue(value):
 	"""Convert a configuration value to a JSON serializable one.
 
@@ -508,7 +514,10 @@ class ProfileManager:
 	def _resolve(self, context: ProfileContext) -> list[str]:
 		"""Resolve the profiles to apply, from the lowest to the highest priority:
 		 - The profile of each WebModule, from the root to the innermost SubModule.
+		 - The profile of each matched page type.
+		 - The profile of each other Result at the caret, from the outermost to the innermost.
 		"""
+		from .ruleHandler import ruleTypes
 		refs = [
 			(webModule, webModule.configProfile)
 			for webModule in context.webModules
@@ -519,6 +528,30 @@ class ProfileManager:
 			# Being updated: Keep the contextual profiles until the update completes.
 			raise _KeepState
 		positions = set(ruleManager.subModules.iterPositions())
+		rangedResults = []
+		for result in ruleManager.getAllResults():
+			try:
+				ref = result.properties.profile
+				if not ref:
+					continue
+				owner = result.rule.ruleManager.webModule
+				if owner not in context.webModules:
+					continue
+				if result.rule.type == ruleTypes.PAGE_TYPE:
+					refs.append((owner, ref))
+					continue
+				# Inclusive end offset, see `containsOffset`
+				positions.add((result.startOffset, result.endOffset + 1))
+				if context.offset is not None and containsOffset(result, context.offset):
+					rangedResults.append(result)
+			except Exception:
+				# Nodes might be deleted by an ongoing update.
+				if self._isSameState(context.treeInterceptor):
+					raise _KeepState
+				log.exception()
+		rangedResults.sort(key=lambda result: (result.startOffset, -result.endOffset))
+		for result in rangedResults:
+			refs.append((result.rule.ruleManager.webModule, result.properties.profile))
 		self._setInterval(context, sorted({offset for position in positions for offset in position}))
 		names = []
 		for owner, ref in refs:
@@ -674,6 +707,19 @@ def terminate():
 	if profileManager is not None:
 		profileManager.terminate()
 	profileManager = None
+
+
+def getProfileChoices(embeddedKeys: Iterable[str]) -> dict[str, str]:
+	"""The labels of the profiles that can be referenced, by reference.
+
+	Embedded profiles take precedence over NVDA profiles with the same name.
+	"""
+	choices = {key: key for key in embeddedKeys}
+	for name in config.conf.listProfiles():
+		if name not in choices:
+			# Translators: A choice of NVDA configuration profile, as opposed to an embedded one
+			choices[name] = _("{name} (NVDA profile)").format(name=name)
+	return choices
 
 
 def onWebModulesReset():

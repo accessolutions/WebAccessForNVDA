@@ -95,6 +95,12 @@ class Property:
 				},
 				undefined  # Inserted as first item
 			))
+		elif name == "profile":
+			from ...profiles import getProfileChoices
+			choices = dict(ChainMap(
+				getProfileChoices(context["webModule"].getProfileKeys()),
+				undefined  # Inserted as first item
+			))
 		else:
 			raise ValueError(f"prop.name: {name!r}")
 		cache[name] = choices
