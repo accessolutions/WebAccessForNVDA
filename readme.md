@@ -54,7 +54,58 @@ Alternatively, select "Manage web modules" in the menu.
 The dialog "Web modules manager" opens.
 
 Select the module you want to modify or delete, and click the "Edit" or "Delete"
-buttons, respectively. 
+buttons, respectively.
+
+
+### Configuration profiles
+
+A web module can activate an NVDA configuration profile while it is active, that
+is while the focus is in a page it applies to.
+It is deactivated as soon as the focus leaves the page, eg. when moving to the
+address bar, to another tab or to another application.
+
+The profile is chosen in the "Configuration profile" field of the web module
+editor. It can be either a regular NVDA profile or a profile embedded in the web
+module. Embedded profiles are stored in the web module itself, so that they are
+distributed along with it.
+
+Embedded profiles are managed in the "Embedded profiles" list of the web module
+editor:
+
+ - "New..." creates an empty embedded profile.
+ - "Rename..." and "Delete" rename or delete the selected embedded profile.
+   This is not possible for profiles inherited from a web module provided by an
+   add-on.
+ - "Save and edit settings..." saves the web module and opens the NVDA settings
+   with the selected embedded profile activated, until they are closed.
+   The changes are then saved in the web module.
+
+While an embedded profile is active, the changes made in NVDA settings apply to
+it, as for any NVDA profile. They are saved in the web module along with the
+NVDA configuration.
+For a web module provided by an add-on, only the differences are saved in your
+user configuration, so that updates of the add-on still apply.
+
+A profile can also be activated in a given context only, using the
+"Configuration profile" property of a rule. See the related section below.
+
+Profiles activated by web modules are stacked above the profile of the
+application, ie. the web browser, and below a manually activated profile.
+If several apply, the most specific takes precedence: The one of a sub-module
+over the one of its parent, the one of a rule over the one of the web module.
+
+Developers of custom web modules can also activate profiles from Python code:
+
+ - Override `getProfiles(context)` to return profile references depending on the
+   context: The focused object, the caret position, the matched page types or the
+   rules results at the caret.
+ - Call `pushProfile(ref)` to activate a profile until the returned handle is
+   released. The handle can be used as a context manager:
+   `with self.pushProfile("myProfile"): ...`
+ - Call `requestProfileUpdate()` when `getProfiles` would return a different
+   result.
+
+These features require `API_VERSION = "0.8"`.
 
 
 ## Module rules
@@ -229,6 +280,20 @@ when the rule name and the text of the element are alike.
 
 This checkbox sets whether the cursor should stop on the element matching this
 rule when pressing the Page Up and Page Down keys.
+
+
+#### Configuration profile
+
+This property activates an NVDA configuration profile, either an NVDA profile or
+a profile embedded in the web module:
+
+ - For a "Page type" rule, on the whole page while this page type is matched.
+ - For a "Zone", "Marker" or "Parent element" rule, while the caret is within
+   the matched element.
+
+As other properties, it can be set for a given alternative only, which allows
+to activate a profile depending on the context page type, title or parent
+element of this alternative.
 
 
 
