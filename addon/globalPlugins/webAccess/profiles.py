@@ -748,6 +748,86 @@ class ProfileManager:
 				del conf._profileCache[name]
 			del self._embedded[name]
 
+	def editEmbeddedProfile(self, webModule, key: str):
+		"""Open NVDA settings to edit an embedded profile, manually activated meanwhile.
+
+		Changes are saved in the WebModule as soon as NVDA settings are closed.
+		"""
+		import gui
+		from gui import blockAction
+		from gui.settingsDialogs import NVDASettingsDialog, SettingsDialog
+
+		def error(message):
+			gui.messageBox(
+				message=message,
+				# Translators: The title of an error message dialog
+				caption=_("Error"),
+				style=wx.OK | wx.ICON_ERROR,
+				parent=gui.mainFrame,
+			)
+
+		modalDialogOpen = blockAction.Context.MODAL_DIALOG_OPEN
+		if modalDialogOpen.blockActionIf():
+			if modalDialogOpen.callback:
+				modalDialogOpen.callback()
+			return
+		if any(
+			isinstance(dialog, NVDASettingsDialog) and state is SettingsDialog.DialogState.CREATED
+			for dialog, state in list(SettingsDialog._instances.items())
+		):
+			# Translators: An error message upon attempting to edit an embedded profile
+			error(_("Please close NVDA settings first."))
+			return
+		data = webModule.getProfileData(key)
+		name = self._getEmbeddedProfile(webModule, key, data) if data is not None else None
+		if name is None:
+			# Translators: An error message upon attempting to edit an embedded profile
+			error(_("Unable to load this profile. See NVDA log for details."))
+			return
+		conf = config.conf
+		previous = conf.profiles[-1].name if len(conf.profiles) > 1 and conf.profiles[-1].manual else None
+		conf.manualActivateProfile(name)
+		profile = conf.profiles[-1]
+		closed = False
+
+		def close():
+			nonlocal closed
+			if closed:
+				return
+			closed = True
+			if len(conf.profiles) > 1 and conf.profiles[-1] is profile:
+				try:
+					conf.manualActivateProfile(previous)
+				except Exception:
+					log.exception(f"Error restoring manually activated profile {previous!r}")
+					conf.manualActivateProfile(None)
+			if NVDAState.shouldWriteToDisk():
+				self.saveEmbeddedProfiles((name,))
+
+		def onDestroy(evt):
+			evt.Skip()
+			# Destroy events of child windows are propagated, and the Python wrapper of the
+			# dialog might differ from `dialog` while being destroyed. As in NVDA's
+			# `SettingsDialog._onWindowDestroy`, check whether the dialog itself is still alive.
+			if not dialog:
+				wx.CallAfter(close)
+
+		dialog = None
+		gui.mainFrame.prePopup()
+		try:
+			dialog = NVDASettingsDialog(gui.mainFrame)
+			dialog.Bind(wx.EVT_WINDOW_DESTROY, onDestroy)
+			dialog.Show()
+		except Exception:
+			log.exception()
+			if dialog:
+				dialog.Destroy()
+			close()
+			# Translators: An error message upon attempting to edit an embedded profile
+			error(_("Unable to open NVDA settings. See NVDA log for details."))
+		finally:
+			gui.mainFrame.postPopup()
+
 	def _isCurrent(self, trigger: WebModuleProfileTrigger, name: str) -> bool:
 		"""Whether the given applied trigger matches the given profile name.
 
@@ -876,6 +956,12 @@ def onFocusChanging():
 	manager = profileManager
 	if manager is not None:
 		manager.onFocusChanging()
+
+
+def editEmbeddedProfile(webModule, key: str):
+	manager = profileManager
+	if manager is not None:
+		manager.editEmbeddedProfile(webModule, key)
 
 
 @contextmanager
