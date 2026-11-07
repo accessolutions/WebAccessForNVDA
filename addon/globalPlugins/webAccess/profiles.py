@@ -25,7 +25,12 @@ The profiles to apply are resolved from the focused document and the caret posit
 then applied as NVDA profile triggers, stacked above the application profile and
 below the manually activated profile, if any.
 
-A profile reference is the name of an NVDA profile.
+A profile reference is either the key of a profile embedded in the WebModule
+(see `WebModule.getProfileData`) or the name of an NVDA profile.
+
+Embedded profiles are never written to NVDA's profiles directory: They are injected in
+NVDA's profiles cache under a reserved name, and changes made while they are active
+are saved in the writable layer of their WebModule when NVDA saves its configuration.
 """
 
 
@@ -35,11 +40,18 @@ __authors__ = (
 
 
 from bisect import bisect_right
+from collections.abc import Iterable, Mapping
 from contextlib import contextmanager
+from copy import deepcopy
 from dataclasses import dataclass
+import itertools
+import os
+import re
+import tempfile
 import threading
 import weakref
 
+from configobj import ConfigObj
 import wx
 
 import addonHandler
@@ -47,7 +59,10 @@ import api
 import appModuleHandler
 import config
 import core
+from config import profileUpgrader
+from config.configSpec import latestSchemaVersion
 from logHandler import log
+import NVDAState
 import speech
 import textInfos
 
@@ -64,6 +79,55 @@ class ProfileContext:
 	"""The root WebModule followed by the SubModules at the caret, from the outermost
 	to the innermost.
 	"""
+
+
+@dataclass
+class EmbeddedProfile:
+	webModuleName: str
+	key: str
+	source: dict
+	"""The data the profile has been built from, as found in the running WebModule.
+	"""
+	profile: ConfigObj
+
+
+def getEmbeddedProfileName(webModule, key: str) -> str:
+	# The colon is not allowed in file names, preventing conflicts with NVDA profiles.
+	return f"WebAccess: {webModule.name} / {key}"
+
+
+def buildEmbeddedProfile(name: str, data: dict) -> ConfigObj:
+	profile = ConfigObj(None, indent_type="\t", encoding="UTF-8")
+	# Some upgrade steps rely on the file name. Embedded profiles are removed from NVDA's
+	# dirty profiles before it saves, but should one ever be written, it would not
+	# abort the save as the directory exists.
+	profile.filename = os.path.join(
+		tempfile.gettempdir(),
+		"nvda-" + re.sub(r'[\\/:*?"<>|]', "_", name) + ".ini",
+	)
+	profile.update(deepcopy(data))
+	if profileUpgrader.SCHEMA_VERSION_KEY not in profile:
+		profile[profileUpgrader.SCHEMA_VERSION_KEY] = latestSchemaVersion
+	profileUpgrader.upgrade(profile, config.conf.validator, None)
+	profile.name = name
+	profile.manual = False
+	profile.triggered = False
+	return profile
+
+
+def toJsonValue(value):
+	"""Convert a configuration value to a JSON serializable one.
+
+	Values validated by NVDA, such as feature flags, are converted to strings, as they are
+	written in NVDA profiles.
+	"""
+	if isinstance(value, Mapping):
+		return {str(key): toJsonValue(item) for key, item in value.items()}
+	if isinstance(value, (list, tuple)):
+		return [toJsonValue(item) for item in value]
+	if value is None or isinstance(value, (bool, int, float, str)):
+		return value
+	return str(value)
 
 
 class WebModuleProfileTrigger(config.ProfileTrigger):
@@ -114,21 +178,89 @@ class ProfileManager:
 		"""
 		self._nvdaProfileNames: set[str] | None = None
 		self._warnedMissing: set[tuple[str, str]] = set()
+		self._embedded: dict[str, EmbeddedProfile] = {}
+		self._unsaved: set[str] = set()
+		"""Embedded profiles that could not be saved, kept dirty for the next attempt.
+		"""
 		config.post_configReset.register(self.onConfigReset)
+		config.pre_configSave.register(self.onPreConfigSave)
+		config.post_configSave.register(self.onPostConfigSave)
 		config.post_configProfileSwitch.register(self.onConfigProfileSwitch)
 		appModuleHandler.post_appSwitch.register(self.requestUpdate)
+		self._patchProfilesDialog()
 
 	def terminate(self):
 		self._terminated = True
 		config.post_configReset.unregister(self.onConfigReset)
+		config.pre_configSave.unregister(self.onPreConfigSave)
+		config.post_configSave.unregister(self.onPostConfigSave)
 		config.post_configProfileSwitch.unregister(self.onConfigProfileSwitch)
 		appModuleHandler.post_appSwitch.unregister(self.requestUpdate)
+		self._unpatchProfilesDialog()
+		conf = config.conf
+		# NVDA saves its configuration upon exit only after add-ons are terminated.
+		if conf["general"]["saveConfigurationOnExit"] and NVDAState.shouldWriteToDisk():
+			self.saveEmbeddedProfiles()
 		# Avoid needlessly switching speech and braille settings while NVDA exits.
 		if not getattr(core, "_hasShutdownBeenTriggered", False):
 			self._apply([])
+			embeddedProfiles = [embedded.profile for embedded in self._embedded.values()]
+			remaining = [
+				p for p in conf.profiles
+				if not any(p is profile for profile in embeddedProfiles)
+			]
+			if len(remaining) != len(conf.profiles):
+				conf.profiles[:] = remaining
+				conf._handleProfileSwitch()
 		self._applied.clear()
 		self._interval = None
 		self._lastFocus = None
+		for name in self._embedded:
+			conf._profileCache.pop(name, None)
+			conf._dirtyProfiles.discard(name)
+		self._embedded.clear()
+
+	def _patchProfilesDialog(self):
+		"""Have NVDA's Configuration Profiles dialog list the active embedded profiles.
+
+		It fails to open if the edited profile, ie. the topmost one, is not listed.
+		"""
+		from gui.configProfiles import ProfilesDialog
+		init = self._profilesDialogInit = ProfilesDialog.__init__
+		manager = weakref.ref(self)
+
+		def __init__(dialog, *args, **kwargs):
+			instance = manager()
+			if instance is None:
+				return init(dialog, *args, **kwargs)
+			with instance._listingActiveEmbeddedProfiles():
+				return init(dialog, *args, **kwargs)
+
+		ProfilesDialog.__init__ = self._patchedProfilesDialogInit = __init__
+
+	def _unpatchProfilesDialog(self):
+		from gui.configProfiles import ProfilesDialog
+		if ProfilesDialog.__init__ is self._patchedProfilesDialogInit:
+			ProfilesDialog.__init__ = self._profilesDialogInit
+
+	@contextmanager
+	def _listingActiveEmbeddedProfiles(self):
+		conf = config.conf
+		names = [profile.name for profile in conf.profiles[1:] if profile.name in self._embedded]
+		if not names:
+			yield
+			return
+		listProfiles = conf.listProfiles
+
+		def wrapper():
+			return itertools.chain(listProfiles(), names)
+
+		conf.listProfiles = wrapper
+		try:
+			yield
+		finally:
+			if conf.__dict__.get("listProfiles") is wrapper:
+				del conf.listProfiles
 
 	def requestUpdate(self):
 		"""Schedule an update on the main thread. Safe to call from any thread.
@@ -244,11 +376,62 @@ class ProfileManager:
 				if isinstance(trigger, WebModuleProfileTrigger):
 					del suspended[trigger]
 		self._applied.clear()
+		self._embedded.clear()
+		self._unsaved.clear()
 		self._stateTreeInterceptor = None
 		self._lastFocus = None
 		_failedProfiles.clear()
 		self._warnedMissing.clear()
 		self.requestUpdate()
+
+	def onPreConfigSave(self):
+		if not NVDAState.shouldWriteToDisk():
+			# NVDA will not write anything either.
+			return
+		self.saveEmbeddedProfiles()
+
+	def onPostConfigSave(self):
+		config.conf._dirtyProfiles.update(self._unsaved)
+		self._unsaved.clear()
+
+	def saveEmbeddedProfiles(self, names: Iterable[str] | None = None):
+		"""Save the given, or all, modified embedded profiles in their WebModule.
+		"""
+		dirty = config.conf._dirtyProfiles
+		for name, embedded in list(self._embedded.items()):
+			if name not in dirty or (names is not None and name not in names):
+				continue
+			# Prevent NVDA from writing it to a file.
+			dirty.discard(name)
+			try:
+				saved = self._persist(embedded)
+			except Exception:
+				log.exception(f"Error saving embedded profile {name!r}")
+				saved = False
+			if not saved:
+				self._unsaved.add(name)
+
+	def _persist(self, embedded: EmbeddedProfile) -> bool:
+		"""Save an embedded profile in the writable layer of a freshly loaded instance of its WebModule.
+
+		The running instances are left untouched, and so is the source of the embedded profile:
+		It is rebuilt only once these instances get reloaded.
+		"""
+		from .webModuleHandler import getEditableWebModule, getWebModule, save
+		name = embedded.profile.name
+		webModule = getWebModule(embedded.webModuleName)
+		if webModule is None or webModule.getProfileData(embedded.key) is None:
+			log.warning(f"Changes to embedded profile {name!r} discarded: No longer defined")
+			return True
+		editable = getEditableWebModule(webModule, prompt=False)
+		if not editable:
+			log.warning(f"Changes to embedded profile {name!r} not saved: WebModule not editable")
+			return False
+		editable.setProfileData(embedded.key, toJsonValue(embedded.profile.dict()))
+		if not save(editable, prompt=False, reload=False):
+			log.warning(f"Changes to embedded profile {name!r} not saved")
+			return False
+		return True
 
 	def _update(self, treeInterceptor=None, offset: int | None = None):
 		with self._lock:
@@ -283,6 +466,7 @@ class ProfileManager:
 				names = []
 		self._stateTreeInterceptor = weakref.ref(ti) if ti is not None else None
 		self._apply(names)
+		self._releaseEmbedded(names)
 
 	def _isSameState(self, treeInterceptor) -> bool:
 		tiRef = self._stateTreeInterceptor
@@ -355,6 +539,9 @@ class ProfileManager:
 		self._interval = (weakref.ref(context.treeInterceptor), start, end)
 
 	def _getProfileName(self, webModule, ref: str) -> str | None:
+		data = webModule.getProfileData(ref)
+		if data is not None:
+			return self._getEmbeddedProfile(webModule, ref, data)
 		if self._nvdaProfileNames is None:
 			self._nvdaProfileNames = set(config.conf.listProfiles())
 		if ref in self._nvdaProfileNames:
@@ -365,10 +552,59 @@ class ProfileManager:
 			log.warning(f"Profile not found: {ref!r} (WebModule {webModule.name!r})")
 		return None
 
+	def _getEmbeddedProfile(self, webModule, key: str, data: dict) -> str | None:
+		name = getEmbeddedProfileName(webModule, key)
+		conf = config.conf
+		embedded = self._embedded.get(name)
+		if (
+			embedded is not None
+			and conf._profileCache.get(name) is embedded.profile
+			# Keep unsaved changes
+			and (embedded.source == data or name in conf._dirtyProfiles or name in self._unsaved)
+		):
+			return name
+		try:
+			profile = buildEmbeddedProfile(name, data)
+		except Exception:
+			if (webModule.name, key) not in self._warnedMissing:
+				self._warnedMissing.add((webModule.name, key))
+				log.exception(f"Invalid embedded profile {key!r} (WebModule {webModule.name!r})")
+			return None
+		conf._profileCache[name] = profile
+		self._embedded[name] = EmbeddedProfile(
+			webModuleName=webModule.name,
+			key=key,
+			source=deepcopy(data),
+			profile=profile,
+		)
+		return name
+
+	def _releaseEmbedded(self, keep: list[str]):
+		"""Remove from NVDA's cache the embedded profiles no longer in use.
+		"""
+		conf = config.conf
+		for name, embedded in list(self._embedded.items()):
+			profile = embedded.profile
+			if (
+				name in keep
+				or name in conf._dirtyProfiles
+				or name in self._unsaved
+				or any(p is profile for p in conf.profiles)
+			):
+				continue
+			if conf._profileCache.get(name) is profile:
+				del conf._profileCache[name]
+			del self._embedded[name]
+
 	def _isCurrent(self, trigger: WebModuleProfileTrigger, name: str) -> bool:
 		"""Whether the given applied trigger matches the given profile name.
+
+		An embedded profile rebuilt since it has been applied must be re-entered.
 		"""
-		return trigger.profileName == name
+		if trigger.profileName != name:
+			return False
+		embedded = self._embedded.get(name)
+		return embedded is None or trigger._profile is None or trigger._profile is embedded.profile
 
 	def _isApplied(self, trigger: WebModuleProfileTrigger) -> bool:
 		profile = trigger._profile

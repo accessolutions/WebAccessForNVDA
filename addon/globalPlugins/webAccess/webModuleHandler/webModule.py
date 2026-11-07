@@ -30,6 +30,7 @@ __authors__ = (
 
 
 from collections import OrderedDict
+from copy import deepcopy
 import datetime
 import json
 import os
@@ -51,11 +52,35 @@ from ..lib.packaging import version
 from ..webAppLib import playWebAccessSound
 
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 
 class InvalidApiVersion(version.InvalidVersion):
 	pass
+
+
+def _mergeProfileData(base: Mapping[str, Any], override: Mapping[str, Any]) -> dict[str, Any]:
+	merged = deepcopy(dict(base))
+	for key, value in override.items():
+		if isinstance(value, Mapping) and isinstance(merged.get(key), Mapping):
+			merged[key] = _mergeProfileData(merged[key], value)
+		else:
+			merged[key] = deepcopy(value)
+	return merged
+
+
+def _diffProfileData(data: Mapping[str, Any], base: Mapping[str, Any]) -> dict[str, Any]:
+	diff = {}
+	for key, value in data.items():
+		baseValue = base.get(key)
+		if isinstance(value, Mapping) and isinstance(baseValue, Mapping):
+			subDiff = _diffProfileData(value, baseValue)
+			if subDiff:
+				diff[key] = subDiff
+		elif key not in base or value != baseValue:
+			diff[key] = deepcopy(value)
+	return diff
 
 
 class WebModuleDataLayer(baseObject.AutoPropertyObject):
@@ -228,6 +253,48 @@ class WebModule(baseObject.ScriptableObject):
 			if l1.name != l2.name or l1.storeRef != l2.storeRef:
 				return False
 		return True
+
+	def getProfileKeys(self) -> list[str]:
+		"""The keys of the profiles embedded in this WebModule, across all layers.
+		"""
+		keys = []
+		for layer in self.layers:
+			for key in layer.data.get("Profiles", {}):
+				if key not in keys:
+					keys.append(key)
+		return keys
+
+	def getProfileData(self, key: str, layers: Sequence[WebModuleDataLayer] | None = None) -> dict[str, Any] | None:
+		"""The configuration of an embedded profile, merged across the given, or all, layers.
+
+		Each layer only stores its differences with the layers below.
+		"""
+		merged = None
+		for layer in self.layers if layers is None else layers:
+			data = layer.data.get("Profiles", {}).get(key)
+			if data is not None:
+				merged = _mergeProfileData(merged or {}, data)
+		return merged
+
+	def setProfileData(self, key: str, data: Mapping[str, Any]) -> None:
+		"""Store in the writable layer the differences with the layers below.
+		"""
+		layer = self.getWritableLayer()
+		base = self.getProfileData(key, layers=self.layers[:self.layers.index(layer)]) or {}
+		diff = _diffProfileData(data, base)
+		profiles = layer.data.setdefault("Profiles", OrderedDict())
+		if profiles.get(key) != diff:
+			profiles[key] = diff
+			layer.dirty = True
+
+	def deleteProfileData(self, key: str) -> None:
+		"""Delete an embedded profile from the writable layer.
+
+		Raises `LookupError` if it is not defined in this layer.
+		"""
+		layer = self.getWritableLayer()
+		del layer.data.get("Profiles", {})[key]
+		layer.dirty = True
 
 	def isReadOnly(self):
 		try:

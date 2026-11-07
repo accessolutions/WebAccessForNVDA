@@ -233,7 +233,12 @@ def resetRunningModules():
 		ti.webAccess.resetWebModule()
 
 
-def save(webModule, layerName=None, prompt=True, force=False, fromRuleEditor=False):
+def save(webModule, layerName=None, prompt=True, force=False, fromRuleEditor=False, reload=True):
+	"""Save a WebModule.
+
+	`reload`
+		Whether to reload the catalog and the running WebModules.
+	"""
 	if layerName is not None:
 		layer = webModule.getLayer(layerName, raiseIfMissing=True)
 	else:
@@ -288,6 +293,8 @@ def save(webModule, layerName=None, prompt=True, force=False, fromRuleEditor=Fal
 		else:
 			log.exception(msg)
 		return False
+	if not reload:
+		return True
 	if not fromRuleEditor:
 		# only if webModule creation or modification
 		log.debug ("refresh %s" % prompt)

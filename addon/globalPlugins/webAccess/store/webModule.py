@@ -210,16 +210,18 @@ class WebModuleJsonFileDataStore(Store):
 
 	def write(self, path, data):
 		try:
+			# Serialize first so that a failure does not truncate the file.
+			text = json.dumps(data, indent=4)
 			dir = os.path.dirname(path)
 			if not os.path.isdir(dir):
 				os.makedirs(dir)
 			with open(path, "w") as f:
-				json.dump(data, f, indent=4)
+				f.write(text)
 		except Exception:
 			log.exception(
 				"Failed writing file: {path}".format(path=path)
 			)
-			return False
+			raise
 		return True
 
 
