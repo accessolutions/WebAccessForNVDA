@@ -120,11 +120,13 @@ class WebModuleDataLayer(baseObject.AutoPropertyObject):
 
 class WebModule(baseObject.ScriptableObject):
 
-	API_VERSION = version.parse("0.7")
+	API_VERSION = version.parse("0.8")
 	"""The version of the Python API offered to custom WebModules.
 	
 	Bump the minor version upon each addition, so that custom WebModules can declare
 	the version they rely on, and are cleanly refused by older versions of this add-on.
+	
+	0.8: Introduces configuration profiles.
 	"""
 	MIN_API_VERSION = version.parse("0.7")
 	"""The oldest version still supported by custom WebModules.
@@ -296,6 +298,38 @@ class WebModule(baseObject.ScriptableObject):
 		del layer.data.get("Profiles", {})[key]
 		layer.dirty = True
 
+	def getProfiles(self, context: "ProfileContext") -> Sequence[str]:
+		"""Override to activate profiles depending on the given context.
+
+		Returns profile references, either keys of profiles embedded in this WebModule
+		or names of NVDA profiles, from the lowest to the highest priority.
+
+		When overridden, it is called upon each focus change and caret movement
+		while this WebModule is active. Calling `pushProfile` or `requestProfileUpdate`
+		from it has no effect.
+		"""
+		return ()
+
+	def pushProfile(self, ref: str) -> "ProfileHandle":
+		"""Activate a profile while this WebModule is active, until the returned handle is released.
+
+		The handle can be used as a context manager:
+			with self.pushProfile("myProfile"):
+				...
+
+		The profile is applied right away. Note that speech queued meanwhile might be spoken
+		after it is released.
+		"""
+		from .. import profiles
+		return profiles.pushProfile(self, ref)
+
+	def requestProfileUpdate(self) -> None:
+		"""Request the profiles to be resolved again, eg. when `getProfiles` would return a
+		different result.
+		"""
+		from .. import profiles
+		profiles.requestUpdate()
+
 	def isReadOnly(self):
 		try:
 			return not bool(self.getWritableLayer())
@@ -363,8 +397,9 @@ class WebModule(baseObject.ScriptableObject):
 		del self.layers[index]
 
 	def terminate(self):
-		self.ruleManager.terminate()
 		from .. import profiles
+		profiles.releaseProfiles(self)
+		self.ruleManager.terminate()
 		profiles.requestUpdate()
 
 	def _getLayeredProperty(self, name, startLayerIndex=-1, raiseIfMissing=False):

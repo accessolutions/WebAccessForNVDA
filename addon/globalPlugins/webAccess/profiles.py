@@ -80,6 +80,66 @@ class ProfileContext:
 	to the innermost.
 	"""
 
+	def getPageTypes(self) -> list[str]:
+		from .ruleHandler import ruleTypes
+		# Not using `RuleManager.getPageTypes` as it waits for ongoing updates.
+		return [
+			result.rule.name
+			for result in self.webModules[0].ruleManager.getResults()
+			if result.rule.type == ruleTypes.PAGE_TYPE
+		]
+
+	def getResultsAtCaret(self) -> tuple["Result", ...]:
+		"""The Results containing the caret, for all the WebModules active on the document.
+		"""
+		offset = self.offset
+		if offset is None:
+			return ()
+		return tuple(
+			result
+			for result in self.webModules[0].ruleManager.getAllResults()
+			if containsOffset(result, offset)
+		)
+
+
+class ProfileHandle:
+	"""Returned by `WebModule.pushProfile`.
+
+	Can be used as a context manager.
+	"""
+
+	def __init__(self, webModule, ref: str):
+		self._webModule = weakref.ref(webModule)
+		self._webModuleName = None
+		self.ref = ref
+
+	def __enter__(self):
+		return self
+
+	def __exit__(self, excType, excVal, traceback):
+		self.release()
+
+	@property
+	def webModule(self):
+		return self._webModule()
+
+	@property
+	def webModuleName(self) -> str | None:
+		"""The handle also applies to other instances of the same WebModule, eg. in a dialog
+		of the page.
+
+		Retrieved lazily, as the name is not known yet when called from the constructor.
+		"""
+		webModule = self._webModule()
+		if webModule is not None and webModule.name:
+			self._webModuleName = webModule.name
+		return self._webModuleName
+
+	def release(self):
+		manager = profileManager
+		if manager is not None:
+			manager.releaseProfile(self)
+
 
 @dataclass
 class EmbeddedProfile:
@@ -164,6 +224,11 @@ class _KeepState(Exception):
 	"""
 
 
+class _Retry(_KeepState):
+	"""Raised when the profiles cannot be resolved for now and should be resolved again later.
+	"""
+
+
 class ProfileManager:
 
 	def __init__(self):
@@ -179,6 +244,8 @@ class ProfileManager:
 		"""The TreeInterceptor the current state has been resolved for.
 		"""
 		self._triggersEnabled = config.conf.profileTriggersEnabled
+		self._resolving = False
+		self._handles: list[ProfileHandle] = []
 		self._lastFocus = None
 		"""The focus the profiles have last been resolved for upon focus change.
 		"""
@@ -272,7 +339,7 @@ class ProfileManager:
 		"""Schedule an update on the main thread. Safe to call from any thread.
 		"""
 		with self._lock:
-			if self._updatePending or self._terminated:
+			if self._updatePending or self._terminated or self._resolving:
 				return
 			self._updatePending = True
 		wx.CallAfter(self._update)
@@ -286,7 +353,32 @@ class ProfileManager:
 		if threading.current_thread() is not threading.main_thread():
 			self.requestUpdate()
 			return
+		if self._resolving:
+			# Called from `WebModule.getProfiles`: Already being resolved.
+			return
 		self._update(treeInterceptor=treeInterceptor, offset=offset)
+
+	def pushProfile(self, webModule, ref: str) -> ProfileHandle:
+		handle = ProfileHandle(webModule, ref)
+		self._handles.append(handle)
+		self.update()
+		return handle
+
+	def releaseProfile(self, handle: ProfileHandle):
+		try:
+			self._handles.remove(handle)
+		except ValueError:
+			return
+		self.update()
+
+	def releaseProfiles(self, webModule):
+		"""Release the profiles pushed by the given WebModule instance.
+		"""
+		handles = [handle for handle in self._handles if handle.webModule is webModule]
+		for handle in handles:
+			self._handles.remove(handle)
+		if handles:
+			self.requestUpdate()
 
 	def isInInterval(self, treeInterceptor, offset: int | None) -> bool:
 		interval = self._interval
@@ -452,6 +544,9 @@ class ProfileManager:
 		self._nvdaProfileNames = None
 		try:
 			ti, context = self._getContext(treeInterceptor, offset)
+		except _Retry:
+			self.requestUpdate()
+			return
 		except Exception:
 			log.exception()
 			ti = context = None
@@ -461,6 +556,7 @@ class ProfileManager:
 				self._interval = (weakref.ref(ti), float("-inf"), float("inf"))
 			names = []
 		else:
+			self._resolving = True
 			try:
 				names = self._resolve(context)
 			except _KeepState:
@@ -470,6 +566,8 @@ class ProfileManager:
 				if self._isSameState(ti):
 					return
 				names = []
+			finally:
+				self._resolving = False
 		self._stateTreeInterceptor = weakref.ref(ti) if ti is not None else None
 		self._apply(names)
 		self._releaseEmbedded(names)
@@ -495,6 +593,9 @@ class ProfileManager:
 			return None, None
 		root = ti.webAccess.rootWebModule
 		if root is None:
+			if ti.webAccess._loadingRootWebModule:
+				# Re-entrant call, eg. `pushProfile` called from a WebModule constructor.
+				raise _Retry
 			return ti, None
 		if offset is None or treeInterceptor is not ti:
 			try:
@@ -516,8 +617,12 @@ class ProfileManager:
 		 - The profile of each WebModule, from the root to the innermost SubModule.
 		 - The profile of each matched page type.
 		 - The profile of each other Result at the caret, from the outermost to the innermost.
+		 - The profiles returned by `WebModule.getProfiles`, for each WebModule from the root
+		   to the innermost SubModule.
+		 - The profiles pushed with `WebModule.pushProfile`, in the same order.
 		"""
 		from .ruleHandler import ruleTypes
+		from .webModuleHandler.webModule import WebModule
 		refs = [
 			(webModule, webModule.configProfile)
 			for webModule in context.webModules
@@ -553,6 +658,20 @@ class ProfileManager:
 		for result in rangedResults:
 			refs.append((result.rule.ruleManager.webModule, result.properties.profile))
 		self._setInterval(context, sorted({offset for position in positions for offset in position}))
+		for webModule in context.webModules:
+			if type(webModule).getProfiles is not WebModule.getProfiles:
+				# Might depend on anything: Resolve again upon each caret movement.
+				self._interval = None
+			try:
+				for ref in webModule.getProfiles(context):
+					refs.append((webModule, ref))
+			except Exception:
+				log.exception(f"Error in getProfiles of WebModule {webModule.name!r}")
+		self._handles = [handle for handle in self._handles if handle.webModule is not None]
+		for webModule in context.webModules:
+			for handle in self._handles:
+				if handle.webModuleName == webModule.name:
+					refs.append((webModule, handle.ref))
 		names = []
 		for owner, ref in refs:
 			name = self._getProfileName(owner, ref)
@@ -720,6 +839,19 @@ def getProfileChoices(embeddedKeys: Iterable[str]) -> dict[str, str]:
 			# Translators: A choice of NVDA configuration profile, as opposed to an embedded one
 			choices[name] = _("{name} (NVDA profile)").format(name=name)
 	return choices
+
+
+def pushProfile(webModule, ref: str) -> ProfileHandle:
+	manager = profileManager
+	if manager is None:
+		return ProfileHandle(webModule, ref)
+	return manager.pushProfile(webModule, ref)
+
+
+def releaseProfiles(webModule):
+	manager = profileManager
+	if manager is not None:
+		manager.releaseProfiles(webModule)
 
 
 def onWebModulesReset():
