@@ -168,7 +168,8 @@ class RuleManager(ScriptableObject):
 			return None
 	
 	def _get_webModule(self):
-		return self._webModule()
+		# None once terminated
+		return self._webModule() if self._webModule is not None else None
 
 	@logException
 	def _get_zone(self):
@@ -426,6 +427,17 @@ class RuleManager(ScriptableObject):
 			# Translators: Reported when attempting an action while WebAccess is not ready
 			ui.message(_("Not ready"))
 		return ready
+
+	def cancelCheckAutoAction(self):
+		"""Cancel the pending check for auto actions, including in SubModules.
+		"""
+		try:
+			self.timerCheckAutoAction.cancel()
+		except AttributeError:
+			pass
+		self.timerCheckAutoAction = None
+		for webModule in self.subModules.all():
+			webModule.ruleManager.cancelCheckAutoAction()
 
 	def terminate(self):
 		self._ready = False
