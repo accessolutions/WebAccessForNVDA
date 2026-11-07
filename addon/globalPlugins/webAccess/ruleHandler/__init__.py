@@ -142,6 +142,9 @@ class RuleManager(ScriptableObject):
 		self._controlIdToPosition: Mapping[str, int] = {}
 		"""Used for safer retrieval of the WebModule associated to an object in focus mode
 		"""
+		self._unknownControlIds: set[tuple[int, int]] = set()
+		"""Control ids already reported missing from `_controlIdToPosition` since the last update
+		"""
 		self._allResults: Sequence["Result"] = []
 		"""Results for this WebModule and all of its SubModules.
 		""" 
@@ -407,8 +410,17 @@ class RuleManager(ScriptableObject):
 			raise Exception("Supported on the root RuleManager only")
 		if not self.isReady:
 			return None
-		# Raises LookupError on purpose, to distinguish from returning None meaning "Not Ready"
-		offset = self._controlIdToPosition[controlId]
+		try:
+			offset = self._controlIdToPosition[controlId]
+		except KeyError:
+			# Expected for objects not rendered in the VirtualBuffer (zero-length nodes,
+			# descendants of combo boxes, lists, trees or of controls named from their content)
+			# and for objects rendered since the last update.
+			if controlId not in self._unknownControlIds:
+				self._unknownControlIds.add(controlId)
+				log.debug(f"Unknown controlId: {controlId}")
+			# Raised on purpose, to distinguish from returning None meaning "Not Ready"
+			raise
 		webModule = self.subModules.atPosition(offset)
 		if webModule is None:
 			webModule = self.webModule
@@ -446,6 +458,7 @@ class RuleManager(ScriptableObject):
 		self._mutatedControlsById.clear()
 		self._mutatedControlsByOffset.clear()
 		self._controlIdToPosition.clear()
+		self._unknownControlIds.clear()
 		for rule in self.getRules():
 			rule.resetResults()
 	
