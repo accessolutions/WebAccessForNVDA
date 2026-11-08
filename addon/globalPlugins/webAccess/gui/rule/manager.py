@@ -90,10 +90,12 @@ def getCriteriaOrSelectorLabel(criteriaOrSelector):
 			label += f" - {criteria.name}"
 		else:
 			label += f" - #{rule.criteria.index(criteria) + 1}"
-	if rule._gestureMap:
+	# The gestures actually applying to the Results of this alternative
+	gestures = criteria.getEffectiveGestures()
+	if gestures:
 		label += " ({gestures})".format(gestures=", ".join(
 			inputCore.getDisplayTextForGestureIdentifier(identifier)[1]
-			for identifier in list(rule._gestureMap.keys())
+			for identifier in gestures
 		))
 	if selector is not None:
 		if selector is criteria.startSelector:
@@ -151,23 +153,33 @@ def iterRulesByGesture(ruleManager, filter=None, active=False):
 			continue
 		if active and not rule_getResults_safe(rule):
 			continue
-		for gesture, (scope, action) in rule.gestures.items():
+		actions = rule.ruleManager.getActions()
+		# Rule level bindings, then those specific to an alternative
+		bindings = [(rule.name, gesture, binding) for gesture, binding in rule.gestures.items()]
+		for index, criteria in enumerate(rule.criteria):
+			critLabel = "{rule} - {criteria}".format(
+				rule=rule.name, criteria=criteria.name or f"#{index + 1}"
+			)
+			bindings.extend(
+				(critLabel, gesture, binding) for gesture, binding in criteria.gestures.items()
+			)
+		for label, gesture, (scope, action) in bindings:
 			rules = scopes.setdefault(
 				scope, {}
 			).setdefault(getGestureLabel(gesture), [])
 			rules.append(TreeItemData(
 				label=(
 					"{rule} - {action}".format(
-						rule=rule.name,
-						action=rule.ruleManager.getActions().get(action, f"*{action}")
+						rule=label,
+						action=actions.get(action, f"*{action}")
 					)
 					if action != "moveto"
-					else rule.name
+					else label
 				),
 				obj=rule,
 				children=[]
 			))
-		if not rule.gestures:
+		if not bindings:
 			noGesture.append(
 				TreeItemData(label=rule.name, obj=rule, children=[])
 			)
