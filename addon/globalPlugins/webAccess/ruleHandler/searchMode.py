@@ -72,6 +72,16 @@ SEARCH_MODE_LABELS = {
 }
 
 
+SEARCH_MODE_SHORT_LABELS = {
+	# Translators: The short name of a search mode of the criteria of a rule (eg. in summaries)
+	SearchMode.SIMPLE: pgettext("webAccess.searchMode", "Simple"),
+	# Translators: The short name of a search mode of the criteria of a rule (eg. in summaries)
+	SearchMode.SAME_NODE: pgettext("webAccess.searchMode", "Same element"),
+	# Translators: The short name of a search mode of the criteria of a rule (eg. in summaries)
+	SearchMode.CSS: pgettext("webAccess.searchMode", "CSS selector"),
+}
+
+
 CSS_REPLACED_FIELDS = ("tag", "id", "className", "src")
 """Selector fields replaced by the CSS selector in `SearchMode.CSS`."""
 
