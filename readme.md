@@ -202,6 +202,25 @@ Once the criteria are set, hit `enter` or tab to the "OK" button to close the
 dialog.
 
 
+#### Alternatives
+
+A rule can have several alternative sets of criteria, for example when the same
+element is coded differently from one page to another.
+Each alternative can override the properties and keyboard shortcuts of the
+rule.
+
+The "When several alternatives match" field, in the "Criteria" category of the
+rule editor, sets how the alternatives combine:
+
+ - "Use only the first matching alternative" (default): The alternatives are
+   evaluated in order, and the first one finding at least one element is the
+   only one considered.
+ - "Use all matching alternatives": The elements found by all the alternatives
+   are considered, in their order of appearance on the page. An element found
+   by several alternatives is considered only once, with the properties and
+   keyboard shortcuts of the first of them.
+
+
 #### Keyboard shortcuts
 
 1. Switch to the "Actions" category.
