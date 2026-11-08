@@ -35,6 +35,7 @@ from ...ruleHandler import ruleTypes
 from ... import webModuleHandler
 from ...utils import updateOrDrop
 from .properties import Properties
+from .. import ValidationError
 
 from collections.abc import Mapping
 
