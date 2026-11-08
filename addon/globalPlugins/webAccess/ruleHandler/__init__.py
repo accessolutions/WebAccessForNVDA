@@ -1074,7 +1074,7 @@ class SubModules(AutoPropertyObject):
 	
 	def __init__(self, ruleManager: RuleManager):
 		self._ruleManager = weakref.ref(ruleManager)
-		self._webModulesByNameAndIndex: Mapping[tuple(str, int), "WebModule"] = {}
+		self._webModulesByNameAndIndex: Mapping[tuple[str, int, str], "WebModule"] = {}
 		"""Ensure SubModules are not re-instanciated upon update 
 		"""
 		self._webModulesByPosition: Mapping[tuple(int, int), "WebModule"] = {}
@@ -1110,15 +1110,29 @@ class SubModules(AutoPropertyObject):
 		nodeManager = rootRuleManager.nodeManager
 		mutatedControlsById = rootRuleManager._mutatedControlsById
 		mutatedControlsByOffset = rootRuleManager._mutatedControlsByOffset
+		# The names of this WebModule and of its enclosing ones, to prevent endless nesting
+		ancestors = set()
+		mgr = ruleManager
+		while mgr is not None:
+			ancestors.add(mgr.webModule.name)
+			mgr = mgr.parentRuleManager if mgr.parentZone is not None else None
 		for result in self._results:
-			key = (result.rule.name, result.index)
+			name = result.properties.subModule
+			if name in ancestors:
+				ruleManager.reportRuleError(
+					result.rule,
+					f"Sub-module {name!r} not loaded, as it is this WebModule or an enclosing one",
+				)
+				continue
+			# The sub-module might differ between updates, eg. if another alternative matched
+			key = (result.rule.name, result.index, name)
 			webModule = previousByNameAndIndex.get(key)
 			if not webModule:
-				webModule = getWebModule(result.properties.subModule)
+				webModule = getWebModule(name)
 			else:
 				webModule.ruleManager.parentZone.update(result=result)
 			if not webModule:
-				log.error(f"WebModule not found: {result.properties.subModule!r}")
+				ruleManager.reportRuleError(result.rule, f"Sub-module not found: {name!r}")
 				continue
 			webModulesByNameAndIndex[key] = webModule
 			webModulesByPosition[(result.startOffset, result.endOffset)] = webModule
