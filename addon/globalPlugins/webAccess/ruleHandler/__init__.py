@@ -279,6 +279,18 @@ class RuleManager(ScriptableObject):
 			for rule in reversed(ruleLayers.values())
 		])
 
+	def getActiveRules(self) -> tuple["Rule"]:
+		"""The rules evaluated on the page: For each name, the rule of the topmost layer.
+		
+		A rule of a higher layer (eg. "user") overrides its homonym of a lower layer
+		(eg. an add-on), which is then not evaluated. See also `resolveRule`.
+		"""
+		return tuple(
+			rule
+			for rule in (self.resolveRule(name) for name in self._rules)
+			if rule is not None
+		)
+	
 	def getRule(self, name, layer=None):
 		if layer is None:
 			for layer in list(self._layers.keys()):
@@ -570,7 +582,7 @@ class RuleManager(ScriptableObject):
 					crit.properties.subModule for crit in rule.criteria
 				)
 
-			subModuleRules = [rule for rule in self.getRules() if mayLoadSubModule(rule)]
+			subModuleRules = [rule for rule in self.getActiveRules() if mayLoadSubModule(rule)]
 			for rule in subModuleRules:
 				results = rule.getResults()
 				self._results.extend(results)
@@ -578,7 +590,7 @@ class RuleManager(ScriptableObject):
 					result for result in results if result.properties.subModule
 				)
 			for rule in sorted(
-				(rule for rule in self.getRules() if rule not in subModuleRules),
+				(rule for rule in self.getActiveRules() if rule not in subModuleRules),
 				key=lambda rule: (
 					0 if rule.type in (
 						ruleTypes.PAGE_TITLE_1, ruleTypes.PAGE_TITLE_2
