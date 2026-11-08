@@ -29,6 +29,7 @@ import wx
 import addonHandler
 import config
 import gui
+from logHandler import log
 
 from ...webModuleHandler import WebModule
 
