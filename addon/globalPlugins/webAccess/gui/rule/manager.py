@@ -830,24 +830,44 @@ class Dialog(ContextualDialog):
 		if not rule:
 			wx.Bell()
 			return
+		mgr = rule.ruleManager
+		message = (
+			# Translator: A confirmation prompt on the RulesManager dialog.
+			_("Are you sure you want to delete this rule?")
+			+ "\n\n"
+			+ rule.name
+		)
+		style = wx.YES_NO | wx.CANCEL | wx.ICON_QUESTION
+		# References remain satisfied if a homonym remains in another layer
+		if not any(other is not rule for other in mgr._rules.get(rule.name, {}).values()):
+			dependents = sorted(
+				(dependent for dependent in mgr.getDependents(rule.name) if dependent is not rule),
+				key=lambda dependent: (dependent.layer, dependent.name)
+			)
+			if dependents:
+				# Translator: A mention in the confirmation prompt upon deleting a rule
+				# referred to by other rules on the RulesManager dialog.
+				message += "\n\n" + _(
+					"This rule is referred to by the following rules:\n{rules}\n"
+					"These references will be considered as not matched."
+				).format(rules="\n".join(
+					f"  - {dependent.name} ({dependent.layer})" for dependent in dependents
+				))
+				style = wx.YES_NO | wx.CANCEL | wx.NO_DEFAULT | wx.ICON_WARNING
 		if gui.messageBox(
-			(
-				# Translator: A confirmation prompt on the RulesManager dialog.
-				_("Are you sure you want to delete this rule?")
-				+ "\n\n"
-				+ rule.name
-			),
+			message,
 			# Translator: The title for a confirmation prompt on the
 			# RulesManager dialog.
 			_("Confirm Deletion"),
-			wx.YES_NO | wx.CANCEL | wx.ICON_QUESTION, self
+			style, self
 		) == wx.YES:
-			webModule = getEditableWebModule(self.context["webModule"], layerName=rule.layer)
+			# The rule might belong to a sub-module, listed by position
+			webModule = getEditableWebModule(mgr.webModule, layerName=rule.layer)
 			if not webModule:
 				return
-			rule.ruleManager.removeRule(rule)
+			mgr.removeRule(rule)
 			save(
-				webModule=self.context["webModule"],
+				webModule=webModule,
 				layerName=rule.layer,
 			)
 			# As a rule was deleted, all results are to be considered obsolete
