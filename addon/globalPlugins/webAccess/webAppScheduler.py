@@ -145,7 +145,10 @@ class WebAppScheduler(threading.Thread):
 			and nodeManager.treeInterceptor.webAccess.rootWebModule
 		):
 			return
-		nodeManager.treeInterceptor.webAccess.rootRuleManager.update(nodeManager)
+		# Re-check: The WebModule might have been reset or disabled meanwhile
+		ruleManager = nodeManager.treeInterceptor.webAccess.rootRuleManager
+		if ruleManager is not None:
+			ruleManager.update(nodeManager)
 
 	def event_ruleManagerUpdated(self, ruleManager):
 		# Doesn't work outside of the main thread for Google Chrome 83

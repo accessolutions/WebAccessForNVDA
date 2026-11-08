@@ -339,7 +339,12 @@ class RuleManager(ScriptableObject):
 
 	def getGlobalScript(self, gesture, caret=None, fromParent=False):
 		if caret is None:
-			webModuleAtCaret = self.nodeManager.treeInterceptor.webAccess.webModule
+			ti = self._getTreeInterceptor()
+			if ti is None:
+				return None
+			webModuleAtCaret = ti.webAccess.webModule
+			if webModuleAtCaret is None:
+				return None
 			return webModuleAtCaret.ruleManager.getGlobalScript(gesture, caret=webModuleAtCaret)
 		
 		def gen():
@@ -359,8 +364,23 @@ class RuleManager(ScriptableObject):
 			if script:
 				return script		
 	
+	def _getTreeInterceptor(self):
+		"""The TreeInterceptor this RuleManager has been updated against, if still alive.
+
+		`None` until the first update by the scheduler (eg. right after the WebModule
+		has been (re)loaded), while gestures can already be dispatched to `getScript`,
+		possibly from another thread (eg. braille display keys from the I/O thread).
+		"""
+		nodeManager = self.nodeManager
+		if nodeManager is None:
+			return None
+		return nodeManager.treeInterceptor
+
 	def getLocalScript(self, gesture):
-		caret = self.nodeManager.treeInterceptor.selection
+		ti = self._getTreeInterceptor()
+		if ti is None:
+			return None
+		caret = ti.selection
 		
 		scripts = []
 		for result in self.getResults():
@@ -638,7 +658,8 @@ class RuleManager(ScriptableObject):
 				if result.rule.type == ruleTypes.PAGE_TITLE_1:
 					return result.value
 		from ..webModuleHandler import getWindowTitle
-		windowTitle = getWindowTitle(self.nodeManager.treeInterceptor.rootNVDAObject)
+		ti = self._getTreeInterceptor()
+		windowTitle = getWindowTitle(ti.rootNVDAObject) if ti is not None else None
 		return windowTitle or api.getForegroundObject().name
 
 	def _getPageTitle2(self):
@@ -730,9 +751,8 @@ class RuleManager(ScriptableObject):
 	def iterResultsAtCaret(self):
 		"""Includes Results from all WebModules active on the document
 		"""
-		try:
-			ti = self.nodeManager.treeInterceptor
-		except AttributeError:
+		ti = self._getTreeInterceptor()
+		if ti is None:
 			return
 		info = ti.makeTextInfo(textInfos.POSITION_CARET)
 		for result in self.iterResultsAtTextInfo(info):
@@ -1129,7 +1149,7 @@ class Result(ScriptableObject):
 		return self._rule()
 	
 	def _get_ti(self):
-		return self.rule.ruleManager.nodeManager.treeInterceptor
+		return self.rule.ruleManager._getTreeInterceptor()
 	
 	def _get_value(self):
 		customValue = self.properties.customValue
@@ -1196,6 +1216,8 @@ class Result(ScriptableObject):
 			focusObject.reportFocus()
 
 	def script_sayall(self, gesture, fromQuickNav=False):
+		if not self.rule.ruleManager.checkReady():
+			return
 		speech.cancelSpeech()
 		if self.properties.sayName:
 			speech.speakMessage(self.label)
@@ -1244,6 +1266,8 @@ class Result(ScriptableObject):
 	
 	def script_mouseMove(self, gesture):
 		rule = self.rule
+		if not rule.ruleManager.checkReady():
+			return
 		criteria = self.criteria
 		if self.properties.sayName:
 			speech.speakMessage(self.label)
