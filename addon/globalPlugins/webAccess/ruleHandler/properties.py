@@ -201,6 +201,48 @@ DEFAULT_VALUES = {p.name: p.default for p in PropertySpec}
 PROPERTY_NAMES = tuple(p.name for p in PropertySpec)
 
 
+def normalizeRuleData(data: dict[str, Any]) -> None:
+	"""Normalize, in place, the properties and gestures of serialized rule data.
+
+	 - Properties and gestures not supported for the rule type are dropped.
+	 - Rule level properties equal to their default value are dropped.
+	 - Criteria (alternative) level properties are kept as long as they differ
+	   from the value they would otherwise inherit from the Rule level.
+	   Hence, a falsy override (`None`, `False` or `""`) is kept whenever the
+	   Rule level value is truthy: It is how an alternative cancels a value set
+	   at Rule level (eg. "No action" for Auto Actions).
+	"""
+	ruleType = data["type"]
+	supported = tuple(p.name for p in PropertySpec.forRuleType(ruleType))
+
+	def normalizeGestures(container: dict[str, Any]) -> None:
+		if ruleType not in ruleTypes.ACTION_TYPES or not container.get("gestures"):
+			container.pop("gestures", None)
+
+	def normalizeProperties(
+		container: dict[str, Any],
+		inherited: Mapping[str, PropertyValue],
+	) -> dict[str, PropertyValue]:
+		props = container.get("properties") or {}
+		props = {
+			name: props[name]
+			for name in supported
+			if name in props and props[name] != inherited[name]
+		}
+		if props:
+			container["properties"] = props
+		else:
+			container.pop("properties", None)
+		return props
+
+	normalizeGestures(data)
+	ruleProps = normalizeProperties(data, DEFAULT_VALUES)
+	inherited = ChainMap(ruleProps, DEFAULT_VALUES)
+	for critData in data.get("criteria", ()):
+		normalizeGestures(critData)
+		normalizeProperties(critData, inherited)
+
+
 class PropertiesBase(ABC):
 	"""ABC for property containers.
 	
