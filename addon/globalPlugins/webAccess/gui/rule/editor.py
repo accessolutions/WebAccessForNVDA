@@ -558,18 +558,25 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 		except Exception:
 			wx.Bell()
 			return
-		if not isinstance(data, dict) and len(data) == 1:
+		if not (isinstance(data, dict) and len(data) == 1):
 			wx.Bell()
 			return
 		key, data = data.popitem()
 		if key == "webAccess.rule":
 			try:
-				data = data["criteria"]
+				ruleData = data
+				data = ruleData["criteria"]
 				if len(data) != 1:
 					wx.Bell()
 					return
-				data = data[0]
-			except (AttributeError, TypeError):
+				data = deepcopy(data[0])
+				# Keep the Rule level properties and gestures of the pasted rule,
+				# those of its alternative taking precedence.
+				for name in ("properties", "gestures"):
+					merged = {**ruleData.get(name, {}), **data.get(name, {})}
+					if merged:
+						data[name] = merged
+			except (AttributeError, IndexError, KeyError, TypeError):
 				wx.Bell()
 				return
 		elif key == "webAccess.criteria":
