@@ -658,6 +658,9 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 				# those of its alternative taking precedence.
 				for name in ("properties", "gestures"):
 					merged = {**ruleData.get(name, {}), **data.get(name, {})}
+					if name == "gestures":
+						# A gesture disabled on the pasted alternative is simply not bound
+						merged = {k: v for k, v in merged.items() if v is not None}
 					if merged:
 						data[name] = merged
 			except (AttributeError, IndexError, KeyError, TypeError):
