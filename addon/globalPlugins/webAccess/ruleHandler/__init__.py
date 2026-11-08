@@ -254,6 +254,14 @@ class RuleManager(ScriptableObject):
 		return rule
 
 	def _loadRule(self, layer: str, name: str, data: Mapping[str, Any]) -> "Rule":
+		if data.get("name") != name:
+			# Eg. rules converted from format 0.6 with a disambiguated key, such as
+			# "Home (*marker)": The key is the identity of the rule within its layer.
+			log.warning(
+				f"WebModule {self.webModule.name!r} ({layer}): "
+				f"Rule {data.get('name')!r} stored as {name!r}, renamed accordingly"
+			)
+			data = {**data, "name": name}
 		rule = self.webModule.createRule(data)
 		rule.layer = layer
 		self._layers[layer][name] = rule

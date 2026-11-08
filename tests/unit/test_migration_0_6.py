@@ -81,5 +81,23 @@ class TestConvertAlternatives(unittest.TestCase):
 			self.assertNotIn("customName", crit.get("properties", {}))
 
 
+class TestConvertHomonymsOfDifferentTypes(unittest.TestCase):
+	
+	def test_keyAndNameConsistent(self):
+		data = {
+			"formatVersion": "0.6",
+			"WebModule": {"name": "Test"},
+			"Rules": [
+				{"name": "Home", "type": "pageType", "text": "a"},
+				{"name": "Home", "type": "marker", "text": "b"},
+			],
+		}
+		loadConverter().convert(data)
+		rules = data["Rules"]
+		self.assertEqual(sorted(rules), ["Home", "Home (*marker)"])
+		for key, rule in rules.items():
+			self.assertEqual(rule["name"], key)
+
+
 if __name__ == "__main__":
 	unittest.main()
