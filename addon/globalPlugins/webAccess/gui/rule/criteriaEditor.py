@@ -1234,7 +1234,9 @@ class EndCriteriaPanel(CriteriaPanel):
 
 
 class GesturesPanel(GesturesPanelBase, CriteriaEditorPanel):
-	pass
+
+	def getInheritedGestures(self):
+		return self.getRuleData().get("gestures", {})
 
 
 class PropertyOverrideSelectMenu(wx.Menu):

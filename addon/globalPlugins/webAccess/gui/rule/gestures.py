@@ -29,6 +29,7 @@ __authors__ = (
 )
 
 
+from enum import Enum, auto
 from typing import Any
 import wx
 
@@ -43,10 +44,23 @@ from .. import ContextualSettingsPanel, Change
 from . import gestureBinding
 from .abc import RuleAwarePanelBase
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 
 
 addonHandler.initTranslation()
+
+
+class BindingKind(Enum):
+	"""The kind of an entry in a Gestures panel."""
+
+	OWN = auto()
+	"""Defined at this level, not replacing any inherited binding."""
+	OVERRIDE = auto()
+	"""Defined at this level, replacing an inherited binding (Criteria level only)."""
+	DISABLED = auto()
+	"""Inherited binding disabled at this level (Criteria level only)."""
+	INHERITED = auto()
+	"""Inherited binding, applying as is (Criteria level only)."""
 
 
 SCOPE_LABELS = {
@@ -103,6 +117,7 @@ class GesturesPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
 		
 		row += 1
 		item = self.gesturesListBox = wx.ListBox(self, size=scale(-1, 100))
+		item.Bind(wx.EVT_LISTBOX, self.onGesturesListBox)
 		items.append(item)
 		gbSizer.Add(item, pos=(row, col), span=(6, 1), flag=wx.EXPAND)
 		gbSizer.AddGrowableCol(col)
@@ -153,7 +168,43 @@ class GesturesPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
 	
 	def getSelectedGesture(self):
 		index = self.gesturesListBox.Selection
-		return self.gesturesListBox.GetClientData(index) if index > -1 else None
+		return self.gesturesListBox.GetClientData(index)[0] if index > -1 else None
+
+	def getInheritedGestures(self) -> Mapping[str, Sequence[str]]:
+		"""The bindings inherited by the edited level, as `{gestureId: (scope, action)}`.
+
+		None at Rule level. Overridden for alternatives (Criteria).
+		"""
+		return {}
+
+	def iterEntries(self):
+		"""Yield `(gestureId, kind, (scope, action))` for each entry of the list, sorted.
+
+		The identifiers of the inherited bindings are matched once normalized.
+		"""
+		normalize = inputCore.normalizeGestureIdentifier
+		own = self.gesturesMap
+		ownNormalized = {normalize(id): id for id in own}
+		entries = {}
+		for id, binding in self.getInheritedGestures().items():
+			ownId = ownNormalized.get(normalize(id))
+			if ownId is None:
+				entries[id] = (BindingKind.INHERITED, binding)
+			elif own[ownId] is None:
+				entries[ownId] = (BindingKind.DISABLED, binding)
+			else:
+				entries[ownId] = (BindingKind.OVERRIDE, own[ownId])
+		for id, binding in own.items():
+			if id in entries:
+				continue
+			if binding is None:
+				# Disabling a binding the rule no longer defines: Listed so that it can be removed
+				entries[id] = (BindingKind.DISABLED, (GestureScope.NORMAL.value, None))
+			else:
+				entries[id] = (BindingKind.OWN, binding)
+		for id in sorted(entries):
+			kind, binding = entries[id]
+			yield id, kind, binding
 	
 	@guarded
 	def onAddGesture(self, evt):
@@ -170,17 +221,26 @@ class GesturesPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
 	@guarded
 	def onDeleteGesture(self, evt):
 		index = self.gesturesListBox.Selection
-		id = self.gesturesListBox.GetClientData(index)
-		del self.gesturesMap[id]
-		self.onGestureChange(Change.DELETION, index)
+		id, kind = self.gesturesListBox.GetClientData(index)
+		if kind is BindingKind.INHERITED:
+			# Disable the inherited binding at this level
+			self.gesturesMap[id] = None
+		else:
+			# Remove the binding defined at this level, or re-enable the inherited one
+			del self.gesturesMap[id]
+		self.onGestureChange(Change.DELETION, id)
 
 	@guarded
 	def onEditGesture(self, evt):
 		context = self.context
-		id = self.getSelectedGesture()
+		id, kind = self.gesturesListBox.GetClientData(self.gesturesListBox.Selection)
 		data = context["data"]
 		gestures = data["gestures"] = self.gesturesMap
-		scope, action = gestures[id]
+		if kind in (BindingKind.INHERITED, BindingKind.DISABLED):
+			# Editing creates a binding at this level, replacing the inherited one
+			scope, action = self.getInheritedGestures()[id]
+		else:
+			scope, action = gestures[id]
 		data["gestureBinding"] = {
 			"gestureIdentifier": id, "action": action, "scope": scope
 		}
@@ -197,29 +257,58 @@ class GesturesPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
 	
 	def updateGesturesListBox(self, selectId: str = None, focus: bool = False):
 		mgr = self.getRuleManager()
-		map = self.gesturesMap
 		if selectId is None:
 			selectId = self.getSelectedGesture()
 		listBox = self.gesturesListBox
 		listBox.Clear()
 		selectIndex = 0
-		for index, (gestureIdentifier, (scope, action)) in enumerate(map.items()):
+		actions = mgr.getActions()
+		for index, (gestureIdentifier, kind, (scope, action)) in enumerate(self.iterEntries()):
 			source, main = inputCore.getDisplayTextForGestureIdentifier(gestureIdentifier)
-			actionDName = mgr.getActions().get(action, f"*{action}")
-				# Translators: A gesture binding on the editor dialogs
-			label = "{gesture}: {action}".format(gesture=main, action=actionDName)
+			actionDName = actions.get(action, f"*{action}")
+			# Translators: A gesture binding on the editor dialogs
+			label = _("{gesture}: {action}").format(gesture=main, action=actionDName)
 			if scope != GestureScope.NORMAL.value:
 				label += f" - {SCOPE_LABELS[scope]}"
-			listBox.Append(label, gestureIdentifier)
+			if kind is BindingKind.INHERITED:
+				# Translators: Mention for an inherited gesture binding on the Criteria editor
+				label += " " + _("(inherited from the rule)")
+			elif kind is BindingKind.OVERRIDE:
+				# Translators: Mention for a gesture binding replacing that of the rule on the Criteria editor
+				label += " " + _("(replaces the rule shortcut)")
+			elif kind is BindingKind.DISABLED:
+				# Translators: A disabled gesture binding on the Criteria editor
+				label = _("{gesture}: Disabled for this criteria set").format(gesture=main)
+			listBox.Append(label, (gestureIdentifier, kind))
 			if gestureIdentifier == selectId:
 				selectIndex = index
-		if self.gesturesMap:
+		if listBox.Count:
 			listBox.SetSelection(selectIndex)
-		enableBtn = listBox.Selection > -1
-		for btn in (self.deleteButton, self.editButton):
-			btn.Enable(enableBtn)
+		self.updateButtons()
 		if focus:
 			self.gesturesListBox.SetFocus()
+
+	def updateButtons(self):
+		listBox = self.gesturesListBox
+		index = listBox.Selection
+		enableBtn = index > -1
+		for btn in (self.deleteButton, self.editButton):
+			btn.Enable(enableBtn)
+		kind = listBox.GetClientData(index)[1] if enableBtn else None
+		if kind is BindingKind.INHERITED:
+			# Translators: The label for a button on the Criteria editor dialog
+			label = _("&Disable")
+		elif kind is BindingKind.DISABLED:
+			# Translators: The label for a button on the Criteria editor dialog
+			label = _("&Restore")
+		else:
+			# Translators: The label for a button in the Rule Editor dialog
+			label = _("&Delete")
+		self.deleteButton.Label = label
+
+	@guarded
+	def onGesturesListBox(self, evt):
+		self.updateButtons()
 	
 	@guarded
 	def onPanelActivated(self):
