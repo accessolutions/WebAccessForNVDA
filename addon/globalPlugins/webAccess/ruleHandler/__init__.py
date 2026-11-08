@@ -68,7 +68,7 @@ from ..webAppLib import (
 )
 from .. import webAppScheduler
 from . import ruleTypes
-from .references import parseContextExpression
+from .references import buildDependencyGraph, findCyclePath, findCycles, parseContextExpression
 from .controlMutation import MUTATIONS, MutatedControl, getMutationId
 from .properties import RuleProperties, CriteriaProperties
 
@@ -131,6 +131,8 @@ class RuleManager(ScriptableObject):
 		self._rules = {}
 		self._reportedMissingReferences: set[tuple[str, str, str, str]] = set()
 		"""References to missing rules already reported, as `(layer, rule, field, name)`."""
+		self._reportedRuleErrors: set[tuple[str, str]] = set()
+		"""Rules whose evaluation error or reference cycle has already been reported."""
 		self._results = []
 		self._mutatedControlsById = {}
 		self._mutatedControlsByOffset = []
@@ -201,10 +203,34 @@ class RuleManager(ScriptableObject):
 
 	def load(self, layer, index, data):
 		self._reportedMissingReferences.clear()
+		self._reportedRuleErrors.clear()
 		self.unload(layer)
 		self._initLayer(layer, index)
 		for ruleName, ruleData in list(data.items()):
 			self._loadRule(layer, ruleName, ruleData)
+		self._updateReferenceCycles()
+
+	def _updateReferenceCycles(self) -> None:
+		"""Disable the rules referring to themselves, directly or not.
+		
+		Such rules (#13) would otherwise recurse endlessly, or yield Results depending on
+		the order of evaluation. They are disabled (no Result) as a whole, deterministically.
+		References are resolved as by `resolveRule`, hence across layers.
+		"""
+		activeRules = {name: self.resolveRule(name) for name in self._rules}
+		activeRules = {name: rule for name, rule in activeRules.items() if rule is not None}
+		graph = buildDependencyGraph({name: rule.dump() for name, rule in activeRules.items()})
+		inCycle = set()
+		for component in findCycles(graph):
+			inCycle.update(component)
+			path = findCyclePath(graph, component[0])
+			log.warning(
+				f"WebModule {self.webModule.name!r}: Rules referring to themselves "
+				f"through context criteria are disabled: {' → '.join(path or component)}"
+			)
+		for ruleLayers in self._rules.values():
+			for rule in ruleLayers.values():
+				rule.inReferenceCycle = activeRules.get(rule.name) is rule and rule.name in inCycle
 
 	def _initLayer(self, layer, index):
 		self._layers[layer] = {}
@@ -219,7 +245,9 @@ class RuleManager(ScriptableObject):
 	def loadRule(self, layer: str, name: str, data: Mapping[str, Any]) -> "Rule":
 		if layer not in self._layers:
 			self._initLayer(layer, None)
-		return self._loadRule(layer, name, data)
+		rule = self._loadRule(layer, name, data)
+		self._updateReferenceCycles()
+		return rule
 
 	def _loadRule(self, layer: str, name: str, data: Mapping[str, Any]) -> "Rule":
 		rule = self.webModule.createRule(data)
@@ -240,6 +268,7 @@ class RuleManager(ScriptableObject):
 		self.removeResults(rule)
 		self._rules.pop(rule.name, None)
 		self._layers[rule.layer].pop(rule.name, None)
+		self._updateReferenceCycles()
 
 	def getRules(self, layer=None):
 		if layer not in (None, False):
@@ -278,6 +307,18 @@ class RuleManager(ScriptableObject):
 			return None
 		layersIndex = self._layersIndex
 		return max(ruleLayers.values(), key=lambda rule: layersIndex.get(rule.layer, -1))
+
+	def reportRuleError(self, rule: "Rule", message: str, exc_info: bool = False) -> None:
+		"""Log, once per WebModule load, an error preventing a rule from being evaluated."""
+		key = (rule.layer, rule.name)
+		if key in self._reportedRuleErrors:
+			return
+		self._reportedRuleErrors.add(key)
+		msg = f"WebModule {self.webModule.name!r}, rule {rule.name!r} ({rule.layer}): {message}"
+		if exc_info:
+			log.exception(msg)
+		else:
+			log.warning(msg)
 
 	def reportMissingReference(self, rule: "Rule", field: str, name: str) -> None:
 		"""Log, once per WebModule load, a reference to a missing rule."""
@@ -1756,6 +1797,9 @@ class Rule(ScriptableObject):
 		self.layer = None
 		self._ruleManager = weakref.ref(ruleManager)
 		self._results = None
+		self._computingResults = False
+		self.inReferenceCycle = False
+		"""Whether this rule refers to itself, directly or not (see `RuleManager._updateReferenceCycles`)."""
 		self.properties = RuleProperties(self)
 		self.load(data)
 
@@ -1849,7 +1893,24 @@ class Rule(ScriptableObject):
 
 	def getResults(self):
 		if self._results is None:
-			self._results = self._getResults()
+			if self.inReferenceCycle:
+				# Reported upon load
+				self._results = []
+			elif self._computingResults:
+				# This rule refers to itself, directly or not, through context criteria (#13).
+				# Should have been detected upon load: Defensive guard against endless recursion.
+				self.ruleManager.reportRuleError(self, "Reference cycle, considered as not matched")
+				return []
+			else:
+				self._computingResults = True
+				try:
+					self._results = self._getResults()
+				except Exception:
+					# Do not prevent the other rules from being evaluated
+					self.ruleManager.reportRuleError(self, "Error while evaluating", exc_info=True)
+					self._results = []
+				finally:
+					self._computingResults = False
 		return self._results
 
 	def _getResults(self):
