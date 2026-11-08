@@ -223,8 +223,8 @@ rule editor, sets how the alternatives combine:
 
 #### Keyboard shortcuts
 
-1. Switch to the "Actions" category.
-2. Choose "Add..." button (or `ALT+A`).
+1. Switch to the "Input Gestures" category.
+2. Choose "New..." button (or `ALT+N`).
 3. Press the keyboard shorcut you want to assign.
 4. Pair an action. The available actions are:
 
@@ -291,8 +291,8 @@ By default, it is checked when a rule is created for an edit field.
 
 This checkbox sets whether the name of the rule should be anounced when
 activated.
-It is checked by default and can be unchecked to avoid making a double announce
-when the rule name and the text of the element are alike.
+It is unchecked by default, which avoids making a double announce when the rule
+name and the text of the element are alike.
   
 
 #### Skip with Page Down
@@ -313,6 +313,40 @@ a profile embedded in the web module:
 As other properties, it can be set for a given alternative only, which allows
 to activate a profile depending on the context page type, title or parent
 element of this alternative.
+
+
+#### Overriding properties and shortcuts for an alternative
+
+When a rule has several alternative sets of criteria, each alternative can
+define its own properties and keyboard shortcuts, overriding those of the rule
+for the elements it matches.
+
+In the criteria set editor, switch to the full mode (`F12`, or the "Properties
+and shortcuts specific to this criteria set" button) to reach the "Input
+Gestures" and "Properties" categories.
+
+Properties:
+
+ - Only the properties listed in the "Properties" category are overridden,
+   the other ones are inherited from the rule.
+ - Choose "New" (`ALT+N`) to override a property. Its initial value differs from
+   the value of the rule: The opposite for a checkbox, "No action" or "None" if
+   the rule defines an automatic action or a transform, an empty text if the
+   rule defines a custom name or message.
+   Hence, an alternative can cancel an automatic action defined on the rule.
+ - An override keeps applying even if its value equals that of the rule, so
+   that it is not affected by later changes on the rule.
+ - Choose "Delete" (or press `DELETE` on the list) to inherit again the value
+   of the rule.
+
+Keyboard shortcuts:
+
+ - The shortcuts of the rule are listed as "inherited from the rule".
+ - A shortcut defined on the alternative adds to those of the rule, or replaces
+   the one of the rule for the same key combination.
+ - "Disable" disables a shortcut of the rule for this alternative: The key
+   combination then reaches the web page as if it was not assigned.
+   "Restore" enables it again.
 
 
 
