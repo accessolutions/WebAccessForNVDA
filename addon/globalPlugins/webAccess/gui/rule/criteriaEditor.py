@@ -65,7 +65,7 @@ from .. import (
 )
 from . import createMissingSubModule
 from .abc import RuleAwarePanelBase
-from .gestures import GesturesPanelBase
+from .gestures import GesturesPanelBase, getGesturesSummary
 from .properties import Properties, PropertiesPanelBase, Property
 
 from collections.abc import Mapping, Sequence
@@ -252,6 +252,23 @@ def getSummary(context, data, indent="", condensed=False) -> str:
 	parts.extend(getSummary_selector_full(
 		data.get("selector", {}), condensed=condensed
 	))
+	
+	# Gestures: Only those specific to this alternative, not those inherited from the rule
+	ruleData = context.get("data", {}).get("rule", {})
+	if ruleData.get("type") in ruleTypes.ACTION_TYPES:
+		subParts = [
+			("  " if not condensed else "") + label
+			for label in getGesturesSummary(
+				context, data.get("gestures", {}), ruleData.get("gestures", {})
+			)
+		]
+		if subParts:
+			# Translators: The label for a section on the Criteria Summary report
+			parts.append(_("{section}:").format(section=GesturesPanel.title))
+			if condensed:
+				parts.append(", ".join(subParts))
+			else:
+				parts.extend(subParts)
 	
 	# Properties
 	subParts = []

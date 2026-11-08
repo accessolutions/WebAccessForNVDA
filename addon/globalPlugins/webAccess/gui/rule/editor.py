@@ -73,7 +73,7 @@ from .. import (
 )
 from . import criteriaEditor, gestureBinding, saveRule
 from .abc import RuleAwarePanelBase
-from .gestures import GesturesPanelBase
+from .gestures import GesturesPanelBase, getGesturesSummary
 from .properties import (
 	EditorType,
 	Property,
@@ -114,6 +114,17 @@ def getSummary(context, data):
 		stripAccel(SHARED_LABELS["type"]),
 		ruleTypes.ruleTypeLabels.get(ruleType, "")
 	))
+
+	# Gestures
+	if ruleType in ruleTypes.ACTION_TYPES:
+		subParts = [
+			"  " + label
+			for label in getGesturesSummary(context, data.get("gestures", {}))
+		]
+		if subParts:
+			# Translators: The label for a section on the Rule Summary report
+			parts.append(_("{section}:").format(section=GesturesPanel.title))
+			parts.extend(subParts)
 
 	# Properties
 	subParts = []
