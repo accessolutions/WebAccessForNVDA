@@ -523,12 +523,24 @@ class RuleManager(ScriptableObject):
 			# modules that were already loaded on the last update.
 			self.subModules._results.clear()
 			
-			for rule in (rule for rule in self.getRules() if rule.properties.subModule):
+			# The sub-module to load is determined by each Result, as it can be
+			# defined or cancelled by the alternative (Criteria) that matched.
+			# Rules that may load a sub-module are processed first, so that the
+			# content of sub-modules is excluded from the subsequent searches.
+			def mayLoadSubModule(rule):
+				return bool(rule.properties.subModule) or any(
+					crit.properties.subModule for crit in rule.criteria
+				)
+
+			subModuleRules = [rule for rule in self.getRules() if mayLoadSubModule(rule)]
+			for rule in subModuleRules:
 				results = rule.getResults()
 				self._results.extend(results)
-				self.subModules._results.extend(results)
+				self.subModules._results.extend(
+					result for result in results if result.properties.subModule
+				)
 			for rule in sorted(
-				(rule for rule in self.getRules() if not rule.properties.subModule),
+				(rule for rule in self.getRules() if rule not in subModuleRules),
 				key=lambda rule: (
 					0 if rule.type in (
 						ruleTypes.PAGE_TITLE_1, ruleTypes.PAGE_TITLE_2
