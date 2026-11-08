@@ -256,8 +256,13 @@ def normalizeRuleData(data: dict[str, Any]) -> None:
 			container.pop("gestures", None)
 			return
 		if not allowDisabled:
-			# Disabling a gesture (`None`) is meaningful only at Criteria level
-			gestures = {k: v for k, v in container["gestures"].items() if v is not None}
+			# Disabling a gesture (`None` or the "unavailable" action) is meaningful
+			# only at Criteria level
+			from .gestureBindings import isUnavailableBinding
+			gestures = {
+				k: v for k, v in container["gestures"].items()
+				if v is not None and not isUnavailableBinding(v)
+			}
 			if gestures:
 				container["gestures"] = gestures
 			else:

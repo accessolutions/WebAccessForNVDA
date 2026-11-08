@@ -42,6 +42,7 @@ import queueHandler
 import ui
 
 from ...ruleHandler import Criteria, GestureScope, Rule, Result, Selector, Zone, ruleTypes
+from ...ruleHandler.gestureBindings import getActionLabel
 from ...ruleHandler.references import iterReferences
 from ...utils import getCharFromKeyEvent, guarded
 from ...webModuleHandler import getEditableWebModule, save
@@ -171,7 +172,7 @@ def iterRulesByGesture(ruleManager, filter=None, active=False):
 				label=(
 					"{rule} - {action}".format(
 						rule=label,
-						action=actions.get(action, f"*{action}")
+						action=getActionLabel(actions, action)
 					)
 					if action != "moveto"
 					else label

@@ -179,6 +179,23 @@ class TestDisabledGestures(unittest.TestCase):
 		self.assertNotIn("gestures", data)
 
 
+class TestUnavailableGestures(unittest.TestCase):
+	
+	def test_keptAtCriteriaLevel(self):
+		data = makeData(ruleTypes.MARKER, None, None, gestures={"kb:a": ["normal", "moveto"]})
+		data["criteria"][0]["gestures"] = {"kb:a": ["normal", "unavailable"]}
+		normalizeRuleData(data)
+		self.assertEqual(data["criteria"][0]["gestures"], {"kb:a": ["normal", "unavailable"]})
+	
+	def test_droppedAtRuleLevel(self):
+		data = makeData(
+			ruleTypes.MARKER, None, None,
+			gestures={"kb:a": ["normal", "unavailable"], "kb:b": ["normal", "moveto"]},
+		)
+		normalizeRuleData(data)
+		self.assertEqual(data["gestures"], {"kb:b": ["normal", "moveto"]})
+
+
 class TestLoadTolerance(unittest.TestCase):
 	
 	def test_nullTextPropertyLoadsAsEmpty(self):

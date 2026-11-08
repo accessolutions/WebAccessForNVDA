@@ -26,22 +26,56 @@ Serialized form, both at Rule and Criteria level:
 	"gestures": {
 		"kb:control+shift+a": ["normal", "moveto"],  # Binding
 		"kb:control+shift+b": null,                  # Criteria level only: Disabled
+		"kb:control+shift+c": ["normal", "unavailable"],  # Criteria level only: Disabled, announced
 	}
 
-At Criteria level, a binding adds or replaces a Rule level binding, while `null`
-disables the Rule level binding for this alternative: The gesture then reaches the
-browser as if it were not bound.
+At Criteria level, a binding adds or replaces a Rule level binding, while a Rule level
+binding can be disabled for this alternative either:
+ - with `null`: The gesture then reaches the browser as if it were not bound.
+ - with a binding to the `UNAVAILABLE_ACTION` action: The gesture is consumed and
+   announced as unavailable here.
 
-This module does not depend on NVDA, so that it can be unit tested.
+This module does not depend on NVDA (apart from translations), so that it can be
+unit tested.
 """
 
 
 from typing import Any, Callable, TypeVar
 
+import addonHandler
+
 from collections.abc import Iterable, Mapping
 
 
+addonHandler.initTranslation()
+
+
 T = TypeVar("T")
+
+
+UNAVAILABLE_ACTION = "unavailable"
+"""Built-in action announcing that a gesture is not available for the matched alternative.
+
+Meant to disable a Rule level binding on an alternative, while letting the user know.
+Not offered in the actions lists, as it is meaningless elsewhere.
+"""
+
+# Translators: The name of the action announcing a disabled gesture is unavailable
+UNAVAILABLE_ACTION_LABEL = pgettext("webAccess.action", "Announce as unavailable")
+
+
+def getActionLabel(actions: Mapping[str, str], action: str) -> str:
+	"""The display label of an action, `actions` being the available actions labels."""
+	if action in actions:
+		return actions[action]
+	if action == UNAVAILABLE_ACTION:
+		return UNAVAILABLE_ACTION_LABEL
+	return f"*{action}"
+
+
+def isUnavailableBinding(binding: Any) -> bool:
+	"""Whether the given serialized or loaded binding announces the gesture as unavailable."""
+	return binding is not None and binding[1] == UNAVAILABLE_ACTION
 
 
 def splitGestures(

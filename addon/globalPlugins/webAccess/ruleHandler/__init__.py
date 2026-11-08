@@ -1462,6 +1462,11 @@ class Result(ScriptableObject):
 		else:
 			self.script_moveto(None, fromSpeak=True)
 	
+	def script_unavailable(self, gesture):
+		# Bound on an alternative to disable a Rule level gesture binding (see `gestureBindings`)
+		# Translators: Announced when pressing a gesture disabled for the matched alternative
+		ui.message(_("{rule}: Not available here").format(rule=self.label))
+
 	def script_mouseMove(self, gesture):
 		rule = self.rule
 		if not rule.ruleManager.checkReady():

@@ -39,6 +39,7 @@ import gui
 from gui import guiHelper
 
 from ...ruleHandler import GestureScope, ruleTypes
+from ...ruleHandler.gestureBindings import UNAVAILABLE_ACTION, getActionLabel, isUnavailableBinding
 from ...utils import guarded, translate
 from .. import ContextualSettingsPanel, Change
 from . import gestureBinding
@@ -58,7 +59,9 @@ class BindingKind(Enum):
 	OVERRIDE = auto()
 	"""Defined at this level, replacing an inherited binding (Criteria level only)."""
 	DISABLED = auto()
-	"""Inherited binding disabled at this level (Criteria level only)."""
+	"""Inherited binding disabled at this level, the gesture reaching the page (Criteria level only)."""
+	UNAVAILABLE = auto()
+	"""Inherited binding disabled at this level, announced as unavailable (Criteria level only)."""
 	INHERITED = auto()
 	"""Inherited binding, applying as is (Criteria level only)."""
 
@@ -69,7 +72,8 @@ def iterBindingEntries(
 ):
 	"""Yield `(gestureId, kind, (scope, action))` for each binding, sorted by gesture.
 
-	`own`: The bindings defined at the edited level, `None` disabling an inherited one.
+	`own`: The bindings defined at the edited level, `None` or the "unavailable" action
+	disabling an inherited one.
 	`inherited`: The bindings inherited by the edited level (empty at Rule level).
 	The identifiers of the inherited bindings are matched once normalized.
 	"""
@@ -82,6 +86,8 @@ def iterBindingEntries(
 			entries[id] = (BindingKind.INHERITED, binding)
 		elif own[ownId] is None:
 			entries[ownId] = (BindingKind.DISABLED, binding)
+		elif isUnavailableBinding(own[ownId]):
+			entries[ownId] = (BindingKind.UNAVAILABLE, own[ownId])
 		else:
 			entries[ownId] = (BindingKind.OVERRIDE, own[ownId])
 	for id, binding in own.items():
@@ -90,6 +96,8 @@ def iterBindingEntries(
 		if binding is None:
 			# Disabling a binding the rule no longer defines: Listed so that it can be removed
 			entries[id] = (BindingKind.DISABLED, (GestureScope.NORMAL.value, None))
+		elif isUnavailableBinding(binding):
+			entries[id] = (BindingKind.UNAVAILABLE, binding)
 		else:
 			entries[id] = (BindingKind.OWN, binding)
 	for id in sorted(entries):
@@ -107,8 +115,13 @@ def getBindingLabel(
 	source, main = inputCore.getDisplayTextForGestureIdentifier(gestureIdentifier)
 	if kind is BindingKind.DISABLED:
 		# Translators: A disabled gesture binding on the Criteria editor
-		return _("{gesture}: Disabled for this criteria set").format(gesture=main)
-	actionDName = actions.get(action, f"*{action}")
+		return _("{gesture}: Disabled for this criteria set, reaches the page").format(gesture=main)
+	if kind is BindingKind.UNAVAILABLE:
+		# Translators: A disabled gesture binding on the Criteria editor
+		return _("{gesture}: Disabled for this criteria set, announced as unavailable").format(
+			gesture=main
+		)
+	actionDName = getActionLabel(actions, action)
 	# Translators: A gesture binding on the editor dialogs
 	label = _("{gesture}: {action}").format(gesture=main, action=actionDName)
 	if scope != GestureScope.NORMAL.value:
@@ -267,13 +280,41 @@ class GesturesPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
 		del data["gestureBinding"]
 		del data["gestures"]
 	
+	def promptDisableMode(self) -> bool | None:
+		"""Ask how to disable an inherited binding.
+
+		Returns `True` to announce the gesture as unavailable, `False` to let it reach
+		the page, `None` if cancelled.
+		"""
+		menu = wx.Menu()
+		# Translators: A choice when disabling a rule gesture on the Criteria editor
+		passItem = menu.Append(wx.ID_ANY, _("Let the key reach the page"))
+		# Translators: A choice when disabling a rule gesture on the Criteria editor
+		announceItem = menu.Append(wx.ID_ANY, _("Announce the shortcut is not available here"))
+		try:
+			menuId = self.GetPopupMenuSelectionFromUser(menu)
+		finally:
+			menu.Destroy()
+		if menuId == passItem.Id:
+			return False
+		elif menuId == announceItem.Id:
+			return True
+		return None
+
 	@guarded
 	def onDeleteGesture(self, evt):
 		index = self.gesturesListBox.Selection
 		id, kind = self.gesturesListBox.GetClientData(index)
 		if kind is BindingKind.INHERITED:
 			# Disable the inherited binding at this level
-			self.gesturesMap[id] = None
+			announce = self.promptDisableMode()
+			if announce is None:
+				return
+			if announce:
+				scope = self.getInheritedGestures()[id][0]
+				self.gesturesMap[id] = (scope, UNAVAILABLE_ACTION)
+			else:
+				self.gesturesMap[id] = None
 		else:
 			# Remove the binding defined at this level, or re-enable the inherited one
 			del self.gesturesMap[id]
@@ -285,9 +326,14 @@ class GesturesPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
 		id, kind = self.gesturesListBox.GetClientData(self.gesturesListBox.Selection)
 		data = context["data"]
 		gestures = data["gestures"] = self.gesturesMap
-		if kind in (BindingKind.INHERITED, BindingKind.DISABLED):
+		if kind in (BindingKind.INHERITED, BindingKind.DISABLED, BindingKind.UNAVAILABLE):
 			# Editing creates a binding at this level, replacing the inherited one
-			scope, action = self.getInheritedGestures()[id]
+			inherited = self.getInheritedGestures().get(id)
+			if inherited:
+				scope, action = inherited
+			else:
+				# Disabling a binding the rule no longer defines
+				scope, action = (gestures.get(id) or (GestureScope.NORMAL.value,))[0], None
 		else:
 			scope, action = gestures[id]
 		data["gestureBinding"] = {
@@ -333,7 +379,7 @@ class GesturesPanelBase(RuleAwarePanelBase, metaclass=guiHelper.SIPABCMeta):
 		if kind is BindingKind.INHERITED:
 			# Translators: The label for a button on the Criteria editor dialog
 			label = _("&Disable")
-		elif kind is BindingKind.DISABLED:
+		elif kind in (BindingKind.DISABLED, BindingKind.UNAVAILABLE):
 			# Translators: The label for a button on the Criteria editor dialog
 			label = _("&Restore")
 		else:

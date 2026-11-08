@@ -25,7 +25,14 @@
 import unittest
 
 from . import ADDON_PACKAGE_DIR  # noqa: F401 (installs the stubs)
-from webAccess.ruleHandler.gestureBindings import getEffectiveGestures, joinGestures, splitGestures
+from webAccess.ruleHandler.gestureBindings import (
+	UNAVAILABLE_ACTION,
+	getActionLabel,
+	getEffectiveGestures,
+	isUnavailableBinding,
+	joinGestures,
+	splitGestures,
+)
 
 
 def normalize(gestureId):
@@ -101,6 +108,32 @@ class TestSerialization(unittest.TestCase):
 			list(joinGestures({"kb:b": ("normal", "x")}, {"kb:a"})),
 			["kb:a", "kb:b"],
 		)
+
+
+class TestUnavailable(unittest.TestCase):
+	
+	def test_replacesRuleBinding(self):
+		eff = getEffectiveGestures(RULE, {"kb:control+a": ("normal", UNAVAILABLE_ACTION)})
+		self.assertEqual(eff["kb:control+a"], ("normal", UNAVAILABLE_ACTION))
+	
+	def test_isUnavailableBinding(self):
+		self.assertTrue(isUnavailableBinding(["normal", UNAVAILABLE_ACTION]))
+		self.assertTrue(isUnavailableBinding(("local", UNAVAILABLE_ACTION)))
+		self.assertFalse(isUnavailableBinding(["normal", "moveto"]))
+		self.assertFalse(isUnavailableBinding(None))
+	
+	def test_roundTrip(self):
+		data = {"kb:control+a": ["normal", UNAVAILABLE_ACTION], "kb:control+b": None}
+		bindings, disabled = splitGestures(data)
+		self.assertEqual(bindings, {"kb:control+a": ["normal", UNAVAILABLE_ACTION]})
+		self.assertEqual(disabled, {"kb:control+b"})
+		self.assertEqual(joinGestures(bindings, disabled), data)
+	
+	def test_actionLabel(self):
+		actions = {"moveto": "Move to"}
+		self.assertEqual(getActionLabel(actions, "moveto"), "Move to")
+		self.assertEqual(getActionLabel(actions, UNAVAILABLE_ACTION), "Announce as unavailable")
+		self.assertEqual(getActionLabel(actions, "custom"), "*custom")
 
 
 if __name__ == "__main__":

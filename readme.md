@@ -344,8 +344,9 @@ Keyboard shortcuts:
  - The shortcuts of the rule are listed as "inherited from the rule".
  - A shortcut defined on the alternative adds to those of the rule, or replaces
    the one of the rule for the same key combination.
- - "Disable" disables a shortcut of the rule for this alternative: The key
-   combination then reaches the web page as if it was not assigned.
+ - "Disable" disables a shortcut of the rule for this alternative, choosing
+   either to let the key combination reach the web page as if it was not
+   assigned, or to announce that the shortcut is not available here.
    "Restore" enables it again.
 
 
