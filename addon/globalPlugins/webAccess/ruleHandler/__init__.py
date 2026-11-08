@@ -266,7 +266,11 @@ class RuleManager(ScriptableObject):
 
 	def removeRule(self, rule):
 		self.removeResults(rule)
-		self._rules.pop(rule.name, None)
+		# Only from its own layer: A homonym in another layer remains
+		ruleLayers = self._rules.get(rule.name, {})
+		ruleLayers.pop(rule.layer, None)
+		if not ruleLayers:
+			self._rules.pop(rule.name, None)
 		self._layers[rule.layer].pop(rule.name, None)
 		self._updateReferenceCycles()
 
