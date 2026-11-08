@@ -31,6 +31,7 @@ from webAccess.ruleHandler.references import (
 	buildDependencyGraph,
 	findCaseInsensitiveHomonyms,
 	findCyclePath,
+	findCyclePathIfSaved,
 	findCycles,
 	findDanglingReferences,
 	formatContextExpression,
@@ -183,6 +184,34 @@ class TestCycles(unittest.TestCase):
 	def test_cyclePathShortest(self):
 		graph = {"A": {"B", "C"}, "B": {"D"}, "D": {"A"}, "C": {"A"}}
 		self.assertEqual(findCyclePath(graph, "A"), ["A", "C", "A"])
+
+
+class TestCyclePathIfSaved(unittest.TestCase):
+	
+	RULES = {
+		"A": rule({"contextParent": "B"}),
+		"B": rule({}),
+	}
+	
+	def test_newCycle(self):
+		self.assertEqual(
+			findCyclePathIfSaved(self.RULES, "B", rule({"contextPageType": "A"})),
+			["B", "A", "B"],
+		)
+	
+	def test_selfReference(self):
+		self.assertEqual(findCyclePathIfSaved(self.RULES, "C", rule({"contextParent": "C"})), ["C", "C"])
+	
+	def test_noCycle(self):
+		self.assertIsNone(findCyclePathIfSaved(self.RULES, "C", rule({"contextParent": "A"})))
+	
+	def test_renamedRuleNoLongerReferred(self):
+		# "B" renamed "Z": "A" still refers to "B", hence no cycle
+		self.assertIsNone(findCyclePathIfSaved(self.RULES, "Z", rule({"contextParent": "A"}), oldName="B"))
+		self.assertEqual(
+			findCyclePathIfSaved(self.RULES, "B", rule({"contextParent": "A"}), oldName="B"),
+			["B", "A", "B"],
+		)
 
 
 class TestNames(unittest.TestCase):

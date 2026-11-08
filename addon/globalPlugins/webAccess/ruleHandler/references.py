@@ -281,6 +281,25 @@ def findCyclePath(
 	return None
 
 
+def findCyclePathIfSaved(
+	rulesData: Mapping[str, Mapping[str, Any]],
+	name: str,
+	ruleData: Mapping[str, Any],
+	oldName: str | None = None,
+) -> list[str] | None:
+	"""The reference cycle the given rule would take part in once saved, or `None`.
+	
+	`rulesData` maps the names of the existing rules to their serialized data.
+	`name` and `ruleData` are those of the rule being saved, `oldName` its name before
+	being renamed, if any.
+	"""
+	rulesData = dict(rulesData)
+	if oldName is not None:
+		rulesData.pop(oldName, None)
+	rulesData[name] = ruleData
+	return findCyclePath(buildDependencyGraph(rulesData), name)
+
+
 RULE_NAME_FORBIDDEN = ("&", "|")
 """Characters not allowed in rule names, as they are context expression operators."""
 
