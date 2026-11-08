@@ -1,0 +1,626 @@
+# globalPlugins/webAccess/cssSelectors.py
+# -*- coding: utf-8 -*-
+
+# This file is part of Web Access for NVDA.
+# Copyright (C) 2015-2026 Accessolutions (https://accessolutions.fr)
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# See the file COPYING.txt at the root of this distribution for more details.
+
+"""CSS selectors, matched against the nodes of the NVDA virtual buffer.
+
+Supported syntax (a subset of Selectors Level 4):
+
+ - Selector lists: `A, B`
+ - Combinators: descendant (`A B`), child (`A > B`), next sibling (`A + B`),
+   subsequent sibling (`A ~ B`)
+ - Type and universal selectors: `li`, `*` (case-insensitive)
+ - ID and class selectors: `#main`, `.item` (case-sensitive)
+ - Attribute selectors: `[attr]`, `[attr=value]`, `[attr~=value]`, `[attr|=value]`,
+   `[attr^=value]`, `[attr$=value]`, `[attr*=value]`, with an optional `i` (case-insensitive)
+   or `s` (case-sensitive, default) flag. Values are identifiers or quoted strings.
+ - Structural pseudo-classes: `:root`, `:empty`, `:first-child`, `:last-child`,
+   `:only-child`, `:first-of-type`, `:last-of-type`, `:only-of-type`,
+   `:nth-child(An+B)`, `:nth-last-child(An+B)`, `:nth-of-type(An+B)`,
+   `:nth-last-of-type(An+B)` (also `odd` and `even`)
+ - Logical pseudo-classes: `:not(list)`, `:is(list)`, `:where(list)`, and `:has(relative list)`,
+   eg. `li:has(> a.active)`
+
+Not supported: pseudo-elements, namespaces, and the state pseudo-classes depending on the
+browser (`:hover`, `:checked`…): Use the "States" criterion instead.
+
+As in the browser, the selector is matched against the whole document: Combinators can refer
+to ancestors outside of the searched sub-tree.
+
+Only the elements exposed in the virtual buffer are considered: Elements the browser does
+not expose to assistive technologies (eg. some layout containers) are skipped, which can
+affect structural pseudo-classes and child combinators.
+
+The nodes are accessed through duck typing, so that this module can be unit tested
+without NVDA:
+
+ - Element nodes have a `control` mapping of attributes (as reported by NVDA), and the
+   `tag`, `id` and `className` properties.
+ - Text nodes have a `text` property. Other nodes (formatting) are transparent.
+ - All the nodes have `parent` and `children` properties.
+"""
+
+
+from dataclasses import dataclass, field
+import re
+from typing import Any, Callable
+
+from collections.abc import Iterator, Sequence
+
+
+class CssSyntaxError(ValueError):
+	"""Raised when parsing an invalid or unsupported CSS selector."""
+
+	def __init__(self, message: str, position: int):
+		super().__init__(f"{message} (at position {position + 1})")
+		self.message = message
+		self.position = position
+
+
+# Node access ##############################################################################
+
+
+def isElement(node: Any) -> bool:
+	return hasattr(node, "control")
+
+
+def getElementParent(node: Any) -> Any:
+	parent = node.parent
+	while parent is not None and not isElement(parent):
+		parent = parent.parent
+	return parent
+
+
+def iterElementChildren(node: Any) -> Iterator[Any]:
+	for child in node.children:
+		if isElement(child):
+			yield child
+		elif not hasattr(child, "text"):
+			# Formatting nodes are transparent
+			yield from iterElementChildren(child)
+
+
+def iterElementDescendants(node: Any) -> Iterator[Any]:
+	for child in iterElementChildren(node):
+		yield child
+		yield from iterElementDescendants(child)
+
+
+def getElementSiblings(node: Any) -> list[Any]:
+	parent = getElementParent(node)
+	if parent is None:
+		return [node]
+	return list(iterElementChildren(parent))
+
+
+def getTag(node: Any) -> str | None:
+	tag = getattr(node, "tag", None)
+	return tag.lower() if tag else None
+
+
+def getClasses(node: Any) -> list[str]:
+	className = getattr(node, "className", None)
+	return className.split() if className else []
+
+
+def getAttribute(node: Any, name: str) -> str | None:
+	"""The value of an attribute of an element, `None` if absent.
+
+	`id`, `class` and `src` use the properties normalized by NVDA. Other attributes are
+	looked up among the object attributes reported by the browser (IAccessible2), then
+	among the HTML attributes (MSHTML).
+	"""
+	name = name.lower()
+	if name == "id":
+		return getattr(node, "id", None) or None
+	if name == "class":
+		return getattr(node, "className", None) or None
+	if name == "src":
+		return getattr(node, "src", None) or None
+	if name == "tag":
+		return getTag(node)
+	control = getattr(node, "control", None) or {}
+	for key in (f"IAccessible2::attribute_{name}", f"HTMLAttrib::{name}"):
+		value = control.get(key)
+		if value is not None:
+			return value
+	return None
+
+
+def hasContent(node: Any) -> bool:
+	"""Whether a node has child elements or non-empty text, as opposed to `:empty`."""
+	for child in node.children:
+		if isElement(child):
+			return True
+		if hasattr(child, "text"):
+			if child.text:
+				return True
+		elif hasContent(child):
+			return True
+	return False
+
+
+# Model ####################################################################################
+
+
+@dataclass
+class AttributeTest:
+	name: str
+	operator: str | None = None  # None for presence
+	value: str | None = None
+	caseInsensitive: bool = False
+
+	def matches(self, node: Any) -> bool:
+		actual = getAttribute(node, self.name)
+		if actual is None:
+			return False
+		if self.operator is None:
+			return True
+		value = self.value
+		if self.caseInsensitive:
+			actual, value = actual.lower(), value.lower()
+		op = self.operator
+		if op == "=":
+			return actual == value
+		if op == "~=":
+			return value in actual.split()
+		if op == "|=":
+			return actual == value or actual.startswith(value + "-")
+		if not value:
+			# Per the specification, these never match an empty value
+			return False
+		if op == "^=":
+			return actual.startswith(value)
+		if op == "$=":
+			return actual.endswith(value)
+		if op == "*=":
+			return value in actual
+		raise AssertionError(op)
+
+
+@dataclass
+class Nth:
+	"""An `An+B` expression."""
+	a: int
+	b: int
+
+	def matches(self, position: int) -> bool:
+		"""`position` is 1-based."""
+		if self.a == 0:
+			return position == self.b
+		n, remainder = divmod(position - self.b, self.a)
+		return remainder == 0 and n >= 0
+
+
+@dataclass
+class PseudoClass:
+	name: str
+	nth: Nth | None = None
+	selectors: "SelectorList | None" = None
+	relative: "list[RelativeSelector] | None" = None
+
+	def matches(self, node: Any) -> bool:
+		name = self.name
+		if name == "root":
+			return getElementParent(node) is None
+		if name == "empty":
+			return not hasContent(node)
+		if name in ("not", "is", "where"):
+			matched = self.selectors.matches(node)
+			return not matched if name == "not" else matched
+		if name == "has":
+			return any(relative.matchesFrom(node) for relative in self.relative)
+		siblings = getElementSiblings(node)
+		if name.endswith("of-type"):
+			tag = getTag(node)
+			siblings = [sibling for sibling in siblings if getTag(sibling) == tag]
+		index = next(i for i, sibling in enumerate(siblings) if sibling is node)
+		position, count = index + 1, len(siblings)
+		if name in ("first-child", "first-of-type"):
+			return position == 1
+		if name in ("last-child", "last-of-type"):
+			return position == count
+		if name in ("only-child", "only-of-type"):
+			return count == 1
+		if name in ("nth-child", "nth-of-type"):
+			return self.nth.matches(position)
+		if name in ("nth-last-child", "nth-last-of-type"):
+			return self.nth.matches(count - position + 1)
+		raise AssertionError(name)
+
+
+@dataclass
+class Compound:
+	tag: str | None = None  # None for any (universal or omitted)
+	ids: list[str] = field(default_factory=list)
+	classes: list[str] = field(default_factory=list)
+	attributes: list[AttributeTest] = field(default_factory=list)
+	pseudoClasses: list[PseudoClass] = field(default_factory=list)
+
+	def matches(self, node: Any) -> bool:
+		if not isElement(node):
+			return False
+		if self.tag is not None and getTag(node) != self.tag:
+			return False
+		if self.ids and any(getattr(node, "id", None) != id for id in self.ids):
+			return False
+		if self.classes:
+			classes = getClasses(node)
+			if any(cls not in classes for cls in self.classes):
+				return False
+		return (
+			all(test.matches(node) for test in self.attributes)
+			and all(pseudo.matches(node) for pseudo in self.pseudoClasses)
+		)
+
+
+DESCENDANT, CHILD, NEXT_SIBLING, SUBSEQUENT_SIBLING = " ", ">", "+", "~"
+
+
+def iterRelated(node: Any, combinator: str, forward: bool) -> Iterator[Any]:
+	"""The elements related to `node` by the combinator.
+
+	Forward (`A comb B`, from A): the candidates for B. Backward (from B): the candidates for A.
+	"""
+	if combinator == DESCENDANT:
+		if forward:
+			yield from iterElementDescendants(node)
+		else:
+			parent = getElementParent(node)
+			while parent is not None:
+				yield parent
+				parent = getElementParent(parent)
+	elif combinator == CHILD:
+		if forward:
+			yield from iterElementChildren(node)
+		else:
+			parent = getElementParent(node)
+			if parent is not None:
+				yield parent
+	else:
+		siblings = getElementSiblings(node)
+		index = next(i for i, sibling in enumerate(siblings) if sibling is node)
+		if forward:
+			following = siblings[index + 1:]
+			yield from (following[:1] if combinator == NEXT_SIBLING else following)
+		else:
+			preceding = siblings[:index]
+			yield from (preceding[-1:] if combinator == NEXT_SIBLING else reversed(preceding))
+
+
+@dataclass
+class ComplexSelector:
+	"""`compounds[0] combinators[0] compounds[1] …`"""
+	compounds: list[Compound]
+	combinators: list[str]
+
+	def matches(self, node: Any) -> bool:
+		return self._matchesBackward(node, len(self.compounds) - 1)
+
+	def _matchesBackward(self, node: Any, index: int) -> bool:
+		if not self.compounds[index].matches(node):
+			return False
+		if index == 0:
+			return True
+		combinator = self.combinators[index - 1]
+		return any(
+			self._matchesBackward(candidate, index - 1)
+			for candidate in iterRelated(node, combinator, forward=False)
+		)
+
+
+@dataclass
+class RelativeSelector:
+	"""A selector relative to an anchor element, as in `:has(> a)`."""
+	combinator: str
+	selector: ComplexSelector
+
+	def matchesFrom(self, anchor: Any) -> bool:
+		return self._matchesForward(anchor, self.combinator, 0)
+
+	def _matchesForward(self, node: Any, combinator: str, index: int) -> bool:
+		selector = self.selector
+		for candidate in iterRelated(node, combinator, forward=True):
+			if not selector.compounds[index].matches(candidate):
+				continue
+			if index == len(selector.compounds) - 1:
+				return True
+			if self._matchesForward(candidate, selector.combinators[index], index + 1):
+				return True
+		return False
+
+
+@dataclass
+class SelectorList:
+	selectors: list[ComplexSelector]
+
+	def matches(self, node: Any) -> bool:
+		return any(selector.matches(node) for selector in self.selectors)
+
+
+# Parser ###################################################################################
+
+
+SIMPLE_PSEUDO_CLASSES = {
+	"root", "empty",
+	"first-child", "last-child", "only-child",
+	"first-of-type", "last-of-type", "only-of-type",
+}
+NTH_PSEUDO_CLASSES = {"nth-child", "nth-last-child", "nth-of-type", "nth-last-of-type"}
+LIST_PSEUDO_CLASSES = {"not", "is", "where"}
+ATTRIBUTE_OPERATORS = ("~=", "|=", "^=", "$=", "*=", "=")
+IDENT_START = re.compile(r"[A-Za-z_\u0080-\U0010ffff\\-]")
+NTH_RE = re.compile(r"^(?:(?P<a>[+-]?\d*)n(?P<b>[+-]\d+)?|(?P<int>[+-]?\d+))$")
+
+
+class _Parser:
+
+	def __init__(self, text: str):
+		self.text = text
+		self.pos = 0
+
+	# Low level
+
+	def error(self, message: str, position: int | None = None):
+		raise CssSyntaxError(message, self.pos if position is None else position)
+
+	def peek(self, length: int = 1) -> str:
+		return self.text[self.pos:self.pos + length]
+
+	def atEnd(self) -> bool:
+		return self.pos >= len(self.text)
+
+	def skipSpaces(self) -> bool:
+		start = self.pos
+		while not self.atEnd() and self.text[self.pos] in " \t\r\n\f":
+			self.pos += 1
+		return self.pos > start
+
+	def expect(self, char: str):
+		if self.peek() != char:
+			self.error(f"Expected {char!r}")
+		self.pos += 1
+
+	def readIdent(self) -> str:
+		start = self.pos
+		chars = []
+		while not self.atEnd():
+			char = self.text[self.pos]
+			if char == "\\":
+				if self.pos + 1 >= len(self.text):
+					self.error("Incomplete escape sequence")
+				chars.append(self.text[self.pos + 1])
+				self.pos += 2
+			elif char.isalnum() or char in "-_" or ord(char) >= 0x80:
+				chars.append(char)
+				self.pos += 1
+			else:
+				break
+		ident = "".join(chars)
+		if not ident or ident == "-" or (ident[0].isdigit() and self.text[start] != "\\"):
+			self.error("Expected an identifier", start)
+		return ident
+
+	def readString(self) -> str:
+		quote = self.peek()
+		self.pos += 1
+		chars = []
+		while True:
+			if self.atEnd():
+				self.error("Unterminated string")
+			char = self.text[self.pos]
+			if char == "\\" and self.pos + 1 < len(self.text):
+				chars.append(self.text[self.pos + 1])
+				self.pos += 2
+			elif char == quote:
+				self.pos += 1
+				return "".join(chars)
+			else:
+				chars.append(char)
+				self.pos += 1
+
+	# Grammar
+
+	def parseSelectorList(self, nested: bool = False) -> SelectorList:
+		selectors = [self.parseComplex()]
+		while True:
+			self.skipSpaces()
+			if self.peek() == ",":
+				self.pos += 1
+				selectors.append(self.parseComplex())
+			elif nested and self.peek() == ")":
+				return SelectorList(selectors)
+			elif self.atEnd():
+				if nested:
+					self.error("Expected ')'")
+				return SelectorList(selectors)
+			else:
+				self.error(f"Unexpected {self.peek()!r}")
+
+	def parseRelativeList(self) -> list[RelativeSelector]:
+		relatives = []
+		while True:
+			self.skipSpaces()
+			combinator = DESCENDANT
+			if self.peek() in (CHILD, NEXT_SIBLING, SUBSEQUENT_SIBLING):
+				combinator = self.peek()
+				self.pos += 1
+			relatives.append(RelativeSelector(combinator, self.parseComplex()))
+			self.skipSpaces()
+			if self.peek() == ",":
+				self.pos += 1
+				continue
+			if self.peek() == ")":
+				return relatives
+			self.error("Expected ')'")
+
+	def parseComplex(self) -> ComplexSelector:
+		self.skipSpaces()
+		compounds = [self.parseCompound()]
+		combinators = []
+		while True:
+			hadSpaces = self.skipSpaces()
+			char = self.peek()
+			if char in (CHILD, NEXT_SIBLING, SUBSEQUENT_SIBLING):
+				self.pos += 1
+				self.skipSpaces()
+				combinators.append(char)
+				compounds.append(self.parseCompound())
+			elif hadSpaces and char and char not in ",)":
+				combinators.append(DESCENDANT)
+				compounds.append(self.parseCompound())
+			else:
+				return ComplexSelector(compounds, combinators)
+
+	def parseCompound(self) -> Compound:
+		start = self.pos
+		compound = Compound()
+		if self.peek() == "*":
+			self.pos += 1
+		elif not self.atEnd() and IDENT_START.match(self.peek()):
+			compound.tag = self.readIdent().lower()
+		while not self.atEnd():
+			char = self.peek()
+			if char == "#":
+				self.pos += 1
+				compound.ids.append(self.readIdent())
+			elif char == ".":
+				self.pos += 1
+				compound.classes.append(self.readIdent())
+			elif char == "[":
+				compound.attributes.append(self.parseAttribute())
+			elif char == ":":
+				compound.pseudoClasses.append(self.parsePseudo())
+			elif char == "|":
+				self.error("Namespaces are not supported")
+			else:
+				break
+		if self.pos == start:
+			if self.atEnd():
+				self.error("Expected a selector")
+			self.error(f"Unexpected {self.peek()!r}")
+		return compound
+
+	def parseAttribute(self) -> AttributeTest:
+		self.expect("[")
+		self.skipSpaces()
+		name = self.readIdent()
+		self.skipSpaces()
+		if self.peek() == "]":
+			self.pos += 1
+			return AttributeTest(name)
+		for operator in ATTRIBUTE_OPERATORS:
+			if self.peek(len(operator)) == operator:
+				self.pos += len(operator)
+				break
+		else:
+			self.error("Expected an attribute operator or ']'")
+		self.skipSpaces()
+		if self.peek() in ("'", '"'):
+			value = self.readString()
+		else:
+			value = self.readIdent()
+		self.skipSpaces()
+		caseInsensitive = False
+		if self.peek().lower() in ("i", "s") and self.peek(2)[1:] in ("", " ", "]"):
+			caseInsensitive = self.peek().lower() == "i"
+			self.pos += 1
+			self.skipSpaces()
+		self.expect("]")
+		return AttributeTest(name, operator, value, caseInsensitive)
+
+	def parsePseudo(self) -> PseudoClass:
+		start = self.pos
+		self.expect(":")
+		if self.peek() == ":":
+			self.error("Pseudo-elements are not supported", start)
+		name = self.readIdent().lower()
+		if name in SIMPLE_PSEUDO_CLASSES:
+			return PseudoClass(name)
+		if name in NTH_PSEUDO_CLASSES | LIST_PSEUDO_CLASSES | {"has"}:
+			self.expect("(")
+			self.skipSpaces()
+			if name in NTH_PSEUDO_CLASSES:
+				argStart = self.pos
+				end = self.text.find(")", self.pos)
+				if end < 0:
+					self.error("Expected ')'")
+				nth = parseNth(self.text[self.pos:end], argStart)
+				self.pos = end + 1
+				return PseudoClass(name, nth=nth)
+			if name == "has":
+				relative = self.parseRelativeList()
+				self.expect(")")
+				return PseudoClass(name, relative=relative)
+			selectors = self.parseSelectorList(nested=True)
+			self.expect(")")
+			return PseudoClass(name, selectors=selectors)
+		self.error(f"Unsupported pseudo-class ':{name}'", start)
+
+
+def parseNth(text: str, position: int = 0) -> Nth:
+	"""Parse an `An+B` expression, `odd` or `even`."""
+	expr = "".join(text.split()).lower()
+	if expr == "odd":
+		return Nth(2, 1)
+	if expr == "even":
+		return Nth(2, 0)
+	match = NTH_RE.match(expr)
+	if not match:
+		raise CssSyntaxError("Invalid An+B expression", position)
+	if match.group("int") is not None:
+		return Nth(0, int(match.group("int")))
+	a = match.group("a")
+	a = 1 if a in ("", "+") else -1 if a == "-" else int(a)
+	b = int(match.group("b") or 0)
+	return Nth(a, b)
+
+
+@dataclass
+class CompiledSelector:
+	"""A parsed CSS selector, callable on a node to tell whether it matches."""
+	text: str
+	selectorList: SelectorList
+
+	def __call__(self, node: Any) -> bool:
+		return self.matches(node)
+
+	def matches(self, node: Any) -> bool:
+		return isElement(node) and self.selectorList.matches(node)
+
+
+def compileSelector(text: str) -> CompiledSelector:
+	"""Parse a CSS selector. Raises `CssSyntaxError` if invalid or unsupported."""
+	if not text or not text.strip():
+		raise CssSyntaxError("Empty selector", 0)
+	return CompiledSelector(text, _Parser(text).parseSelectorList())
+
+
+_cache: dict[str, CompiledSelector] = {}
+
+
+def getCompiledSelector(text: str) -> CompiledSelector:
+	"""Like `compileSelector`, with a cache, as selectors are matched upon each update."""
+	compiled = _cache.get(text)
+	if compiled is None:
+		if len(_cache) > 500:
+			_cache.clear()
+		compiled = _cache[text] = compileSelector(text)
+	return compiled
