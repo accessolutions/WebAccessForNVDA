@@ -336,12 +336,11 @@ def isDualNode(data):
 
 
 def supportsSimpleMode(data):
-	if any(
-		k in ("gestures", "properties")
-		for k in data.keys()
-	):
-		return False
-	return True
+	"""Whether the given alternative (Criteria) has no gestures nor properties overrides.
+	
+	The simple mode of the Criteria editor does not offer to edit them.
+	"""
+	return not (data.get("gestures") or data.get("properties"))
 
 
 def convertToDualNode(data):
@@ -458,6 +457,21 @@ class GeneralPanel(CriteriaEditorPanel):
 		items.append(item)
 		for item in items:
 			item.Show(False)
+		
+		if getattr(self.Parent.Parent, "simpleMode", False):
+			# In simple mode, the Gestures and Properties panels are not available:
+			# Offer a way to reach them, as the F12 shortcut is not discoverable.
+			row += 1
+			gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+			
+			row += 1
+			item = wx.Button(
+				self,
+				# Translators: The label for a button in the Criteria Editor dialog
+				label=_("&Properties and shortcuts specific to this criteria set... (F12)"),
+			)
+			item.Bind(wx.EVT_BUTTON, lambda evt: self.Parent.Parent.switchToFullEditor())
+			gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
 
 		gbSizer.AddGrowableCol(2)
 	
