@@ -1336,16 +1336,20 @@ class PropertiesPanel(PropertiesPanelBase, CriteriaEditorPanel):
 			self.addPropBtn.SetFocus()
 	
 	def prop_reset(self):
-		# Using Property.reset would actually remove the overridden property from the list.
-		# Manually reset to its default instead.
-		# Note default values are dropped upon saving anyways.
+		# On this panel, resetting a property means no longer overriding it,
+		# just like the "Delete" button.
 		prop = self.prop
-		prop.value = prop.default
-		self.updateEditor()
-		self.onEditor_change()
+		self.onDelPropBtn(None)
+		if self.props:
+			self.listCtrl.SetFocus()
 		speech.cancelSpeech()  # Avoid announcing the whole eventual control refresh
-		# Translators: Announced when resetting a property to its default value in the editor
-		ui.message(_("Reset to {value}").format(value=self.prop.displayValue))
+		ui.message(
+			# Translators: Announced when removing a property override in the Criteria editor
+			_("{property}: Inherited from the rule ({value})").format(
+				property=prop.displayName,
+				value=prop.displayValue,
+			)
+		)
 
 
 class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
