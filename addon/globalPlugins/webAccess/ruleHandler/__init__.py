@@ -68,6 +68,7 @@ from ..webAppLib import (
 )
 from .. import webAppScheduler
 from . import ruleTypes
+from .references import parseContextExpression
 from .controlMutation import MUTATIONS, MutatedControl, getMutationId
 from .properties import RuleProperties, CriteriaProperties
 
@@ -128,6 +129,8 @@ class RuleManager(ScriptableObject):
 		self._layers = {}
 		self._layersIndex = {}
 		self._rules = {}
+		self._reportedMissingReferences: set[tuple[str, str, str, str]] = set()
+		"""References to missing rules already reported, as `(layer, rule, field, name)`."""
 		self._results = []
 		self._mutatedControlsById = {}
 		self._mutatedControlsByOffset = []
@@ -200,6 +203,7 @@ class RuleManager(ScriptableObject):
 		return {name: rule.dump() for name, rule in list(self._layers[layer].items())}
 
 	def load(self, layer, index, data):
+		self._reportedMissingReferences.clear()
 		self.unload(layer)
 		self._initLayer(layer, index)
 		for ruleName, ruleData in list(data.items()):
@@ -261,6 +265,33 @@ class RuleManager(ScriptableObject):
 			return next(iter(reversed(ruleLayers.values())))
 		except StopIteration:
 			raise LookupError({"name": name, "layer": layer})
+
+	def resolveRule(self, name: str) -> "Rule | None":
+		"""The rule referred to by name (eg. from context criteria), or `None` if missing.
+
+		This is the rule of the topmost layer defining this name: A rule of the "user"
+		layer can refer to a rule of an add-on layer, and a rule overridden by a
+		homonym in a higher layer is referred to through its override.
+
+		Unlike `getRule`, it never raises: A reference to a missing rule (renamed,
+		deleted, misspelled…) must not prevent the other rules from being evaluated.
+		"""
+		ruleLayers = self._rules.get(name)
+		if not ruleLayers:
+			return None
+		layersIndex = self._layersIndex
+		return max(ruleLayers.values(), key=lambda rule: layersIndex.get(rule.layer, -1))
+
+	def reportMissingReference(self, rule: "Rule", field: str, name: str) -> None:
+		"""Log, once per WebModule load, a reference to a missing rule."""
+		key = (rule.layer, rule.name, field, name)
+		if key in self._reportedMissingReferences:
+			return
+		self._reportedMissingReferences.add(key)
+		log.warning(
+			f"WebModule {self.webModule.name!r}, rule {rule.name!r} ({rule.layer}), {field}: "
+			f"Rule not found: {name!r}. Considered as not matched."
+		)
 
 	def getResults(self) -> tuple["Result"]:
 		"""Get the results for all the layers of this WebModule, excluding SubModules.
@@ -1534,43 +1565,25 @@ class Selector(AutoPropertyObject):
 	
 	def checkContextPageType(self):
 		"""
-		Check whether the current page satisfies `contextPageTitle`.
+		Check whether the current page satisfies `contextPageType`.
 
-		'|', '!' and '&' are supported, in this order of precedence.
+		'|', '!' and '&' are supported, in this order of precedence
+		(see `references.parseContextExpression`).
+		A reference to a missing rule is considered as not matched.
 		"""
-		for expr in (self.contextPageType or "").split("&"):
-			expr = expr.strip()
-			if not expr:
-				continue
-			if expr[0] == "!":
-				exclude = True
-				expr = expr[1:]
-			else:
-				exclude = False
+		rule = self.criteria.rule
+		mgr = rule.ruleManager
+		for term in parseContextExpression(self.contextPageType):
 			found = False
-			for name in expr.split("|"):
-				if not name.strip():
+			for name in term.names:
+				cptRule = mgr.resolveRule(name)
+				if cptRule is None:
+					mgr.reportMissingReference(rule, "contextPageType", name)
 					continue
-				rule = self.criteria.rule
-				cptRule = rule.ruleManager.getRule(name, layer=rule.layer)
-				if rule is None:
-					log.error((
-						"In rule \"{rule}\".contextPageType: "
-						"Rule not found: \"{pageType}\""
-					).format(rule=rule.name, pageType=name))
-					return False
-
-				results = cptRule.getResults()
-				if results:
-					nodes = [result.node for result in results]
-					if exclude:
-						return False
-					else:
-						found = True
-						break
-				if found:
+				if cptRule.getResults():
+					found = True
 					break
-			if not (found or exclude):
+			if found == term.negated:
 				return False
 		return True
 	
@@ -1598,31 +1611,15 @@ class Selector(AutoPropertyObject):
 		rootNodes = set()  # Set of possible parent nodes
 		excludedNodes = set()  # Set of excluded parent nodes
 		multipleContext = None  # Will be later set to either `True` or `False`
-		for expr in (self.contextParent or "").split("&"):
-			expr = expr.strip()
-			if not expr:
-				continue
-			if expr[0] == "!":
-				exclude = True
-				expr = expr[1:]
-			else:
-				exclude = False
+		# A reference to a missing rule is considered as not matched
+		for term in parseContextExpression(self.contextParent):
+			exclude = term.negated
 			altRootNodes = set()
-			for name in expr.split("|"):
-				name = name.strip()
-				if not name:
-					continue
-				parentRule = mgr.getRule(name, layer=rule.layer)
+			for name in term.names:
+				parentRule = mgr.resolveRule(name)
 				if parentRule is None:
-					log.error(
-						'In rule "{rule}", alternative "{alternative}" .contextParent: '
-						'Rule not found: "{parent}"'
-					).format(
-						rule=rule.name,
-						alternative=self.name or f"#{rule.criteria.index(self)}",
-						parent=name,
-					)
-					return
+					mgr.reportMissingReference(rule, "contextParent", name)
+					continue
 				results = parentRule.getResults()
 				if not exclude and any(r.properties.multiple for r in results):
 					if multipleContext is None:
@@ -2110,8 +2107,12 @@ class Zone(AutoPropertyObject):
 			self._result = result
 			return True
 		try:
-			# Result index is 1-based
-			self.result = self.getRule().getResults()[self.index]
+			rule = self.ruleManager._layers.get(self.layer, {}).get(self.name)
+			if rule is None:
+				# The rule has been renamed or deleted
+				self._result = None
+				return False
+			self.result = rule.getResults()[self.index]
 		except IndexError:
 			self._result = None
 			return False
