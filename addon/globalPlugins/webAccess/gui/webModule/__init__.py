@@ -45,11 +45,41 @@ def promptDelete(webModule: WebModule):
 	)
 	if config.conf["webAccess"]["devMode"]:
 		msg += " ({})".format("/".join((layer.name for layer in webModule.layers)))
+	# Only one layer is deleted: The WebModule remains if it has others
+	if len(webModule.layers) == 1:
+		dependents = getSubModuleDependents(webModule.name)
+		if dependents:
+			# Translators: A mention in the prompt before deleting a web module used as a sub-module.
+			msg += os.linesep + os.linesep + _(
+				"It is loaded as a sub-module by the following rules:\n{rules}\n"
+				"These rules will no longer load any sub-module."
+			).format(rules="\n".join(f"  - {name}" for name in dependents))
 	return gui.messageBox(
 		parent=gui.mainFrame,
 		message=msg,
 		style=wx.YES_NO | wx.CANCEL | wx.NO_DEFAULT | wx.ICON_WARNING
 	) == wx.YES
+
+
+def getSubModuleDependents(name: str) -> list[str]:
+	"""The rules of the other WebModules loading the given one as a sub-module.
+
+	Returns labels such as "WebModule › Rule" ("WebModule › Rule (layer)" in developer mode).
+	"""
+	from ... import webModuleHandler
+	from ...ruleHandler.references import findSubModuleDependents
+	devMode = config.conf["webAccess"]["devMode"]
+	dependents = []
+	for other in webModuleHandler.getWebModules():
+		if other.name == name:
+			continue
+		for layer in other.layers:
+			for ruleName in findSubModuleDependents(layer.data.get("Rules", {}), name):
+				label = f"{other.name} › {ruleName}"
+				if devMode:
+					label += f" ({layer.name})"
+				dependents.append(label)
+	return dependents
 
 
 def promptMask(webModule: WebModule):
