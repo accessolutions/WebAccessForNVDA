@@ -163,5 +163,14 @@ class TestUnsupportedAreDropped(unittest.TestCase):
 		self.assertNotIn("gestures", data["criteria"][0])
 
 
+class TestLoadTolerance(unittest.TestCase):
+	
+	def test_nullTextPropertyLoadsAsEmpty(self):
+		rule, crit = makeRuleAndCriteria(
+			ruleTypes.MARKER, {"customName": "Foo"}, {"customName": None}
+		)
+		self.assertEqual(crit.customName, "")
+
+
 if __name__ == "__main__":
 	unittest.main()
