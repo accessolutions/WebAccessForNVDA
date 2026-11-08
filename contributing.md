@@ -232,6 +232,19 @@ scons -c pot
 ```
 
 
+## Testing
+
+Unit tests live in the `tests/unit` folder, outside of the add-on package (they are not
+included in the `.nvda-addon` file).
+
+They run without NVDA: only the add-on modules that do not depend on NVDA at import time
+can be tested this way (see `tests/unit/__init__.py`). Python 3.11 or greater is required.
+
+```
+python -m unittest discover -s tests -t .
+```
+
+
 ## Install
 
 This project follows NVDA standards regarding installation of `.nvda-addon` files.

@@ -24,7 +24,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: 3.9
+        python-version: '3.13'
         cache: 'pip'
 
     - name: Install dependencies
@@ -36,6 +36,9 @@ jobs:
 
     - name: Code checks
       run: export SKIP=no-commit-to-branch; pre-commit run --all
+
+    - name: Unit tests
+      run: python -m unittest discover -s tests -t . -v
 
     - name: building addon
       run: scons
