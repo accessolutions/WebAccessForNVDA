@@ -53,6 +53,7 @@ import ui
 import winUser
 from garbageHandler import TrackedObject
 
+from .nodeMatching import matchesOnSameNode
 from .utils import tryInt
 from .webAppLib import *
 
@@ -610,6 +611,8 @@ class NodeField(TrackedObject):
 		exclude=None,
 		relativePath=None,
 		limit=None,
+		sameNode=False,
+		matcher=None,
 		**kwargs
 	):
 		"""Searches the current node and its sub-tree for a match with the given criteria.
@@ -625,6 +628,16 @@ class NodeField(TrackedObject):
 		    See `walk` for the path expression syntax.
 		  limit:
 		    If set, only return the specified number of first results.
+		  sameNode:
+		    If `False` (default, historical behavior), each criterion can be satisfied
+		    by the matched node or by any of its ancestors, and the search does not
+		    descend further into a matched node.
+		    If `True`, all the criteria must be satisfied by the matched node itself,
+		    which must be an element (control field), and matches nested in other
+		    matches are returned too. See `searchSameNode`.
+		  matcher:
+		    If specified, a callable additionally testing each candidate node
+		    (eg. a compiled CSS selector). Implies `sameNode`.
 
 		Additional keyword arguments names are of the form:
 		  `test_property[#index]`
@@ -641,6 +654,14 @@ class NodeField(TrackedObject):
 
 		Returns a list of the matching nodes.
 		"""  # noqa
+		if sameNode or matcher is not None:
+			return self.searchSameNode(
+				exclude=exclude,
+				relativePath=relativePath,
+				limit=limit,
+				matcher=matcher,
+				criteria=kwargs,
+			)
 		global _count
 		nodeList = []
 		_count += 1
@@ -742,6 +763,49 @@ class NodeField(TrackedObject):
 					break
 		return nodeList
 
+
+	def searchSameNode(self, exclude=None, relativePath=None, limit=None, matcher=None, criteria=None):
+		"""Searches the current node and its sub-tree for elements satisfying all the criteria.
+
+		Unlike the historical search (see `searchNode`), all the criteria must be satisfied by
+		the matched element itself (see `nodeMatching.matchesOnSameNode`), and the elements
+		nested in a match are searched too, as `querySelectorAll` would.
+		"""
+		criteria = criteria or {}
+		results = []
+
+		def containsText(node, text):
+			return bool(node.searchString(text, exclude=exclude, limit=1))
+
+		def visit(node):
+			nonlocal limit
+			global _count
+			_count += 1
+			if (
+				hasattr(node, "control")
+				and (matcher is None or matcher(node))
+				and matchesOnSameNode(node, criteria, containsText)
+			):
+				match = node.walk(relativePath) if relativePath else node
+				if match:
+					results.append(match)
+					if limit is not None:
+						limit -= 1
+						if limit <= 0:
+							return
+			if exclude is True:
+				return
+			for child in node.children:
+				if exclude and child in exclude:
+					continue
+				if hasattr(child, "text"):
+					continue
+				visit(child)
+				if limit is not None and limit <= 0:
+					return
+
+		visit(self)
+		return results
 
 	def searchOffset(self, offset):
 		if hasattr(self, "text"):
