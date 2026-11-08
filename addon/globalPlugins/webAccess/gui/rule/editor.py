@@ -879,119 +879,6 @@ class AlternativeChildPanel(AlternativesPanel):
 		prm.tree.SetFocus()
 
 
-class ChildGesturePanel(RuleEditorTreeContextualPanel):
-
-	@dataclass
-	class CategoryParams(TreeContextualPanel.CategoryParams):
-		title: str = None
-		gestureIdentifier: str = None
-	
-	@staticmethod
-	def getTreeNodeLabel(mgr: RuleManager, gestureIdentifier, action):
-		gestureSource, gestureMain = inputCore.getDisplayTextForGestureIdentifier(gestureIdentifier)
-		# Translators: A gesture binding on the editor dialogs
-		return "{gesture}: {action}".format(
-			gesture=gestureMain, action=mgr.getActions().get(action, f"*{action}")
-		)
-	
-	def makeSettings(self, sizer):
-		scale = self.scale
-		gbSizer = wx.GridBagSizer()
-		sizer.Add(gbSizer, flag=wx.EXPAND, proportion=1)
-		
-		row = 0
-		col = 0
-		# Not focusable, but really only serves as an eye-candy
-		self.textCtrl = wx.TextCtrl(self, style=wx.TE_READONLY)
-		gbSizer.Add(self.textCtrl, pos=(row, col), span=(1, 5), flag=wx.EXPAND)
-		
-		row += 1
-		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(row, col))
-		
-		col += 2
-		row += 1
-		# Translators: The label for a button on the Rule Editor dialog
-		item = self.editButton = wx.Button(self, label="&Edit...")
-		item.Bind(wx.EVT_BUTTON, self.onEditGesture)
-		gbSizer.Add(item, pos=(row, col))
-		
-		col += 1
-		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL, 0), pos=(row, col))
-		
-		col += 1
-		# Translators: The label for a button on the Rule Editor dialog
-		item = wx.Button(self, label=_("&Delete"))
-		item.Bind(wx.EVT_BUTTON, self.onDeleteGesture)
-		gbSizer.Add(item, pos=(row, col))
-		
-		# Keep natural visual ordering but set last in tab order
-		col = 0
-		# Translators: The label for a button on the Rule Editor dialog
-		item = wx.Button(self, label=_("&New..."))
-		item.Bind(wx.EVT_BUTTON, self.onAddGesture)
-		gbSizer.Add(item, pos=(row, col))
-		
-		col += 1
-		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_BUTTONS_HORIZONTAL, 0), pos=(row, col))
-	
-	def getData(self):
-		return super().getData()["gestures"]
-	
-	def initData(self, context: Mapping[str, Any]) -> None:
-		super().initData(context)
-		self.textCtrl.Value = self.categoryParams.title
-	
-	def updateData(self):
-		# Nothing to update: This panel writes directly into the data map.
-		pass
-	
-	def delete(self):
-		self.onDeleteGesture(None)
-	
-	@guarded
-	def onAddGesture(self, evt):
-		context = self.context.copy()
-		context["data"]["gestures"] = self.getData()
-		if gestureBinding.show(context, parent):
-			index = context["data"]["gestureBinding"]["index"]
-			self.updateTreeAndSelectItemAtIndex(index)
-	
-	@guarded
-	def onDeleteGesture(self, evt):
-		prm = self.categoryParams
-		gestures = self.getData()
-		id = prm.gestureIdentifier
-		index = tuple(gestures.keys()).index(id)
-		del gestures[id]
-		if index >= len(gestures):
-			index -= 1
-		prm.tree.deleteSelection()
-		item = prm.tree.getXChild(prm.treeParent, index) if index >= 0 else prm.treeParent
-		prm.tree.SelectItem(item)
-	
-	@guarded
-	def onEditGesture(self, evt):
-		prm = self.categoryParams
-		context = self.context.copy()
-		gestures = context["data"]["gestures"] = self.getData()
-		context["data"]["gestureBinding"] = {
-			"gestureIdentifier": prm.gestureIdentifier,
-			"action":  gestures[prm.gestureIdentifier],
-		}
-		if gestureBinding.show(context, self):
-			index = context["data"]["gestureBinding"]["index"]
-			self.updateTreeAndSelectItemAtIndex(index)
-	
-	def updateTreeAndSelectItemAtIndex(self, index):
-		prm = self.categoryParams
-		self.refreshParent(prm.treeParent)
-		prm.tree.SelectItem(prm.tree.getXChild(prm.treeParent, index))
-		prm.tree.SetFocus()
-	
-	def spaceIsPressedOnTreeNode(self, withShift=False):
-		self.onEditGesture(None)
-
-
 class PropertyChildPanel(
 	SinglePropertyEditorPanelBase,
 	RuleEditorSingleFieldChildPanel,
@@ -1263,16 +1150,8 @@ class RuleEditorDialog(TreeMultiCategorySettingsDialog):
 		return tuple()
 
 	def getGesturesChildren(self):
-		data = self.getData()
-		if data["type"] not in [ruleTypes.ACTION_TYPES]:
-			return []
-		mgr = self.context["webModule"].ruleManager
-		panels = []
-		for key, value in data.get('gestures', {}).items():
-			title = ChildGesturePanel.getTreeNodeLabel(mgr, key, value)
-			prm = ChildGesturePanel.CategoryParams(title=title, gestureIdentifier=key)
-			panels.append(TreeNodeInfo(ChildGesturePanel, title=title, categoryParams=prm))
-		return panels
+		# Gesture bindings are listed and edited on the Gestures panel itself
+		return []
 
 	def getPropertiesChildren(self) -> Sequence[TreeNodeInfo]:
 		context = self.context
