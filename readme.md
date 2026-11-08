@@ -186,6 +186,15 @@ The supported CSS selectors are:
 For example: `ul#menu > li.toto`, `table.results tr:nth-child(odd)`,
 `nav li:not(.disabled) > a[href]`.
 
+Like the other fields, the "CSS selector" field suggests values computed from
+the element at the cursor: a selector designating this very element, one
+designating similar elements (eg. all the items of the same list), then
+selectors designating its closest ancestors.
+
+In the inspector (`F8` from the rule or criteria set editors), `F11` copies to
+the clipboard a CSS selector designating the inspected element, and `Shift+F11`
+a selector relative to the node marked with `F9` (one of its ancestors).
+
 Pseudo-elements and the pseudo-classes depending on the state of the element
 (`:hover`, `:checked`…) are not supported: Use the "States" field instead.
 Only the elements exposed by the browser to the screen reader are considered,
