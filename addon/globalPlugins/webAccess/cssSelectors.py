@@ -646,3 +646,145 @@ def getCompiledSelector(text: str) -> CompiledSelector:
 			_cache.clear()
 		compiled = _cache[text] = compileSelector(text)
 	return compiled
+
+
+# Generation ###############################################################################
+
+
+def escapeIdentifier(value: str) -> str:
+	"""Escape a value for use as a CSS identifier (tag, ID or class name)."""
+	if value == "-":
+		return "\\-"
+	chars = []
+	for index, char in enumerate(value):
+		if (char.isascii() and char.isalnum()) or char in "-_" or ord(char) >= 0x80:
+			if char.isdigit() and (index == 0 or (index == 1 and value[0] == "-")):
+				# An identifier cannot start with a digit: Hexadecimal escape
+				chars.append(f"\\{ord(char):x} ")
+			else:
+				chars.append(char)
+		else:
+			chars.append("\\" + char)
+	return "".join(chars)
+
+
+def getDocumentRoot(node: Any) -> Any:
+	root = node
+	parent = getElementParent(root)
+	while parent is not None:
+		root = parent
+		parent = getElementParent(root)
+	return root
+
+
+def iterElementsFrom(scope: Any) -> Iterator[Any]:
+	"""The given element and its element descendants, in document order."""
+	yield scope
+	yield from iterElementDescendants(scope)
+
+
+def findMatches(selector: str, scope: Any) -> list[Any]:
+	compiled = getCompiledSelector(selector)
+	return [element for element in iterElementsFrom(scope) if compiled(element)]
+
+
+def getCompoundSelector(node: Any, maxClasses: int = 3) -> str:
+	"""The tag and (up to `maxClasses`) classes of an element, eg. `li.item.active`."""
+	tag = getTag(node)
+	text = escapeIdentifier(tag) if tag else "*"
+	for className in getClasses(node)[:maxClasses]:
+		text += "." + escapeIdentifier(className)
+	return text
+
+
+def generateSelector(node: Any, ancestor: Any = None, unique: bool = True) -> str:
+	"""Generate a CSS selector designating the given element.
+	
+	`unique`:
+	 - `True`: The selector designates this very element, adding `:nth-of-type()` when
+	   needed to distinguish it from similar siblings, and starting from the closest
+	   ancestor having a unique ID, if any.
+	 - `False`: The selector designates similar elements (same tags and classes along
+	   the same path), eg. all the items of a list.
+	`ancestor`: If specified, the selector is relative to this ancestor (eg. for use
+	   along with a "Parent element" criterion), and only designates elements within it.
+	
+	The selector is then shortened, by dropping its leading steps while it still
+	designates the same elements.
+	"""
+	if not isElement(node):
+		raise ValueError("Not an element")
+	root = getDocumentRoot(node)
+	scope = ancestor if ancestor is not None else root
+	steps = []
+	current = node
+	while current is not None and current is not ancestor:
+		currentId = getattr(current, "id", None)
+		if (
+			unique and ancestor is None and currentId
+			and sum(1 for e in iterElementsFrom(root) if getattr(e, "id", None) == currentId) == 1
+		):
+			steps.insert(0, "#" + escapeIdentifier(currentId))
+			break
+		step = getCompoundSelector(current)
+		if unique:
+			siblings = getElementSiblings(current)
+			compiled = getCompiledSelector(step)
+			if any(sibling is not current and compiled(sibling) for sibling in siblings):
+				sameTag = [sibling for sibling in siblings if getTag(sibling) == getTag(current)]
+				position = next(i for i, sibling in enumerate(sameTag) if sibling is current) + 1
+				step += f":nth-of-type({position})"
+		steps.insert(0, step)
+		current = getElementParent(current)
+	target = findMatches(" > ".join(steps), scope)
+	if ancestor is not None:
+		target = [element for element in target if element is not ancestor]
+	# Dropping leading steps only broadens the selector: Keep the shortest equivalent one.
+	# An ID is kept as an anchor, for robustness: Only the steps following it are dropped,
+	# the anchor then being an ancestor rather than the parent (eg. "#main li.active").
+	anchored = steps[0].startswith("#")
+
+	def join(index):
+		if anchored:
+			return steps[0] + (" " if index > 1 else " > ") + " > ".join(steps[index:])
+		return " > ".join(steps[index:])
+
+	best = " > ".join(steps)
+	for index in range(2 if anchored else 1, len(steps)):
+		candidate = join(index)
+		matches = findMatches(candidate, scope)
+		if ancestor is not None:
+			matches = [element for element in matches if element is not ancestor]
+		if len(matches) != len(target) or any(a is not b for a, b in zip(matches, target)):
+			break
+		best = candidate
+	return best
+
+
+def suggestSelectors(node: Any, maxAncestors: int = 5) -> list[str]:
+	"""Selectors suggested for the given node, from the most to the least specific.
+	
+	For the element at the given node (or its closest element ancestor): A selector
+	designating this very element, then one designating similar elements. Then, a
+	selector designating each of its closest ancestors.
+	"""
+	element = node
+	while element is not None and not isElement(element):
+		element = element.parent
+	if element is None:
+		return []
+	suggestions = []
+	
+	def add(selector):
+		if selector and selector not in suggestions:
+			suggestions.append(selector)
+	
+	add(generateSelector(element))
+	add(generateSelector(element, unique=False))
+	ancestor = getElementParent(element)
+	for i in range(maxAncestors):
+		if ancestor is None:
+			break
+		add(generateSelector(ancestor))
+		ancestor = getElementParent(ancestor)
+	return suggestions
