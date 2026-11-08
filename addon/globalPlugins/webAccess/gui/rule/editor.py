@@ -51,6 +51,7 @@ import ui
 from ...config import EditorMode, UiMode, getUiMode
 from ... import webModuleHandler
 from ...ruleHandler import RuleManager, ruleTypes
+from ...ruleHandler.alternatives import AlternativesMode
 from ...ruleHandler.references import findCaseInsensitiveHomonyms, getRuleNameError
 from ...ruleHandler.controlMutation import (
 	MUTATIONS_BY_RULE_TYPE,
@@ -99,6 +100,10 @@ SHARED_LABELS: Mapping[str, str] = {
 }
 
 
+# Translators: The label for a field on the Rule editor
+ALTERNATIVES_MODE_LABEL = _("&When several alternatives match:")
+
+
 def getSummary(context, data):
 	ruleType = data.get("type")
 	if ruleType is None:
@@ -134,6 +139,12 @@ def getSummary(context, data):
 		else:
 			# Translators: The label for a section on the Rule Summary report
 			parts.append(_("Multiple criteria sets:"))
+			mode = AlternativesMode(data.get("alternativesMode", AlternativesMode.FIRST.value))
+			# Translators: A mention on the Rule Summary report
+			subParts.append("  " + _("{field}: {value}").format(
+				field=stripAccel(ALTERNATIVES_MODE_LABEL).rstrip(":"),
+				value=mode.displayString,
+			))
 			for index, alternative in enumerate(criteriaSets):
 				name = alternative.get("name")
 				if name:
@@ -465,6 +476,19 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
 		
 		row += 1
+		item = wx.StaticText(self, label=ALTERNATIVES_MODE_LABEL)
+		gbSizer.Add(item, pos=(row, 0))
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL), pos=(row, 1))
+		item = self.alternativesModeChoice = wx.Choice(
+			self, choices=[mode.displayString for mode in AlternativesMode]
+		)
+		item.Bind(wx.EVT_CHOICE, self.onAlternativesModeChoice)
+		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
+		
+		row += 1
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+		
+		row += 1
 		# Translators: The label for a field on the Rule editor
 		item = wx.StaticText(self, label=_("Summar&y:"))
 		gbSizer.Add(item, pos=(row, 0))
@@ -523,7 +547,20 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 		self.initData_alternatives()
 
 	def initData_alternatives(self) -> None:
+		mode = AlternativesMode(
+			self.getRuleData().get("alternativesMode", AlternativesMode.FIRST.value)
+		)
+		self.alternativesModeChoice.Selection = tuple(AlternativesMode).index(mode)
 		self.updateCriteriaList(self.context.pop("AlternativesPanel.initialIndex", None))
+	
+	@guarded
+	def onAlternativesModeChoice(self, evt):
+		mode = tuple(AlternativesMode)[self.alternativesModeChoice.Selection]
+		data = self.getRuleData()
+		if mode is AlternativesMode.FIRST:
+			data.pop("alternativesMode", None)
+		else:
+			data["alternativesMode"] = mode.value
 
 	def updateData(self):
 		# Nothing to update: This panel writes directly into the data map.
