@@ -531,16 +531,17 @@ class RuleManager(ScriptableObject):
 		script = self.getGlobalScript(gesture)
 		if script:
 			return script
-		# Handle script_notFound fallback 
-		for rules in reversed(list(self._layers.values())):
-			for rule in list(rules.values()):
-				for criterion in rule.criteria:
-					func = rule.getScript(gesture)
-					if func is not None:
-						return func
-				func = rule.getScript(gesture)
-				if func is not None:
-					return func
+		# Handle script_notFound fallback, for the rules actually evaluated
+		# (a rule overridden by a homonym in a higher layer is not)
+		for rule in self.getActiveRules():
+			if self.isReady and rule.getResults():
+				# The rule is found, but none of its Results handles this gesture:
+				# It is bound only on alternatives that did not match, or disabled
+				# on those that did. Let the gesture reach the browser.
+				continue
+			func = rule.getScript(gesture)
+			if func is not None:
+				return func
 		return self.defaultScripts.getScript(gesture)
 	
 	def getWebModuleForControlId(self, controlId):
