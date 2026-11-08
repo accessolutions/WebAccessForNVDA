@@ -40,6 +40,8 @@ from webAccess.criteriaExpressions import (
 	mapValues,
 	migrateLegacyContextExpression,
 	migrateLegacyExpression,
+	migrateLegacyRelativePath,
+	migrateLegacyRules,
 	parseExpression,
 	parseLegacyContextExpression,
 	parseLegacyExpression,
@@ -262,6 +264,43 @@ class TestLegacy(unittest.TestCase):
 
 	def test_contextNamesAreNotPartial(self):
 		self.assertIsNone(migrateLegacyContextExpression("Menu*"))
+
+
+class TestMigrateRules(unittest.TestCase):
+	
+	def test_rules(self):
+		rules = {
+			"R": {"name": "R", "type": "marker", "criteria": [
+				{"selector": {"tag": "li", "className": "a b|c", "role": "8|!9", "url": "a|!b", "text": "x | !y"}},
+				{"selector": {
+					"start": {"id": "x|!y", "states": 16},
+					"end": {"relativePath": "u{'className': 'a|!b'}d"},
+				}},
+			]},
+		}
+		messages = migrateLegacyRules(rules)
+		crit0 = rules["R"]["criteria"][0]["selector"]
+		self.assertEqual(crit0["tag"], "li")
+		self.assertEqual(crit0["className"], "a & (b | c)")
+		self.assertEqual(crit0["role"], "8 & !9")
+		# Not concerned: URL (own syntax) and text (a single string)
+		self.assertEqual(crit0["url"], "a|!b")
+		self.assertEqual(crit0["text"], "x | !y")
+		start = rules["R"]["criteria"][1]["selector"]["start"]
+		self.assertEqual(start["id"], "x & !y")
+		self.assertEqual(start["states"], 16)
+		end = rules["R"]["criteria"][1]["selector"]["end"]
+		self.assertEqual(end["relativePath"], "u{'className': 'a & !b'}d")
+		self.assertEqual(len(messages), 4)
+		self.assertIn("alternative #2 (end), relativePath", messages[-1])
+	
+	def test_nothingToMigrate(self):
+		rules = {"R": {"criteria": [{"selector": {"className": "a b", "tag": "li|ul"}}]}}
+		self.assertEqual(migrateLegacyRules(rules), [])
+		self.assertEqual(rules["R"]["criteria"][0]["selector"], {"className": "a b", "tag": "li|ul"})
+	
+	def test_relativePathUnchanged(self):
+		self.assertEqual(migrateLegacyRelativePath("u{'tag': 'li'}d"), "u{'tag': 'li'}d")
 
 
 if __name__ == "__main__":

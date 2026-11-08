@@ -70,6 +70,7 @@ from .. import webAppScheduler
 from . import ruleTypes
 from .alternatives import AlternativesMode, mergeResults
 from .gestureBindings import getEffectiveGestures, joinGestures, splitGestures
+from ..criteriaExpressions import buildSearchKwargs, parseExpression
 from .searchMode import SearchMode
 from .references import (
 	Reference,
@@ -1780,7 +1781,12 @@ class Selector(AutoPropertyObject):
 			if not newRootNodes:
 				return
 			rootNodes = newRootNodes
-		kwargs = getSimpleSearchKwargs(self.dump())
+		try:
+			kwargs = getSimpleSearchKwargs(self.dump())
+		except ValueError as e:
+			# Eg. a syntax error in an expression saved by hand
+			mgr.reportRuleError(rule, f"Invalid criteria: {e}")
+			return
 		if self.mode is SearchMode.SAME_NODE:
 			kwargs["sameNode"] = True
 		elif self.mode is SearchMode.CSS:
@@ -2136,10 +2142,17 @@ def getSimpleSearchKwargs(
 				continue
 			kwargs["in_text"] = expr
 			continue
-		if prop == "className":
-			# For "className", both space and ampersand are treated as "and" operator
-			expr = expr.replace(" ", "&")
-		# For "url", only space is treated as "and" operator
+		if prop != "url":
+			# A boolean expression (see `criteriaExpressions`). For "className", spaces
+			# separate class names, as an implicit "and" operator.
+			# Raises `ValueError` (eg. `ExpressionSyntaxError`) if invalid.
+			node = parseExpression(expr, spaceIsAnd=(prop == "className"))
+			kwargs.update(buildSearchKwargs(
+				prop, node, convert=int if prop in ("role", "states") else str
+			))
+			continue
+		# For "url", only space is treated as "and" operator, as URLs may contain
+		# "&" or parentheses: The historical parsing is kept.
 		for andIndex, expr in enumerate(expr.split("&" if prop != "url" else " ")):
 			expr = expr.strip()
 			eq = []

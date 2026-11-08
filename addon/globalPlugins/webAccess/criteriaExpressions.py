@@ -492,3 +492,74 @@ def migrateLegacyExpression(text: str | None, spaceIsAnd: bool = False) -> str |
 def migrateLegacyContextExpression(text: str | None) -> str | None:
 	"""Like `migrateLegacyExpression`, for the context criteria (rule names)."""
 	return _migrate(text, parseLegacyContextExpression(text), partial=False)
+
+
+# Migration of rules data ##################################################################
+
+
+LEGACY_FIELDS = {"tag": False, "id": False, "className": True, "src": False, "role": False, "states": False}
+"""The selector fields holding expressions, with whether spaces mean AND (class field).
+
+The "Document URL" field keeps its own syntax, URLs containing "&" or parentheses.
+"""
+
+
+def _migrateCriteria(criteria: dict) -> list[tuple[str, str, str]]:
+	"""Migrate, in place, the expressions of a mapping of criteria. Returns `(field, old, new)`."""
+	changes = []
+	for field, spaceIsAnd in LEGACY_FIELDS.items():
+		value = criteria.get(field)
+		if not isinstance(value, str):
+			continue
+		newValue = migrateLegacyExpression(value, spaceIsAnd=spaceIsAnd)
+		if newValue is not None:
+			criteria[field] = newValue
+			changes.append((field, value, newValue))
+	return changes
+
+
+def migrateLegacyRelativePath(path: str) -> str:
+	"""Migrate the criteria embedded in a relative path, eg. `u{'className': 'a|!b'}`."""
+	import re
+	from ast import literal_eval
+	
+	def replace(match):
+		try:
+			criteria = literal_eval(match.group())
+		except Exception:
+			return match.group()
+		if not isinstance(criteria, dict) or not _migrateCriteria(criteria):
+			return match.group()
+		return repr(criteria)
+	
+	return re.sub(r"{[^}]*}", replace, path)
+
+
+def migrateLegacyRules(rules: dict) -> list[str]:
+	"""Migrate, in place, the expressions of serialized rules saved before format 0.17.
+	
+	Concerns the criteria fields (see `LEGACY_FIELDS`) and the criteria embedded in
+	relative paths, of all the selectors of all the alternatives. Returns a message
+	describing each rewrite.
+	"""
+	from .ruleHandler.references import iterSelectorsData
+	messages = []
+	for ruleName, rule in rules.items():
+		for index, crit in enumerate(rule.get("criteria") or ()):
+			for selectorKey, selectorData in iterSelectorsData(crit):
+				location = f"rule {ruleName!r}, alternative #{index + 1}" + (
+					f" ({selectorKey})" if selectorKey else ""
+				)
+				changes = _migrateCriteria(selectorData)
+				path = selectorData.get("relativePath")
+				if isinstance(path, str) and "{" in path:
+					newPath = migrateLegacyRelativePath(path)
+					if newPath != path:
+						selectorData["relativePath"] = newPath
+						changes.append(("relativePath", path, newPath))
+				for field, old, new in changes:
+					messages.append(
+						f"{location}, {field}: {old!r} rewritten as {new!r}, "
+						"with the same meaning, in standard boolean logic (format 0.17)"
+					)
+	return messages

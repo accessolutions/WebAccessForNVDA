@@ -92,6 +92,9 @@ def recover(data):
 	if formatVersion < version.parse("0.16-dev"):
 		recoverFrom_0_15_to_0_16(data)
 		formatVersion = version.parse(data["formatVersion"])
+	if formatVersion < version.parse("0.17-dev"):
+		recoverFrom_0_16_to_0_17(data)
+		formatVersion = version.parse(data["formatVersion"])
 	
 	from ..webModule import WebModule
 	if formatVersion > WebModule.FORMAT_VERSION:
@@ -615,3 +618,20 @@ def recoverFrom_0_15_to_0_16(data):
 	# Introduction of the "mode" (search mode) and "css" selector fields.
 	# Nothing to recover, but prevents older versions from loading newer files.
 	data["formatVersion"] = "0.16-dev"
+
+
+def recoverFrom_0_16_to_0_17(data):
+	"""Rewrite the criteria expressions in standard boolean logic, keeping their meaning.
+	
+	Before format 0.17, the expressions of the criteria fields were interpreted in a
+	specific way (see `criteriaExpressions.parseLegacyExpression`), eg. `a | !b` meant
+	"a and not b". They now follow standard boolean logic, with parentheses.
+	The expressions whose meaning differs are rewritten so that the rules keep selecting
+	exactly the same elements, eg. `a | !b` becomes `a & !b` (see
+	`criteriaExpressions.migrateLegacyRules`). Each rewrite is logged.
+	"""
+	from ...criteriaExpressions import migrateLegacyRules
+	webModuleName = data.get("WebModule", {}).get("name")
+	for message in migrateLegacyRules(data.get("Rules") or {}):
+		log.warning(f"WebModule {webModuleName!r}, {message}")
+	data["formatVersion"] = "0.17-dev"

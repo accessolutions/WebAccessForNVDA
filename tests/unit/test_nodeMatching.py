@@ -100,5 +100,32 @@ class TestSameNode(unittest.TestCase):
 		self.assertTrue(match(node(tag="li")))
 
 
+class TestAnyClauses(unittest.TestCase):
+	
+	def test_mixedPositiveNegative(self):
+		clause = [("eq", "a"), ("notEq", "b")]  # a | !b
+		self.assertTrue(match(node(className="a b"), **{"any_className#0": clause}))
+		self.assertTrue(match(node(className="c"), **{"any_className#0": clause}))
+		self.assertFalse(match(node(className="b"), **{"any_className#0": clause}))
+	
+	def test_exactOrPartial(self):
+		clause = [("eq", "a"), ("in", "xy")]  # a | *xy*
+		self.assertTrue(match(node(className="axyz"), **{"any_className#0": clause}))
+		self.assertTrue(match(node(className="a"), **{"any_className#0": clause}))
+		self.assertFalse(match(node(className="b"), **{"any_className#0": clause}))
+	
+	def test_missingProperty(self):
+		self.assertTrue(match(node(), **{"any_src#0": [("notEq", "x"), ("eq", "y")]}))
+		self.assertFalse(match(node(), **{"any_src#0": [("eq", "x")]}))
+	
+	def test_fromExpression(self):
+		from webAccess.criteriaExpressions import buildSearchKwargs, parseExpression
+		criteria = buildSearchKwargs("className", parseExpression("(a & b) | (c & !d)", spaceIsAnd=True))
+		self.assertTrue(match(node(className="a b"), **criteria))
+		self.assertTrue(match(node(className="c"), **criteria))
+		self.assertFalse(match(node(className="c d"), **criteria))
+		self.assertFalse(match(node(className="a"), **criteria))
+
+
 if __name__ == "__main__":
 	unittest.main()

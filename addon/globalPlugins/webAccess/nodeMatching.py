@@ -64,6 +64,24 @@ def testValue(test: str, candidate: Any, searchedValues: Iterable[Any]) -> bool:
 	raise ValueError(f"Unexpected test: {test!r}")
 
 
+def literalHolds(node: Any, prop: str, test: str, value: Any) -> bool:
+	"""Whether a single literal of an `any_` clause holds for the node itself.
+
+	A positive literal (`eq`, `in`) holds if any candidate value matches. A negative
+	literal (`notEq`, `notIn`) holds if none does, including if the node lacks the property.
+	"""
+	negative = test in ("notEq", "notIn")
+	if not hasattr(node, prop):
+		return negative
+	hit = any(testValue(test, candidate, (value,)) for candidate in iterCandidateValues(node, prop))
+	return not hit if negative else hit
+
+
+def clauseHolds(node: Any, prop: str, literals: Iterable[tuple[str, Any]]) -> bool:
+	"""Whether an `any_` clause (a disjunction of `(test, value)` literals) holds for the node."""
+	return any(literalHolds(node, prop, test, value) for test, value in literals)
+
+
 def matchesOnSameNode(
 	node: Any,
 	criteria: Mapping[str, Any],
@@ -85,6 +103,10 @@ def matchesOnSameNode(
 		if prop == "prevText":
 			previous = getattr(node, "previousTextNode", None)
 			if previous is None or searchedValues not in previous.text:
+				return False
+			continue
+		if test == "any":
+			if not clauseHolds(node, prop, searchedValues):
 				return False
 			continue
 		if not hasattr(node, prop):
