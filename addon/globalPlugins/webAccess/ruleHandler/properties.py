@@ -212,6 +212,29 @@ DEFAULT_VALUES = {p.name: p.default for p in PropertySpec}
 PROPERTY_NAMES = tuple(p.name for p in PropertySpec)
 
 
+def suggestOverrideValue(
+	name: str,
+	inherited: PropertyValue,
+	choices: Sequence[PropertyValue] | None = None,
+) -> PropertyValue:
+	"""The initial value of a new override of the given property on an alternative.
+	
+	Overriding with the inherited value would be pointless, hence:
+	 - Yes/No: The opposite of the inherited value.
+	 - Restricted choice (eg. Auto Actions): "None" (eg. "No action") if a value
+	   is inherited, so that it is cancelled. Otherwise, the first actual choice.
+	 - Text: An empty text, either cancelling the inherited value or ready to be typed.
+	"""
+	spec = PropertySpec[name]
+	if spec.valueType is bool:
+		return not inherited
+	if spec.isRestrictedChoice:
+		if inherited is not None:
+			return None
+		return next((choice for choice in choices or () if choice is not None), None)
+	return ""
+
+
 def normalizeRuleData(data: dict[str, Any]) -> None:
 	"""Normalize, in place, the properties and gestures of serialized rule data.
 

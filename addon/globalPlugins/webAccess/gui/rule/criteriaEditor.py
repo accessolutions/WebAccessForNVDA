@@ -48,6 +48,7 @@ import ui
 import addonHandler
 from ...config import EditorMode, UiMode, getUiMode
 from ...ruleHandler import ruleTypes
+from ...ruleHandler.properties import suggestOverrideValue
 from ...ruleHandler.references import findCaseInsensitiveHomonyms, findCyclePathIfSaved, iterContextNames
 from ...utils import guarded, notifyError, updateOrDrop
 from .. import (
@@ -1314,7 +1315,12 @@ class PropertiesPanel(PropertiesPanelBase, CriteriaEditorPanel):
 		prop = menuIdProp[menuId] if menuId != wx.ID_NONE else None
 		if not prop:
 			return
-		prop.value = prop.default  # Setting any value actually adds to the ChainMap based container
+		# Setting any value actually adds to the ChainMap based container
+		prop.value = suggestOverrideValue(
+			prop.name,
+			prop.default,
+			tuple(prop.choices.keys()) if prop.choices is not None else None
+		)
 		self.prop = prop
 		self.listCtrl_update_all()
 		if prop.editorType in (EditorType.COMBO, EditorType.TEXT):
