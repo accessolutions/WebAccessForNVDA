@@ -238,9 +238,10 @@ class RuleManager(ScriptableObject):
 	def _initLayer(self, layer, index):
 		self._layers[layer] = {}
 		if index is not None:
-			for otherIndex, otherLayer in enumerate(list(self._layers.keys())):
-				if otherIndex >= index:
-					self._layers.move_to_end(otherLayer)
+			# Insert the new layer at the given position (`dict` has no `move_to_end`)
+			others = [name for name in self._layers if name != layer]
+			order = others[:index] + [layer] + others[index:]
+			self._layers = {name: self._layers[name] for name in order}
 		self._layersIndex = dict(
 			((layerName, layerIndex) for layerIndex, layerName in enumerate(self._layers.keys()))
 		)
@@ -260,9 +261,8 @@ class RuleManager(ScriptableObject):
 		return rule
 
 	def unload(self, layer):
-		for index in range(len(self._results)):
-			if self._results[index].rule.layer == layer:
-				del self._results[index]
+		# Deleting by index while iterating skipped items and could raise `IndexError`
+		self._results[:] = [result for result in self._results if result.rule.layer != layer]
 		for ruleLayers in list(self._rules.values()):
 			ruleLayers.pop(layer, None)
 		self._layers.pop(layer, None)
@@ -397,9 +397,8 @@ class RuleManager(ScriptableObject):
 		return self._mutatedControlsById.get(controlId)
 
 	def removeResults(self, rule):
-		for index, result in enumerate(self._results):
-			if result.rule is rule:
-				del self._results[index]
+		# Deleting by index while iterating skipped items
+		self._results[:] = [result for result in self._results if result.rule is not rule]
 
 	def getActions(self) -> Mapping[str, str]:
 		actions = builtinActions.copy()
