@@ -585,6 +585,7 @@ class RuleManager(ScriptableObject):
 			if not self.isReady:
 				return
 			funcMoveto = None
+			movetoRuleKey = None
 			firstCancelSpeech = True
 			for result in self.getResults():
 				if result.properties.autoAction:
@@ -592,7 +593,12 @@ class RuleManager(ScriptableObject):
 					# check only 100 first characters
 					text = result.getText()[:100]
 					autoActionName = result.properties.autoAction
-					func = getattr(result, "script_%s" % autoActionName)
+					func = getattr(result, "script_%s" % autoActionName, None)
+					if func is None:
+						log.error(
+							f"In rule {result.rule.name!r}: Unknown Auto Action {autoActionName!r}"
+						)
+						continue
 					lastText = self.triggeredIdentifiers.get(controlIdentifier)
 					if (lastText is None or text != lastText):
 						self.triggeredIdentifiers[controlIdentifier] = text
@@ -602,12 +608,14 @@ class RuleManager(ScriptableObject):
 							if lastText is None:
 								# only if it's a new identifier
 								if funcMoveto is None:
-									if func.__name__== self.lastAutoMoveto \
+									ruleKey = (result.rule.layer, result.rule.name)
+									if ruleKey == self.lastAutoMoveto \
 										and time.time() - self.lastAutoMovetoTime < 4:
 										# no autoMoveto of same rule before 4 seconds
 										continue
 									else:
 										funcMoveto = func
+										movetoRuleKey = ruleKey
 							func = None
 						if func:
 							if firstCancelSpeech:
@@ -631,7 +639,7 @@ class RuleManager(ScriptableObject):
 				if firstCancelSpeech:
 					speech.cancelSpeech()
 					firstCancelSpeech = False
-				self.lastAutoMoveto = funcMoveto.__name__
+				self.lastAutoMoveto = movetoRuleKey
 				self.lastAutoMovetoTime = time.time()
 				queueHandler.queueFunction(
 					queueHandler.eventQueue,
