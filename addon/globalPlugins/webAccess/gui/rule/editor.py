@@ -162,12 +162,13 @@ def getSummary(context, data):
 
 
 def supportsSimpleMode(context):
+	"""Whether the rule has at most one alternative (Criteria).
+	
+	The simple mode of the Rule editor summarizes this alternative, including
+	its gestures and properties overrides, if any.
+	"""
 	alternatives = context.get("data", {}).get("rule", {}).get("criteria", [])
-	if not alternatives:
-		return True
-	if len(alternatives) > 1:
-		return False
-	return True
+	return len(alternatives) <= 1
 
 
 class RuleEditorTreeContextualPanel(RuleAwarePanelBase, TreeContextualPanel):

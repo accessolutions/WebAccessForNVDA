@@ -241,9 +241,14 @@ def showRuleWizardOrEditor(
 		parent: wx.Window | None = None
 	) -> bool:
 	"""Open the rule wizard or editor according to the user's UI mode preference."""
-	from . import editor, wizard
+	from . import criteriaEditor, editor, wizard
 	from ...config import RuleWizardMode, UiMode, getUiMode
-	canUseWizard = editor.supportsSimpleMode(context)
+	# The wizard edits only the Rule level: It must not hide the gestures or
+	# properties overrides of the single alternative of the rule, if any.
+	canUseWizard = editor.supportsSimpleMode(context) and all(
+		criteriaEditor.supportsSimpleMode(alternative)
+		for alternative in context.get("data", {}).get("rule", {}).get("criteria", [])
+	)
 	if getUiMode(UiMode.RULE_WIZARD, canPrefer=canUseWizard) == RuleWizardMode.WIZARD:
 		return wizard.show(context, parent=parent)
 	return editor.show(context, parent=parent)
