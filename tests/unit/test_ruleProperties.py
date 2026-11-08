@@ -90,6 +90,28 @@ class TestInheritance(unittest.TestCase):
 		)
 		self.assertEqual(crit.dump(), {"autoAction": None, "formMode": False})
 	
+	def test_criteriaDumpKeepsOverridesEqualToRule(self):
+		rule, crit = makeRuleAndCriteria(
+			ruleData={"autoAction": "moveto"},
+			critData={"autoAction": "moveto", "sayName": False},
+		)
+		self.assertEqual(crit.dump(), {"autoAction": "moveto", "sayName": False})
+		# Still applies once the Rule level value changes
+		rule.autoAction = "speak"
+		self.assertEqual(crit.autoAction, "moveto")
+	
+	def test_overrideIntrospection(self):
+		rule, crit = makeRuleAndCriteria(
+			ruleData={"autoAction": "moveto"},
+			critData={"sayName": True},
+		)
+		self.assertFalse(rule.isOverride)
+		self.assertTrue(crit.isOverride)
+		self.assertTrue(crit.isOverridden("sayName"))
+		self.assertFalse(crit.isOverridden("autoAction"))
+		self.assertEqual(crit.getInheritedValue("autoAction"), "moveto")
+		self.assertIs(crit.getInheritedValue("sayName"), False)
+	
 	def test_unsupportedPropertyRejected(self):
 		with self.assertRaises(ValueError):
 			makeRuleAndCriteria(ruleType=ruleTypes.PAGE_TITLE_1, ruleData={"skip": True})

@@ -106,27 +106,27 @@ class TestRedundantValuesAreDropped(unittest.TestCase):
 		normalizeRuleData(data)
 		self.assertNotIn("properties", data)
 	
-	def test_overrideEqualToRuleDropped(self):
+	def test_overrideEqualToRuleKept(self):
+		# An explicit override keeps applying when the Rule level value changes
 		data = makeData(ruleTypes.MARKER, {"sayName": True}, {"sayName": True, "skip": True})
 		normalizeRuleData(data)
-		self.assertEqual(data["criteria"][0]["properties"], {"skip": True})
+		self.assertEqual(data["criteria"][0]["properties"], {"sayName": True, "skip": True})
 	
-	def test_falsyOverrideOfDefaultDropped(self):
+	def test_overrideEqualToDefaultKept(self):
 		data = makeData(ruleTypes.MARKER, None, {"autoAction": None, "sayName": False})
 		normalizeRuleData(data)
-		self.assertNotIn("properties", data["criteria"][0])
+		self.assertEqual(data["criteria"][0]["properties"], {"autoAction": None, "sayName": False})
 	
 	def test_truthyOverrideOfDefaultKept(self):
 		data = makeData(ruleTypes.MARKER, None, {"autoAction": "speak", "sayName": True})
 		normalizeRuleData(data)
 		self.assertEqual(data["criteria"][0]["properties"], {"autoAction": "speak", "sayName": True})
 	
-	def test_redundantRuleValueDoesNotLeakIntoComparison(self):
-		# The Rule level `False` is dropped as a default, the override still compares to it
+	def test_ruleDefaultDroppedOverrideKept(self):
 		data = makeData(ruleTypes.MARKER, {"sayName": False}, {"sayName": False})
 		normalizeRuleData(data)
 		self.assertNotIn("properties", data)
-		self.assertNotIn("properties", data["criteria"][0])
+		self.assertEqual(data["criteria"][0]["properties"], {"sayName": False})
 
 
 class TestUnsupportedAreDropped(unittest.TestCase):

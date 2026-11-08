@@ -218,11 +218,12 @@ def normalizeRuleData(data: dict[str, Any]) -> None:
 	 - Properties and gestures not supported for the rule type are dropped.
 	 - The default alternatives mode ("first") is dropped.
 	 - Rule level properties equal to their default value are dropped.
-	 - Criteria (alternative) level properties are kept as long as they differ
-	   from the value they would otherwise inherit from the Rule level.
-	   Hence, a falsy override (`None`, `False` or `""`) is kept whenever the
-	   Rule level value is truthy: It is how an alternative cancels a value set
-	   at Rule level (eg. "No action" for Auto Actions).
+	 - Criteria (alternative) level properties are all kept, even if equal to the
+	   value they would otherwise inherit from the Rule level: An explicit override
+	   keeps applying when the Rule level value changes.
+	   In particular, a falsy override (`None`, `False` or `""`) is how an
+	   alternative cancels a value set at Rule level (eg. "No action" for
+	   Auto Actions).
 	"""
 	ruleType = data["type"]
 	supported = tuple(p.name for p in PropertySpec.forRuleType(ruleType))
@@ -233,13 +234,14 @@ def normalizeRuleData(data: dict[str, Any]) -> None:
 
 	def normalizeProperties(
 		container: dict[str, Any],
-		inherited: Mapping[str, PropertyValue],
+		defaults: Mapping[str, PropertyValue] | None,
 	) -> dict[str, PropertyValue]:
+		"""Omits the values equal to `defaults`, if specified."""
 		props = container.get("properties") or {}
 		props = {
 			name: props[name]
 			for name in supported
-			if name in props and props[name] != inherited[name]
+			if name in props and (defaults is None or props[name] != defaults[name])
 		}
 		if props:
 			container["properties"] = props
@@ -250,11 +252,10 @@ def normalizeRuleData(data: dict[str, Any]) -> None:
 	if data.get("alternativesMode", "first") == "first":
 		data.pop("alternativesMode", None)
 	normalizeGestures(data)
-	ruleProps = normalizeProperties(data, DEFAULT_VALUES)
-	inherited = ChainMap(ruleProps, DEFAULT_VALUES)
+	normalizeProperties(data, DEFAULT_VALUES)
 	for critData in data.get("criteria", ()):
 		normalizeGestures(critData)
-		normalizeProperties(critData, inherited)
+		normalizeProperties(critData, None)
 
 
 class PropertiesBase(ABC):
@@ -301,15 +302,37 @@ class PropertiesBase(ABC):
 	def getSupportedPropertiesName(self) -> Sequence[str]:
 		return tuple(p.name for p in PropertySpec.forRuleType(self.ruleType))
 	
+	@property
+	def isOverride(self) -> bool:
+		"""Whether this container overrides another one (eg. Criteria vs. Rule level).
+		
+		That is, whether it has parent maps other than the default values.
+		"""
+		return len(self._map.maps) > 2
+	
+	def isOverridden(self, name: str) -> bool:
+		"""Whether the given property is set in the first map of this container."""
+		return name in self._map.maps[0]
+	
+	def getInheritedValue(self, name: str) -> PropertyValue:
+		"""The value the given property would have if not set in this container."""
+		return self._map.parents[name]
+	
 	def dump(self) -> Mapping[str, PropertyValue]:
 		"""Includes only the properties set in the first map, in the same order as their
 		`PropertySpec` definitions.
+		
+		If this container overrides another one (see `isOverride`), all the supported
+		overrides are included, even if equal to the inherited value: An explicit override
+		keeps applying when the inherited value changes.
+		Otherwise, the values equal to their default are omitted.
 		"""
 		map = self._map
+		keepAll = self.isOverride
 		return {
 			name: map[name]
 			for name in self.getSupportedPropertiesName()
-			if name in map.maps[0] and map[name] != map.parents[name]
+			if name in map.maps[0] and (keepAll or map[name] != map.parents[name])
 		}
 	
 	def load(self, data: Mapping[str, PropertyValue]) -> None:

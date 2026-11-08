@@ -206,8 +206,8 @@ Do you want to proceed anyway?
 	#    the different types,
 	#  - in the panel's doSave because the Rule Type might have been changed
 	#    without even instantiating any other panel.
-	# Criteria (alternative) level properties must be compared to the Rule level ones,
-	# not to the defaults, or falsy overrides (eg. "No action") would be lost.
+	# Criteria (alternative) level overrides are kept as is, even if falsy
+	# (eg. "No action" cancelling the Rule level Auto Action).
 	normalizeRuleData(data)
 
 	mgr = context["webModule"].ruleManager
