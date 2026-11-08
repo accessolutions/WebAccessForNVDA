@@ -304,6 +304,10 @@ class PropertiesBase(ABC):
 			name, value = data.popitem()
 			if name not in PROPERTY_NAMES:
 				raise ValueError(f"Unexpected property: {name}={value!r}")
+			if value is None and DEFAULT_VALUES[name] == "":
+				# Tolerate `null` for text properties (eg. hand-edited JSON):
+				# An empty text is the "no value" of these properties.
+				value = ""
 			setattr(self, name, value)
 
 
