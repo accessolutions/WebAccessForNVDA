@@ -81,7 +81,8 @@ class MutatedControl(object):
 				raise ValueError(f"Unknown mutation in rule {rule.name!r}: {result.properties.mutation!r}") from e
 		self.attrs.update(mutation.attrs)
 		if mutation.mutateName:
-			self.attrs["name"] = rule.label
+			# The Custom name might be defined or cancelled by the matching alternative
+			self.attrs["name"] = result.label
 
 
 MUTATIONS = {
