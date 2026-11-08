@@ -165,6 +165,20 @@ class TestUnsupportedAreDropped(unittest.TestCase):
 		self.assertNotIn("gestures", data["criteria"][0])
 
 
+class TestDisabledGestures(unittest.TestCase):
+	
+	def test_disabledKeptAtCriteriaLevel(self):
+		data = makeData(ruleTypes.MARKER, None, None, gestures={"kb:a": ["normal", "moveto"]})
+		data["criteria"][0]["gestures"] = {"kb:a": None}
+		normalizeRuleData(data)
+		self.assertEqual(data["criteria"][0]["gestures"], {"kb:a": None})
+	
+	def test_disabledDroppedAtRuleLevel(self):
+		data = makeData(ruleTypes.MARKER, None, None, gestures={"kb:a": None})
+		normalizeRuleData(data)
+		self.assertNotIn("gestures", data)
+
+
 class TestLoadTolerance(unittest.TestCase):
 	
 	def test_nullTextPropertyLoadsAsEmpty(self):

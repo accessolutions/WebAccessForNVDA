@@ -86,6 +86,9 @@ def recover(data):
 	if formatVersion < version.parse("0.14-dev"):
 		recoverFrom_0_13_to_0_14(data)
 		formatVersion = version.parse(data["formatVersion"])
+	if formatVersion < version.parse("0.15-dev"):
+		recoverFrom_0_14_to_0_15(data)
+		formatVersion = version.parse(data["formatVersion"])
 	
 	from ..webModule import WebModule
 	if formatVersion > WebModule.FORMAT_VERSION:
@@ -596,3 +599,10 @@ def recoverFrom_0_13_to_0_14(data):
 	# Introduction of the "alternativesMode" rule attribute:
 	# Nothing to recover, but prevents older versions from loading newer files.
 	data["formatVersion"] = "0.14-dev"
+
+
+def recoverFrom_0_14_to_0_15(data):
+	# Introduction of `null` gesture bindings at Criteria level, disabling the
+	# corresponding Rule level binding for this alternative.
+	# Nothing to recover, but prevents older versions from loading newer files.
+	data["formatVersion"] = "0.15-dev"

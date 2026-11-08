@@ -120,7 +120,7 @@ class WebModuleDataLayer(baseObject.AutoPropertyObject):
 
 class WebModule(baseObject.ScriptableObject):
 
-	API_VERSION = version.parse("0.9")
+	API_VERSION = version.parse("0.10")
 	"""The version of the Python API offered to custom WebModules.
 	
 	Bump the minor version upon each addition, so that custom WebModules can declare
@@ -128,6 +128,9 @@ class WebModule(baseObject.ScriptableObject):
 	
 	0.8: Introduces configuration profiles.
 	0.9: Introduces `Rule.alternativesMode` (see `ruleHandler.alternatives.AlternativesMode`).
+	0.10: Alternatives (Criteria) overrides: `Criteria.disabledGestures`,
+		`Criteria.getEffectiveGestures()`, `PropertiesBase.isOverride`, `isOverridden()`
+		and `getInheritedValue()`.
 	"""
 	MIN_API_VERSION = version.parse("0.7")
 	"""The oldest version still supported by custom WebModules.
@@ -135,7 +138,7 @@ class WebModule(baseObject.ScriptableObject):
 	Raise only upon a breaking change of the API.
 	"""
 
-	FORMAT_VERSION_STR = "0.14-dev"
+	FORMAT_VERSION_STR = "0.15-dev"
 	FORMAT_VERSION = version.parse(FORMAT_VERSION_STR)
 
 	def __init__(self):

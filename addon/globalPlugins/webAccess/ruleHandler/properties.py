@@ -251,9 +251,17 @@ def normalizeRuleData(data: dict[str, Any]) -> None:
 	ruleType = data["type"]
 	supported = tuple(p.name for p in PropertySpec.forRuleType(ruleType))
 
-	def normalizeGestures(container: dict[str, Any]) -> None:
+	def normalizeGestures(container: dict[str, Any], allowDisabled: bool) -> None:
 		if ruleType not in ruleTypes.ACTION_TYPES or not container.get("gestures"):
 			container.pop("gestures", None)
+			return
+		if not allowDisabled:
+			# Disabling a gesture (`None`) is meaningful only at Criteria level
+			gestures = {k: v for k, v in container["gestures"].items() if v is not None}
+			if gestures:
+				container["gestures"] = gestures
+			else:
+				container.pop("gestures")
 
 	def normalizeProperties(
 		container: dict[str, Any],
@@ -274,10 +282,10 @@ def normalizeRuleData(data: dict[str, Any]) -> None:
 
 	if data.get("alternativesMode", "first") == "first":
 		data.pop("alternativesMode", None)
-	normalizeGestures(data)
+	normalizeGestures(data, allowDisabled=False)
 	normalizeProperties(data, DEFAULT_VALUES)
 	for critData in data.get("criteria", ()):
-		normalizeGestures(critData)
+		normalizeGestures(critData, allowDisabled=True)
 		normalizeProperties(critData, None)
 
 
