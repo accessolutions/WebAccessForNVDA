@@ -637,6 +637,8 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 						itemData["name"] = name
 						self.onCriteriaChange(Change.UPDATE, index)
 		context = self.context.copy()
+		# `context["new"]` now tells whether the alternative is new, not the rule
+		context["ruleIsNew"] = bool(self.context.get("new"))
 		context["new"] = True
 		itemData = context["data"]["criteria"] = OrderedDict({
 			"criteriaIndex": len(self.getData())
@@ -651,6 +653,8 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 	@guarded
 	def onEditCriteria(self, evt, convertToDualNode=False):
 		context = self.context.copy()
+		# `context["new"]` now tells whether the alternative is new, not the rule
+		context["ruleIsNew"] = bool(self.context.get("new"))
 		context["new"] = False
 		listData = self.getData()
 		index = self.getIndex()
