@@ -246,6 +246,38 @@ an asterisk ("*") to allow for matching a substring.
 The field "SRC" is useful only for image elements with a source filename or URL. 
 
 
+##### Combining values: expressions
+
+The "Role", "Tag", "ID", "Class", "States" and "Image source" fields, as well as
+the "Page type" and "Parent element" context fields, accept several values
+combined with standard boolean operators:
+
+ - `|`: OR, eg. `h2 | h3`
+ - `&`: AND, eg. `item & active`
+ - `!`: NOT, eg. `!hidden`
+ - parentheses group, with any nesting, eg. `(a & b) | (c & !d)`
+
+`!` applies first, then `&`, then `|`: `a & b | c` means `(a & b) | c`.
+Spaces around operators and values are ignored. In the "Class" field, spaces
+separate class names, as an implicit `&`: `item active` means `item & active`.
+A value starting or ending with an asterisk (`*`) matches a substring.
+To use a character having a meaning (`&`, `|`, `!`, parentheses, `\`) as part
+of a value, precede it with a backslash, eg. `image\(1\).png`.
+
+The "Parent element" field only supports names combined with `|`, negated names
+and their combination with `&`, eg. `(Menu | Navigation) & !Popup`, as the
+results of these rules delimit where to search.
+
+The "Document URL" field keeps its own syntax: only spaces combine values (AND),
+as URLs commonly contain `&` or parentheses.
+
+Web modules saved by versions prior to the support of parentheses used a
+different interpretation: for example, `a | !b` actually meant "a and not b",
+and `a & b | c` meant "a and (b or c)". Upon loading, such expressions are
+rewritten so that the rules keep selecting the same elements (here, `a & !b`
+and `a & (b | c)`). Each rewrite is reported in the NVDA log.
+
+
 ##### Index
 
 If several elements match the criteria for the rule, this field sets the index
