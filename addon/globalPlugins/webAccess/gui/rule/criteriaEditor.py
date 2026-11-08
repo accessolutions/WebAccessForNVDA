@@ -48,7 +48,7 @@ import ui
 import addonHandler
 from ...config import EditorMode, UiMode, getUiMode
 from ...ruleHandler import ruleTypes
-from ...cssSelectors import CssSyntaxError, compileSelector
+from ...cssSelectors import CssSyntaxError, compileSelector, suggestSelectors
 from ...ruleHandler.properties import suggestOverrideValue
 from ...ruleHandler.searchMode import CSS_REPLACED_FIELDS, SEARCH_MODE_SHORT_LABELS, SearchMode, getSearchMode
 from ...ruleHandler.references import findCaseInsensitiveHomonyms, findCyclePathIfSaved, iterContextNames
@@ -739,7 +739,7 @@ class CriteriaPanel(CriteriaEditorPanel):
 		gbSizer.Add(item, pos=(row, 0))
 		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
 		items.append(item)
-		item = self.cssText = wx.TextCtrl(self)
+		item = self.cssText = SizeFrugalComboBox(self)
 		items.append(item)
 		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
 
@@ -940,6 +940,13 @@ class CriteriaPanel(CriteriaEditorPanel):
 			self.statesCombo.Set(statesChoices)
 			self.srcCombo.Set(srcChoices)
 			self.urlCombo.Set(urlChoices)
+			# Selectors for the element at the caret, then similar elements, then its ancestors
+			try:
+				cssChoices = suggestSelectors(textNode)
+			except Exception:
+				log.exception()
+				cssChoices = []
+			self.cssText.Set(cssChoices)
 		
 		self.textCombo.Value = data.get("text", "")
 		value = data.get("role", "")
