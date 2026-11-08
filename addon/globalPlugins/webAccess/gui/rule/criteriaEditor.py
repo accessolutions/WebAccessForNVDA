@@ -229,8 +229,15 @@ def getSummary_selector_full(data, condensed=False) -> Sequence[str]:
 
 def getSummary_selector_unit(data) -> Sequence[str]:
 	parts = []
+	mode = getSearchMode(data)
+	if mode is not SearchMode.SIMPLE:
+		# Translators: A mention on the Criteria Summary report
+		parts.append(_("Search mode: {mode}").format(mode=SEARCH_MODE_SHORT_LABELS[mode]))
 	for key, label in list(CriteriaPanel.FIELDS.items()):
 		if key in CriteriaPanel.CONTEXT_FIELDS or key not in data:
+			continue
+		# Values not relevant to the search mode are kept while editing, but ignored
+		if (key == "css") != (mode is SearchMode.CSS) and (key == "css" or key in CSS_REPLACED_FIELDS):
 			continue
 		value = data[key]
 		if not isinstance(value, InvalidValue):
