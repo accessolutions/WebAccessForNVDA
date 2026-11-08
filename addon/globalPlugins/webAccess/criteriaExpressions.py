@@ -538,11 +538,11 @@ def migrateLegacyRelativePath(path: str) -> str:
 def migrateLegacyRules(rules: dict) -> list[str]:
 	"""Migrate, in place, the expressions of serialized rules saved before format 0.17.
 	
-	Concerns the criteria fields (see `LEGACY_FIELDS`) and the criteria embedded in
-	relative paths, of all the selectors of all the alternatives. Returns a message
-	describing each rewrite.
+	Concerns the criteria fields (see `LEGACY_FIELDS`), the criteria embedded in relative
+	paths, and the context criteria (page type, parent element) of all the selectors of
+	all the alternatives. Returns a message describing each rewrite.
 	"""
-	from .ruleHandler.references import iterSelectorsData
+	from .ruleHandler.references import CONTEXT_REFERENCE_FIELDS, iterSelectorsData
 	messages = []
 	for ruleName, rule in rules.items():
 		for index, crit in enumerate(rule.get("criteria") or ()):
@@ -557,6 +557,13 @@ def migrateLegacyRules(rules: dict) -> list[str]:
 					if newPath != path:
 						selectorData["relativePath"] = newPath
 						changes.append(("relativePath", path, newPath))
+				for field in CONTEXT_REFERENCE_FIELDS:
+					value = selectorData.get(field)
+					if isinstance(value, str):
+						newValue = migrateLegacyContextExpression(value)
+						if newValue is not None:
+							selectorData[field] = newValue
+							changes.append((field, value, newValue))
 				for field, old, new in changes:
 					messages.append(
 						f"{location}, {field}: {old!r} rewritten as {new!r}, "

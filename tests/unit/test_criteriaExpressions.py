@@ -294,6 +294,16 @@ class TestMigrateRules(unittest.TestCase):
 		self.assertEqual(len(messages), 4)
 		self.assertIn("alternative #2 (end), relativePath", messages[-1])
 	
+	def test_contexts(self):
+		rules = {"R": {"criteria": [{"selector": {
+			"contextParent": "!A | B", "contextPageType": "Home | Search & Results",
+		}}, {"selector": {"contextParent": "A | B & !C"}}]}}
+		messages = migrateLegacyRules(rules)
+		self.assertEqual(rules["R"]["criteria"][0]["selector"]["contextParent"], "!(A | B)")
+		self.assertEqual(rules["R"]["criteria"][0]["selector"]["contextPageType"], "(Home | Search) & Results")
+		self.assertEqual(rules["R"]["criteria"][1]["selector"]["contextParent"], "(A | B) & !C")
+		self.assertEqual(len(messages), 3)
+	
 	def test_nothingToMigrate(self):
 		rules = {"R": {"criteria": [{"selector": {"className": "a b", "tag": "li|ul"}}]}}
 		self.assertEqual(migrateLegacyRules(rules), [])

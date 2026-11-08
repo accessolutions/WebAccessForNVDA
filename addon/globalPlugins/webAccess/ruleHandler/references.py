@@ -27,15 +27,21 @@ alternatives (Criteria):
  - `contextPageType`: Page type rules (or any rule) that must (not) be matched.
  - `contextParent`: Rules whose Results must (not) contain the matched node.
 
-Both are expressions of the form `term ('&' term)*`, where `term` is
-`'!'? name ('|' name)*`:
+Both are boolean expressions of rule names, in standard logic (see `criteriaExpressions`):
+`|` (OR), `&` (AND), `!` (NOT) and parentheses, eg. `(Home | Search) & !Popup`.
+A name is satisfied if the rule is found on the page (for `contextParent`, the matched node
+must moreover be within one of its Results).
 
- - `&`: All the terms must be satisfied.
- - `|`: Any of the names satisfies the term.
- - `!`: Negates the term: None of its names must be satisfied.
+As the Results of the parent rules delimit where to search, `contextParent` only supports
+expressions reducible to a conjunction (AND) of positive terms (`A | B`) and negated names
+(`!A`), eg. `(A | B) & !C & !(D | E)`. See `parseContextExpression`.
 
-Names are compared case-sensitively, once stripped. There is no escaping: Rule names
-cannot contain `&` nor `|`, nor start with `!` (see `getRuleNameError`).
+Names are compared case-sensitively, once stripped. Characters having a meaning in the
+expressions can be escaped with `\\`, eg. `Menu \\(main\\)`. Rule names cannot contain `&` nor
+`|`, nor start with `!` (see `getRuleNameError`).
+
+Data saved before format 0.17 used another interpretation, converted upon loading (see
+`criteriaExpressions.migrateLegacyContextExpression`).
 
 This module operates on serialized data (as stored in WebModule files) and does not
 depend on NVDA, so that it can be unit tested.
@@ -44,6 +50,22 @@ depend on NVDA, so that it can be unit tested.
 
 from dataclasses import dataclass
 from typing import Any
+
+from ..criteriaExpressions import (
+	ExpressionSyntaxError,
+	Node,
+	Not,
+	Value,
+	escapeValue,
+	evaluate,
+	formatExpression,
+	iterValues,
+	makeAnd,
+	makeOr,
+	mapValues,
+	parseExpression,
+	toCnf,
+)
 
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 
@@ -54,41 +76,66 @@ CONTEXT_REFERENCE_FIELDS = ("contextPageType", "contextParent")
 
 @dataclass(frozen=True)
 class ContextTerm:
-	"""A term of a context expression: `'!'? name ('|' name)*`."""
+	"""A term of a conjunctive context expression: `name ('|' name)*` or `'!' name`."""
 
 	names: tuple[str, ...]
 	negated: bool = False
 
 
-def parseContextExpression(expr: str | None) -> tuple[ContextTerm, ...]:
-	"""Parse a context expression into its terms, ignoring empty terms and names.
+class ContextNotSupported(ValueError):
+	"""Raised for a valid expression that cannot be used as `contextParent`."""
 
-	Spaces around operators and names are ignored, eg. "A | B & ! C".
+
+def parseContext(expr: str | None) -> Node | None:
+	"""Parse a context expression, `None` if empty. Raises `ExpressionSyntaxError`."""
+	return parseExpression(expr, partial=False)
+
+
+def evaluateContext(expr: str | None, isSatisfied) -> bool:
+	"""Evaluate a context expression, `isSatisfied(name)` telling whether a name is."""
+	return evaluate(parseContext(expr), lambda value: isSatisfied(value.text))
+
+
+def parseContextExpression(expr: str | None) -> tuple[ContextTerm, ...]:
+	"""Parse a context expression into a conjunction (AND) of terms.
+
+	Each term is either a disjunction (OR) of names, or a single negated name.
+	Raises `ExpressionSyntaxError` if invalid, `ContextNotSupported` if not reducible to
+	such terms (eg. `A | !B`).
 	"""
 	terms = []
-	for part in (expr or "").split("&"):
-		part = part.strip()
-		negated = part.startswith("!")
-		if negated:
-			part = part[1:]
-		names = tuple(name.strip() for name in part.split("|") if name.strip())
-		if names:
-			terms.append(ContextTerm(names, negated))
+	for clause in toCnf(parseContext(expr)):
+		if not any(negated for negated, value in clause):
+			terms.append(ContextTerm(tuple(value.text for negated, value in clause)))
+		elif len(clause) == 1:
+			terms.append(ContextTerm((clause[0][1].text,), negated=True))
+		else:
+			raise ContextNotSupported(
+				"Only a conjunction (AND) of positive terms (A | B) and negated names (!A) "
+				"is supported"
+			)
 	return tuple(terms)
 
 
 def formatContextExpression(terms: Iterable[ContextTerm]) -> str:
-	"""The canonical form of a context expression, eg. "A | B & !C"."""
-	return " & ".join(
-		("!" if term.negated else "") + " | ".join(term.names)
+	"""The canonical form of a conjunction of terms, eg. "(A | B) & !C"."""
+	return formatExpression(makeAnd(
+		Not(Value(term.names[0])) if term.negated else makeOr(Value(name) for name in term.names)
 		for term in terms
-	)
+	)) if terms else ""
 
 
 def iterContextNames(expr: str | None) -> Iterator[str]:
-	"""Yield the rule names referred to by a context expression, in order, with duplicates."""
-	for term in parseContextExpression(expr):
-		yield from term.names
+	"""Yield the rule names referred to by a context expression, in order, with duplicates.
+
+	Yields nothing for an invalid expression.
+	"""
+	try:
+		node = parseContext(expr)
+	except ExpressionSyntaxError:
+		return
+	for value in iterValues(node):
+		yield value.text
 
 
 def renameInContextExpression(expr: str | None, oldName: str, newName: str) -> str | None:
@@ -96,18 +143,18 @@ def renameInContextExpression(expr: str | None, oldName: str, newName: str) -> s
 
 	Names are matched as whole tokens: Renaming "Menu" does not affect "Main menu".
 	The expression is returned unchanged (same formatting) if it does not refer to
-	`oldName`, in its canonical form otherwise.
+	`oldName` (or is invalid), in its canonical form otherwise.
 	"""
-	terms = parseContextExpression(expr)
-	if not any(oldName in term.names for term in terms):
+	try:
+		node = parseContext(expr)
+	except ExpressionSyntaxError:
 		return expr
-	return formatContextExpression(
-		ContextTerm(
-			tuple(newName if name == oldName else name for name in term.names),
-			term.negated,
-		)
-		for term in terms
-	)
+	if not any(value.text == oldName for value in iterValues(node)):
+		return expr
+	return formatExpression(mapValues(
+		node,
+		lambda value: Value(newName) if value.text == oldName else value
+	))
 
 
 @dataclass(frozen=True)

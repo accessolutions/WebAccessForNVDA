@@ -78,6 +78,7 @@ from .references import (
 	findCyclePath,
 	findCycles,
 	getDependents,
+	evaluateContext,
 	parseContextExpression,
 )
 from .controlMutation import MUTATIONS, MutatedControl, getMutationId
@@ -1700,25 +1701,25 @@ class Selector(AutoPropertyObject):
 		"""
 		Check whether the current page satisfies `contextPageType`.
 
-		'|', '!' and '&' are supported, in this order of precedence
-		(see `references.parseContextExpression`).
-		A reference to a missing rule is considered as not matched.
+		A boolean expression of rule names (see `references`), each satisfied if the
+		rule has Results. A reference to a missing rule is considered as not matched.
 		"""
 		rule = self.criteria.rule
 		mgr = rule.ruleManager
-		for term in parseContextExpression(self.contextPageType):
-			found = False
-			for name in term.names:
-				cptRule = mgr.resolveRule(name)
-				if cptRule is None:
-					mgr.reportMissingReference(rule, "contextPageType", name)
-					continue
-				if cptRule.getResults():
-					found = True
-					break
-			if found == term.negated:
+		
+		def isSatisfied(name):
+			cptRule = mgr.resolveRule(name)
+			if cptRule is None:
+				mgr.reportMissingReference(rule, "contextPageType", name)
 				return False
-		return True
+			return bool(cptRule.getResults())
+		
+		try:
+			return evaluateContext(self.contextPageType, isSatisfied)
+		except ValueError as e:
+			# Eg. a syntax error in an expression saved by hand
+			mgr.reportRuleError(rule, f"Invalid contextPageType: {e}")
+			return False
 	
 	def iterMatches(self) -> Tuple["Node", textInfos.offsets.Offsets]:
 		
@@ -1745,7 +1746,13 @@ class Selector(AutoPropertyObject):
 		excludedNodes = set()  # Set of excluded parent nodes
 		multipleContext = None  # Will be later set to either `True` or `False`
 		# A reference to a missing rule is considered as not matched
-		for term in parseContextExpression(self.contextParent):
+		try:
+			terms = parseContextExpression(self.contextParent)
+		except ValueError as e:
+			# Eg. a syntax error in an expression saved by hand, or `ContextNotSupported`
+			mgr.reportRuleError(rule, f"Invalid contextParent: {e}")
+			return
+		for term in terms:
 			exclude = term.negated
 			altRootNodes = set()
 			for name in term.names:
