@@ -93,12 +93,12 @@ def saveRule(
 		data: Mapping[str, Any],
 		parent: wx.Window
 	) -> bool:
+	ruleMutation = data.get("properties", {}).get("mutation")
 	if any(
 		set(critData.get("selector", {}).keys()) == {"start", "end"}
+		# The Transform property might be defined or cancelled by the alternative
+		and critData.get("properties", {}).get("mutation", ruleMutation)
 		for critData in data.get("criteria", [])
-	) and any(
-		key == "mutation" and value
-		for key, value in data.get("properties", {}).items()
 	):
 		if gui.messageBox(
 			# Translators: A warning message on the Rule editor
@@ -133,8 +133,10 @@ Do you want to proceed anyway?
 	webModule = webModuleHandler.getEditableWebModule(mgr.webModule, layerName=layerName)
 	if not webModule:
 		raise ValidationError()  # Cancels closing of the dialog
-	if createMissingSubModule(context, data, parent) is False:
-		raise ValidationError()  # Cancels closing of the dialog
+	# The sub-module might be defined at Rule level or by any alternative
+	for container in [data] + data.get("criteria", []):
+		if createMissingSubModule(context, container, parent) is False:
+			raise ValidationError()  # Cancels closing of the dialog
 	if context.get("new"):
 		layerName = webModule.getWritableLayer().name
 	else:
