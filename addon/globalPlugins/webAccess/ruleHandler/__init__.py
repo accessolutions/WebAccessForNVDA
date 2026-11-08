@@ -2165,7 +2165,7 @@ class Zone(AutoPropertyObject):
 
 	def update(self, result=None):
 		if result is not None:
-			self._result = result
+			self.result = result
 			return True
 		try:
 			rule = self.ruleManager._layers.get(self.layer, {}).get(self.name)
