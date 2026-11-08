@@ -1203,7 +1203,7 @@ class StartCriteriaPanel(CriteriaPanel):
 	
 	def onTestCriteria(self, evt):
 		self.updateData()
-		testCriteria(self.context, restrictDualNodeTo=="start")
+		testCriteria(self.context, restrictDualNodeTo="start")
 
 
 class EndCriteriaPanel(CriteriaPanel):
