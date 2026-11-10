@@ -32,6 +32,7 @@ import gui
 from logHandler import log
 
 from ...ruleHandler.properties import normalizeRuleData
+from ...ruleHandler.references import renameReferences
 from ... import webModuleHandler
 from .. import ValidationError
 
@@ -88,6 +89,91 @@ Do you want to create it now?""")
 	return res
 
 
+def propagateRuleRename(
+		mgr: "RuleManager",
+		rule: "Rule",
+		data: dict[str, Any],
+		parent: wx.Window
+	) -> bool | None:
+	"""Offer to update the references to a rule being renamed.
+
+	`data` is the new data of the rule, its name being the new name.
+	The rules of the same layer referring to the old name are updated upon confirmation.
+	The rules of other layers (eg. read-only add-on layers) are listed, but not updated.
+
+	Returns:
+	 - `None` if there is no reference to update or the user declined.
+	 - `True` if the references have been updated.
+	 - `False` if the user cancelled.
+	"""
+	oldName, newName = rule.name, data["name"]
+	dependents = {
+		dependent: refs
+		for dependent, refs in mgr.getDependents(oldName).items()
+		if dependent is not rule
+	}
+	if not dependents:
+		return None
+	sameLayer = sorted(
+		(dependent for dependent in dependents if dependent.layer == rule.layer),
+		key=lambda dependent: dependent.name
+	)
+	otherLayers = sorted(
+		(dependent for dependent in dependents if dependent.layer != rule.layer),
+		key=lambda dependent: (dependent.layer, dependent.name)
+	)
+	parts = []
+	if sameLayer:
+		parts.append(
+			# Translators: A prompt upon renaming a rule referred to by other rules
+			_('The rule "{oldName}" is referred to by the following rules:\n{rules}').format(
+				oldName=oldName,
+				rules="\n".join(f"  - {dependent.name}" for dependent in sameLayer),
+			)
+		)
+	if otherLayers:
+		parts.append(
+			# Translators: A mention upon renaming a rule referred to by rules that cannot be updated
+			_("Rules of other layers referring to it, which will not be updated:\n{rules}").format(
+				rules="\n".join(
+					f"  - {dependent.name} ({dependent.layer})" for dependent in otherLayers
+				),
+			)
+		)
+	if webModuleHandler.hasCustomModule(mgr.webModule.name):
+		parts.append(
+			# Translators: A mention upon renaming a rule of a WebModule having Python code
+			_("The Python code of this WebModule may also refer to this rule by its name.")
+		)
+	if sameLayer:
+		# Translators: A prompt upon renaming a rule referred to by other rules
+		parts.append(_('Update these references to "{newName}"?').format(newName=newName))
+		style = wx.YES_NO | wx.CANCEL | wx.ICON_QUESTION
+	else:
+		# Translators: A prompt upon renaming a rule referred to by other rules
+		parts.append(_("Rename anyway? These references will be considered as not matched."))
+		style = wx.YES_NO | wx.NO_DEFAULT | wx.ICON_WARNING
+	res = gui.messageBox(
+		"\n\n".join(parts),
+		# Translators: The title of a prompt upon renaming a rule
+		caption=_("Rule renamed"),
+		style=style,
+		parent=parent,
+	)
+	if res == wx.CANCEL or (not sameLayer and res != wx.YES):
+		return False
+	if res != wx.YES or not sameLayer:
+		return None
+	# A rule referring to itself follows its own renaming
+	renameReferences(data, oldName, newName)
+	for dependent in sameLayer:
+		dependentData = dependent.dump()
+		renameReferences(dependentData, oldName, newName)
+		mgr.removeRule(dependent)
+		mgr.loadRule(dependent.layer, dependent.name, dependentData)
+	return True
+
+
 def saveRule(
 		context: Mapping[str, Any],
 		data: Mapping[str, Any],
@@ -136,6 +222,9 @@ Do you want to proceed anyway?
 	# The sub-module might be defined at Rule level or by any alternative
 	for container in [data] + data.get("criteria", []):
 		if createMissingSubModule(context, container, parent) is False:
+			raise ValidationError()  # Cancels closing of the dialog
+	if not context.get("new") and data["name"] != rule.name:
+		if propagateRuleRename(mgr, rule, data, parent) is False:
 			raise ValidationError()  # Cancels closing of the dialog
 	if context.get("new"):
 		layerName = webModule.getWritableLayer().name

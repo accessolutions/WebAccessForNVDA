@@ -68,7 +68,14 @@ from ..webAppLib import (
 )
 from .. import webAppScheduler
 from . import ruleTypes
-from .references import buildDependencyGraph, findCyclePath, findCycles, parseContextExpression
+from .references import (
+	Reference,
+	buildDependencyGraph,
+	findCyclePath,
+	findCycles,
+	getDependents,
+	parseContextExpression,
+)
 from .controlMutation import MUTATIONS, MutatedControl, getMutationId
 from .properties import RuleProperties, CriteriaProperties
 
@@ -293,6 +300,19 @@ class RuleManager(ScriptableObject):
 			for ruleLayers in self._rules.values()
 			for rule in reversed(ruleLayers.values())
 		])
+
+	def getDependents(self, name: str) -> dict["Rule", list[Reference]]:
+		"""The rules referring to the given rule name, with their references to it.
+
+		All the rules of all the layers are considered, including the overridden ones.
+		"""
+		rules = [rule for ruleLayers in self._rules.values() for rule in ruleLayers.values()]
+		dependents = {}
+		for rule in rules:
+			refs = getDependents({rule.name: rule.dump()}, name).get(rule.name)
+			if refs:
+				dependents[rule] = refs
+		return dependents
 
 	def getActiveRules(self) -> tuple["Rule"]:
 		"""The rules evaluated on the page: For each name, the rule of the topmost layer.
