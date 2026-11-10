@@ -523,12 +523,24 @@ class RuleManager(ScriptableObject):
 			# modules that were already loaded on the last update.
 			self.subModules._results.clear()
 			
-			for rule in (rule for rule in self.getRules() if rule.properties.subModule):
+			# The sub-module to load is determined by each Result, as it can be
+			# defined or cancelled by the alternative (Criteria) that matched.
+			# Rules that may load a sub-module are processed first, so that the
+			# content of sub-modules is excluded from the subsequent searches.
+			def mayLoadSubModule(rule):
+				return bool(rule.properties.subModule) or any(
+					crit.properties.subModule for crit in rule.criteria
+				)
+
+			subModuleRules = [rule for rule in self.getRules() if mayLoadSubModule(rule)]
+			for rule in subModuleRules:
 				results = rule.getResults()
 				self._results.extend(results)
-				self.subModules._results.extend(results)
+				self.subModules._results.extend(
+					result for result in results if result.properties.subModule
+				)
 			for rule in sorted(
-				(rule for rule in self.getRules() if not rule.properties.subModule),
+				(rule for rule in self.getRules() if rule not in subModuleRules),
 				key=lambda rule: (
 					0 if rule.type in (
 						ruleTypes.PAGE_TITLE_1, ruleTypes.PAGE_TITLE_2
@@ -606,6 +618,7 @@ class RuleManager(ScriptableObject):
 			if not self.isReady:
 				return
 			funcMoveto = None
+			movetoRuleKey = None
 			firstCancelSpeech = True
 			for result in self.getResults():
 				if result.properties.autoAction:
@@ -613,7 +626,12 @@ class RuleManager(ScriptableObject):
 					# check only 100 first characters
 					text = result.getText()[:100]
 					autoActionName = result.properties.autoAction
-					func = getattr(result, "script_%s" % autoActionName)
+					func = getattr(result, "script_%s" % autoActionName, None)
+					if func is None:
+						log.error(
+							f"In rule {result.rule.name!r}: Unknown Auto Action {autoActionName!r}"
+						)
+						continue
 					lastText = self.triggeredIdentifiers.get(controlIdentifier)
 					if (lastText is None or text != lastText):
 						self.triggeredIdentifiers[controlIdentifier] = text
@@ -623,12 +641,14 @@ class RuleManager(ScriptableObject):
 							if lastText is None:
 								# only if it's a new identifier
 								if funcMoveto is None:
-									if func.__name__== self.lastAutoMoveto \
+									ruleKey = (result.rule.layer, result.rule.name)
+									if ruleKey == self.lastAutoMoveto \
 										and time.time() - self.lastAutoMovetoTime < 4:
 										# no autoMoveto of same rule before 4 seconds
 										continue
 									else:
 										funcMoveto = func
+										movetoRuleKey = ruleKey
 							func = None
 						if func:
 							if firstCancelSpeech:
@@ -652,7 +672,7 @@ class RuleManager(ScriptableObject):
 				if firstCancelSpeech:
 					speech.cancelSpeech()
 					firstCancelSpeech = False
-				self.lastAutoMoveto = funcMoveto.__name__
+				self.lastAutoMoveto = movetoRuleKey
 				self.lastAutoMovetoTime = time.time()
 				queueHandler.queueFunction(
 					queueHandler.eventQueue,
