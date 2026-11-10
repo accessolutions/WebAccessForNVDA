@@ -547,8 +547,29 @@ class RuleManager(ScriptableObject):
 			return False
 		return True
 
-	def checkReady(self):
-		ready = self.isReady
+	def _catchUp(self) -> bool:
+		"""Update right away if only the update by the scheduler is pending.
+
+		Once the document has been analyzed, the RuleManagers are not ready until
+		the scheduler thread updates them. A script (main thread) can perform this
+		update itself rather than failing, as `script_refreshResults` does.
+		The lock serializes it with the scheduler, which then finds it already done.
+		"""
+		root = self.rootRuleManager
+		nodeManager = root.nodeManager
+		if nodeManager is None or nodeManager.updating or not nodeManager.isReady:
+			return False
+		root.update(nodeManager)
+		return self.isReady
+
+	def checkReady(self, catchUp=False):
+		"""Report "Not ready" if this RuleManager is not up to date.
+
+		With `catchUp`, the update is performed right away if only the update by the
+		scheduler is pending. Only suitable before retrieving Results: Those of the
+		previous update would then be stale.
+		"""
+		ready = self.isReady or (catchUp and self._catchUp())
 		if not ready:
 			playWebAccessSound("keyError")
 			# Translators: Reported when attempting an action while WebAccess is not ready
@@ -935,10 +956,7 @@ class RuleManager(ScriptableObject):
 		cycle=True,
 		quiet=False,
 	):
-		if not self.isReady:
-			playWebAccessSound("keyError")
-			# Translators: Reported when attempting an action while WebAccess is not ready
-			ui.message(_("Not ready"))
+		if not self.checkReady(catchUp=True):
 			return None
 
 		if position is None:
