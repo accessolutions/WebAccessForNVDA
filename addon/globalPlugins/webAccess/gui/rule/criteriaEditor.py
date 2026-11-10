@@ -48,6 +48,7 @@ import ui
 import addonHandler
 from ...config import EditorMode, UiMode, getUiMode
 from ...ruleHandler import ruleTypes
+from ...ruleHandler.references import findCaseInsensitiveHomonyms, findCyclePathIfSaved, iterContextNames
 from ...utils import guarded, notifyError, updateOrDrop
 from .. import (
 	ContextualMultiCategorySettingsDialog,
@@ -1014,8 +1015,91 @@ class CriteriaPanel(CriteriaEditorPanel):
 		return self.isValid_context() and self.isValid_others()
 	
 	def isValid_context(self):
-		# TODO: Check the syntax of expressions
+		"""Check the references to other rules of the context criteria.
+
+		 - A reference to a missing rule is allowed (eg. a rule to be created later),
+		   upon confirmation, suggesting names differing only by case.
+		 - A reference making the rule refer to itself, directly or not, is refused (#13).
+		"""
+		data = self.getData()
+		mgr = self.getRuleManager()
+		ruleData = self.context["data"]["rule"]
+		ruleName = ruleData.get("name")
+		knownNames = tuple(mgr._rules.keys())
+		for field, combo in (
+			("contextPageType", self.contextPageTypeCombo),
+			("contextParent", self.contextParentCombo),
+		):
+			missing = [
+				name
+				for name in dict.fromkeys(iterContextNames(data.get(field)))
+				if name != ruleName and mgr.resolveRule(name) is None
+			]
+			if not missing:
+				continue
+			lines = []
+			for name in missing:
+				homonyms = findCaseInsensitiveHomonyms(name, knownNames)
+				if homonyms:
+					# Translators: A missing rule referred to in context criteria, with suggestions
+					lines.append(_("  - {name} (did you mean: {suggestions}?)").format(
+						name=name, suggestions=", ".join(homonyms)
+					))
+				else:
+					lines.append(f"  - {name}")
+			if gui.messageBox(
+				message=_(
+					# Translators: A prompt on the Criteria Editor when context criteria refer to missing rules
+					'The field "{field}" refers to rules not found in this WebModule:\n{rules}\n\n'
+					"These references will be considered as not matched. Continue anyway?"
+				).format(field=stripAccelAndColon(self.FIELDS[field]), rules="\n".join(lines)),
+				# Translators: The title of a message dialog
+				caption=_("Warning"),
+				style=wx.YES_NO | wx.NO_DEFAULT | wx.ICON_WARNING,
+				parent=self
+			) != wx.YES:
+				combo.SetFocus()
+				return False
+		path = self.findReferenceCycle()
+		if path:
+			gui.messageBox(
+				message=_(
+					# Translators: An error on the Criteria Editor when context criteria form a cycle
+					"The context criteria would make this rule refer to itself, "
+					"which is not supported:\n{path}"
+				).format(path=" → ".join(path)),
+				caption=_("Error"),
+				style=wx.OK | wx.ICON_ERROR,
+				parent=self
+			)
+			self.contextParentCombo.SetFocus()
+			return False
 		return True
+
+	def findReferenceCycle(self) -> list[str] | None:
+		"""The reference cycle the edited rule would take part in once saved, if any."""
+		context = self.context
+		mgr = self.getRuleManager()
+		critData = context["data"]["criteria"]
+		ruleData = deepcopy(context["data"]["rule"])
+		alternatives = ruleData.setdefault("criteria", [])
+		alternative = {k: v for k, v in critData.items() if k not in ("new", "criteriaIndex")}
+		# New alternatives are given the index they will be inserted at
+		index = critData.get("criteriaIndex")
+		if index is None or index >= len(alternatives):
+			alternatives.append(alternative)
+		else:
+			alternatives[index] = alternative
+		rulesData = {
+			name: rule.dump()
+			for name, rule in ((name, mgr.resolveRule(name)) for name in mgr._rules)
+			if rule is not None
+		}
+		# Here, `context["new"]` tells whether the alternative is new, not the rule
+		# (see `ruleIsNew`), and `context["rule"]` might be stale for a new rule.
+		rule = context.get("rule")
+		oldName = rule.name if rule is not None and context.get("ruleIsNew") is False else None
+		return findCyclePathIfSaved(rulesData, ruleData.get("name"), ruleData, oldName=oldName)
 	
 	def isValid_others(self):
 		# TODO: Check the syntax of expressions
@@ -1119,7 +1203,7 @@ class StartCriteriaPanel(CriteriaPanel):
 	
 	def onTestCriteria(self, evt):
 		self.updateData()
-		testCriteria(self.context, restrictDualNodeTo=="start")
+		testCriteria(self.context, restrictDualNodeTo="start")
 
 
 class EndCriteriaPanel(CriteriaPanel):

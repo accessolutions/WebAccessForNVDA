@@ -51,6 +51,7 @@ import ui
 from ...config import EditorMode, UiMode, getUiMode
 from ... import webModuleHandler
 from ...ruleHandler import RuleManager, ruleTypes
+from ...ruleHandler.references import findCaseInsensitiveHomonyms, getRuleNameError
 from ...ruleHandler.controlMutation import (
 	MUTATIONS_BY_RULE_TYPE,
 	mutationLabels
@@ -354,6 +355,9 @@ class GeneralPanel(RuleEditorTreeContextualPanel):
 			self.ruleType.SetFocus()
 			return False
 
+		# Leading and trailing spaces are not significant (eg. as entered in the wizard)
+		if data.get("name"):
+			data["name"] = data["name"].strip()
 		# Name is required
 		if not data.get("name"):
 			gui.messageBox(
@@ -378,7 +382,21 @@ class GeneralPanel(RuleEditorTreeContextualPanel):
 			rule = context["rule"]
 			prevName = rule.name
 			layer = rule.layer
+		# Existing names are not checked again, so that existing rules can still be edited
 		if newName != prevName:
+			if getRuleNameError(newName) is not None:
+				gui.messageBox(
+					# Translators: Error message when the name of a rule contains a forbidden character
+					message=_(
+						'A rule name cannot contain "&" nor "|", nor start with "!", '
+						"as other rules could not refer to it."
+					),
+					caption=_("Error"),
+					style=wx.ICON_ERROR | wx.OK,
+					parent=self
+				)
+				self.ruleName.SetFocus()
+				return False
 			mgr = self.getRuleManager()
 			try:
 				mgr.getRule(newName, layer)
@@ -392,6 +410,23 @@ class GeneralPanel(RuleEditorTreeContextualPanel):
 					style=wx.ICON_ERROR | wx.OK,
 					parent=self
 				)
+				return False
+			homonyms = findCaseInsensitiveHomonyms(
+				newName,
+				(name for name in mgr._layers.get(layer, {}) if name != prevName)
+			)
+			if homonyms and gui.messageBox(
+				message=_(
+					# Translators: A prompt when another rule has the same name, differing only by case
+					"Another rule has a similar name, differing only by case: {names}\n\n"
+					"Keep this name anyway?"
+				).format(names=", ".join(homonyms)),
+				# Translators: The title of a message dialog
+				caption=_("Warning"),
+				style=wx.YES_NO | wx.NO_DEFAULT | wx.ICON_WARNING,
+				parent=self
+			) != wx.YES:
+				self.ruleName.SetFocus()
 				return False
 		return True
 
@@ -637,6 +672,8 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 						itemData["name"] = name
 						self.onCriteriaChange(Change.UPDATE, index)
 		context = self.context.copy()
+		# `context["new"]` now tells whether the alternative is new, not the rule
+		context["ruleIsNew"] = bool(self.context.get("new"))
 		context["new"] = True
 		itemData = context["data"]["criteria"] = OrderedDict({
 			"criteriaIndex": len(self.getData())
@@ -651,6 +688,8 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 	@guarded
 	def onEditCriteria(self, evt, convertToDualNode=False):
 		context = self.context.copy()
+		# `context["new"]` now tells whether the alternative is new, not the rule
+		context["ruleIsNew"] = bool(self.context.get("new"))
 		context["new"] = False
 		listData = self.getData()
 		index = self.getIndex()

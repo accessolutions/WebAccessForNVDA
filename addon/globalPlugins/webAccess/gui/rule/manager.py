@@ -37,10 +37,12 @@ import config
 import gui
 from gui import guiHelper
 import inputCore
+from logHandler import log
 import queueHandler
 import ui
 
 from ...ruleHandler import Criteria, GestureScope, Rule, Result, Selector, Zone, ruleTypes
+from ...ruleHandler.references import iterReferences
 from ...utils import getCharFromKeyEvent, guarded
 from ...webModuleHandler import getEditableWebModule, save
 from .. import ContextualDialog, showContextualDialog, stripAccel
@@ -626,6 +628,28 @@ class Dialog(ContextualDialog):
 		else:
 			wx.Bell()
 			return
+		# Eg. a rule copied from another WebModule
+		mgr = self.context["webModule"].ruleManager
+		try:
+			missing = sorted({
+				ref.name for ref in iterReferences(data)
+				if ref.name != data.get("name") and mgr.resolveRule(ref.name) is None
+			})
+		except Exception:
+			log.exception()
+			missing = None
+		if missing:
+			gui.messageBox(
+				message=_(
+					# Translators: A warning on the Rules Manager upon pasting a rule referring to missing rules
+					"The pasted rule refers to rules not found in this WebModule:\n{rules}\n\n"
+					"These references will be considered as not matched, unless such rules are created."
+				).format(rules="\n".join(f"  - {name}" for name in missing)),
+				# Translators: The title of a message dialog
+				caption=_("Warning"),
+				style=wx.OK | wx.ICON_WARNING,
+				parent=self
+			)
 		self.onRuleNew(pastedData=data)
 	
 	def refreshRuleList(self):
