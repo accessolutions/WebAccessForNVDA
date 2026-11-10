@@ -26,7 +26,7 @@ import unittest
 
 from . import ADDON_PACKAGE_DIR  # noqa: F401 (installs the stubs)
 from webAccess.ruleHandler import ruleTypes
-from webAccess.ruleHandler.properties import DEFAULT_VALUES, PropertiesBase
+from webAccess.ruleHandler.properties import DEFAULT_VALUES, PropertiesBase, suggestOverrideValue
 
 
 class FakeProperties(PropertiesBase):
@@ -90,9 +90,58 @@ class TestInheritance(unittest.TestCase):
 		)
 		self.assertEqual(crit.dump(), {"autoAction": None, "formMode": False})
 	
+	def test_criteriaDumpKeepsOverridesEqualToRule(self):
+		rule, crit = makeRuleAndCriteria(
+			ruleData={"autoAction": "moveto"},
+			critData={"autoAction": "moveto", "sayName": False},
+		)
+		self.assertEqual(crit.dump(), {"autoAction": "moveto", "sayName": False})
+		# Still applies once the Rule level value changes
+		rule.autoAction = "speak"
+		self.assertEqual(crit.autoAction, "moveto")
+	
+	def test_overrideIntrospection(self):
+		rule, crit = makeRuleAndCriteria(
+			ruleData={"autoAction": "moveto"},
+			critData={"sayName": True},
+		)
+		self.assertFalse(rule.isOverride)
+		self.assertTrue(crit.isOverride)
+		self.assertTrue(crit.isOverridden("sayName"))
+		self.assertFalse(crit.isOverridden("autoAction"))
+		self.assertEqual(crit.getInheritedValue("autoAction"), "moveto")
+		self.assertIs(crit.getInheritedValue("sayName"), False)
+	
 	def test_unsupportedPropertyRejected(self):
 		with self.assertRaises(ValueError):
 			makeRuleAndCriteria(ruleType=ruleTypes.PAGE_TITLE_1, ruleData={"skip": True})
+
+
+class TestSuggestOverrideValue(unittest.TestCase):
+	"""The initial value of a new override must differ from the inherited one."""
+	
+	ACTIONS = (None, "moveto", "sayall", "speak")
+	
+	def test_boolNegatesInherited(self):
+		for name in ("multiple", "formMode", "skip", "sayName"):
+			self.assertIs(suggestOverrideValue(name, True), False, name)
+			self.assertIs(suggestOverrideValue(name, False), True, name)
+	
+	def test_choiceCancelsInherited(self):
+		self.assertIsNone(suggestOverrideValue("autoAction", "moveto", self.ACTIONS))
+		self.assertIsNone(suggestOverrideValue("mutation", "heading.2", (None, "heading.2")))
+	
+	def test_choiceDefaultsToFirstActualChoice(self):
+		self.assertEqual(suggestOverrideValue("autoAction", None, self.ACTIONS), "moveto")
+	
+	def test_choiceWithoutActualChoice(self):
+		self.assertIsNone(suggestOverrideValue("autoAction", None, (None,)))
+		self.assertIsNone(suggestOverrideValue("autoAction", None, None))
+	
+	def test_textIsEmpty(self):
+		for name in ("customName", "customValue", "subModule"):
+			self.assertEqual(suggestOverrideValue(name, "Foo"), "", name)
+			self.assertEqual(suggestOverrideValue(name, ""), "", name)
 
 
 if __name__ == "__main__":

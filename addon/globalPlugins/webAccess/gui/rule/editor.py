@@ -73,7 +73,7 @@ from .. import (
 )
 from . import criteriaEditor, gestureBinding, saveRule
 from .abc import RuleAwarePanelBase
-from .gestures import GesturesPanelBase
+from .gestures import GesturesPanelBase, getGesturesSummary
 from .properties import (
 	EditorType,
 	Property,
@@ -114,6 +114,17 @@ def getSummary(context, data):
 		stripAccel(SHARED_LABELS["type"]),
 		ruleTypes.ruleTypeLabels.get(ruleType, "")
 	))
+
+	# Gestures
+	if ruleType in ruleTypes.ACTION_TYPES:
+		subParts = [
+			"  " + label
+			for label in getGesturesSummary(context, data.get("gestures", {}))
+		]
+		if subParts:
+			# Translators: The label for a section on the Rule Summary report
+			parts.append(_("{section}:").format(section=GesturesPanel.title))
+			parts.extend(subParts)
 
 	# Properties
 	subParts = []
@@ -162,12 +173,13 @@ def getSummary(context, data):
 
 
 def supportsSimpleMode(context):
+	"""Whether the rule has at most one alternative (Criteria).
+	
+	The simple mode of the Rule editor summarizes this alternative, including
+	its gestures and properties overrides, if any.
+	"""
 	alternatives = context.get("data", {}).get("rule", {}).get("criteria", [])
-	if not alternatives:
-		return True
-	if len(alternatives) > 1:
-		return False
-	return True
+	return len(alternatives) <= 1
 
 
 class RuleEditorTreeContextualPanel(RuleAwarePanelBase, TreeContextualPanel):
@@ -646,6 +658,9 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 				# those of its alternative taking precedence.
 				for name in ("properties", "gestures"):
 					merged = {**ruleData.get(name, {}), **data.get(name, {})}
+					if name == "gestures":
+						# A gesture disabled on the pasted alternative is simply not bound
+						merged = {k: v for k, v in merged.items() if v is not None}
 					if merged:
 						data[name] = merged
 			except (AttributeError, IndexError, KeyError, TypeError):

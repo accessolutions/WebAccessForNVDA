@@ -206,8 +206,8 @@ Do you want to proceed anyway?
 	#    the different types,
 	#  - in the panel's doSave because the Rule Type might have been changed
 	#    without even instantiating any other panel.
-	# Criteria (alternative) level properties must be compared to the Rule level ones,
-	# not to the defaults, or falsy overrides (eg. "No action") would be lost.
+	# Criteria (alternative) level overrides are kept as is, even if falsy
+	# (eg. "No action" cancelling the Rule level Auto Action).
 	normalizeRuleData(data)
 
 	mgr = context["webModule"].ruleManager
@@ -241,9 +241,14 @@ def showRuleWizardOrEditor(
 		parent: wx.Window | None = None
 	) -> bool:
 	"""Open the rule wizard or editor according to the user's UI mode preference."""
-	from . import editor, wizard
+	from . import criteriaEditor, editor, wizard
 	from ...config import RuleWizardMode, UiMode, getUiMode
-	canUseWizard = editor.supportsSimpleMode(context)
+	# The wizard edits only the Rule level: It must not hide the gestures or
+	# properties overrides of the single alternative of the rule, if any.
+	canUseWizard = editor.supportsSimpleMode(context) and all(
+		criteriaEditor.supportsSimpleMode(alternative)
+		for alternative in context.get("data", {}).get("rule", {}).get("criteria", [])
+	)
 	if getUiMode(UiMode.RULE_WIZARD, canPrefer=canUseWizard) == RuleWizardMode.WIZARD:
 		return wizard.show(context, parent=parent)
 	return editor.show(context, parent=parent)

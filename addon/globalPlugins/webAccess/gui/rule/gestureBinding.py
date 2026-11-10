@@ -205,13 +205,36 @@ class GestureBindingDialog(wx.Dialog, ScalingMixin):
 			self.actionChoice.SetFocus()
 			return
 		gestures = self.context["data"]["gestures"]
-		oldId = data.pop("oldId")
-		newId = data["gestureIdentifier"] = data.pop("newId")
+		oldId = data["oldId"]
+		newId = data["newId"]
+		normalize = inputCore.normalizeGestureIdentifier
+		conflict = next((
+			id for id, binding in gestures.items()
+			if binding is not None and id != oldId and normalize(id) == normalize(newId)
+		), None)
+		if conflict is not None:
+			conflictAction = gestures[conflict][1]
+			if gui.messageBox(
+				# Translators: A prompt for confirmation on the Input Gesture dialog
+				_('This shortcut is already bound to "{action}". Do you want to replace it?').format(
+					action=data["actions"].get(conflictAction, f"*{conflictAction}")
+				),
+				self.Title,
+				wx.YES_NO | wx.NO_DEFAULT | wx.ICON_WARNING,
+				self
+			) != wx.YES:
+				self.gestureInput.SetFocus()
+				return
+		del data["oldId"]
+		data["gestureIdentifier"] = data.pop("newId")
 		scope = data["scope"]
 		action = data["action"]
 		tmp = gestures.copy()
 		if oldId:
-			del tmp[oldId]
+			# The old identifier is absent when overriding an inherited binding
+			tmp.pop(oldId, None)
+		if conflict is not None:
+			del tmp[conflict]
 		tmp[newId] = (scope, action)
 		gestures.clear()
 		gestures.update({k : tmp[k] for k in sorted(tmp)})

@@ -69,6 +69,7 @@ from ..webAppLib import (
 from .. import webAppScheduler
 from . import ruleTypes
 from .alternatives import AlternativesMode, mergeResults
+from .gestureBindings import getEffectiveGestures, joinGestures, splitGestures
 from .references import (
 	Reference,
 	buildDependencyGraph,
@@ -530,16 +531,17 @@ class RuleManager(ScriptableObject):
 		script = self.getGlobalScript(gesture)
 		if script:
 			return script
-		# Handle script_notFound fallback 
-		for rules in reversed(list(self._layers.values())):
-			for rule in list(rules.values()):
-				for criterion in rule.criteria:
-					func = rule.getScript(gesture)
-					if func is not None:
-						return func
-				func = rule.getScript(gesture)
-				if func is not None:
-					return func
+		# Handle script_notFound fallback, for the rules actually evaluated
+		# (a rule overridden by a homonym in a higher layer is not)
+		for rule in self.getActiveRules():
+			if self.isReady and rule.getResults():
+				# The rule is found, but none of its Results handles this gesture:
+				# It is bound only on alternatives that did not match, or disabled
+				# on those that did. Let the gesture reach the browser.
+				continue
+			func = rule.getScript(gesture)
+			if func is not None:
+				return func
 		return self.defaultScripts.getScript(gesture)
 	
 	def getWebModuleForControlId(self, controlId):
@@ -1304,11 +1306,16 @@ class Result(ScriptableObject):
 				setattr(self.__class__, scriptAttrName, dispatcher)
 				setattr(self, scriptAttrName, dispatcher.__get__(self))
 		
-		for gestureId, (scope, action) in ChainMap(
-			criteria.gestures, rule.gestures
-		).items():
+		for gestureId, (scope, action) in criteria.getEffectiveGestures().items():
 			if scope is GestureScope.NORMAL:
-				self.bindGesture(gestureId, action)
+				try:
+					self.bindGesture(gestureId, action)
+				except Exception:
+					# Eg. a custom action no longer defined in the Python code of the WebModule
+					log.exception(
+						f"Could not bind {gestureId!r} to action {action!r}"
+						f" for {webModule.name} / {rule.name}"
+					)
 			else:
 				self.bindSpecialGesture(gestureId, scope, action)
 	
@@ -1455,6 +1462,11 @@ class Result(ScriptableObject):
 		else:
 			self.script_moveto(None, fromSpeak=True)
 	
+	def script_unavailable(self, gesture):
+		# Bound on an alternative to disable a Rule level gesture binding (see `gestureBindings`)
+		# Translators: Announced when pressing a gesture disabled for the matched alternative
+		ui.message(_("{rule}: Not available here").format(rule=self.label))
+
 	def script_mouseMove(self, gesture):
 		rule = self.rule
 		if not rule.ruleManager.checkReady():
@@ -1809,6 +1821,8 @@ class Criteria(ScriptableObject):
 		self.startSelector: Selector = None
 		self.endSelector: Selector = None
 		self.gestures = {}
+		self.disabledGestures: set[str] = set()
+		"""Identifiers of the Rule level gestures disabled for this alternative."""
 		self.properties = CriteriaProperties(self)
 		self.load(data)
 	
@@ -1826,10 +1840,12 @@ class Criteria(ScriptableObject):
 			self.endSelector = Selector(self, selector["end"])
 		else:
 			self.nodeSelector = Selector(self, selector)
+		# A `null` binding disables the Rule level binding for this alternative
+		bindings, self.disabledGestures = splitGestures(data.pop("gestures", {}))
 		self.gestures = {
 			gestureId: (GestureScope(scopeName), action)
 			for gestureId, (scopeName, action)
-			in data.pop("gestures", {}).items()
+			in bindings.items()
 		}
 		self.properties.load(data.pop("properties", {}))
 		if data:
@@ -1860,14 +1876,31 @@ class Criteria(ScriptableObject):
 				"start": self.startSelector.dump(),
 				"end": self.endSelector.dump(),
 			}
-		gestures = {
-			gestureId: (scope.value, actionId)
-			for gestureId, (scope, actionId) in self.gestures.items()
-		}
+		gestures = joinGestures(
+			{
+				gestureId: (scope.value, actionId)
+				for gestureId, (scope, actionId) in self.gestures.items()
+			},
+			self.disabledGestures,
+		)
 		setIfNotDefault("gestures", gestures, {})
 		setIfNotDefault("properties", self.properties.dump(), {})
 
 		return data
+	
+	def getEffectiveGestures(self) -> dict[str, tuple[GestureScope, str]]:
+		"""The gesture bindings applying to the Results of this alternative.
+		
+		Merges the Rule and Criteria level bindings, the latter replacing the former,
+		and omits the Rule level bindings disabled for this alternative.
+		Keyed by normalized gesture identifier.
+		"""
+		return getEffectiveGestures(
+			self.rule.gestures,
+			self.gestures,
+			self.disabledGestures,
+			normalize=inputCore.normalizeGestureIdentifier,
+		)
 	
 	def iterResults(self):
 		rule = self.rule
@@ -1958,10 +1991,14 @@ class Rule(ScriptableObject):
 		self.alternativesMode = AlternativesMode(
 			data.pop("alternativesMode", AlternativesMode.FIRST.value)
 		)
+		gestures = data.pop("gestures", {})
+		if any(binding is None for binding in gestures.values()):
+			# Disabling a gesture is meaningful only at Criteria level
+			log.warning(f"Rule {self.name!r}: Ignoring disabled gestures at Rule level")
 		self.gestures = {
-			gestureId: (GestureScope(scopeName), action)
-			for gestureId, (scopeName, action)
-			in data.pop("gestures", {}).items()
+			gestureId: (GestureScope(binding[0]), binding[1])
+			for gestureId, binding in gestures.items()
+			if binding is not None
 		}
 		self.properties.load(data.pop("properties", {}))
 		if data:

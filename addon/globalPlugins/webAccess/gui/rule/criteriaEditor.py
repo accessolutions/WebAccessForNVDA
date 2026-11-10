@@ -48,6 +48,7 @@ import ui
 import addonHandler
 from ...config import EditorMode, UiMode, getUiMode
 from ...ruleHandler import ruleTypes
+from ...ruleHandler.properties import suggestOverrideValue
 from ...ruleHandler.references import findCaseInsensitiveHomonyms, findCyclePathIfSaved, iterContextNames
 from ...utils import guarded, notifyError, updateOrDrop
 from .. import (
@@ -64,7 +65,7 @@ from .. import (
 )
 from . import createMissingSubModule
 from .abc import RuleAwarePanelBase
-from .gestures import GesturesPanelBase
+from .gestures import GesturesPanelBase, getGesturesSummary
 from .properties import Properties, PropertiesPanelBase, Property
 
 from collections.abc import Mapping, Sequence
@@ -252,6 +253,23 @@ def getSummary(context, data, indent="", condensed=False) -> str:
 		data.get("selector", {}), condensed=condensed
 	))
 	
+	# Gestures: Only those specific to this alternative, not those inherited from the rule
+	ruleData = context.get("data", {}).get("rule", {})
+	if ruleData.get("type") in ruleTypes.ACTION_TYPES:
+		subParts = [
+			("  " if not condensed else "") + label
+			for label in getGesturesSummary(
+				context, data.get("gestures", {}), ruleData.get("gestures", {})
+			)
+		]
+		if subParts:
+			# Translators: The label for a section on the Criteria Summary report
+			parts.append(_("{section}:").format(section=GesturesPanel.title))
+			if condensed:
+				parts.append(", ".join(subParts))
+			else:
+				parts.extend(subParts)
+	
 	# Properties
 	subParts = []
 	props = Properties(context, data.get("properties", {}), iterOnlyFirstMap=True)
@@ -335,12 +353,11 @@ def isDualNode(data):
 
 
 def supportsSimpleMode(data):
-	if any(
-		k in ("gestures", "properties")
-		for k in data.keys()
-	):
-		return False
-	return True
+	"""Whether the given alternative (Criteria) has no gestures nor properties overrides.
+	
+	The simple mode of the Criteria editor does not offer to edit them.
+	"""
+	return not (data.get("gestures") or data.get("properties"))
 
 
 def convertToDualNode(data):
@@ -457,6 +474,21 @@ class GeneralPanel(CriteriaEditorPanel):
 		items.append(item)
 		for item in items:
 			item.Show(False)
+		
+		if getattr(self.Parent.Parent, "simpleMode", False):
+			# In simple mode, the Gestures and Properties panels are not available:
+			# Offer a way to reach them, as the F12 shortcut is not discoverable.
+			row += 1
+			gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+			
+			row += 1
+			item = wx.Button(
+				self,
+				# Translators: The label for a button in the Criteria Editor dialog
+				label=_("&Properties and shortcuts specific to this criteria set... (F12)"),
+			)
+			item.Bind(wx.EVT_BUTTON, lambda evt: self.Parent.Parent.switchToFullEditor())
+			gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
 
 		gbSizer.AddGrowableCol(2)
 	
@@ -1219,7 +1251,9 @@ class EndCriteriaPanel(CriteriaPanel):
 
 
 class GesturesPanel(GesturesPanelBase, CriteriaEditorPanel):
-	pass
+
+	def getInheritedGestures(self):
+		return self.getRuleData().get("gestures", {})
 
 
 class PropertyOverrideSelectMenu(wx.Menu):
@@ -1314,7 +1348,12 @@ class PropertiesPanel(PropertiesPanelBase, CriteriaEditorPanel):
 		prop = menuIdProp[menuId] if menuId != wx.ID_NONE else None
 		if not prop:
 			return
-		prop.value = prop.default  # Setting any value actually adds to the ChainMap based container
+		# Setting any value actually adds to the ChainMap based container
+		prop.value = suggestOverrideValue(
+			prop.name,
+			prop.default,
+			tuple(prop.choices.keys()) if prop.choices is not None else None
+		)
 		self.prop = prop
 		self.listCtrl_update_all()
 		if prop.editorType in (EditorType.COMBO, EditorType.TEXT):
@@ -1330,16 +1369,20 @@ class PropertiesPanel(PropertiesPanelBase, CriteriaEditorPanel):
 			self.addPropBtn.SetFocus()
 	
 	def prop_reset(self):
-		# Using Property.reset would actually remove the overridden property from the list.
-		# Manually reset to its default instead.
-		# Note default values are dropped upon saving anyways.
+		# On this panel, resetting a property means no longer overriding it,
+		# just like the "Delete" button.
 		prop = self.prop
-		prop.value = prop.default
-		self.updateEditor()
-		self.onEditor_change()
+		self.onDelPropBtn(None)
+		if self.props:
+			self.listCtrl.SetFocus()
 		speech.cancelSpeech()  # Avoid announcing the whole eventual control refresh
-		# Translators: Announced when resetting a property to its default value in the editor
-		ui.message(_("Reset to {value}").format(value=self.prop.displayValue))
+		ui.message(
+			# Translators: Announced when removing a property override in the Criteria editor
+			_("{property}: Inherited from the rule ({value})").format(
+				property=prop.displayName,
+				value=prop.displayValue,
+			)
+		)
 
 
 class CriteriaEditorDialog(ContextualMultiCategorySettingsDialog):
