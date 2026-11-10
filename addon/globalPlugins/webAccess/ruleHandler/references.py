@@ -300,6 +300,30 @@ def findCyclePathIfSaved(
 	return findCyclePath(buildDependencyGraph(rulesData), name)
 
 
+def iterSubModuleReferences(ruleData: Mapping[str, Any]) -> Iterator[str]:
+	"""Yield the names of the WebModules loaded as sub-modules by serialized rule data.
+	
+	Both the Rule level and the alternatives (Criteria) level "Load sub-module"
+	properties are considered.
+	"""
+	containers = [ruleData] + list(ruleData.get("criteria") or ())
+	for container in containers:
+		name = (container.get("properties") or {}).get("subModule")
+		if name:
+			yield name
+
+
+def findSubModuleDependents(
+	rulesData: Mapping[str, Mapping[str, Any]],
+	webModuleName: str,
+) -> list[str]:
+	"""The names of the rules loading the given WebModule as a sub-module, sorted."""
+	return sorted(
+		name for name, ruleData in rulesData.items()
+		if webModuleName in iterSubModuleReferences(ruleData)
+	)
+
+
 RULE_NAME_FORBIDDEN = ("&", "|")
 """Characters not allowed in rule names, as they are context expression operators."""
 

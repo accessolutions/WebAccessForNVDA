@@ -34,6 +34,7 @@ from webAccess.ruleHandler.references import (
 	findCyclePathIfSaved,
 	findCycles,
 	findDanglingReferences,
+	findSubModuleDependents,
 	formatContextExpression,
 	getDependents,
 	getRuleNameError,
@@ -212,6 +213,19 @@ class TestCyclePathIfSaved(unittest.TestCase):
 			findCyclePathIfSaved(self.RULES, "B", rule({"contextParent": "A"}), oldName="B"),
 			["B", "A", "B"],
 		)
+
+
+class TestSubModuleReferences(unittest.TestCase):
+	
+	def test_dependents(self):
+		rules = {
+			"Z1": {"name": "Z1", "type": "zone", "properties": {"subModule": "Sub"}, "criteria": [{}]},
+			"Z2": {"name": "Z2", "type": "zone", "criteria": [{}, {"properties": {"subModule": "Sub"}}]},
+			"Z3": {"name": "Z3", "type": "zone", "properties": {"subModule": "Other"}, "criteria": [{}]},
+			"Z4": {"name": "Z4", "type": "zone", "properties": {"subModule": "Sub"}, "criteria": [{"properties": {"subModule": ""}}]},
+		}
+		self.assertEqual(findSubModuleDependents(rules, "Sub"), ["Z1", "Z2", "Z4"])
+		self.assertEqual(findSubModuleDependents(rules, "Missing"), [])
 
 
 class TestNames(unittest.TestCase):
