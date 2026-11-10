@@ -48,10 +48,23 @@ import ui
 import addonHandler
 from ...config import EditorMode, UiMode, getUiMode
 from ...ruleHandler import ruleTypes
+from ...criteriaExpressions import (
+	ExpressionSyntaxError,
+	ExpressionTooComplex,
+	escapeValue,
+	parseExpression,
+	toCnf,
+)
 from ...cssSelectors import CssSyntaxError, compileSelector, suggestSelectors
 from ...ruleHandler.properties import suggestOverrideValue
 from ...ruleHandler.searchMode import CSS_REPLACED_FIELDS, SEARCH_MODE_SHORT_LABELS, SearchMode, getSearchMode
-from ...ruleHandler.references import findCaseInsensitiveHomonyms, findCyclePathIfSaved, iterContextNames
+from ...ruleHandler.references import (
+	ContextNotSupported,
+	findCaseInsensitiveHomonyms,
+	findCyclePathIfSaved,
+	iterContextNames,
+	parseContextExpression,
+)
 from ...utils import guarded, notifyError, updateOrDrop
 from .. import (
 	ContextualMultiCategorySettingsDialog,
@@ -76,19 +89,9 @@ from collections.abc import Mapping, Sequence
 addonHandler.initTranslation()
 
 
-EXPR_VALUE = re.compile("(([^!&| ])+( (?=[^!&|]))*)+")
+EXPR_VALUE = re.compile("(([^!&|() ])+( (?=[^!&|()]))*)+")
 """
 Compiled pattern used to capture values in expressions.
-"""
-
-EXPR = re.compile("^ *!? *[^!&|]+( *[&|] *!? *[^!&|]+)*$")
-"""
-Compiled pattern used to validate expressions.
-"""
-
-EXPR_INT = re.compile("^ *!? *[0-9]+( *[&|] *!? *[0-9]+)* *$")
-"""
-Compiled pattern used to validate expressions whose values are integers.
 """
 
 
@@ -884,7 +887,8 @@ class CriteriaPanel(CriteriaEditorPanel):
 		self.contextPageTitleCombo.Set([context.get("pageTitle") or ""])
 		mgr = context["webModule"].ruleManager
 		if mgr.isReady:
-			self.contextPageTypeCombo.Set(mgr.getPageTypes())
+			# Rule names are escaped, as they could contain characters having a meaning
+			self.contextPageTypeCombo.Set([escapeValue(name) for name in mgr.getPageTypes()])
 			node = mgr.nodeManager.getCaretNode()
 			parents = []
 			for result in mgr.getResults():
@@ -893,7 +897,7 @@ class CriteriaPanel(CriteriaEditorPanel):
 					rule.type in (ruleTypes.PARENT, ruleTypes.ZONE)
 					and result.containsNode(node)
 				):
-					parents.insert(0, rule.name)
+					parents.insert(0, escapeValue(rule.name))
 			self.contextParentCombo.Set(parents)
 		self.refreshContextMacroChoices(initial=True)
 		self.contextPageTitleCombo.Value = data.get("contextPageTitle") or ""
@@ -1150,6 +1154,52 @@ class CriteriaPanel(CriteriaEditorPanel):
 		self.updateData()
 		return self.isValid_context() and self.isValid_others()
 	
+	def checkExpression(self, field: str, ctrl: wx.Control, spaceIsAnd: bool = False) -> bool:
+		"""Check the syntax of the expression of a field, reporting any error.
+
+		See `criteriaExpressions` (and `references` for the context fields).
+		"""
+		text = ctrl.Value
+		if not text.strip():
+			return True
+		fieldLabel = stripAccelAndColon(self.FIELDS[field])
+		position = None
+		try:
+			if field in ("contextPageType", "contextParent"):
+				parseExpression(text, partial=False)
+				if field == "contextParent":
+					parseContextExpression(text)
+			else:
+				toCnf(parseExpression(text, spaceIsAnd=spaceIsAnd))
+		except ExpressionSyntaxError as e:
+			position = e.position
+			# Translators: Error message when the field doesn't meet the required syntax
+			message = _('Syntax error in the field "{field}": {error}').format(field=fieldLabel, error=e)
+		except ExpressionTooComplex:
+			# Translators: Error message when an expression has too many combinations
+			message = _('The expression of the field "{field}" is too complex.').format(field=fieldLabel)
+		except ContextNotSupported:
+			message = _(
+				# Translators: Error message when the "Parent element" expression is not supported
+				'The field "{field}" only supports names combined with "|", '
+				'negated names ("!A"), and their combination with "&", eg. "(A | B) & !C".'
+			).format(field=fieldLabel)
+		else:
+			return True
+		gui.messageBox(
+			message=message,
+			caption=_("Error"),
+			style=wx.OK | wx.ICON_ERROR,
+			parent=self
+		)
+		ctrl.SetFocus()
+		if position is not None:
+			try:
+				ctrl.SetInsertionPoint(min(position, len(text)))
+			except Exception:
+				pass
+		return False
+
 	def isValid_context(self):
 		"""Check the references to other rules of the context criteria.
 
@@ -1157,6 +1207,12 @@ class CriteriaPanel(CriteriaEditorPanel):
 		   upon confirmation, suggesting names differing only by case.
 		 - A reference making the rule refer to itself, directly or not, is refused (#13).
 		"""
+		for field, ctrl in (
+			("contextPageType", self.contextPageTypeCombo),
+			("contextParent", self.contextParentCombo),
+		):
+			if not self.checkExpression(field, ctrl):
+				return False
 		data = self.getData()
 		mgr = self.getRuleManager()
 		ruleData = self.context["data"]["rule"]
@@ -1272,19 +1328,20 @@ class CriteriaPanel(CriteriaEditorPanel):
 			self.SetFocus()
 			return False
 		
+		# The fields replaced by the CSS selector are not checked in this mode
+		if self.getSearchMode() is not SearchMode.CSS:
+			for field, ctrl, spaceIsAnd in (
+				("tag", self.tagCombo, False),
+				("id", self.idCombo, False),
+				("className", self.classNameCombo, True),
+				("src", self.srcCombo, False),
+			):
+				if not self.checkExpression(field, ctrl, spaceIsAnd=spaceIsAnd):
+					return False
+
 		roleLblExpr = self.roleCombo.Value
 		if roleLblExpr.strip():
-			if not EXPR.match(roleLblExpr):
-				gui.messageBox(
-					message=(
-						# Translators: Error message when the field doesn't meet the required syntax
-						_('Syntax error in the field "{field}"')
-					).format(field=stripAccelAndColon(self.FIELDS["role"])),
-					caption=_("Error"),
-					style=wx.OK | wx.ICON_ERROR,
-					parent=self
-				)
-				self.roleCombo.SetFocus()
+			if not self.checkExpression("role", self.roleCombo):
 				return False
 			try:
 				roleIdExpr = translateRoleLblToId(roleLblExpr)
@@ -1303,17 +1360,7 @@ class CriteriaPanel(CriteriaEditorPanel):
 
 		statesLblExpr = self.statesCombo.Value
 		if statesLblExpr:
-			if not EXPR.match(statesLblExpr):
-				gui.messageBox(
-					message=(
-						# Translators: Error message when the field doesn't meet the required syntax
-						_('Syntax error in the field "{field}"')
-					).format(field=stripAccelAndColon(self.FIELDS["states"])),
-					caption=_("Error"),
-					style=wx.OK | wx.ICON_ERROR,
-					parent=self
-				)
-				self.statesCombo.SetFocus()
+			if not self.checkExpression("states", self.statesCombo):
 				return False
 			try:
 				statesIdExpr = translateStatesLblToId(statesLblExpr)

@@ -25,10 +25,13 @@
 import unittest
 
 from . import ADDON_PACKAGE_DIR  # noqa: F401 (installs the stubs)
+from webAccess.criteriaExpressions import ExpressionSyntaxError
 from webAccess.ruleHandler.references import (
+	ContextNotSupported,
 	ContextTerm,
 	Reference,
 	buildDependencyGraph,
+	evaluateContext,
 	findCaseInsensitiveHomonyms,
 	findCyclePath,
 	findCyclePathIfSaved,
@@ -52,36 +55,72 @@ def rule(*selectors):
 
 
 class TestParse(unittest.TestCase):
-
+	
 	def test_empty(self):
 		self.assertEqual(parseContextExpression(None), ())
 		self.assertEqual(parseContextExpression(""), ())
-		self.assertEqual(parseContextExpression(" & | & "), ())
-
+	
 	def test_terms(self):
+		# Standard precedence: "&" binds tighter than "|"
 		self.assertEqual(
-			parseContextExpression("A | B & !C"),
+			parseContextExpression("(A | B) & !C"),
 			(ContextTerm(("A", "B")), ContextTerm(("C",), negated=True)),
 		)
-
-	def test_spaces(self):
+	
+	def test_negatedGroup(self):
 		self.assertEqual(
-			parseContextExpression("  A|B  &  ! C | D "),
-			(ContextTerm(("A", "B")), ContextTerm(("C", "D"), negated=True)),
+			parseContextExpression("  (A|B)  &  !( C | D) "),
+			(
+				ContextTerm(("A", "B")),
+				ContextTerm(("C",), negated=True),
+				ContextTerm(("D",), negated=True),
+			),
 		)
-
+	
+	def test_distributed(self):
+		# A | (B & C) == (A | B) & (A | C)
+		self.assertEqual(
+			parseContextExpression("A | B & C"),
+			(ContextTerm(("A", "B")), ContextTerm(("A", "C"))),
+		)
+	
+	def test_notSupported(self):
+		for expr in ("A | !B", "!(A & B)", "!A | !B"):
+			with self.assertRaises(ContextNotSupported, msg=expr):
+				parseContextExpression(expr)
+	
+	def test_syntaxError(self):
+		with self.assertRaises(ExpressionSyntaxError):
+			parseContextExpression("(A | B")
+	
 	def test_namesWithSpaces(self):
 		self.assertEqual(parseContextExpression("Main menu"), (ContextTerm(("Main menu",)),))
-
+	
+	def test_namesAreNotPartial(self):
+		self.assertEqual(parseContextExpression("Menu*"), (ContextTerm(("Menu*",)),))
+	
+	def test_escapedNames(self):
+		self.assertEqual(parseContextExpression(r"Menu \(main\)"), (ContextTerm(("Menu (main)",)),))
+	
 	def test_format(self):
-		self.assertEqual(formatContextExpression(parseContextExpression("A|B&!C")), "A | B & !C")
-
-	def test_roundTrip(self):
-		for expr in ("A", "A | B", "!A", "A & !B | C"):
-			self.assertEqual(formatContextExpression(parseContextExpression(expr)), expr)
-
+		self.assertEqual(formatContextExpression(parseContextExpression("(A|B)&!C")), "(A | B) & !C")
+	
 	def test_iterNames(self):
 		self.assertEqual(list(iterContextNames("A | B & !C & A")), ["A", "B", "C", "A"])
+		self.assertEqual(list(iterContextNames("(A")), [])
+	
+	def test_evaluate(self):
+		found = {"Home", "Popup"}
+		for expr, expected in (
+			("Home", True),
+			("Search", False),
+			("Home & !Popup", False),
+			("(Home | Search) & !Missing", True),
+			("!(Home & Popup)", False),
+			("Search | !Popup", False),
+			("", True),
+		):
+			self.assertEqual(evaluateContext(expr, found.__contains__), expected, expr)
 
 
 class TestRenameInExpression(unittest.TestCase):

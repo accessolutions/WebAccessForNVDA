@@ -53,7 +53,7 @@ import ui
 import winUser
 from garbageHandler import TrackedObject
 
-from .nodeMatching import matchesOnSameNode
+from .nodeMatching import clauseHolds, matchesOnSameNode
 from .utils import tryInt
 from .webAppLib import *
 
@@ -674,6 +674,15 @@ class NodeField(TrackedObject):
 			test, prop = key.split("_", 1)
 			prop = prop.rsplit("#", 1)[0]
 			if prop in ("text", "prevText"):
+				continue
+			if test == "any":
+				# A disjunction of positive and/or negative literals (see
+				# `criteriaExpressions.buildSearchKwargs`): Satisfied, as the other
+				# criteria, by the first node on the path for which it holds.
+				if clauseHolds(self, prop, searchedValues):
+					del kwargs[key]
+				else:
+					found = False
 				continue
 			if not hasattr(self, prop):
 				if test in ("eq", "in"):
