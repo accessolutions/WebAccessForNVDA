@@ -1278,10 +1278,10 @@ class WebAccessObjectHelper(TrackedObject):
 		try:
 			webModule = mgr.getWebModuleForControlId(controlId)
 		except LookupError:
-			log.warning(f"Unknown controlId: {controlId}")
+			# Logged by the RuleManager
 			webModule = None
 		if webModule is None and self._webModule is not None:
-			# The RumeManager is not ready, return the last cached value
+			# The RuleManager is not ready or does not know this object, return the last cached value
 			return self._webModule()
 		if webModule is None:
 			# Lookup by controlId failed and there is no cached value.
@@ -1291,6 +1291,9 @@ class WebAccessObjectHelper(TrackedObject):
 				return None
 			try:
 				info = ti.makeTextInfo(self.obj)
+			except LookupError:
+				# Not rendered in the VirtualBuffer
+				return ti.webAccess.webModule
 			except Exception:
 				log.exception(stack_info=True)
 				# Failback to the WebModule at caret (not cached)
