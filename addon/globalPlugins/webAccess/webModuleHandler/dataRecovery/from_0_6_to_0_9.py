@@ -239,6 +239,8 @@ def process_rules(old_rules: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
 				break
 		alternatives = [alt for alt in old_rules if alt.get("name") == rule_name and alt.get("type") == rule_type]
 		new_rules[rule_id] = process_alternatives(alternatives)
+		# The key is the identity of the rule within its layer: Keep the name consistent
+		new_rules[rule_id]["name"] = rule_id
 		rules_done.extend(alternatives)
 	return new_rules
 
