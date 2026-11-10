@@ -94,11 +94,14 @@ def getSupersededBinding(moduleName, className, scriptName, gestureIdentifier):
 	try:
 		module = sys.modules[moduleName]
 		cls = getattr(module, className)
-		func = getattr(cls, "script_{}".format(scriptName))
-		return getattr(func, "supersedes", {}).get(gestureIdentifier)
 	except (KeyError, AttributeError):
 		log.exception()
 		return None
+	# As in `scriptHandler._getObjScript`, a missing script method is not an error:
+	# Key emulation bindings (`kb:…` script names) have none, nor have stale entries
+	# in the user's `gestures.ini`. Either way, nothing is superseded.
+	func = getattr(cls, f"script_{scriptName}", None)
+	return getattr(func, "supersedes", {}).get(gestureIdentifier)
 
 
 def userGestureMap_add(self, gesture, module, className, script, replace=False):
