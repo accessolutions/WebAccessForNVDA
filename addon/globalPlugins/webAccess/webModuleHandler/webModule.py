@@ -96,6 +96,16 @@ class WebModuleDataLayer(baseObject.AutoPropertyObject):
 class WebModule(baseObject.ScriptableObject):
 
 	API_VERSION = version.parse("0.7")
+	"""The version of the Python API offered to custom WebModules.
+	
+	Bump the minor version upon each addition, so that custom WebModules can declare
+	the version they rely on, and are cleanly refused by older versions of this add-on.
+	"""
+	MIN_API_VERSION = version.parse("0.7")
+	"""The oldest version still supported by custom WebModules.
+	
+	Raise only upon a breaking change of the API.
+	"""
 
 	FORMAT_VERSION_STR = "0.12-dev"
 	FORMAT_VERSION = version.parse(FORMAT_VERSION_STR)
