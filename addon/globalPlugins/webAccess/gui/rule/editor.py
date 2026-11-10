@@ -1001,6 +1001,9 @@ class PropertyChildPanel(
 
 
 class SimpleSingleNodeCriteriaPanel(criteriaEditor.CriteriaPanel):
+
+	# Simple mode of the Rule editor, and Rule wizard
+	searchModeAvailable = False
 	
 	def makeSettings_buttons(self, vBoxSizer):
 		super().makeSettings_buttons(vBoxSizer)

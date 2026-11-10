@@ -151,6 +151,60 @@ Technically, these proposals are the attributes of the HTML ancestors to the
 current HTML element.  
 
 
+##### Search mode
+
+In the full mode of the criteria set editor (`F12`), the "Search mode" field
+sets how the criteria are matched:
+
+ - "Simple" (default): Each criterion can apply to the element or to one of its
+   parents. For example, "Tag: li" and "Class: toto" also find a `li` element
+   within a `div` element having the class "toto". This is the easiest mode,
+   suitable for most rules.
+ - "Same element": All the criteria apply to the found element itself. For
+   example, "Tag: li" and "Class: toto" only find `li` elements having the class
+   "toto". The "Text" criterion then means "whose content contains this text".
+ - "CSS selector": The structure of the document is described by a CSS
+   selector, which replaces the "Tag", "ID", "Class" and "Image source" fields.
+   The other fields still apply, to the found element itself.
+
+The supported CSS selectors are:
+
+ - Selector lists: `h2, h3`
+ - Combinators: descendant (`nav a`), child (`ul > li`), next sibling
+   (`h2 + p`) and subsequent siblings (`h2 ~ p`)
+ - Type (`li`), universal (`*`), ID (`#main`) and class (`.item`) selectors
+ - Attribute selectors: `[href]`, `[href="/home"]`, `[class~=item]`,
+   `[lang|=en]`, `[href^="https"]`, `[src$=".png"]`, `[href*=login]`, with an
+   optional `i` flag for a case-insensitive comparison (`[type=submit i]`)
+ - Structural pseudo-classes: `:root`, `:empty`, `:first-child`,
+   `:last-child`, `:only-child`, `:first-of-type`, `:last-of-type`,
+   `:only-of-type`, `:nth-child()`, `:nth-last-child()`, `:nth-of-type()` and
+   `:nth-last-of-type()`, accepting `odd`, `even` or `An+B` (eg. `2n+1`)
+ - Logical pseudo-classes: `:not()`, `:is()`, `:where()` and `:has()`, eg.
+   `li:has(> a.active)`
+
+For example: `ul#menu > li.toto`, `table.results tr:nth-child(odd)`,
+`nav li:not(.disabled) > a[href]`.
+
+Like the other fields, the "CSS selector" field suggests values computed from
+the element at the cursor: a selector designating this very element, one
+designating similar elements (eg. all the items of the same list), then
+selectors designating its closest ancestors.
+
+In the inspector (`F8` from the rule or criteria set editors), `F11` copies to
+the clipboard a CSS selector designating the inspected element, and `Shift+F11`
+a selector relative to the node marked with `F9` (one of its ancestors).
+
+Pseudo-elements and the pseudo-classes depending on the state of the element
+(`:hover`, `:checked`…) are not supported: Use the "States" field instead.
+Only the elements exposed by the browser to the screen reader are considered,
+which can occasionally differ from the source code of the page (eg. for some
+layout containers), affecting `>`, `+` and the structural pseudo-classes.
+
+This field is not shown in the simple mode of the editors, nor in the wizard,
+unless the criteria already use another mode.
+
+
 ##### Text
 
 In the "Text" field, enter a string of text to look for.

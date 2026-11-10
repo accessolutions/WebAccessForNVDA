@@ -49,6 +49,7 @@ import ui
 import vision
 
 from ..config import InspectorMode, UiMode, getUiMode, setUiModeLastUsed
+from ..cssSelectors import generateSelector, getElementParent, isElement
 from ..utils import getCharFromKeyEvent, guarded
 from . import ScalingMixin
 
@@ -479,6 +480,44 @@ class InspectorDialog(ScalingMixin, wx.Dialog):
 			# A message from the Inspector dialog
 			self.message(_("Relative path copied to clipboard"))
 	
+	def copyCssSelector(self, relativeToMarked=False):
+		"""Copy to the clipboard a CSS selector designating the inspected element.
+
+		If `relativeToMarked`, the selector is relative to the node marked with F9, which
+		must be an ancestor (eg. for use along with a "Parent element" criterion).
+		"""
+		node = self.node
+		while node is not None and not isElement(node):
+			node = node.parent
+		if node is None:
+			wx.Bell()
+			return
+		ancestor = None
+		if relativeToMarked:
+			if marked is None:
+				# Translators: An error message from the Inspector dialog
+				self.message(_("First mark an ancestor node by hitting F9."))
+				return
+			markedNode, markedRoot, markedIdentifier = marked
+			if markedRoot is not self.root:
+				markedNode = refresh(markedNode, markedRoot, self.root)
+			ancestor = getElementParent(node)
+			while ancestor is not None and ancestor is not markedNode:
+				ancestor = getElementParent(ancestor)
+			if ancestor is None:
+				# Translators: An error message from the Inspector dialog
+				self.message(_("The marked node is not an ancestor of this node."))
+				return
+		try:
+			selector = generateSelector(node, ancestor=ancestor)
+		except Exception:
+			log.exception()
+			wx.Bell()
+			return
+		if api.copyToClip(selector):
+			# Translators: A message from the Inspector dialog
+			self.message(_("CSS selector copied to clipboard: {selector}").format(selector=selector))
+
 	def descendant(self):
 		if not self.showAncestors:
 			wx.Bell()
@@ -725,6 +764,20 @@ class InspectorDialog(ScalingMixin, wx.Dialog):
 		item = menu.Append(
 			wx.ID_ANY,
 			# Translators: A context menu entry on the Inspector dialog
+			_("Copy CSS selector\tF11")
+		)
+		menu.Bind(wx.EVT_MENU, lambda evt: self.copyCssSelector(), item)
+		item = menu.Append(
+			wx.ID_ANY,
+			# Translators: A context menu entry on the Inspector dialog
+			_("Copy CSS selector relative to marked node\tShift + F11")
+		)
+		if marked is None:
+			item.Enable(False)
+		menu.Bind(wx.EVT_MENU, lambda evt: self.copyCssSelector(relativeToMarked=True), item)
+		item = menu.Append(
+			wx.ID_ANY,
+			# Translators: A context menu entry on the Inspector dialog
 			_("Walk the relative path stored in the clipboard\tControl + V or Shift + Insert")
 		)
 		menu.Bind(wx.EVT_MENU, lambda evt: self.paste(), item)
@@ -765,6 +818,12 @@ class InspectorDialog(ScalingMixin, wx.Dialog):
 			return
 		elif keyCode == wx.WXK_F10 and mods == wx.MOD_NONE:
 			self.copyRelativePath()
+			return
+		elif keyCode == wx.WXK_F11 and mods == wx.MOD_NONE:
+			self.copyCssSelector()
+			return
+		elif keyCode == wx.WXK_F11 and mods == wx.MOD_SHIFT:
+			self.copyCssSelector(relativeToMarked=True)
 			return
 		elif keyCode == wx.WXK_F12 and mods == wx.MOD_NONE:
 			self.switchView()

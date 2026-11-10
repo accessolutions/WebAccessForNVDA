@@ -48,7 +48,9 @@ import ui
 import addonHandler
 from ...config import EditorMode, UiMode, getUiMode
 from ...ruleHandler import ruleTypes
+from ...cssSelectors import CssSyntaxError, compileSelector, suggestSelectors
 from ...ruleHandler.properties import suggestOverrideValue
+from ...ruleHandler.searchMode import CSS_REPLACED_FIELDS, SEARCH_MODE_SHORT_LABELS, SearchMode, getSearchMode
 from ...ruleHandler.references import findCaseInsensitiveHomonyms, findCyclePathIfSaved, iterContextNames
 from ...utils import guarded, notifyError, updateOrDrop
 from .. import (
@@ -227,8 +229,15 @@ def getSummary_selector_full(data, condensed=False) -> Sequence[str]:
 
 def getSummary_selector_unit(data) -> Sequence[str]:
 	parts = []
+	mode = getSearchMode(data)
+	if mode is not SearchMode.SIMPLE:
+		# Translators: A mention on the Criteria Summary report
+		parts.append(_("Search mode: {mode}").format(mode=SEARCH_MODE_SHORT_LABELS[mode]))
 	for key, label in list(CriteriaPanel.FIELDS.items()):
 		if key in CriteriaPanel.CONTEXT_FIELDS or key not in data:
+			continue
+		# Values not relevant to the search mode are kept while editing, but ignored
+		if (key == "css") != (mode is SearchMode.CSS) and (key == "css" or key in CSS_REPLACED_FIELDS):
 			continue
 		value = data[key]
 		if not isinstance(value, InvalidValue):
@@ -570,6 +579,8 @@ class CriteriaPanel(CriteriaEditorPanel):
 		# Translator: The label for a Rule Criteria field
 		("role", pgettext("webAccess.ruleCriteria", "&Role:")),
 		# Translator: The label for a Rule Criteria field
+		("css", pgettext("webAccess.ruleCriteria", "CSS se&lector:")),
+		# Translator: The label for a Rule Criteria field
 		("tag", pgettext("webAccess.ruleCriteria", "T&ag:")),
 		# Translator: The label for a Rule Criteria field
 		("id", pgettext("webAccess.ruleCriteria", "&ID:")),
@@ -588,6 +599,12 @@ class CriteriaPanel(CriteriaEditorPanel):
 	))
 
 	CONTEXT_FIELDS = ["contextPageTitle", "contextPageType", "contextParent"]
+
+	searchModeAvailable: bool = True
+	"""Whether the search mode can be chosen, unless the Criteria editor is in simple mode.
+
+	Even if not, it is shown for a selector already using another mode than `SearchMode.SIMPLE`.
+	"""
 
 	def makeSettings(self, settingsSizer):
 		scale = self.scale
@@ -677,6 +694,25 @@ class CriteriaPanel(CriteriaEditorPanel):
 
 	def makeSettings_others(self, gbSizer, row):
 		scale = self.scale
+		hidable = self.hidable
+		items = hidable["searchMode"] = []
+		item = self.searchModeRadio = wx.RadioBox(
+			self,
+			# Translators: The label for a group of radio buttons on the Criteria editor
+			label=_("Search &mode"),
+			choices=[mode.displayString for mode in SearchMode],
+			majorDimension=1,
+			style=wx.RA_SPECIFY_COLS,
+		)
+		item.Bind(wx.EVT_RADIOBOX, self.onSearchModeRadio)
+		items.append(item)
+		gbSizer.Add(item, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
+
+		row += 1
+		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+		items.append(item)
+
+		row += 1
 		item = wx.StaticText(self, label=self.FIELDS["text"])
 		gbSizer.Add(item, pos=(row, 0))
 		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
@@ -695,6 +731,21 @@ class CriteriaPanel(CriteriaEditorPanel):
 
 		row += 1
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+
+		row += 1
+		items = hidable["css"] = []
+		item = wx.StaticText(self, label=self.FIELDS["css"])
+		items.append(item)
+		gbSizer.Add(item, pos=(row, 0))
+		item = gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
+		items.append(item)
+		item = self.cssText = SizeFrugalComboBox(self)
+		items.append(item)
+		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
+
+		row += 1
+		item = gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
+		items.append(item)
 
 		row += 1
 		item = wx.StaticText(self, label=self.FIELDS["tag"])
@@ -785,6 +836,35 @@ class CriteriaPanel(CriteriaEditorPanel):
 		self.makeSettings_buttons(vBoxSizer)
 		gbSizer.Add(vBoxSizer, pos=(row, 0), span=(1, 3), flag=wx.EXPAND)
 
+		# The fields replaced by the CSS selector in `SearchMode.CSS`, with their row spacers
+		items = hidable["cssReplaced"] = []
+		for ctrl in (self.tagCombo, self.idCombo, self.classNameCombo, self.srcCombo):
+			ctrlRow = gbSizer.FindItem(ctrl).Pos.Row
+			for pos in ((ctrlRow, 0), (ctrlRow, 1), (ctrlRow, 2), (ctrlRow + 1, 0)):
+				item = gbSizer.FindItemAtPosition(pos)
+				if item is not None:
+					items.append(item)
+
+	def getSearchMode(self) -> SearchMode:
+		return tuple(SearchMode)[self.searchModeRadio.Selection]
+
+	def updateSearchModeVisibility(self):
+		mode = self.getSearchMode()
+		hidable = self.hidable
+		self.Freeze()
+		for item in hidable["searchMode"]:
+			item.Show(self.searchModeShown)
+		for item in hidable["css"]:
+			item.Show(mode is SearchMode.CSS)
+		for item in hidable["cssReplaced"]:
+			item.Show(mode is not SearchMode.CSS)
+		self.Thaw()
+		self._sendLayoutUpdatedEvent()
+
+	@guarded
+	def onSearchModeRadio(self, evt):
+		self.updateSearchModeVisibility()
+
 	def makeSettings_buttons(self, vBoxSizer):
 		# Translators: The label for a button in the Criteria Editor dialog
 		item = wx.Button(self, label=_("Test these criteria (F5)"))
@@ -860,6 +940,13 @@ class CriteriaPanel(CriteriaEditorPanel):
 			self.statesCombo.Set(statesChoices)
 			self.srcCombo.Set(srcChoices)
 			self.urlCombo.Set(urlChoices)
+			# Selectors for the element at the caret, then similar elements, then its ancestors
+			try:
+				cssChoices = suggestSelectors(textNode)
+			except Exception:
+				log.exception()
+				cssChoices = []
+			self.cssText.Set(cssChoices)
 		
 		self.textCombo.Value = data.get("text", "")
 		value = data.get("role", "")
@@ -883,6 +970,15 @@ class CriteriaPanel(CriteriaEditorPanel):
 			self.indexText.Value = value.raw
 		else:
 			self.indexText.Value = str(value)
+		self.cssText.Value = data.get("css", "")
+		mode = getSearchMode(data)
+		self.searchModeRadio.Selection = tuple(SearchMode).index(mode)
+		# Determined once, so that the group does not vanish while choosing a mode
+		self.searchModeShown = mode is not SearchMode.SIMPLE or (
+			self.searchModeAvailable
+			and not getattr(self.Parent.Parent, "simpleMode", False)
+		)
+		self.updateSearchModeVisibility()
 
 	def updateData(self):
 		self.updateData_context()
@@ -919,6 +1015,14 @@ class CriteriaPanel(CriteriaEditorPanel):
 		except Exception:
 			value = InvalidValue(value)
 		updateOrDrop(data, "index", value)
+		# The values of the fields not relevant to the search mode are kept while editing,
+		# and dropped upon saving (see `searchMode.normalizeSelectorData`)
+		mode = self.getSearchMode()
+		if mode is SearchMode.SIMPLE:
+			data.pop("mode", None)
+		else:
+			data["mode"] = mode.value
+		updateOrDrop(data, "css", self.cssText.Value)
 
 	def copySelector(self):
 		self.updateData()
@@ -1136,6 +1240,26 @@ class CriteriaPanel(CriteriaEditorPanel):
 	def isValid_others(self):
 		# TODO: Check the syntax of expressions
 		data = self.getData()
+		if self.getSearchMode() is SearchMode.CSS:
+			css = self.cssText.Value
+			try:
+				compileSelector(css)
+			except CssSyntaxError as e:
+				if not css.strip():
+					# Translators: An error message on the Criteria Editor
+					message = _("You must enter a CSS selector.")
+				else:
+					# Translators: An error message on the Criteria Editor
+					message = _("Invalid CSS selector: {error}").format(error=e)
+				gui.messageBox(
+					message=message,
+					caption=_("Error"),
+					style=wx.OK | wx.ICON_ERROR,
+					parent=self
+				)
+				self.cssText.SetFocus()
+				self.cssText.SetInsertionPoint(min(e.position, len(css)))
+				return False
 		
 		if not data:
 			gui.messageBox(

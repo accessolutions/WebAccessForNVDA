@@ -70,6 +70,7 @@ from .. import webAppScheduler
 from . import ruleTypes
 from .alternatives import AlternativesMode, mergeResults
 from .gestureBindings import getEffectiveGestures, joinGestures, splitGestures
+from .searchMode import SearchMode
 from .references import (
 	Reference,
 	buildDependencyGraph,
@@ -1628,6 +1629,8 @@ class Selector(AutoPropertyObject):
 		self.url = data.pop("url", None)
 		self.relativePath = data.pop("relativePath", None)
 		self.index = data.pop("index", None)
+		self.mode = SearchMode(data.pop("mode", None) or SearchMode.SIMPLE.value)
+		self.css = data.pop("css", None)
 		if data:
 			raise ValueError(
 				"Unexpected attribute"
@@ -1660,6 +1663,8 @@ class Selector(AutoPropertyObject):
 		setIfNotNoneOrEmptyString("url", self.url)
 		setIfNotNoneOrEmptyString("relativePath", self.relativePath)
 		setIfNotDefault("index", self.index)
+		setIfNotDefault("mode", self.mode.value, SearchMode.SIMPLE.value)
+		setIfNotNoneOrEmptyString("css", self.css)
 
 		return data
 	
@@ -1776,6 +1781,15 @@ class Selector(AutoPropertyObject):
 				return
 			rootNodes = newRootNodes
 		kwargs = getSimpleSearchKwargs(self.dump())
+		if self.mode is SearchMode.SAME_NODE:
+			kwargs["sameNode"] = True
+		elif self.mode is SearchMode.CSS:
+			from ..cssSelectors import CssSyntaxError, getCompiledSelector
+			try:
+				kwargs["matcher"] = getCompiledSelector(self.css or "")
+			except CssSyntaxError as e:
+				mgr.reportRuleError(rule, f"Invalid CSS selector {self.css!r}: {e}")
+				return
 		excludedNodes.update(iterResultsNodes(mgr.subModules._results))
 		if excludedNodes:
 			kwargs["exclude"] = excludedNodes
@@ -2091,7 +2105,7 @@ def getSimpleSearchKwargs(
 ) -> Mapping[str, Any]:
 	kwargs = {}
 	for prop, expr in critData.items():
-		if prop in ("contextPageTitle", "contextPageType", "contextParent"):
+		if prop in ("contextPageTitle", "contextPageType", "contextParent", "mode", "css"):
 			continue
 		if prop not in [
 			"className",

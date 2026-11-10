@@ -32,6 +32,8 @@ from typing import Any, TypeAlias
 import weakref
 
 from . import ruleTypes
+from .references import iterSelectorsData
+from .searchMode import normalizeSelectorData
 
 import addonHandler
 
@@ -240,6 +242,7 @@ def normalizeRuleData(data: dict[str, Any]) -> None:
 
 	 - Properties and gestures not supported for the rule type are dropped.
 	 - The default alternatives mode ("first") is dropped.
+	 - The search mode of each selector is normalized (see `searchMode.normalizeSelectorData`).
 	 - Rule level properties equal to their default value are dropped.
 	 - Criteria (alternative) level properties are all kept, even if equal to the
 	   value they would otherwise inherit from the Rule level: An explicit override
@@ -292,6 +295,8 @@ def normalizeRuleData(data: dict[str, Any]) -> None:
 	for critData in data.get("criteria", ()):
 		normalizeGestures(critData, allowDisabled=True)
 		normalizeProperties(critData, None)
+		for selectorKey, selectorData in iterSelectorsData(critData):
+			normalizeSelectorData(selectorData)
 
 
 class PropertiesBase(ABC):
