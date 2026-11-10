@@ -97,6 +97,13 @@ class NodeManager(baseObject.AutoPropertyObject):
 		self.treeInterceptor = treeInterceptor
 		self.treeInterceptorSize = 0
 		self.mainNode = None
+		self._previousMainNode = None
+		"""The tree of the previous analysis, kept alive until the next one.
+
+		Results only hold weak references to their nodes: Scripts running on the main
+		thread while the scheduler thread analyzes the document must not see them die.
+		"""
+		self._parsedMainNode = None
 		self._lastTextNode = None
 		self.devNode = None
 		self.callbackNodeMoveto = None
@@ -140,9 +147,11 @@ class NodeManager(baseObject.AutoPropertyObject):
 		self._ready = False
 		self.treeInterceptor = None
 		self.treeInterceptorSize = 0
-		if self.mainNode is not None:
-			self.mainNode.recursiveDelete()
+		for node in (self.mainNode, self._previousMainNode):
+			if node is not None:
+				node.recursiveDelete()
 		self.mainNode = None
+		self._previousMainNode = None
 		self.devNode = None
 		self.callbackNodeMoveto = None
 		self.updating = False
@@ -189,8 +198,8 @@ class NodeManager(baseObject.AutoPropertyObject):
 		else:
 			raise ValueError("Unknown tag name: %s" % tagName)
 		self.currentParentNode = node
-		if self.mainNode is None:
-			self.mainNode = node
+		if self._parsedMainNode is None:
+			self._parsedMainNode = node
 
 	def _EndElementHandler(self, tagName):
 		TRACE("_EndElementHandler(tagName={})".format(tagName))
@@ -216,6 +225,11 @@ class NodeManager(baseObject.AutoPropertyObject):
 		self.lastTextNode = p
 
 	def parseXML(self, XMLText):
+		"""Build a new tree from the VirtualBuffer XML and return its root node.
+
+		The current tree (`mainNode`) is left untouched, as it might be in use
+		meanwhile from the main thread.
+		"""
 		parser = expat.ParserCreate('utf-8')
 		parser.StartElementHandler = self._startElementHandler
 		parser.EndElementHandler = self._EndElementHandler
@@ -223,9 +237,13 @@ class NodeManager(baseObject.AutoPropertyObject):
 		self.currentParentNode = None
 		self.fieldOffset = 0
 		self.lastTextNode = None
-		self.mainNode = None
+		self._parsedMainNode = None
 		# trace[:] = []
-		parser.Parse(XMLText.encode('utf-8'))
+		try:
+			parser.Parse(XMLText.encode('utf-8'))
+			return self._parsedMainNode
+		finally:
+			self._parsedMainNode = None
 
 	def afficheNode(self, node, level=0):
 		if node is None:
@@ -284,25 +302,37 @@ class NodeManager(baseObject.AutoPropertyObject):
 		start = info._startOffset
 		end = info._endOffset
 		if start == end:
+			self.updating = False
 			self._ready = False
 			if debug:
 				log.info("The VirtualBuffer is empty")
 			return False
 		text = VBuf_getTextInRange(
 			info.obj.VBufHandle, start, end, True)
-		if self.mainNode is not None:
-			self.mainNode.recursiveDelete()
-		self.parseXML(text)
+		# Build the new tree aside: Until swapped, the current one remains consistent
+		# with the current identifier, hence with the Results of the RuleManagers.
+		try:
+			mainNode = self.parseXML(text)
+		finally:
+			self.info = None
 		# logTime("Update node manager %d, text=%d" % (self.index, len(text)), t)
-		self.info = None
-		gc.collect()
-		if self.mainNode is None:
+		if mainNode is None:
 			self.updating = False
 			self._ready = False
 			if debug:
 				log.info("NodeManager.update: ")
 			return False
+		# Keep the previous tree alive until the next analysis, as it might still be
+		# in use from the main thread (eg. a script that checked readiness just before).
+		previous = self._previousMainNode
+		self._previousMainNode = self.mainNode
+		# Swap the tree before changing the identifier: In-between, the RuleManagers
+		# report being ready and still refer to nodes of the previous tree, kept alive.
+		self.mainNode = mainNode
 		self.identifier = time.time()
+		if previous is not None:
+			previous.recursiveDelete()
+		gc.collect()
 		# logTime ("Update node manager %d nodes" % len(fields), t)
 		self.updating = False
 		# playWebAccessSound("tick")
