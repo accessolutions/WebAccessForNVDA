@@ -31,6 +31,7 @@ __authors__ = (
 )
 
 
+import threading
 import weakref
 import wx
 
@@ -154,6 +155,8 @@ class WebAccessBmdtiHelper(TrackedObject):
 		self._nodeManager = None
 		self._treeInterceptor = weakref.ref(treeInterceptor)
 		self._rootWebModule = None
+		self._rootWebModuleLock = threading.RLock()
+		self._loadingRootWebModule = False
 	
 	def terminate(self):
 		if self._rootWebModule is not None:
@@ -162,6 +165,21 @@ class WebAccessBmdtiHelper(TrackedObject):
 		if self._nodeManager is not None:
 			self._nodeManager.terminate()
 		self._nodeManager = None
+	
+	def resetWebModule(self):
+		"""Detach the root WebModule so that it gets reloaded upon next access.
+		
+		It is not terminated as it might still be in use, eg. by a dialog editing it.
+		"""
+		with self._rootWebModuleLock:
+			webModule = self._rootWebModule
+			self._rootWebModule = None
+		if webModule is not None:
+			webModule.ruleManager.cancelCheckAutoAction()
+		nodeManager = self._nodeManager
+		if nodeManager is not None:
+			from .webAppScheduler import scheduler
+			scheduler.send(eventName="nodeManagerUpdated", nodeManager=nodeManager)
 	
 	@property
 	@logException
@@ -201,10 +219,19 @@ class WebAccessBmdtiHelper(TrackedObject):
 			if not canHaveWebAccessSupport(obj):
 				return None
 			from . import webModuleHandler
-			try:
-				webModule = self._rootWebModule = webModuleHandler.getWebModuleForTreeInterceptor(ti)
-			except Exception:
-				log.exception()
+			# Prevent concurrent loads from the main and scheduler threads, as well as
+			# re-entrant loads, eg. from the constructor of a custom WebModule.
+			with self._rootWebModuleLock:
+				webModule = self._rootWebModule
+				if webModule or self._loadingRootWebModule:
+					return webModule
+				self._loadingRootWebModule = True
+				try:
+					webModule = self._rootWebModule = webModuleHandler.getWebModuleForTreeInterceptor(ti)
+				except Exception:
+					log.exception()
+				finally:
+					self._loadingRootWebModule = False
 		return webModule
 	
 	@property

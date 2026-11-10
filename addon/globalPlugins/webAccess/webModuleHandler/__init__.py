@@ -223,15 +223,14 @@ def getWebModules(refresh=False, errors=None):
 	return _webModules
 
 
-def resetRunningModules(webModule=None):
+def resetRunningModules():
+	"""Reload the WebModules of all running TreeInterceptors.
+	"""
 	import treeInterceptorHandler
 	for ti in treeInterceptorHandler.runningTable:
 		if not isinstance(ti, WebAccessBmdti):
 			continue
-		if webModule is not None and ti.webAccess.webModule != webModule:
-			continue
-		ti.webAccess._nodeManager = None
-		ti.webAccess._webModule = None
+		ti.webAccess.resetWebModule()
 
 
 def save(webModule, layerName=None, prompt=True, force=False, fromRuleEditor=False):
