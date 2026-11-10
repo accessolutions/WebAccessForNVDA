@@ -949,7 +949,8 @@ class SingleFieldEditorMixin(metaclass=guiHelper.SIPABCMeta):
 			try:
 				index = tuple(choices.keys()).index(value)
 			except ValueError:
-				raise ValueError(f"Can't find index: {value!r} not in {choices!r}")
+				# Eg. a custom action no longer defined in the Python code of the WebModule
+				return f"*{value}"
 			return tuple(choices.values())[index]
 		elif isinstance(value, bool):
 			if value:
@@ -1036,8 +1037,8 @@ class SingleFieldEditorMixin(metaclass=guiHelper.SIPABCMeta):
 			try:
 				index = (keys.index(value) + (-1 if previous else 1)) % len(choices)  # Wrap arround
 			except ValueError:
-				notifyError(f"value: {value!r}, choices: {choices!r}")
-				return
+				# Unknown value (eg. a removed custom action): Start over from the first choice
+				index = 0
 			value = keys[index]
 		elif editorType in (EditorType.COMBO, EditorType.TEXT):
 			self.editor.SetFocus()
@@ -1064,7 +1065,11 @@ class SingleFieldEditorMixin(metaclass=guiHelper.SIPABCMeta):
 			editor.Value = value
 		elif editorType is EditorType.CHOICE:
 			# Does not emit wx.EVT_CHOICE
-			editor.Selection = tuple(self.editorChoices.keys()).index(value)
+			try:
+				editor.Selection = tuple(self.editorChoices.keys()).index(value)
+			except ValueError:
+				# Unknown value (eg. a removed custom action)
+				editor.Selection = wx.NOT_FOUND
 		elif editorType in (EditorType.COMBO, EditorType.TEXT):
 			# Does not emit wx.EVT_TEXT
 			editor.ChangeValue(value if value is not None else "")

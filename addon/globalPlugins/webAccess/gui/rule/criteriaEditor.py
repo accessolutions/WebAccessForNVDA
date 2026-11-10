@@ -912,30 +912,25 @@ class CriteriaPanel(CriteriaEditorPanel):
 		except Exception:
 			wx.Bell()
 			return
-		if not isinstance(data, dict) and len(data) == 1:
+		if not (isinstance(data, dict) and len(data) == 1):
 			wx.Bell()
 			return
 		key, data = data.popitem()
 		try:
 			if key == "webAccess.rule":
-					if len(data) != 1:
-						wx.Bell()
-						return
-					data = data[0]["criteria"]["selector"]
-			elif key == "webAccess.criteria":
-				data = data["selector"]
-			elif key == "webAccess.rule":
 				data = data["criteria"]
 				if len(data) != 1:
 					wx.Bell()
 					return
-				data = data[0]
+				data = data[0]["selector"]
+			elif key == "webAccess.criteria":
+				data = data["selector"]
 			elif key == "webAccess.selector":
 				pass 
 			else:
 				wx.Bell()
 				return
-		except (AttributeError, TypeError):
+		except (AttributeError, IndexError, KeyError, TypeError):
 			wx.Bell()
 			return
 		if not data or set(data.keys()) == {"start", "end"}:

@@ -266,7 +266,11 @@ def convert(data: dict):
 			raise ValueError(f"Unknown key: {key}")
 
 	key_order = ["formatVersion", "WebModule", "Rules"]
-	data = dict(sorted(data.items(), key=lambda k: key_order.index(k[0]) if k[0] in key_order else len(key_order)))
+	# Reorder in place: Rebinding `data` would leave the caller's format version unchanged
+	# (hence the generic 0.8 to 0.9 recovery would run again, dropping falsy overrides).
+	items = sorted(data.items(), key=lambda k: key_order.index(k[0]) if k[0] in key_order else len(key_order))
+	data.clear()
+	data.update(items)
 	nb_rules = 0
 	for k, v in data["Rules"].items():
 		nb_rules += len(v["criteria"])
@@ -303,20 +307,34 @@ def recoverFrom_0_8_to_0_9(data):
 		"mutation": None,
 	}
 	
-	def process(container, chainMap):
-		container["properties"] = {
-			k: v
-			for k, v in chainMap.items()
-			if v not in (None, "") and v != chainMap.parents[k]
-		}
-		if not container["properties"]:
-			del container["properties"]
-	
+	def normalize(key, value):
+		# Text properties: `None` and empty string are interchangeable
+		if value is None and DEFAULTS.get(key) == "":
+			return ""
+		return value
+
+	def process(container, chainMap, keepFalsyOverrides):
+		props = {}
+		for k, v in chainMap.items():
+			v = normalize(k, v)
+			if v == normalize(k, chainMap.parents[k]):
+				continue
+			if v in (None, "") and not keepFalsyOverrides:
+				continue
+			props[k] = v
+		if props:
+			container["properties"] = props
+		else:
+			container.pop("properties", None)
+
 	for rule in data.get("Rules", {}).values():
-		ruleMap = ChainMap(rule.get("properties", {}), DEFAULTS)
-		process(rule, ruleMap)
+		ruleMap = ChainMap(dict(rule.get("properties", {})), DEFAULTS)
+		process(rule, ruleMap, keepFalsyOverrides=False)
 		for crit in rule.get("criteria", []):
-			process(crit, ruleMap.new_child(crit.get("properties", {})))
+			# Unlike when upgrading from format 0.8, the alternatives built from format 0.6
+			# explicitly define every property: A falsy value differing from the Rule level
+			# value (eg. "No action" while most of the alternatives have one) is meaningful.
+			process(crit, ruleMap.new_child(crit.get("properties", {})), keepFalsyOverrides=True)
 	
 	data["formatVersion"] = "0.9-dev"
 
