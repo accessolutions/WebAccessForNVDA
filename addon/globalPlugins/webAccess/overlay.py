@@ -167,19 +167,21 @@ class WebAccessBmdtiHelper(TrackedObject):
 		self._nodeManager = None
 	
 	def resetWebModule(self):
-		"""Detach the root WebModule so that it gets reloaded upon next access.
-		
-		It is not terminated as it might still be in use, eg. by a dialog editing it.
+		"""Detach the root WebModule and reload it.
+
+		The former instance is not terminated as it might still be in use,
+		eg. by a dialog editing it.
+
+		Must be called from the main thread: The WebModule is reloaded right away,
+		as it cannot be from the scheduler thread (see `rootWebModule`).
 		"""
 		with self._rootWebModuleLock:
 			webModule = self._rootWebModule
 			self._rootWebModule = None
 		if webModule is not None:
 			webModule.ruleManager.cancelCheckAutoAction()
-		nodeManager = self._nodeManager
-		if nodeManager is not None:
-			from .webAppScheduler import scheduler
-			scheduler.send(eventName="nodeManagerUpdated", nodeManager=nodeManager)
+		# Reload, which in turn schedules the update of its RuleManager
+		self.rootWebModule
 	
 	@property
 	@logException
@@ -232,7 +234,27 @@ class WebAccessBmdtiHelper(TrackedObject):
 					log.exception()
 				finally:
 					self._loadingRootWebModule = False
+			nodeManager = self._nodeManager
+			if webModule is not None and nodeManager is not None:
+				# The NodeManager notifies its updates only when the document changes:
+				# Have the RuleManager of a WebModule (re)loaded meanwhile updated now,
+				# eg. after a WebModule has been reset, or it would remain not ready.
+				from .webAppScheduler import scheduler
+				scheduler.send(eventName="nodeManagerUpdated", nodeManager=nodeManager)
 		return webModule
+
+	@property
+	def loadedRootWebModule(self):
+		"""The root WebModule, if already loaded. Never loads it.
+
+		To be used from the scheduler thread, where the root WebModule cannot be
+		loaded as the URL and window title are retrieved through COM objects bound
+		to the main thread.
+		"""
+		from . import webAccessEnabled
+		if not webAccessEnabled or not self.treeInterceptor:
+			return None
+		return self._rootWebModule
 	
 	@property
 	@logException

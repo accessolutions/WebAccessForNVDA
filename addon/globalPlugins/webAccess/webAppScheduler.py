@@ -142,13 +142,17 @@ class WebAppScheduler(threading.Thread):
 			nodeManager
 			and nodeManager.treeInterceptor
 			and isinstance(nodeManager.treeInterceptor, WebAccessBmdti)
-			and nodeManager.treeInterceptor.webAccess.rootWebModule
 		):
 			return
-		# Re-check: The WebModule might have been reset or disabled meanwhile
-		ruleManager = nodeManager.treeInterceptor.webAccess.rootRuleManager
+		# Do not load the root WebModule from this thread: Its URL and window title
+		# are retrieved through COM objects bound to the main thread, hence it would
+		# not be found. Once loaded from the main thread, this event is sent again.
+		webModule = nodeManager.treeInterceptor.webAccess.loadedRootWebModule
+		if webModule is None:
+			return
+		ruleManager = webModule.ruleManager
 		if ruleManager is not None:
-			ruleManager.update(nodeManager)
+			ruleManager.rootRuleManager.update(nodeManager)
 
 	def event_ruleManagerUpdated(self, ruleManager):
 		# Doesn't work outside of the main thread for Google Chrome 83
