@@ -31,10 +31,9 @@ import addonHandler
 import gui
 from logHandler import log
 
-from ...ruleHandler import ruleTypes
+from ...ruleHandler.properties import normalizeRuleData
 from ... import webModuleHandler
-from ...utils import updateOrDrop
-from .properties import Properties
+from .. import ValidationError
 
 from collections.abc import Mapping
 
@@ -121,17 +120,10 @@ Do you want to proceed anyway?
 	#    the different types,
 	#  - in the panel's doSave because the Rule Type might have been changed
 	#    without even instantiating any other panel.
-	cnts = [data] + [crit for crit in data.get("criteria", tuple())]
-	for cnt in cnts:
-		if data["type"] not in ruleTypes.ACTION_TYPES or not cnt.get("gestures"):
-			cnt.pop("gestures", None)
-		updateOrDrop(
-			cnt,
-			"properties",
-			Properties(context, cnt.get("properties", {}), iterOnlyFirstMap=True).dump(),
-			{}
-		)
-	
+	# Criteria (alternative) level properties must be compared to the Rule level ones,
+	# not to the defaults, or falsy overrides (eg. "No action") would be lost.
+	normalizeRuleData(data)
+
 	mgr = context["webModule"].ruleManager
 	if context.get("new"):
 		layerName = None
