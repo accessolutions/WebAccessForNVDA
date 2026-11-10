@@ -75,7 +75,7 @@ from scriptHandler import script
 import ui
 import virtualBuffers
 
-from . import overlay, webModuleHandler
+from . import overlay, profiles, webModuleHandler
 from .webAppLib import playWebAccessSound, sleep
 from .webAppScheduler import WebAppScheduler
 
@@ -90,7 +90,7 @@ TRACE = lambda *args, **kwargs: None  # @UnusedVariable
 #TRACE = log.info
 
 
-# Currently dead code, but will likely be revived for issue #17.
+# Never set, kept for backward compatibility.
 activeWebModule = None
 
 webAccessEnabled = True
@@ -143,6 +143,8 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 		global scheduler
 		scheduler = WebAppScheduler()
 		scheduler.start()
+
+		profiles.initialize()
 
 		eventHandler._EventExecuter.gen = eventExecuter_gen
 		VirtualBuffer_changeNotify.super = virtualBuffers.VirtualBuffer.changeNotify
@@ -264,12 +266,31 @@ In your user configuration folder:
 		)
 
 	def terminate(self):
+		try:
+			profiles.terminate()
+		except Exception:
+			log.exception()
 		scheduler.send(eventName="stop")
 		webModuleHandler.terminate()
 		from .config import terminate as config_terminate
 		config_terminate()
 		from .gui.settings import terminate as settings_terminate
 		settings_terminate()
+
+	# Apply profiles before the new focus is reported, as NVDA does for the application
+	# profile. See `profiles.ProfileManager.onFocusChanging`.
+
+	def event_foreground(self, obj, nextHandler):
+		profiles.onFocusChanging()
+		nextHandler()
+
+	def event_focusEntered(self, obj, nextHandler):
+		profiles.onFocusChanging()
+		nextHandler()
+
+	def event_gainFocus(self, obj, nextHandler):
+		profiles.onFocusChanging()
+		nextHandler()
 
 	def chooseNVDAObjectOverlayClasses(self, obj, clsList):
 		if any(
@@ -385,6 +406,7 @@ In your user configuration folder:
 		else:
 			webAccessEnabled = True
 			ui.message(_("Web Access support enabled."))  # FR: u"Support Web Access activé."
+		profiles.requestUpdate()
 
 
 def getActiveWebModule():
@@ -437,12 +459,7 @@ def eventExecuter_gen(self, eventName, obj):
 
 	# WebModule level.
 	webModule = obj.webAccess.webModule if isinstance(obj, overlay.WebAccessObject) else None
-	if webModule is None:
-		# Currently dead code, but will likely be revived for issue #17.
-		if activeWebModule is not None and obj.hasFocus:
-			#log.info("Disabling active webApp event %s" % eventName)
-			webAppLoseFocus(obj)
-	else:
+	if webModule is not None:
 		# log.info("Getting method %s -> %s" %(webApp.name, funcName))
 		func = getattr(webModule, funcName, None)
 		if func:

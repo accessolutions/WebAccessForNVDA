@@ -29,6 +29,8 @@ __author__ = (
 )
 
 
+from collections import OrderedDict
+from copy import deepcopy
 import itertools
 import os
 from typing import Any
@@ -44,6 +46,7 @@ from gui import guiHelper
 from logHandler import log
 import ui
 
+from ... import profiles
 from ...utils import guarded
 from ...webModuleHandler import WebModule, getEditableWebModule, getUrl, getWindowTitle, save, store
 from .. import ContextualDialog, showContextualDialog
@@ -127,6 +130,46 @@ class Dialog(ContextualDialog):
 
 		row += 1
 		# Translators: The label for a field in the WebModule editor
+		item = wx.StaticText(self, label=_("Configuration profile:"))
+		gbSizer.Add(item, pos=(row, 0))
+		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
+		item = self.webModuleProfile = wx.Choice(self)
+		gbSizer.Add(item, pos=(row, 2), flag=wx.EXPAND)
+
+		row += 1
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(row, 0))
+
+		row += 1
+		# Translators: The label for a field in the WebModule editor
+		item = wx.StaticText(self, label=_("Embedded profiles:"))
+		gbSizer.Add(item, pos=(row, 0))
+		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
+		sizer = wx.BoxSizer(wx.HORIZONTAL)
+		item = self.embeddedProfiles = wx.ListBox(self)
+		item.Bind(wx.EVT_LISTBOX, lambda evt: self.updateEmbeddedProfilesButtons())
+		sizer.Add(item, proportion=1, flag=wx.EXPAND)
+		sizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0))
+		buttons = guiHelper.ButtonHelper(wx.VERTICAL)
+		# Translators: A button in the WebModule editor
+		item = self.newEmbeddedProfileButton = buttons.addButton(self, label=_("&New..."))
+		item.Bind(wx.EVT_BUTTON, self.onNewEmbeddedProfile)
+		# Translators: A button in the WebModule editor
+		item = self.renameEmbeddedProfileButton = buttons.addButton(self, label=_("&Rename..."))
+		item.Bind(wx.EVT_BUTTON, self.onRenameEmbeddedProfile)
+		# Translators: A button in the WebModule editor
+		item = self.deleteEmbeddedProfileButton = buttons.addButton(self, label=_("&Delete"))
+		item.Bind(wx.EVT_BUTTON, self.onDeleteEmbeddedProfile)
+		# Translators: A button in the WebModule editor
+		item = self.editEmbeddedProfileButton = buttons.addButton(self, label=_("Save and &edit settings..."))
+		item.Bind(wx.EVT_BUTTON, self.onEditEmbeddedProfile)
+		sizer.Add(buttons.sizer)
+		gbSizer.Add(sizer, pos=(row, 2), flag=wx.EXPAND)
+
+		row += 1
+		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_VERTICAL), pos=(row, 0))
+
+		row += 1
+		# Translators: The label for a field in the WebModule editor
 		item = wx.StaticText(self, label=_("Help (in Markdown):"))
 		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
@@ -142,7 +185,7 @@ class Dialog(ContextualDialog):
 			border=scale(guiHelper.BORDER_FOR_DIALOGS),
 		)
 		self.Bind(wx.EVT_BUTTON, self.onOk, id=wx.ID_OK)
-		self.SetSize(scale(790, 400))
+		self.SetSize(scale(790, 560))
 		self.SetSizer(mainSizer)
 		self.CentreOnScreen()
 		self.webModuleName.SetFocus()
@@ -150,12 +193,20 @@ class Dialog(ContextualDialog):
 	def getData(self) -> Mapping[str, Any]:
 		return self.context["data"]["webModule"]
 	
+	def getProfilesData(self) -> Mapping[str, Any]:
+		return self.context["data"]["profiles"]
+	
 	def initData(self, context):
 		super().initData(context)
 		data = context.setdefault("data", {}).setdefault("webModule", {})
+		profilesData = context["data"].setdefault("profiles", OrderedDict())
+		self.editEmbeddedProfileKey = None
+		self.lockedEmbeddedProfileKeys = set()
 		if not context.get("new"):
 			webModule = context.get("webModule")
 			data.update(webModule.dump(webModule.layers[-1].name).data["WebModule"])
+			# Might be defined in a lower layer
+			data["profile"] = webModule.configProfile or None
 			# Could not have been saved without triggers from this editor unless invoked
 			# from the Rule or Criteria editor.
 			subModule = data["subModule"] = not (data.get("url") or data.get("windowTitle"))
@@ -163,6 +214,19 @@ class Dialog(ContextualDialog):
 			title = _("Edit Web Module")
 			if config.conf["webAccess"]["devMode"]:
 				title += " ({})".format("/".join((layer.name for layer in webModule.layers)))
+			for key in webModule.getProfileKeys():
+				profilesData.setdefault(key, deepcopy(webModule.getProfileData(key)))
+			try:
+				writableLayer = webModule.getWritableLayer()
+			except LookupError:
+				writableLayer = None
+			# Keys defined in other layers cannot be renamed or deleted from this one
+			self.lockedEmbeddedProfileKeys = {
+				key
+				for layer in webModule.layers
+				if layer is not writableLayer
+				for key in layer.data.get("Profiles", {})
+			}
 		else:
 			subModule = data.get("subModule", False)
 			# Translators: Web module creation dialog title
@@ -252,12 +316,190 @@ class Dialog(ContextualDialog):
 			item.Value = ""
 
 		self.help.Value = data.get("help", "")
+
+		self.editEmbeddedProfileButton.Show(self.Parent is gui.mainFrame)
+		self.updateProfiles()
 	
 	def updateData(self):
 		data = self.getData()
 		data["name"] = self.webModuleName.Value.strip()
 		data["url"] = [url.strip() for url in self.webModuleUrl.Value.split(",") if url.strip()]
 		data["windowTitle"] = self.webModuleWindowTitle.Value.strip()
+		data["profile"] = self.getSelectedProfile()
+	
+	def getSelectedProfile(self) -> str | None:
+		index = self.webModuleProfile.Selection
+		if index == wx.NOT_FOUND:
+			return None
+		return self.profileChoices[index]
+	
+	def getSelectedEmbeddedProfileKey(self) -> str | None:
+		index = self.embeddedProfiles.Selection
+		if index == wx.NOT_FOUND:
+			return None
+		return tuple(self.getProfilesData())[index]
+	
+	def updateProfiles(self, selectKey=None):
+		"""Refresh the profile controls from `data["profile"]` and the embedded profiles data.
+		"""
+		profilesData = self.getProfilesData()
+		selected = self.getData().get("profile")
+		choices = profiles.getProfileChoices(profilesData)
+		if selected and selected not in choices:
+			choices[selected] = f"*{selected}"
+		# Translators: The choice for no configuration profile in the WebModule editor
+		labels = [pgettext("webAccess.profile", "None")] + list(choices.values())
+		self.profileChoices = [None] + list(choices)
+		self.webModuleProfile.SetItems(labels)
+		self.webModuleProfile.Selection = self.profileChoices.index(selected or None)
+		keys = tuple(profilesData)
+		self.embeddedProfiles.SetItems([
+			# Translators: An embedded profile defined in a read-only layer, in the WebModule editor
+			_("{name} (inherited)").format(name=key) if key in self.lockedEmbeddedProfileKeys else key
+			for key in keys
+		])
+		if selectKey is not None:
+			self.embeddedProfiles.Selection = keys.index(selectKey)
+		elif keys and self.embeddedProfiles.Selection == wx.NOT_FOUND:
+			self.embeddedProfiles.Selection = 0
+		self.updateEmbeddedProfilesButtons()
+	
+	def updateEmbeddedProfilesButtons(self):
+		key = self.getSelectedEmbeddedProfileKey()
+		unlocked = key is not None and key not in self.lockedEmbeddedProfileKeys
+		self.renameEmbeddedProfileButton.Enable(unlocked)
+		self.deleteEmbeddedProfileButton.Enable(unlocked)
+		self.editEmbeddedProfileButton.Enable(key is not None)
+	
+	def countProfileReferences(self, key: str) -> int:
+		"""The number of rules of the edited WebModule referencing the given profile.
+		"""
+		webModule = self.context.get("webModule")
+		if self.context.get("new") or webModule is None:
+			return 0
+		count = 0
+		for rule in webModule.ruleManager.getRules():
+			if rule.properties.profile == key or any(
+				criteria.properties.dump().get("profile") == key
+				for criteria in rule.criteria
+			):
+				count += 1
+		return count
+
+	def confirmProfileReferences(self, key: str) -> bool:
+		count = self.countProfileReferences(key)
+		if not count:
+			return True
+		return gui.messageBox(
+			# Translators: A warning in the WebModule editor
+			_(
+				"{count} rule(s) reference the embedded profile {name}. "
+				"They will not be updated. Do you want to continue?"
+			).format(count=count, name=key),
+			# Translators: The title of a warning dialog
+			_("Warning"),
+			wx.YES_NO | wx.ICON_WARNING,
+			self,
+		) == wx.YES
+
+	def promptEmbeddedProfileKey(self, title, value=""):
+		original = value
+		while True:
+			with wx.TextEntryDialog(
+				self,
+				# Translators: The label of a field in the dialog to name an embedded profile
+				_("Profile name:"),
+				title,
+				value=value,
+			) as dlg:
+				if dlg.ShowModal() != wx.ID_OK:
+					return None
+				key = dlg.Value.strip()
+			if not key:
+				continue
+			if original and key == original:
+				return None
+			if key in self.getProfilesData():
+				gui.messageBox(
+					# Translators: An error message in the WebModule editor
+					_("An embedded profile with this name already exists."),
+					_("Error"),
+					wx.OK | wx.ICON_ERROR,
+					self,
+				)
+				value = key
+				continue
+			if key in config.conf.listProfiles() and gui.messageBox(
+				# Translators: A warning in the WebModule editor
+				_(
+					"An NVDA profile with this name exists. "
+					"The embedded profile will take precedence. Do you want to continue?"
+				),
+				# Translators: The title of a warning dialog
+				_("Warning"),
+				wx.YES_NO | wx.ICON_WARNING,
+				self,
+			) != wx.YES:
+				value = key
+				continue
+			return key
+	
+	def onNewEmbeddedProfile(self, evt):
+		self.getData()["profile"] = self.getSelectedProfile()
+		# Translators: The title of the dialog to create an embedded profile
+		key = self.promptEmbeddedProfileKey(_("New embedded profile"))
+		if key is None:
+			return
+		self.getProfilesData()[key] = OrderedDict()
+		self.updateProfiles(selectKey=key)
+		self.embeddedProfiles.SetFocus()
+	
+	def onRenameEmbeddedProfile(self, evt):
+		oldKey = self.getSelectedEmbeddedProfileKey()
+		# Translators: The title of the dialog to rename an embedded profile
+		newKey = self.promptEmbeddedProfileKey(_("Rename embedded profile"), value=oldKey)
+		if newKey is None or not self.confirmProfileReferences(oldKey):
+			return
+		self.context["data"]["profiles"] = OrderedDict(
+			(newKey if key == oldKey else key, value)
+			for key, value in self.getProfilesData().items()
+		)
+		data = self.getData()
+		data["profile"] = self.getSelectedProfile()
+		if data["profile"] == oldKey:
+			data["profile"] = newKey
+		self.updateProfiles(selectKey=newKey)
+		self.embeddedProfiles.SetFocus()
+	
+	def onDeleteEmbeddedProfile(self, evt):
+		key = self.getSelectedEmbeddedProfileKey()
+		if not self.confirmProfileReferences(key):
+			return
+		if gui.messageBox(
+			# Translators: A confirmation prompt in the WebModule editor
+			_("Are you sure you want to delete the embedded profile {name}?").format(name=key),
+			# Translators: The title of a confirmation prompt
+			_("Confirm Deletion"),
+			wx.YES_NO | wx.ICON_QUESTION,
+			self,
+		) != wx.YES:
+			return
+		del self.getProfilesData()[key]
+		data = self.getData()
+		data["profile"] = self.getSelectedProfile()
+		if data["profile"] == key:
+			data["profile"] = None
+		self.embeddedProfiles.Selection = wx.NOT_FOUND
+		self.updateProfiles()
+		self.embeddedProfiles.SetFocus()
+	
+	def onEditEmbeddedProfile(self, evt):
+		self.editEmbeddedProfileKey = self.getSelectedEmbeddedProfileKey()
+		try:
+			self.onOk(evt)
+		finally:
+			if self.GetReturnCode() != wx.ID_OK:
+				self.editEmbeddedProfileKey = None
 	
 	@guarded
 	def onOk(self, evt):
@@ -302,12 +544,24 @@ class Dialog(ContextualDialog):
 		webModule.url = url
 		webModule.windowTitle = windowTitle
 		webModule.help = help
+		if (webModule.configProfile or None) != data["profile"]:
+			# An empty string overrides a profile defined in a lower layer.
+			webModule.configProfile = data["profile"] or ""
+		profilesData = self.getProfilesData()
+		for key in webModule.getProfileKeys():
+			if key not in profilesData and key not in self.lockedEmbeddedProfileKeys:
+				webModule.deleteProfileData(key)
+		for key, value in profilesData.items():
+			if webModule.getProfileData(key) != value:
+				webModule.setProfileData(key, deepcopy(value))
 
 		if not save(webModule, prompt=self.Title):
 			return
 		context["webModule"] = webModule
 		self.DestroyLater()
 		self.SetReturnCode(wx.ID_OK)
+		if self.editEmbeddedProfileKey is not None:
+			wx.CallAfter(profiles.editEmbeddedProfile, webModule, self.editEmbeddedProfileKey)
 
 
 def show(context, parent=None):

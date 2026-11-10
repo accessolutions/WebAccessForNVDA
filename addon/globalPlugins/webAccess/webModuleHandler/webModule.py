@@ -30,6 +30,7 @@ __authors__ = (
 
 
 from collections import OrderedDict
+from copy import deepcopy
 import datetime
 import json
 import os
@@ -51,11 +52,35 @@ from ..lib.packaging import version
 from ..webAppLib import playWebAccessSound
 
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 
 class InvalidApiVersion(version.InvalidVersion):
 	pass
+
+
+def _mergeProfileData(base: Mapping[str, Any], override: Mapping[str, Any]) -> dict[str, Any]:
+	merged = deepcopy(dict(base))
+	for key, value in override.items():
+		if isinstance(value, Mapping) and isinstance(merged.get(key), Mapping):
+			merged[key] = _mergeProfileData(merged[key], value)
+		else:
+			merged[key] = deepcopy(value)
+	return merged
+
+
+def _diffProfileData(data: Mapping[str, Any], base: Mapping[str, Any]) -> dict[str, Any]:
+	diff = {}
+	for key, value in data.items():
+		baseValue = base.get(key)
+		if isinstance(value, Mapping) and isinstance(baseValue, Mapping):
+			subDiff = _diffProfileData(value, baseValue)
+			if subDiff:
+				diff[key] = subDiff
+		elif key not in base or value != baseValue:
+			diff[key] = deepcopy(value)
+	return diff
 
 
 class WebModuleDataLayer(baseObject.AutoPropertyObject):
@@ -95,11 +120,13 @@ class WebModuleDataLayer(baseObject.AutoPropertyObject):
 
 class WebModule(baseObject.ScriptableObject):
 
-	API_VERSION = version.parse("0.7")
+	API_VERSION = version.parse("0.8")
 	"""The version of the Python API offered to custom WebModules.
 	
 	Bump the minor version upon each addition, so that custom WebModules can declare
 	the version they rely on, and are cleanly refused by older versions of this add-on.
+	
+	0.8: Introduces configuration profiles.
 	"""
 	MIN_API_VERSION = version.parse("0.7")
 	"""The oldest version still supported by custom WebModules.
@@ -107,7 +134,7 @@ class WebModule(baseObject.ScriptableObject):
 	Raise only upon a breaking change of the API.
 	"""
 
-	FORMAT_VERSION_STR = "0.12-dev"
+	FORMAT_VERSION_STR = "0.13-dev"
 	FORMAT_VERSION = version.parse(FORMAT_VERSION_STR)
 
 	def __init__(self):
@@ -136,6 +163,16 @@ class WebModule(baseObject.ScriptableObject):
 		self._setLayeredProperty("name", value)
 
 	_cache_pageTitle = False
+
+	def _get_configProfile(self):
+		"""The profile activated along with this WebModule.
+
+		Stored as "profile" in the JSON data.
+		"""
+		return self._getLayeredProperty("profile")
+
+	def _set_configProfile(self, value):
+		self._setLayeredProperty("profile", value)
 
 	def _get_pageTitle(self):
 		title = self.activePageTitle
@@ -219,6 +256,80 @@ class WebModule(baseObject.ScriptableObject):
 				return False
 		return True
 
+	def getProfileKeys(self) -> list[str]:
+		"""The keys of the profiles embedded in this WebModule, across all layers.
+		"""
+		keys = []
+		for layer in self.layers:
+			for key in layer.data.get("Profiles", {}):
+				if key not in keys:
+					keys.append(key)
+		return keys
+
+	def getProfileData(self, key: str, layers: Sequence[WebModuleDataLayer] | None = None) -> dict[str, Any] | None:
+		"""The configuration of an embedded profile, merged across the given, or all, layers.
+
+		Each layer only stores its differences with the layers below.
+		"""
+		merged = None
+		for layer in self.layers if layers is None else layers:
+			data = layer.data.get("Profiles", {}).get(key)
+			if data is not None:
+				merged = _mergeProfileData(merged or {}, data)
+		return merged
+
+	def setProfileData(self, key: str, data: Mapping[str, Any]) -> None:
+		"""Store in the writable layer the differences with the layers below.
+		"""
+		layer = self.getWritableLayer()
+		base = self.getProfileData(key, layers=self.layers[:self.layers.index(layer)]) or {}
+		diff = _diffProfileData(data, base)
+		profiles = layer.data.setdefault("Profiles", OrderedDict())
+		if profiles.get(key) != diff:
+			profiles[key] = diff
+			layer.dirty = True
+
+	def deleteProfileData(self, key: str) -> None:
+		"""Delete an embedded profile from the writable layer.
+
+		Raises `LookupError` if it is not defined in this layer.
+		"""
+		layer = self.getWritableLayer()
+		del layer.data.get("Profiles", {})[key]
+		layer.dirty = True
+
+	def getProfiles(self, context: "ProfileContext") -> Sequence[str]:
+		"""Override to activate profiles depending on the given context.
+
+		Returns profile references, either keys of profiles embedded in this WebModule
+		or names of NVDA profiles, from the lowest to the highest priority.
+
+		When overridden, it is called upon each focus change and caret movement
+		while this WebModule is active. Calling `pushProfile` or `requestProfileUpdate`
+		from it has no effect.
+		"""
+		return ()
+
+	def pushProfile(self, ref: str) -> "ProfileHandle":
+		"""Activate a profile while this WebModule is active, until the returned handle is released.
+
+		The handle can be used as a context manager:
+			with self.pushProfile("myProfile"):
+				...
+
+		The profile is applied right away. Note that speech queued meanwhile might be spoken
+		after it is released.
+		"""
+		from .. import profiles
+		return profiles.pushProfile(self, ref)
+
+	def requestProfileUpdate(self) -> None:
+		"""Request the profiles to be resolved again, eg. when `getProfiles` would return a
+		different result.
+		"""
+		from .. import profiles
+		profiles.requestUpdate()
+
 	def isReadOnly(self):
 		try:
 			return not bool(self.getWritableLayer())
@@ -286,7 +397,10 @@ class WebModule(baseObject.ScriptableObject):
 		del self.layers[index]
 
 	def terminate(self):
+		from .. import profiles
+		profiles.releaseProfiles(self)
 		self.ruleManager.terminate()
+		profiles.requestUpdate()
 
 	def _getLayeredProperty(self, name, startLayerIndex=-1, raiseIfMissing=False):
 		for index, layer in list(enumerate(self.layers))[startLayerIndex::-1]:
@@ -322,12 +436,10 @@ class WebModule(baseObject.ScriptableObject):
 		playWebAccessSound("pageChanged")
 		speech.speakMessage(pageTitle)
 
-	# Currently dead code, but will likely be revived for issue #17
 	def event_webModule_gainFocus(self, obj, nextHandler):
 		if obj.role not in [controlTypes.Role.DOCUMENT, controlTypes.Role.FRAME, controlTypes.Role.INTERNALFRAME]:
 			nextHandler()
 
-	# Currently dead code, but will likely be revived for issue #17
 	def event_focusEntered(self, obj, nextHandler):
 		if obj.role != controlTypes.Role.DOCUMENT:
 			nextHandler()
