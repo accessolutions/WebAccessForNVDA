@@ -216,6 +216,7 @@ def normalizeRuleData(data: dict[str, Any]) -> None:
 	"""Normalize, in place, the properties and gestures of serialized rule data.
 
 	 - Properties and gestures not supported for the rule type are dropped.
+	 - The default alternatives mode ("first") is dropped.
 	 - Rule level properties equal to their default value are dropped.
 	 - Criteria (alternative) level properties are kept as long as they differ
 	   from the value they would otherwise inherit from the Rule level.
@@ -246,6 +247,8 @@ def normalizeRuleData(data: dict[str, Any]) -> None:
 			container.pop("properties", None)
 		return props
 
+	if data.get("alternativesMode", "first") == "first":
+		data.pop("alternativesMode", None)
 	normalizeGestures(data)
 	ruleProps = normalizeProperties(data, DEFAULT_VALUES)
 	inherited = ChainMap(ruleProps, DEFAULT_VALUES)

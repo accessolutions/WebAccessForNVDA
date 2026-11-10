@@ -68,6 +68,7 @@ from ..webAppLib import (
 )
 from .. import webAppScheduler
 from . import ruleTypes
+from .alternatives import AlternativesMode, mergeResults
 from .references import (
 	Reference,
 	buildDependencyGraph,
@@ -1910,6 +1911,7 @@ class Rule(ScriptableObject):
 		self._computingResults = False
 		self.inReferenceCycle = False
 		"""Whether this rule refers to itself, directly or not (see `RuleManager._updateReferenceCycles`)."""
+		self.alternativesMode = AlternativesMode.FIRST
 		self.properties = RuleProperties(self)
 		self.load(data)
 
@@ -1942,6 +1944,7 @@ class Rule(ScriptableObject):
 			items = data["criteria"] = []
 			for criteria in self.criteria:
 				items.append(criteria.dump())
+		setIfNotDefault("alternativesMode", self.alternativesMode.value, AlternativesMode.FIRST.value)
 		setIfNotDefault("properties", self.properties.dump(), {})
 
 		return data
@@ -1952,6 +1955,9 @@ class Rule(ScriptableObject):
 		self.type = data.pop("type")
 		self.comment = data.pop("comment", None)
 		self.criteria = [Criteria(self, criteria) for criteria in data.pop("criteria", [])]
+		self.alternativesMode = AlternativesMode(
+			data.pop("alternativesMode", AlternativesMode.FIRST.value)
+		)
 		self.gestures = {
 			gestureId: (GestureScope(scopeName), action)
 			for gestureId, (scopeName, action)
@@ -2024,7 +2030,17 @@ class Rule(ScriptableObject):
 		return self._results
 
 	def _getResults(self):
-		t = logTimeStart()
+		if self.alternativesMode is AlternativesMode.ALL:
+			results = mergeResults(
+				result
+				for criteria in self.criteria
+				for result in criteria.iterResults()
+			)
+			# The index of a Result is its position among the Results of its Rule
+			# (used to identify zones and sub-modules across updates)
+			for index, result in enumerate(results):
+				result.index = index
+			return results
 		for criteria in self.criteria:
 			results = list(criteria.iterResults())
 			if results:
