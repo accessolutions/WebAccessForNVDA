@@ -1080,25 +1080,33 @@ class CriteriaPanel(CriteriaEditorPanel):
 		"""The reference cycle the edited rule would take part in once saved, if any."""
 		context = self.context
 		mgr = self.getRuleManager()
-		critData = context["data"]["criteria"]
 		ruleData = deepcopy(context["data"]["rule"])
-		alternatives = ruleData.setdefault("criteria", [])
-		alternative = {k: v for k, v in critData.items() if k not in ("new", "criteriaIndex")}
-		# New alternatives are given the index they will be inserted at
-		index = critData.get("criteriaIndex")
-		if index is None or index >= len(alternatives):
-			alternatives.append(alternative)
+		critData = context["data"].get("criteria")
+		if critData is None:
+			# Simple mode of the Rule editor (`SimpleSingleNodeCriteriaPanel`):
+			# The sole alternative is edited in place, within the rule data,
+			# and `context["new"]` tells whether the rule is new.
+			ruleIsNew = bool(context.get("new"))
 		else:
-			alternatives[index] = alternative
+			# Criteria editor: The edited alternative is apart from the rule data,
+			# and `context["new"]` tells whether the alternative is new, not the rule.
+			ruleIsNew = context.get("ruleIsNew")
+			alternatives = ruleData.setdefault("criteria", [])
+			alternative = {k: v for k, v in critData.items() if k not in ("new", "criteriaIndex")}
+			# New alternatives are given the index they will be inserted at
+			index = critData.get("criteriaIndex")
+			if index is None or index >= len(alternatives):
+				alternatives.append(alternative)
+			else:
+				alternatives[index] = alternative
 		rulesData = {
 			name: rule.dump()
 			for name, rule in ((name, mgr.resolveRule(name)) for name in mgr._rules)
 			if rule is not None
 		}
-		# Here, `context["new"]` tells whether the alternative is new, not the rule
-		# (see `ruleIsNew`), and `context["rule"]` might be stale for a new rule.
+		# `context["rule"]` might be stale for a new rule.
 		rule = context.get("rule")
-		oldName = rule.name if rule is not None and context.get("ruleIsNew") is False else None
+		oldName = rule.name if rule is not None and ruleIsNew is False else None
 		return findCyclePathIfSaved(rulesData, ruleData.get("name"), ruleData, oldName=oldName)
 	
 	def isValid_others(self):
