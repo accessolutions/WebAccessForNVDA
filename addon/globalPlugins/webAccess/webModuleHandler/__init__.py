@@ -421,7 +421,7 @@ def getWebModuleFactory(name):
 	log.debug(f"apiVersion (str): {apiVersion!r}")
 	apiVersion = version.parse(apiVersion or "")
 	log.debug(f"apiVersion (obj): {apiVersion!r} ({apiVersion})")
-	if apiVersion != WebModule.API_VERSION:
+	if not (WebModule.MIN_API_VERSION <= apiVersion <= WebModule.API_VERSION):
 		raise InvalidApiVersion(apiVersion)
 	ctor = getattr(mod, "WebModule", None)
 	if ctor is None:
