@@ -202,6 +202,23 @@ class SizeFrugalComboBox(wx.ComboBox):
 		return wx.Size(0, size.Height)
 
 
+class SummaryTextCtrl(wx.TextCtrl):
+	"""A read-only multi-line text field presenting a summary.
+	
+	Its height does not follow its content: It scrolls instead.
+	An auto-sizing height (as `wx.lib.expando.ExpandoTextCtrl`) is prone to an endless layout loop
+	within a scrolled panel: A height change toggles a scrollbar, which changes the width, hence the
+	number of wrapped lines, hence the height, and so on. Each round trip posts window messages until
+	the message queue quota is exhausted (`WinError 1816`), leaving NVDA unresponsive.
+	"""
+	
+	MIN_LINES = 5
+	
+	def __init__(self, parent):
+		super().__init__(parent, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH)
+		self.SetMinSize((-1, self.GetCharHeight() * self.MIN_LINES))
+
+
 class ValidationError(Exception):
 	pass
 
@@ -311,6 +328,24 @@ class FillableMultiCategorySettingsDialog(MultiCategorySettingsDialog, ScalingMi
 	"""
 	
 	onCategoryChange = guarded(MultiCategorySettingsDialog.onCategoryChange)
+	
+	_panelLayoutPending = False
+	
+	def _onPanelLayoutChanged(self, evt):
+		# Change to the original implementation: Coalesce layout requests.
+		# The original implementation calls `SetupScrolling` synchronously, which posts a window message
+		# through `wx.CallAfter`. A burst (or an endless cycle) of layout requests would then flood the
+		# message queue until its quota is exhausted (`WinError 1816`), leaving NVDA unresponsive.
+		if self._panelLayoutPending:
+			return
+		self._panelLayoutPending = True
+		wx.CallAfter(self._doPanelLayout, evt)
+	
+	def _doPanelLayout(self, evt):
+		self._panelLayoutPending = False
+		if not self:  # The dialog has been destroyed meanwhile
+			return
+		super()._onPanelLayoutChanged(evt)
 	
 	def _getCategoryPanel(self, catId):
 		# Changes to the original implementation:

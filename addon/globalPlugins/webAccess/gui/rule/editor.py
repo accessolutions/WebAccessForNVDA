@@ -37,7 +37,6 @@ from enum import Enum
 from functools import partial
 from typing import Any
 import wx
-from wx.lib.expando import EVT_ETC_LAYOUT_NEEDED, ExpandoTextCtrl
 
 import addonHandler
 import config
@@ -61,6 +60,7 @@ from .. import (
 	Change,
 	ContextualSettingsPanel,
 	SingleFieldEditorPanelBase,
+	SummaryTextCtrl,
 	TreeContextualPanel,
 	TreeMultiCategorySettingsDialog,
 	TreeNodeInfo,
@@ -237,9 +237,9 @@ class GeneralPanel(RuleEditorTreeContextualPanel):
 		item = wx.StaticText(self, label=_("Summar&y:"))
 		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-		item = self.summaryText = ExpandoTextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH)
-		item.Bind(EVT_ETC_LAYOUT_NEEDED, lambda evt: self._sendLayoutUpdatedEvent())
+		item = self.summaryText = SummaryTextCtrl(self)
 		gbSizer.Add(item, pos=(row, 2), span=(2, 1), flag=wx.EXPAND)
+		gbSizer.AddGrowableRow(row + 1)
 
 		row += 2
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
@@ -469,9 +469,9 @@ class AlternativesPanel(RuleEditorTreeContextualPanel):
 		item = wx.StaticText(self, label=_("Summar&y:"))
 		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL), pos=(row, 1))
-		item = self.summaryText = ExpandoTextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH)
-		item.Bind(EVT_ETC_LAYOUT_NEEDED, lambda evt: self._sendLayoutUpdatedEvent())
+		item = self.summaryText = SummaryTextCtrl(self)
 		gbSizer.Add(item, pos=(row, 2), span=(2, 1), flag=wx.EXPAND)
+		gbSizer.AddGrowableRow(row + 1)
 		
 		row += 2
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
@@ -831,9 +831,9 @@ class AlternativeChildPanel(AlternativesPanel):
 		
 		row += 1
 		summaryStartRow = row
-		item = self.summaryText = ExpandoTextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH)
-		item.Bind(EVT_ETC_LAYOUT_NEEDED, lambda evt: self._sendLayoutUpdatedEvent())
+		item = self.summaryText = SummaryTextCtrl(self)
 		gbSizer.Add(item, pos=(row, 0), span=(5, 1), flag=wx.EXPAND)
+		gbSizer.AddGrowableRow(row + 4)
 		
 		row += 5
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
