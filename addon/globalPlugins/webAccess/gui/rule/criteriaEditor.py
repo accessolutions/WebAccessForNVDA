@@ -35,7 +35,6 @@ from copy import deepcopy
 import re
 from typing import Any
 import wx
-from wx.lib.expando import EVT_ETC_LAYOUT_NEEDED, ExpandoTextCtrl
 
 import controlTypes
 import inputCore
@@ -57,6 +56,7 @@ from .. import (
 	EditorType,
 	InvalidValue,
 	SizeFrugalComboBox,
+	SummaryTextCtrl,
 	ValidationError,
 	stripAccel,
 	showContextualDialog,
@@ -410,9 +410,9 @@ class GeneralPanel(CriteriaEditorPanel):
 		item = wx.StaticText(self, label=_("Summar&y:"))
 		gbSizer.Add(item, pos=(row, 0))
 		gbSizer.Add(scale(guiHelper.SPACE_BETWEEN_ASSOCIATED_CONTROL_HORIZONTAL, 0), pos=(row, 1))
-		item = self.summaryText = ExpandoTextCtrl(self, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH)
-		item.Bind(EVT_ETC_LAYOUT_NEEDED, lambda evt: self._sendLayoutUpdatedEvent())
+		item = self.summaryText = SummaryTextCtrl(self)
 		gbSizer.Add(item, pos=(row, 2), span=(2, 1), flag=wx.EXPAND)
+		gbSizer.AddGrowableRow(row + 1)
 
 		row += 2
 		gbSizer.Add(scale(0, guiHelper.SPACE_BETWEEN_VERTICAL_DIALOG_ITEMS), pos=(row, 0))
