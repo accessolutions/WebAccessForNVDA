@@ -179,20 +179,80 @@ def getWindowTitle(obj):
 			return None
 		if root is not obj:
 			return getWindowTitle(root)
+	res = _getOriginalName(obj)
+	if res:
+		return res
+	# The root has no name. This typically happens when the TreeInterceptor is rooted on an
+	# element with role "application" (or another unnamed container) hosted in a document.
+	# The text of its window is not a meaningful title: With Chromium, it is always
+	# "Chrome Legacy Window". Prefer the name of the hosting document, then the title of the
+	# top-level window.
+	res = _getHostingDocumentName(obj)
+	if res:
+		return res
+	res = _getTopLevelWindowText(obj)
+	if res:
+		return res
+	return getattr(obj, "windowText", None)
+
+
+def _getOriginalName(obj):
+	from ..overlay import WebAccessObject
 	res = None
-	if isinstance(obj, WebAccessObject):
-		res = obj._get_name(original=True)
-	else:
-		res = obj.name
+	try:
+		if isinstance(obj, WebAccessObject):
+			res = obj._get_name(original=True)
+		else:
+			res = obj.name
+	except Exception:
+		pass
 	if res:
 		return res
 	try:
 		res = obj.IAccessibleObject.accName(obj.IAccessibleChildID)
 	except Exception:
 		pass
-	if res:
-		return res
-	return getattr(obj, "windowText", None)
+	return res or None
+
+
+def _getHostingDocumentName(obj, maxDepth=50):
+	"""Return the name of the closest named document among the ancestors of `obj`, if any."""
+	from ..overlay import WebAccessObject
+	try:
+		ancestor = obj.parent
+	except Exception:
+		return None
+	depth = 0
+	while ancestor is not None and depth < maxDepth:
+		try:
+			if isinstance(ancestor, WebAccessObject):
+				role = ancestor._get_role(original=True)
+			else:
+				role = ancestor.role
+			if role == controlTypes.Role.DOCUMENT:
+				res = _getOriginalName(ancestor)
+				if res:
+					return res
+			ancestor = ancestor.parent
+		except Exception:
+			return None
+		depth += 1
+	return None
+
+
+def _getTopLevelWindowText(obj):
+	"""Return the text of the top-level window containing `obj`, if any."""
+	import winUser
+	try:
+		hwnd = obj.windowHandle
+		if not hwnd:
+			return None
+		topLevel = winUser.getAncestor(hwnd, winUser.GA_ROOT)
+		if not topLevel or topLevel == hwnd:
+			return None
+		return winUser.getWindowText(topLevel) or None
+	except Exception:
+		return None
 
 
 def getUrl(obj):
